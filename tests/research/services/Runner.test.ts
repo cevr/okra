@@ -35,6 +35,11 @@ describe("parseResult", () => {
     expect(value).toBe(100);
   });
 
+  test("parses positive sign", () => {
+    const { value } = parseResult("RESULT +12.5\n");
+    expect(value).toBe(12.5);
+  });
+
   test("ignores METRIC format", () => {
     const { value } = parseResult("METRIC 42\n");
     expect(value).toBeUndefined();

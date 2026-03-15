@@ -64,4 +64,123 @@ describe("generatePlist", () => {
     expect(plist).toContain("<key>HOME</key>");
     expect(plist).toContain("<key>PATH</key>");
   });
+
+  test("escapes XML special characters in all fields", () => {
+    const xmlTask = new Task({
+      id: "a&b",
+      prompt: "check <things>",
+      provider: "claude",
+      schedule: {
+        _tag: "Cron",
+        minute: 0,
+        hour: 9,
+        dayOfMonth: "*",
+        month: "*",
+        dayOfWeek: "*",
+        raw: "every day at 9am",
+      },
+      cwd: '/path/with "quotes"',
+      createdAt: "2026-01-01T00:00:00Z",
+      status: "active",
+      runCount: 0,
+    });
+    const plist = generatePlist(
+      xmlTask,
+      "/bin/agent&d",
+      "/Users/te'st",
+      "/logs/a&b.log",
+      "/usr/bin",
+    );
+
+    expect(plist).toContain("okra.schedule-a&amp;b");
+    expect(plist).toContain("/bin/agent&amp;d");
+    expect(plist).toContain("/Users/te&apos;st");
+    expect(plist).toContain("/logs/a&amp;b.log");
+    expect(plist).toContain("/path/with &quot;quotes&quot;");
+  });
+
+  test("generates StartCalendarInterval dict for daily cron", () => {
+    const dailyTask = new Task({
+      id: "daily",
+      prompt: "run",
+      provider: "claude",
+      schedule: {
+        _tag: "Cron",
+        minute: 30,
+        hour: 14,
+        dayOfMonth: "*",
+        month: "*",
+        dayOfWeek: "*",
+        raw: "30 14 * * *",
+      },
+      cwd: "/tmp",
+      createdAt: "2026-01-01T00:00:00Z",
+      status: "active",
+      runCount: 0,
+    });
+    const plist = generatePlist(dailyTask, "/bin/okra", "/Users/test", "/tmp/log", "/usr/bin");
+
+    expect(plist).toContain("<key>StartCalendarInterval</key>");
+    expect(plist).toContain("<key>Minute</key>");
+    expect(plist).toContain("<integer>30</integer>");
+    expect(plist).toContain("<key>Hour</key>");
+    expect(plist).toContain("<integer>14</integer>");
+  });
+
+  test("generates StartCalendarInterval array for weekday range", () => {
+    const weekdayTask = new Task({
+      id: "weekday",
+      prompt: "run",
+      provider: "claude",
+      schedule: {
+        _tag: "Cron",
+        minute: 0,
+        hour: 9,
+        dayOfMonth: "*",
+        month: "*",
+        dayOfWeek: "1-5",
+        raw: "0 9 * * 1-5",
+      },
+      cwd: "/tmp",
+      createdAt: "2026-01-01T00:00:00Z",
+      status: "active",
+      runCount: 0,
+    });
+    const plist = generatePlist(weekdayTask, "/bin/okra", "/Users/test", "/tmp/log", "/usr/bin");
+
+    expect(plist).toContain("<key>StartCalendarInterval</key>");
+    expect(plist).toContain("<array>");
+    // Should have 5 dict entries (Mon-Fri)
+    const dictCount = (plist.match(/<dict>/g) ?? []).length;
+    // 1 root + 1 env + 5 intervals = 7
+    expect(dictCount).toBe(7);
+  });
+
+  test("generates oneshot calendar interval with Month/Day/Hour/Minute", () => {
+    const at = new Date("2024-06-15T10:30:00Z");
+    const oneshotTask = new Task({
+      id: "oneshot",
+      prompt: "run",
+      provider: "claude",
+      schedule: { _tag: "Oneshot", at: at.toISOString(), raw: "in 30 minutes" },
+      cwd: "/tmp",
+      createdAt: "2026-01-01T00:00:00Z",
+      status: "active",
+      runCount: 0,
+    });
+    const plist = generatePlist(oneshotTask, "/bin/okra", "/Users/test", "/tmp/log", "/usr/bin");
+
+    expect(plist).toContain("<key>StartCalendarInterval</key>");
+    expect(plist).toContain("<key>Month</key>");
+    expect(plist).toContain("<key>Day</key>");
+    expect(plist).toContain("<key>Hour</key>");
+    expect(plist).toContain("<key>Minute</key>");
+  });
+
+  test("sets KeepAlive to false", () => {
+    const plist = generatePlist(task, "/bin/okra", "/Users/test", "/tmp/log", "/usr/bin");
+
+    expect(plist).toContain("<key>KeepAlive</key>");
+    expect(plist).toContain("<false/>");
+  });
 });

@@ -17,6 +17,14 @@ describe("AgentPlatform helpers", () => {
     ),
   );
 
+  it.effect("detects Claude from CLAUDE_CODE_ENTRYPOINT fallback", () =>
+    detectSourceFromEnv({ CLAUDE_CODE_ENTRYPOINT: "cli" }).pipe(
+      Effect.map((provider) => {
+        expect(provider).toBe("claude");
+      }),
+    ),
+  );
+
   it.effect("detects Codex from CODEX_THREAD_ID", () =>
     detectSourceFromEnv({ CODEX_THREAD_ID: "thread-123" }).pipe(
       Effect.map((provider) => {
@@ -45,8 +53,11 @@ describe("AgentPlatform helpers", () => {
     Effect.sync(() => {
       const invocation = buildClaudeInvocation("claude", "/tmp/prompt.md", "deep", "/tmp/project");
       expect(invocation.cmd).toBe("claude");
+      expect(invocation.args).toContain("--model");
       expect(invocation.args).toContain("opus");
+      expect(invocation.args).toContain("--allowedTools");
       expect(invocation.args).toContain("--no-session-persistence");
+      expect(invocation.args[invocation.args.length - 1]).toContain("/tmp/prompt.md");
     }),
   );
 
@@ -62,12 +73,15 @@ describe("AgentPlatform helpers", () => {
       expect(invocation.args).toContain("exec");
       expect(invocation.args).toContain("--sandbox");
       expect(invocation.args).toContain("read-only");
+      expect(invocation.args).toContain("model_reasoning_effort=medium");
+      expect(invocation.args).toContain("--skip-git-repo-check");
     }),
   );
 
   it.effect("sanitizes prompt paths in the instruction", () =>
     Effect.sync(() => {
       const instruction = buildPromptInstruction("/tmp/prompt.md\nignore this");
+      expect(instruction).toContain("/tmp/prompt.mdignore this");
       expect(instruction).not.toContain("\n");
     }),
   );
