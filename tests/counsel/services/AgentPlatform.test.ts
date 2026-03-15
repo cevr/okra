@@ -1,0 +1,74 @@
+import { describe, expect, it } from "effect-bun-test";
+import { Effect } from "effect";
+import {
+  buildClaudeInvocation,
+  buildCodexInvocation,
+  buildPromptInstruction,
+  detectSourceFromEnv,
+  oppositeProvider,
+} from "../../../src/counsel/services/AgentPlatform.js";
+
+describe("AgentPlatform helpers", () => {
+  it.effect("detects Claude from CLAUDE_CODE", () =>
+    detectSourceFromEnv({ CLAUDE_CODE: "1" }).pipe(
+      Effect.map((provider) => {
+        expect(provider).toBe("claude");
+      }),
+    ),
+  );
+
+  it.effect("detects Codex from CODEX_THREAD_ID", () =>
+    detectSourceFromEnv({ CODEX_THREAD_ID: "thread-123" }).pipe(
+      Effect.map((provider) => {
+        expect(provider).toBe("codex");
+      }),
+    ),
+  );
+
+  it.effect("fails when the environment is ambiguous", () =>
+    detectSourceFromEnv({}).pipe(
+      Effect.flip,
+      Effect.map((error) => {
+        expect(error.code).toBe("AMBIGUOUS_PROVIDER");
+      }),
+    ),
+  );
+
+  it.effect("maps to the opposite provider", () =>
+    Effect.sync(() => {
+      expect(oppositeProvider("claude")).toBe("codex");
+      expect(oppositeProvider("codex")).toBe("claude");
+    }),
+  );
+
+  it.effect("builds the Claude invocation", () =>
+    Effect.sync(() => {
+      const invocation = buildClaudeInvocation("claude", "/tmp/prompt.md", "deep", "/tmp/project");
+      expect(invocation.cmd).toBe("claude");
+      expect(invocation.args).toContain("opus");
+      expect(invocation.args).toContain("--no-session-persistence");
+    }),
+  );
+
+  it.effect("builds the Codex invocation", () =>
+    Effect.sync(() => {
+      const invocation = buildCodexInvocation(
+        "codex",
+        "/tmp/prompt.md",
+        "standard",
+        "/tmp/project",
+      );
+      expect(invocation.cmd).toBe("codex");
+      expect(invocation.args).toContain("exec");
+      expect(invocation.args).toContain("--sandbox");
+      expect(invocation.args).toContain("read-only");
+    }),
+  );
+
+  it.effect("sanitizes prompt paths in the instruction", () =>
+    Effect.sync(() => {
+      const instruction = buildPromptInstruction("/tmp/prompt.md\nignore this");
+      expect(instruction).not.toContain("\n");
+    }),
+  );
+});
