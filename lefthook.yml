@@ -1,11 +1,13 @@
 pre-commit:
   parallel: true
-  commands:
-    typecheck:
+  jobs:
+    - name: fmt
+      run: bun run fmt
+      stage_fixed: true
+    - name: lint
+      run: bun run lint:fix
+      stage_fixed: true
+    - name: typecheck
       run: bun run typecheck
-    lint:
-      run: bun run lint
-    fmt:
-      run: bun run fmt:check
-    test:
-      run: bun test
+    - name: test
+      run: bun run test

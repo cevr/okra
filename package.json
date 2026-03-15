@@ -15,7 +15,7 @@
     "fmt": "oxfmt --write src/ scripts/ tests/",
     "fmt:check": "oxfmt --check src/ scripts/ tests/",
     "test": "bun test",
-    "gate": "concurrently -g 'bun run typecheck' 'bun run lint' 'bun run fmt:check' 'bun test' && bun run build",
+    "gate": "concurrently -n type,lint,fmt,test,build -c blue,yellow,magenta,green,cyan \"bun run typecheck\" \"bun run lint\" \"bun run fmt\" \"bun run test\" \"bun run build\"",
     "prepare": "effect-language-service patch && lefthook install",
     "version": "changeset version",
     "release": "changeset publish"
