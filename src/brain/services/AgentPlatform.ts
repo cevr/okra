@@ -50,7 +50,7 @@ export class AgentPlatformService extends ServiceMap.Service<
     ) => Effect.Effect<Provider, BrainError>;
   }
 >()("@cvr/okra/brain/services/AgentPlatform/AgentPlatformService") {
-  static layer: Layer.Layer<AgentPlatformService, never, ConfigService | FileSystem | Path> =
+  static layer: Layer.Layer<AgentPlatformService, BrainError, ConfigService | FileSystem | Path> =
     Layer.effect(
       AgentPlatformService,
       Effect.gen(function* () {
@@ -60,9 +60,10 @@ export class AgentPlatformService extends ServiceMap.Service<
 
         const home = process.env["HOME"] ?? process.env["USERPROFILE"];
         if (home === undefined) {
-          return yield* Effect.die(
-            new BrainError({ message: "HOME environment variable is not set", code: "NO_HOME" }),
-          );
+          return yield* new BrainError({
+            message: "HOME environment variable is not set",
+            code: "NO_HOME",
+          });
         }
 
         const providers: Record<Provider, AgentProvider> = {

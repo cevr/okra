@@ -20,31 +20,36 @@ export const ErrorCode = {
   LOCK_FAILED: "LOCK_FAILED",
   LOCK_STALE: "LOCK_STALE",
   RECONCILIATION_FAILED: "RECONCILIATION_FAILED",
+  INVALID_INPUT: "INVALID_INPUT",
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
 
-export class ResearchError extends Schema.TaggedErrorClass<ResearchError>()("ResearchError", {
-  message: Schema.String,
-  code: Schema.Literals([
-    ErrorCode.SESSION_NOT_FOUND,
-    ErrorCode.SESSION_EXISTS,
-    ErrorCode.DAEMON_ALREADY_RUNNING,
-    ErrorCode.DAEMON_NOT_RUNNING,
-    ErrorCode.DAEMON_SPAWN_FAILED,
-    ErrorCode.GIT_DIRTY,
-    ErrorCode.GIT_FAILED,
-    ErrorCode.WORKTREE_FAILED,
-    ErrorCode.BENCHMARK_FAILED,
-    ErrorCode.BENCHMARK_TIMEOUT,
-    ErrorCode.RESULT_PARSE_FAILED,
-    ErrorCode.BENCHMARK_TAMPERED,
-    ErrorCode.AGENT_FAILED,
-    ErrorCode.BUDGET_EXHAUSTED,
-    ErrorCode.WRITE_FAILED,
-    ErrorCode.READ_FAILED,
-    ErrorCode.LOCK_FAILED,
-    ErrorCode.LOCK_STALE,
-    ErrorCode.RECONCILIATION_FAILED,
-  ]),
-}) {}
+export class ResearchError extends Schema.TaggedErrorClass<ResearchError>()(
+  "@cvr/okra/research/ResearchError",
+  {
+    message: Schema.String,
+    code: Schema.Literals([
+      ErrorCode.SESSION_NOT_FOUND,
+      ErrorCode.SESSION_EXISTS,
+      ErrorCode.DAEMON_ALREADY_RUNNING,
+      ErrorCode.DAEMON_NOT_RUNNING,
+      ErrorCode.DAEMON_SPAWN_FAILED,
+      ErrorCode.GIT_DIRTY,
+      ErrorCode.GIT_FAILED,
+      ErrorCode.WORKTREE_FAILED,
+      ErrorCode.BENCHMARK_FAILED,
+      ErrorCode.BENCHMARK_TIMEOUT,
+      ErrorCode.RESULT_PARSE_FAILED,
+      ErrorCode.BENCHMARK_TAMPERED,
+      ErrorCode.AGENT_FAILED,
+      ErrorCode.BUDGET_EXHAUSTED,
+      ErrorCode.WRITE_FAILED,
+      ErrorCode.READ_FAILED,
+      ErrorCode.LOCK_FAILED,
+      ErrorCode.LOCK_STALE,
+      ErrorCode.RECONCILIATION_FAILED,
+      ErrorCode.INVALID_INPUT,
+    ]),
+  },
+) {}

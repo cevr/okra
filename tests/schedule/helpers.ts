@@ -1,14 +1,6 @@
-import { ConfigProvider, Effect, Layer } from "effect";
-import { FileSystem } from "effect/FileSystem";
+import { ConfigProvider, Layer } from "effect";
 import { BunServices } from "@effect/platform-bun";
 import { StoreService } from "../../src/schedule/services/Store.js";
-
-export const withTempDir = <A, E, R>(fn: (dir: string) => Effect.Effect<A, E, R>) =>
-  Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const dir = yield* fs.makeTempDirectoryScoped();
-    return yield* fn(dir);
-  }).pipe(Effect.scoped);
 
 export const testStoreLayer = (dir: string) =>
   StoreService.layer.pipe(

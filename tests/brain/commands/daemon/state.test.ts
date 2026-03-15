@@ -3,7 +3,6 @@ import { describe, it, expect } from "effect-bun-test";
 import { Effect } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { BunServices } from "@effect/platform-bun";
-import { withTempDir } from "../../helpers/index.js";
 import {
   readState,
   writeState,
@@ -19,235 +18,231 @@ const TestLayer = BunServices.layer;
 
 describe("daemon state", () => {
   describe("readState / writeState", () => {
-    it.live("returns default state when file is missing", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          const state = yield* readState(dir);
-          expect(state.reflect).toEqual({});
-          expect(state.ruminate).toEqual({});
-          expect(state.meditate).toEqual({});
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+    it.scoped("returns default state when file is missing", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
+        const state = yield* readState(dir);
+        expect(state.reflect).toEqual({});
+        expect(state.ruminate).toEqual({});
+        expect(state.meditate).toEqual({});
+      }).pipe(Effect.provide(TestLayer)),
     );
 
-    it.live("roundtrips state through write + read", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          const original = {
-            reflect: {
-              lastExecutorRun: "2024-06-01T00:00:00.000Z",
-              lastSourceScanByProvider: { claude: "2024-06-01T00:00:00.000Z" },
-              processedSessionsByProvider: {
-                claude: { "proj/session.jsonl": "2024-06-01T00:00:00.000Z" },
-              },
+    it.scoped("roundtrips state through write + read", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
+        const original = {
+          reflect: {
+            lastExecutorRun: "2024-06-01T00:00:00.000Z",
+            lastSourceScanByProvider: { claude: "2024-06-01T00:00:00.000Z" },
+            processedSessionsByProvider: {
+              claude: { "proj/session.jsonl": "2024-06-01T00:00:00.000Z" },
             },
-            ruminate: { lastRun: "2024-05-01T00:00:00.000Z" },
-            meditate: { lastRun: "2024-04-01T00:00:00.000Z" },
-          };
+          },
+          ruminate: { lastRun: "2024-05-01T00:00:00.000Z" },
+          meditate: { lastRun: "2024-04-01T00:00:00.000Z" },
+        };
 
-          yield* writeState(dir, original);
-          const loaded = yield* readState(dir);
+        yield* writeState(dir, original);
+        const loaded = yield* readState(dir);
 
-          expect(loaded.reflect?.lastExecutorRun).toBe("2024-06-01T00:00:00.000Z");
-          expect(loaded.reflect?.processedSessionsByProvider?.claude?.["proj/session.jsonl"]).toBe(
-            "2024-06-01T00:00:00.000Z",
-          );
-          expect(loaded.ruminate?.lastRun).toBe("2024-05-01T00:00:00.000Z");
-          expect(loaded.meditate?.lastRun).toBe("2024-04-01T00:00:00.000Z");
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+        expect(loaded.reflect?.lastExecutorRun).toBe("2024-06-01T00:00:00.000Z");
+        expect(loaded.reflect?.processedSessionsByProvider?.claude?.["proj/session.jsonl"]).toBe(
+          "2024-06-01T00:00:00.000Z",
+        );
+        expect(loaded.ruminate?.lastRun).toBe("2024-05-01T00:00:00.000Z");
+        expect(loaded.meditate?.lastRun).toBe("2024-04-01T00:00:00.000Z");
+      }).pipe(Effect.provide(TestLayer)),
     );
 
-    it.live("migrates legacy reflect state into claude provider buckets", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          const fs = yield* FileSystem;
-          yield* fs.writeFileString(
-            `${dir}/.daemon.json`,
-            JSON.stringify({
-              reflect: {
-                lastRun: "2024-06-01T00:00:00.000Z",
-                processedSessions: { "proj/session.jsonl": "2024-06-01T00:00:00.000Z" },
-              },
-            }),
-          );
+    it.scoped("migrates legacy reflect state into claude provider buckets", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
+        yield* fs.writeFileString(
+          `${dir}/.daemon.json`,
+          JSON.stringify({
+            reflect: {
+              lastRun: "2024-06-01T00:00:00.000Z",
+              processedSessions: { "proj/session.jsonl": "2024-06-01T00:00:00.000Z" },
+            },
+          }),
+        );
 
-          const loaded = yield* readState(dir);
-          expect(loaded.reflect?.lastSourceScanByProvider?.claude).toBe("2024-06-01T00:00:00.000Z");
-          expect(loaded.reflect?.processedSessionsByProvider?.claude?.["proj/session.jsonl"]).toBe(
-            "2024-06-01T00:00:00.000Z",
-          );
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+        const loaded = yield* readState(dir);
+        expect(loaded.reflect?.lastSourceScanByProvider?.claude).toBe("2024-06-01T00:00:00.000Z");
+        expect(loaded.reflect?.processedSessionsByProvider?.claude?.["proj/session.jsonl"]).toBe(
+          "2024-06-01T00:00:00.000Z",
+        );
+      }).pipe(Effect.provide(TestLayer)),
     );
 
-    it.live("returns default state when file is corrupt", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          const fs = yield* FileSystem;
-          yield* fs.writeFileString(`${dir}/.daemon.json`, "not valid json{{{");
+    it.scoped("returns default state when file is corrupt", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
+        yield* fs.writeFileString(`${dir}/.daemon.json`, "not valid json{{{");
 
-          const state = yield* readState(dir);
-          expect(state.reflect).toEqual({});
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+        const state = yield* readState(dir);
+        expect(state.reflect).toEqual({});
+      }).pipe(Effect.provide(TestLayer)),
     );
   });
 
   describe("modifyState", () => {
-    it.live("updates state and releases the state lock", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          yield* modifyState(dir, (state) => ({
-            ...state,
-            ruminate: { lastRun: "2024-06-01T00:00:00.000Z" },
-          }));
+    it.scoped("updates state and releases the state lock", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
+        yield* modifyState(dir, (state) => ({
+          ...state,
+          ruminate: { lastRun: "2024-06-01T00:00:00.000Z" },
+        }));
 
-          const loaded = yield* readState(dir);
-          expect(loaded.ruminate?.lastRun).toBe("2024-06-01T00:00:00.000Z");
-          expect(yield* lockExists(dir, "state")).toBe(false);
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+        const loaded = yield* readState(dir);
+        expect(loaded.ruminate?.lastRun).toBe("2024-06-01T00:00:00.000Z");
+        expect(yield* lockExists(dir, "state")).toBe(false);
+      }).pipe(Effect.provide(TestLayer)),
     );
 
-    it.live("releases the state lock when the updater throws", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          const exit = yield* modifyState(dir, () => {
-            throw new Error("boom");
-          }).pipe(Effect.exit);
+    it.scoped("releases the state lock when the updater throws", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
+        const exit = yield* modifyState(dir, () => {
+          throw new Error("boom");
+        }).pipe(Effect.exit);
 
-          expect(exit._tag).toBe("Failure");
-          expect(yield* lockExists(dir, "state")).toBe(false);
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+        expect(exit._tag).toBe("Failure");
+        expect(yield* lockExists(dir, "state")).toBe(false);
+      }).pipe(Effect.provide(TestLayer)),
     );
 
     it.live("waits for transient state lock contention", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          yield* acquireLock(dir, "state");
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
+        yield* acquireLock(dir, "state");
 
-          yield* Effect.all(
-            [
-              modifyState(dir, (state) => ({
-                ...state,
-                meditate: { lastRun: "2024-06-01T00:00:00.000Z" },
-              })),
-              Effect.gen(function* () {
-                yield* Effect.sleep(50);
-                yield* releaseLock(dir, "state");
-              }),
-            ],
-            { concurrency: "unbounded" },
-          );
+        yield* Effect.all(
+          [
+            modifyState(dir, (state) => ({
+              ...state,
+              meditate: { lastRun: "2024-06-01T00:00:00.000Z" },
+            })),
+            Effect.gen(function* () {
+              yield* Effect.sleep(50);
+              yield* releaseLock(dir, "state");
+            }),
+          ],
+          { concurrency: "unbounded" },
+        );
 
-          const loaded = yield* readState(dir);
-          expect(loaded.meditate?.lastRun).toBe("2024-06-01T00:00:00.000Z");
-          expect(yield* lockExists(dir, "state")).toBe(false);
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+        const loaded = yield* readState(dir);
+        expect(loaded.meditate?.lastRun).toBe("2024-06-01T00:00:00.000Z");
+        expect(yield* lockExists(dir, "state")).toBe(false);
+      }).pipe(Effect.scoped, Effect.provide(TestLayer)),
     );
 
     it.live("merges concurrent updates from different branches", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          yield* Effect.all(
-            [
-              modifyState(dir, (state) => ({
-                ...state,
-                reflect: {
-                  ...(state.reflect ?? {}),
-                  lastExecutorRun: "2024-06-01T00:00:00.000Z",
-                  processedSessionsByProvider: {
-                    ...(state.reflect?.processedSessionsByProvider ?? {}),
-                    claude: { "proj/session.jsonl": "2024-06-01T00:00:00.000Z" },
-                  },
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
+        yield* Effect.all(
+          [
+            modifyState(dir, (state) => ({
+              ...state,
+              reflect: {
+                ...(state.reflect ?? {}),
+                lastExecutorRun: "2024-06-01T00:00:00.000Z",
+                processedSessionsByProvider: {
+                  ...(state.reflect?.processedSessionsByProvider ?? {}),
+                  claude: { "proj/session.jsonl": "2024-06-01T00:00:00.000Z" },
                 },
-              })),
-              modifyState(dir, (state) => ({
-                ...state,
-                ruminate: { lastRun: "2024-05-01T00:00:00.000Z" },
-              })),
-            ],
-            { concurrency: "unbounded" },
-          );
+              },
+            })),
+            modifyState(dir, (state) => ({
+              ...state,
+              ruminate: { lastRun: "2024-05-01T00:00:00.000Z" },
+            })),
+          ],
+          { concurrency: "unbounded" },
+        );
 
-          const loaded = yield* readState(dir);
-          expect(loaded.reflect?.lastExecutorRun).toBe("2024-06-01T00:00:00.000Z");
-          expect(loaded.reflect?.processedSessionsByProvider?.claude?.["proj/session.jsonl"]).toBe(
-            "2024-06-01T00:00:00.000Z",
-          );
-          expect(loaded.ruminate?.lastRun).toBe("2024-05-01T00:00:00.000Z");
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+        const loaded = yield* readState(dir);
+        expect(loaded.reflect?.lastExecutorRun).toBe("2024-06-01T00:00:00.000Z");
+        expect(loaded.reflect?.processedSessionsByProvider?.claude?.["proj/session.jsonl"]).toBe(
+          "2024-06-01T00:00:00.000Z",
+        );
+        expect(loaded.ruminate?.lastRun).toBe("2024-05-01T00:00:00.000Z");
+      }).pipe(Effect.scoped, Effect.provide(TestLayer)),
     );
   });
 
   describe("acquireLock / releaseLock", () => {
-    it.live("acquires and releases a lock", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          const fs = yield* FileSystem;
+    it.scoped("acquires and releases a lock", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
 
-          yield* acquireLock(dir, "reflect");
+        yield* acquireLock(dir, "reflect");
 
-          // Lock file should exist with our PID
-          const content = yield* fs.readFileString(`${dir}/.daemon-reflect.lock`);
-          expect(content.trim()).toBe(String(process.pid));
+        // Lock file should exist with our PID
+        const content = yield* fs.readFileString(`${dir}/.daemon-reflect.lock`);
+        expect(content.trim()).toBe(String(process.pid));
 
-          yield* releaseLock(dir, "reflect");
+        yield* releaseLock(dir, "reflect");
 
-          const exists = yield* fs.exists(`${dir}/.daemon-reflect.lock`);
-          expect(exists).toBe(false);
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+        const exists = yield* fs.exists(`${dir}/.daemon-reflect.lock`);
+        expect(exists).toBe(false);
+      }).pipe(Effect.provide(TestLayer)),
     );
 
-    it.live("acquires lock when stale (dead PID)", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          const fs = yield* FileSystem;
+    it.scoped("acquires lock when stale (dead PID)", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
 
-          // Write a lock with a PID that definitely doesn't exist
-          yield* fs.writeFileString(`${dir}/.daemon-reflect.lock`, "999999999\n");
+        // Write a lock with a PID that definitely doesn't exist
+        yield* fs.writeFileString(`${dir}/.daemon-reflect.lock`, "999999999\n");
 
-          // Should succeed — stale lock
-          yield* acquireLock(dir, "reflect");
+        // Should succeed — stale lock
+        yield* acquireLock(dir, "reflect");
 
-          const content = yield* fs.readFileString(`${dir}/.daemon-reflect.lock`);
-          expect(content.trim()).toBe(String(process.pid));
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+        const content = yield* fs.readFileString(`${dir}/.daemon-reflect.lock`);
+        expect(content.trim()).toBe(String(process.pid));
+      }).pipe(Effect.provide(TestLayer)),
     );
 
-    it.live("fails when lock is held by a live process", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          const fs = yield* FileSystem;
+    it.scoped("fails when lock is held by a live process", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
 
-          // Write a lock with our own PID (which is alive)
-          yield* fs.writeFileString(`${dir}/.daemon-reflect.lock`, `${process.pid}\n`);
+        // Write a lock with our own PID (which is alive)
+        yield* fs.writeFileString(`${dir}/.daemon-reflect.lock`, `${process.pid}\n`);
 
-          const exit = yield* acquireLock(dir, "reflect").pipe(Effect.exit);
+        const exit = yield* acquireLock(dir, "reflect").pipe(Effect.exit);
 
-          expect(exit._tag).toBe("Failure");
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+        expect(exit._tag).toBe("Failure");
+      }).pipe(Effect.provide(TestLayer)),
     );
 
-    it.live("lockExists reports correct state", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          expect(yield* lockExists(dir, "reflect")).toBe(false);
+    it.scoped("lockExists reports correct state", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
 
-          yield* acquireLock(dir, "reflect");
-          expect(yield* lockExists(dir, "reflect")).toBe(true);
+        expect(yield* lockExists(dir, "reflect")).toBe(false);
 
-          yield* releaseLock(dir, "reflect");
-          expect(yield* lockExists(dir, "reflect")).toBe(false);
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+        yield* acquireLock(dir, "reflect");
+        expect(yield* lockExists(dir, "reflect")).toBe(true);
+
+        yield* releaseLock(dir, "reflect");
+        expect(yield* lockExists(dir, "reflect")).toBe(false);
+      }).pipe(Effect.provide(TestLayer)),
     );
   });
 
@@ -277,31 +272,29 @@ describe("daemon state", () => {
     // Dashify: `/foo/bar` → `-foo-bar`, `/.hidden` → `--hidden`
     const dashify = (p: string) => p.replaceAll("/.", "--").replaceAll("/", "-");
 
-    it.live("resolves project name from real path on disk", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          const fs = yield* FileSystem;
-          // Create a nested dir inside temp so deriveProjectName can find it
-          yield* fs.makeDirectory(`${dir}/Developer/personal/brain`, { recursive: true });
-          const dirName = dashify(`${dir}/Developer/personal`) + "-brain";
-          const name = yield* deriveProjectName(dirName);
-          expect(name).toBe("brain");
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+    it.scoped("resolves project name from real path on disk", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
+        // Create a nested dir inside temp so deriveProjectName can find it
+        yield* fs.makeDirectory(`${dir}/Developer/personal/brain`, { recursive: true });
+        const dirName = dashify(`${dir}/Developer/personal`) + "-brain";
+        const name = yield* deriveProjectName(dirName);
+        expect(name).toBe("brain");
+      }).pipe(Effect.provide(TestLayer)),
     );
 
-    it.live("preserves internal dashes in multi-word project names", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          const fs = yield* FileSystem;
-          yield* fs.makeDirectory(`${dir}/workspace`, { recursive: true });
-          // Dashified: <tempdir>-workspace-my-cool-project
-          // Walk right-to-left finds <tempdir>/workspace as existing → suffix is "my-cool-project"
-          const dirName = dashify(`${dir}/workspace`) + "-my-cool-project";
-          const name = yield* deriveProjectName(dirName);
-          expect(name).toBe("my-cool-project");
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+    it.scoped("preserves internal dashes in multi-word project names", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
+        yield* fs.makeDirectory(`${dir}/workspace`, { recursive: true });
+        // Dashified: <tempdir>-workspace-my-cool-project
+        // Walk right-to-left finds <tempdir>/workspace as existing → suffix is "my-cool-project"
+        const dirName = dashify(`${dir}/workspace`) + "-my-cool-project";
+        const name = yield* deriveProjectName(dirName);
+        expect(name).toBe("my-cool-project");
+      }).pipe(Effect.provide(TestLayer)),
     );
 
     it.live("falls back to last segment when no path resolves", () =>

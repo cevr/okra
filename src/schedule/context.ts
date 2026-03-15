@@ -1,5 +1,11 @@
-import { Effect, Option } from "effect";
+import { Effect, Option, Schema } from "effect";
 import type { TaskContext } from "./services/Store.js";
+
+const PrJson = Schema.Struct({
+  number: Schema.optional(Schema.Number),
+  url: Schema.optional(Schema.String),
+});
+const decodePrJson = Schema.decodeUnknownEffect(Schema.fromJsonString(PrJson));
 
 const exec = (args: Array<string>, cwd: string): Effect.Effect<Option.Option<string>> =>
   Effect.tryPromise({
@@ -51,13 +57,10 @@ export const captureContext = Effect.fn("captureContext")(function* (cwd: string
   let prNumber: number | undefined;
   let prUrl: string | undefined;
   if (Option.isSome(prJsonOpt)) {
-    const parsed = yield* Effect.try({
-      try: () => JSON.parse(prJsonOpt.value) as { number?: number; url?: string },
-      catch: () => undefined,
-    });
-    if (parsed !== undefined) {
-      prNumber = typeof parsed.number === "number" ? parsed.number : undefined;
-      prUrl = typeof parsed.url === "string" ? parsed.url : undefined;
+    const parsed = yield* decodePrJson(prJsonOpt.value).pipe(Effect.option);
+    if (Option.isSome(parsed)) {
+      prNumber = parsed.value.number;
+      prUrl = parsed.value.url;
     }
   }
 

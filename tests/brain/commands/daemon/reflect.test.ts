@@ -5,7 +5,6 @@ import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import { BunServices } from "@effect/platform-bun";
 import { utimesSync } from "node:fs";
-import { withTempDir } from "../../helpers/index.js";
 import { scanSessions, runReflect } from "../../../../src/brain/commands/daemon/reflect.js";
 import { readState, type DaemonState } from "../../../../src/brain/commands/daemon/state.js";
 import { BrainError } from "../../../../src/brain/errors/index.js";
@@ -125,367 +124,363 @@ const makeTestLayers = (
 
 describe("daemon reflect", () => {
   describe("scanSessions", () => {
-    it.live("finds settled, unprocessed sessions", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          const origHome = process.env["HOME"];
-          try {
-            process.env["HOME"] = dir;
-            const dn = fakeDirName(dir, "project-alpha");
+    it.scoped("finds settled, unprocessed sessions", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
+        const origHome = process.env["HOME"];
+        try {
+          process.env["HOME"] = dir;
+          const dn = fakeDirName(dir, "project-alpha");
 
-            yield* setupProjectSessions(dir, dn, [
-              { name: "session1.jsonl", mtime: oldDate, messages: bigMessages },
-              { name: "session2.jsonl", mtime: oldDate, messages: bigMessages },
-            ]);
+          yield* setupProjectSessions(dir, dn, [
+            { name: "session1.jsonl", mtime: oldDate, messages: bigMessages },
+            { name: "session2.jsonl", mtime: oldDate, messages: bigMessages },
+          ]);
 
-            const groups = yield* scanSessions({ reflect: {}, ruminate: {}, meditate: {} });
+          const groups = yield* scanSessions({ reflect: {}, ruminate: {}, meditate: {} });
 
-            expect(groups).toHaveLength(1);
-            expect(groups[0]?.projectName).toBe("project-alpha");
-            expect(groups[0]?.sessions).toHaveLength(2);
-          } finally {
-            process.env["HOME"] = origHome;
-          }
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+          expect(groups).toHaveLength(1);
+          expect(groups[0]?.projectName).toBe("project-alpha");
+          expect(groups[0]?.sessions).toHaveLength(2);
+        } finally {
+          process.env["HOME"] = origHome;
+        }
+      }).pipe(Effect.provide(TestLayer)),
     );
 
-    it.live("skips active sessions (mtime < 30 min)", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          const origHome = process.env["HOME"];
-          try {
-            process.env["HOME"] = dir;
-            const dn = fakeDirName(dir, "project-beta");
+    it.scoped("skips active sessions (mtime < 30 min)", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
+        const origHome = process.env["HOME"];
+        try {
+          process.env["HOME"] = dir;
+          const dn = fakeDirName(dir, "project-beta");
 
-            yield* setupProjectSessions(dir, dn, [
-              { name: "active.jsonl", mtime: recentDate, messages: bigMessages },
-              { name: "settled.jsonl", mtime: oldDate, messages: bigMessages },
-            ]);
+          yield* setupProjectSessions(dir, dn, [
+            { name: "active.jsonl", mtime: recentDate, messages: bigMessages },
+            { name: "settled.jsonl", mtime: oldDate, messages: bigMessages },
+          ]);
 
-            const groups = yield* scanSessions({ reflect: {}, ruminate: {}, meditate: {} });
+          const groups = yield* scanSessions({ reflect: {}, ruminate: {}, meditate: {} });
 
-            expect(groups).toHaveLength(1);
-            expect(groups[0]?.sessions).toHaveLength(1);
-            expect(groups[0]?.sessions[0]?.name).toBe("settled.jsonl");
-          } finally {
-            process.env["HOME"] = origHome;
-          }
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+          expect(groups).toHaveLength(1);
+          expect(groups[0]?.sessions).toHaveLength(1);
+          expect(groups[0]?.sessions[0]?.name).toBe("settled.jsonl");
+        } finally {
+          process.env["HOME"] = origHome;
+        }
+      }).pipe(Effect.provide(TestLayer)),
     );
 
-    it.live("skips sessions older than 24 hours", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          const origHome = process.env["HOME"];
-          try {
-            process.env["HOME"] = dir;
-            const dn = fakeDirName(dir, "project-old");
+    it.scoped("skips sessions older than 24 hours", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
+        const origHome = process.env["HOME"];
+        try {
+          process.env["HOME"] = dir;
+          const dn = fakeDirName(dir, "project-old");
 
-            yield* setupProjectSessions(dir, dn, [
-              { name: "stale.jsonl", mtime: staleDate, messages: bigMessages },
-              { name: "fresh.jsonl", mtime: oldDate, messages: bigMessages },
-            ]);
+          yield* setupProjectSessions(dir, dn, [
+            { name: "stale.jsonl", mtime: staleDate, messages: bigMessages },
+            { name: "fresh.jsonl", mtime: oldDate, messages: bigMessages },
+          ]);
 
-            const groups = yield* scanSessions({ reflect: {}, ruminate: {}, meditate: {} });
+          const groups = yield* scanSessions({ reflect: {}, ruminate: {}, meditate: {} });
 
-            expect(groups).toHaveLength(1);
-            expect(groups[0]?.sessions).toHaveLength(1);
-            expect(groups[0]?.sessions[0]?.name).toBe("fresh.jsonl");
-          } finally {
-            process.env["HOME"] = origHome;
-          }
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+          expect(groups).toHaveLength(1);
+          expect(groups[0]?.sessions).toHaveLength(1);
+          expect(groups[0]?.sessions[0]?.name).toBe("fresh.jsonl");
+        } finally {
+          process.env["HOME"] = origHome;
+        }
+      }).pipe(Effect.provide(TestLayer)),
     );
 
-    it.live("skips already-processed sessions with same mtime", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          const origHome = process.env["HOME"];
-          try {
-            process.env["HOME"] = dir;
-            const dn = fakeDirName(dir, "project-gamma");
+    it.scoped("skips already-processed sessions with same mtime", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
+        const origHome = process.env["HOME"];
+        try {
+          process.env["HOME"] = dir;
+          const dn = fakeDirName(dir, "project-gamma");
 
-            yield* setupProjectSessions(dir, dn, [
-              { name: "done.jsonl", mtime: oldDate, messages: bigMessages },
-            ]);
+          yield* setupProjectSessions(dir, dn, [
+            { name: "done.jsonl", mtime: oldDate, messages: bigMessages },
+          ]);
 
-            const state: DaemonState = {
-              reflect: {
-                processedSessionsByProvider: {
-                  claude: {
-                    [`${dn}/done.jsonl`]: oldDate.toISOString(),
-                  },
+          const state: DaemonState = {
+            reflect: {
+              processedSessionsByProvider: {
+                claude: {
+                  [`${dn}/done.jsonl`]: oldDate.toISOString(),
                 },
               },
-              ruminate: {},
-              meditate: {},
-            };
+            },
+            ruminate: {},
+            meditate: {},
+          };
 
-            const groups = yield* scanSessions(state);
-            expect(groups).toHaveLength(0);
-          } finally {
-            process.env["HOME"] = origHome;
-          }
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+          const groups = yield* scanSessions(state);
+          expect(groups).toHaveLength(0);
+        } finally {
+          process.env["HOME"] = origHome;
+        }
+      }).pipe(Effect.provide(TestLayer)),
     );
 
-    it.live("re-processes sessions when mtime changed", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          const origHome = process.env["HOME"];
-          try {
-            process.env["HOME"] = dir;
-            const dn = fakeDirName(dir, "project-delta");
+    it.scoped("re-processes sessions when mtime changed", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
+        const origHome = process.env["HOME"];
+        try {
+          process.env["HOME"] = dir;
+          const dn = fakeDirName(dir, "project-delta");
 
-            yield* setupProjectSessions(dir, dn, [
-              { name: "changed.jsonl", mtime: oldDate, messages: bigMessages },
-            ]);
+          yield* setupProjectSessions(dir, dn, [
+            { name: "changed.jsonl", mtime: oldDate, messages: bigMessages },
+          ]);
 
-            const state: DaemonState = {
-              reflect: {
-                processedSessionsByProvider: {
-                  claude: {
-                    [`${dn}/changed.jsonl`]: "2024-01-01T00:00:00.000Z",
-                  },
+          const state: DaemonState = {
+            reflect: {
+              processedSessionsByProvider: {
+                claude: {
+                  [`${dn}/changed.jsonl`]: "2024-01-01T00:00:00.000Z",
                 },
               },
-              ruminate: {},
-              meditate: {},
-            };
+            },
+            ruminate: {},
+            meditate: {},
+          };
 
-            const groups = yield* scanSessions(state);
-            expect(groups).toHaveLength(1);
-            expect(groups[0]?.sessions).toHaveLength(1);
-          } finally {
-            process.env["HOME"] = origHome;
-          }
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+          const groups = yield* scanSessions(state);
+          expect(groups).toHaveLength(1);
+          expect(groups[0]?.sessions).toHaveLength(1);
+        } finally {
+          process.env["HOME"] = origHome;
+        }
+      }).pipe(Effect.provide(TestLayer)),
     );
 
-    it.live("returns empty when no projects dir exists", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          const origHome = process.env["HOME"];
-          try {
-            process.env["HOME"] = dir;
-            // Don't create .claude/projects/
-            const groups = yield* scanSessions({ reflect: {}, ruminate: {}, meditate: {} });
-            expect(groups).toHaveLength(0);
-          } finally {
-            process.env["HOME"] = origHome;
-          }
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+    it.scoped("returns empty when no projects dir exists", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
+        const origHome = process.env["HOME"];
+        try {
+          process.env["HOME"] = dir;
+          // Don't create .claude/projects/
+          const groups = yield* scanSessions({ reflect: {}, ruminate: {}, meditate: {} });
+          expect(groups).toHaveLength(0);
+        } finally {
+          process.env["HOME"] = origHome;
+        }
+      }).pipe(Effect.provide(TestLayer)),
     );
 
-    it.live("groups sessions by project", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          const origHome = process.env["HOME"];
-          try {
-            process.env["HOME"] = dir;
+    it.scoped("groups sessions by project", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
+        const origHome = process.env["HOME"];
+        try {
+          process.env["HOME"] = dir;
 
-            yield* setupProjectSessions(dir, fakeDirName(dir, "project-one"), [
-              { name: "s1.jsonl", mtime: oldDate, messages: bigMessages },
-            ]);
-            yield* setupProjectSessions(dir, fakeDirName(dir, "project-two"), [
-              { name: "s2.jsonl", mtime: oldDate, messages: bigMessages },
-            ]);
+          yield* setupProjectSessions(dir, fakeDirName(dir, "project-one"), [
+            { name: "s1.jsonl", mtime: oldDate, messages: bigMessages },
+          ]);
+          yield* setupProjectSessions(dir, fakeDirName(dir, "project-two"), [
+            { name: "s2.jsonl", mtime: oldDate, messages: bigMessages },
+          ]);
 
-            const groups = yield* scanSessions({ reflect: {}, ruminate: {}, meditate: {} });
-            expect(groups).toHaveLength(2);
+          const groups = yield* scanSessions({ reflect: {}, ruminate: {}, meditate: {} });
+          expect(groups).toHaveLength(2);
 
-            const names = groups.map((g) => g.projectName).sort();
-            expect(names).toEqual(["project-one", "project-two"]);
-          } finally {
-            process.env["HOME"] = origHome;
-          }
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+          const names = groups.map((g) => g.projectName).sort();
+          expect(names).toEqual(["project-one", "project-two"]);
+        } finally {
+          process.env["HOME"] = origHome;
+        }
+      }).pipe(Effect.provide(TestLayer)),
     );
   });
 
   describe("runReflect", () => {
-    it.live("invokes claude with file paths and checkpoints state", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          const origHome = process.env["HOME"];
-          try {
-            process.env["HOME"] = dir;
-            const dn = fakeDirName(dir, "myproject");
+    it.scoped("invokes claude with file paths and checkpoints state", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
+        const origHome = process.env["HOME"];
+        try {
+          process.env["HOME"] = dir;
+          const dn = fakeDirName(dir, "myproject");
 
-            const brainDir = `${dir}/.brain`;
-            const fs = yield* FileSystem;
-            yield* fs.makeDirectory(`${brainDir}/projects`, { recursive: true });
-            yield* fs.writeFileString(`${brainDir}/index.md`, "# Brain\n");
+          const brainDir = `${dir}/.brain`;
+          yield* fs.makeDirectory(`${brainDir}/projects`, { recursive: true });
+          yield* fs.writeFileString(`${brainDir}/index.md`, "# Brain\n");
 
-            yield* setupProjectSessions(dir, dn, [
-              { name: "conv.jsonl", mtime: oldDate, messages: bigMessages },
-            ]);
+          yield* setupProjectSessions(dir, dn, [
+            { name: "conv.jsonl", mtime: oldDate, messages: bigMessages },
+          ]);
 
-            const invocations = yield* Ref.make<Array<AgentInvocation>>([]);
-            const layers = makeTestLayers(dir, brainDir, invocations);
+          const invocations = yield* Ref.make<Array<AgentInvocation>>([]);
+          const layers = makeTestLayers(dir, brainDir, invocations);
 
-            yield* runReflect().pipe(Effect.provide(layers));
+          yield* runReflect().pipe(Effect.provide(layers));
 
-            const calls = yield* Ref.get(invocations);
-            expect(calls.length).toBeGreaterThanOrEqual(1);
-            expect(calls[0]?.profile).toBe("standard");
-            expect(calls[0]?.prompt).toContain(".jsonl");
-            expect(calls[0]?.prompt).toContain("Read these recent settled session files");
+          const calls = yield* Ref.get(invocations);
+          expect(calls.length).toBeGreaterThanOrEqual(1);
+          expect(calls[0]?.profile).toBe("standard");
+          expect(calls[0]?.prompt).toContain(".jsonl");
+          expect(calls[0]?.prompt).toContain("Read these recent settled session files");
 
-            const state = yield* readState(brainDir).pipe(Effect.provide(layers));
-            expect(state.reflect?.lastExecutorRun).toBeDefined();
-            expect(
-              state.reflect?.processedSessionsByProvider?.claude?.[`${dn}/conv.jsonl`],
-            ).toBeDefined();
-          } finally {
-            process.env["HOME"] = origHome;
-          }
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+          const state = yield* readState(brainDir).pipe(Effect.provide(layers));
+          expect(state.reflect?.lastExecutorRun).toBeDefined();
+          expect(
+            state.reflect?.processedSessionsByProvider?.claude?.[`${dn}/conv.jsonl`],
+          ).toBeDefined();
+        } finally {
+          process.env["HOME"] = origHome;
+        }
+      }).pipe(Effect.provide(TestLayer)),
     );
 
-    it.live("is idempotent — skips already-processed sessions", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          const origHome = process.env["HOME"];
-          try {
-            process.env["HOME"] = dir;
+    it.scoped("is idempotent — skips already-processed sessions", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
+        const origHome = process.env["HOME"];
+        try {
+          process.env["HOME"] = dir;
 
-            const brainDir = `${dir}/.brain`;
-            const fs = yield* FileSystem;
-            yield* fs.makeDirectory(`${brainDir}/projects`, { recursive: true });
-            yield* fs.writeFileString(`${brainDir}/index.md`, "# Brain\n");
+          const brainDir = `${dir}/.brain`;
+          yield* fs.makeDirectory(`${brainDir}/projects`, { recursive: true });
+          yield* fs.writeFileString(`${brainDir}/index.md`, "# Brain\n");
 
-            yield* setupProjectSessions(dir, fakeDirName(dir, "idempotent"), [
-              { name: "conv.jsonl", mtime: oldDate, messages: bigMessages },
-            ]);
+          yield* setupProjectSessions(dir, fakeDirName(dir, "idempotent"), [
+            { name: "conv.jsonl", mtime: oldDate, messages: bigMessages },
+          ]);
 
-            const invocations = yield* Ref.make<Array<AgentInvocation>>([]);
-            const layers = makeTestLayers(dir, brainDir, invocations);
+          const invocations = yield* Ref.make<Array<AgentInvocation>>([]);
+          const layers = makeTestLayers(dir, brainDir, invocations);
 
-            // First run
-            yield* runReflect().pipe(Effect.provide(layers));
-            const firstCalls = yield* Ref.get(invocations);
-            expect(firstCalls.length).toBeGreaterThanOrEqual(1);
+          // First run
+          yield* runReflect().pipe(Effect.provide(layers));
+          const firstCalls = yield* Ref.get(invocations);
+          expect(firstCalls.length).toBeGreaterThanOrEqual(1);
 
-            // Reset invocation tracker
-            yield* Ref.set(invocations, []);
+          // Reset invocation tracker
+          yield* Ref.set(invocations, []);
 
-            // Second run — should skip
-            yield* runReflect().pipe(Effect.provide(layers));
-            const secondCalls = yield* Ref.get(invocations);
-            expect(secondCalls).toHaveLength(0);
-          } finally {
-            process.env["HOME"] = origHome;
-          }
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+          // Second run — should skip
+          yield* runReflect().pipe(Effect.provide(layers));
+          const secondCalls = yield* Ref.get(invocations);
+          expect(secondCalls).toHaveLength(0);
+        } finally {
+          process.env["HOME"] = origHome;
+        }
+      }).pipe(Effect.provide(TestLayer)),
     );
 
-    it.live("releases lock even when claude fails", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          const origHome = process.env["HOME"];
-          try {
-            process.env["HOME"] = dir;
+    it.scoped("releases lock even when claude fails", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
+        const origHome = process.env["HOME"];
+        try {
+          process.env["HOME"] = dir;
 
-            const brainDir = `${dir}/.brain`;
-            const fs = yield* FileSystem;
-            yield* fs.makeDirectory(`${brainDir}/projects`, { recursive: true });
-            yield* fs.writeFileString(`${brainDir}/index.md`, "# Brain\n");
+          const brainDir = `${dir}/.brain`;
+          yield* fs.makeDirectory(`${brainDir}/projects`, { recursive: true });
+          yield* fs.writeFileString(`${brainDir}/index.md`, "# Brain\n");
 
-            yield* setupProjectSessions(dir, fakeDirName(dir, "locktest"), [
-              { name: "conv.jsonl", mtime: oldDate, messages: bigMessages },
-            ]);
+          yield* setupProjectSessions(dir, fakeDirName(dir, "locktest"), [
+            { name: "conv.jsonl", mtime: oldDate, messages: bigMessages },
+          ]);
 
-            const invocations = yield* Ref.make<Array<AgentInvocation>>([]);
+          const invocations = yield* Ref.make<Array<AgentInvocation>>([]);
 
-            const layers = Layer.mergeAll(
-              makeConfigLayer(dir, brainDir),
-              VaultService.layer,
-              makePlatformLayer(invocations, () =>
-                Effect.fail(new BrainError({ message: "Executor crashed", code: "SPAWN_FAILED" })),
-              ),
-            ).pipe(Layer.provideMerge(BunServices.layer));
+          const layers = Layer.mergeAll(
+            makeConfigLayer(dir, brainDir),
+            VaultService.layer,
+            makePlatformLayer(invocations, () =>
+              Effect.fail(new BrainError({ message: "Executor crashed", code: "SPAWN_FAILED" })),
+            ),
+          ).pipe(Layer.provideMerge(BunServices.layer));
 
-            // Should not throw — error is caught per-group
-            yield* runReflect().pipe(Effect.provide(layers));
+          // Should not throw — error is caught per-group
+          yield* runReflect().pipe(Effect.provide(layers));
 
-            // Lock should be released
-            const lockPath = `${brainDir}/.daemon-reflect.lock`;
-            const lockExists = yield* fs
-              .exists(lockPath)
-              .pipe(Effect.catch(() => Effect.succeed(false)));
-            expect(lockExists).toBe(false);
-          } finally {
-            process.env["HOME"] = origHome;
-          }
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+          // Lock should be released
+          const lockPath = `${brainDir}/.daemon-reflect.lock`;
+          const lockExists = yield* fs
+            .exists(lockPath)
+            .pipe(Effect.catch(() => Effect.succeed(false)));
+          expect(lockExists).toBe(false);
+        } finally {
+          process.env["HOME"] = origHome;
+        }
+      }).pipe(Effect.provide(TestLayer)),
     );
 
-    it.live("continues to next group when one fails", () =>
-      withTempDir((dir) =>
-        Effect.gen(function* () {
-          const origHome = process.env["HOME"];
-          try {
-            process.env["HOME"] = dir;
+    it.scoped("continues to next group when one fails", () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const dir = yield* fs.makeTempDirectoryScoped();
+        const origHome = process.env["HOME"];
+        try {
+          process.env["HOME"] = dir;
 
-            const brainDir = `${dir}/.brain`;
-            const fs = yield* FileSystem;
-            yield* fs.makeDirectory(`${brainDir}/projects`, { recursive: true });
-            yield* fs.writeFileString(`${brainDir}/index.md`, "# Brain\n");
+          const brainDir = `${dir}/.brain`;
+          yield* fs.makeDirectory(`${brainDir}/projects`, { recursive: true });
+          yield* fs.writeFileString(`${brainDir}/index.md`, "# Brain\n");
 
-            // Two projects
-            yield* setupProjectSessions(dir, fakeDirName(dir, "project-fail"), [
-              { name: "s1.jsonl", mtime: oldDate, messages: bigMessages },
-            ]);
-            yield* setupProjectSessions(dir, fakeDirName(dir, "project-succeed"), [
-              { name: "s2.jsonl", mtime: oldDate, messages: bigMessages },
-            ]);
+          // Two projects
+          yield* setupProjectSessions(dir, fakeDirName(dir, "project-fail"), [
+            { name: "s1.jsonl", mtime: oldDate, messages: bigMessages },
+          ]);
+          yield* setupProjectSessions(dir, fakeDirName(dir, "project-succeed"), [
+            { name: "s2.jsonl", mtime: oldDate, messages: bigMessages },
+          ]);
 
-            let callCount = 0;
-            const invocations = yield* Ref.make<Array<AgentInvocation>>([]);
+          let callCount = 0;
+          const invocations = yield* Ref.make<Array<AgentInvocation>>([]);
 
-            const layers = Layer.mergeAll(
-              makeConfigLayer(dir, brainDir),
-              VaultService.layer,
-              makePlatformLayer(invocations, () =>
-                Effect.suspend(() => {
-                  callCount++;
-                  if (callCount === 1) {
-                    return Effect.fail(
-                      new BrainError({ message: "First call fails", code: "SPAWN_FAILED" }),
-                    );
-                  }
-                  return Effect.void;
-                }),
-              ),
-            ).pipe(Layer.provideMerge(BunServices.layer));
+          const layers = Layer.mergeAll(
+            makeConfigLayer(dir, brainDir),
+            VaultService.layer,
+            makePlatformLayer(invocations, () =>
+              Effect.suspend(() => {
+                callCount++;
+                if (callCount === 1) {
+                  return Effect.fail(
+                    new BrainError({ message: "First call fails", code: "SPAWN_FAILED" }),
+                  );
+                }
+                return Effect.void;
+              }),
+            ),
+          ).pipe(Layer.provideMerge(BunServices.layer));
 
-            yield* runReflect().pipe(Effect.provide(layers));
+          yield* runReflect().pipe(Effect.provide(layers));
 
-            // Should have called claude twice (once per group)
-            expect(callCount).toBe(2);
+          // Should have called claude twice (once per group)
+          expect(callCount).toBe(2);
 
-            // The succeeding group's sessions should be checkpointed
-            const state = yield* readState(brainDir).pipe(Effect.provide(layers));
-            const processed = state.reflect?.processedSessionsByProvider?.claude ?? {};
-            // One group succeeded, one failed — at least one session should be checkpointed
-            const processedKeys = Object.keys(processed);
-            expect(processedKeys.length).toBeGreaterThanOrEqual(1);
-          } finally {
-            process.env["HOME"] = origHome;
-          }
-        }),
-      ).pipe(Effect.provide(TestLayer)),
+          // The succeeding group's sessions should be checkpointed
+          const state = yield* readState(brainDir).pipe(Effect.provide(layers));
+          const processed = state.reflect?.processedSessionsByProvider?.claude ?? {};
+          // One group succeeded, one failed — at least one session should be checkpointed
+          const processedKeys = Object.keys(processed);
+          expect(processedKeys.length).toBeGreaterThanOrEqual(1);
+        } finally {
+          process.env["HOME"] = origHome;
+        }
+      }).pipe(Effect.provide(TestLayer)),
     );
   });
 });

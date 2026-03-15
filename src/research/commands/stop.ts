@@ -8,6 +8,6 @@ export const stopCommand = Command.make("stop", {}, () =>
     const projectRoot = process.cwd();
 
     yield* daemon.stop(projectRoot);
-    yield* Console.log("Daemon stopped.");
+    yield* Console.error("Daemon stopped.");
   }),
 ).pipe(Command.withDescription("Stop the experiment daemon"));

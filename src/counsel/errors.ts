@@ -26,11 +26,14 @@ export const ErrorCodeSchema = Schema.Literals([
   "WRITE_FAILED",
 ]);
 
-export class CounselError extends Schema.TaggedErrorClass<CounselError>()("CounselError", {
-  message: Schema.String,
-  code: ErrorCodeSchema,
-  command: Schema.optional(Schema.String),
-}) {}
+export class CounselError extends Schema.TaggedErrorClass<CounselError>()(
+  "@cvr/okra/counsel/CounselError",
+  {
+    message: Schema.String,
+    code: ErrorCodeSchema,
+    command: Schema.optional(Schema.String),
+  },
+) {}
 export const isCounselError = Schema.is(CounselError);
 
 export const ErrorPayload = Schema.Struct({

@@ -12,7 +12,7 @@ const claudeModel = (profile: Profile): string => (profile === "deep" ? "opus" :
 export const detectSourceFromEnv = (
   env: Record<string, string | undefined>,
 ): Effect.Effect<Provider, CounselError> => {
-  const inClaude = env["CLAUDE_CODE"] !== undefined || env["CLAUDE_CODE_ENTRYPOINT"] !== undefined;
+  const inClaude = env["CLAUDECODE"] !== undefined || env["CLAUDE_CODE_ENTRYPOINT"] !== undefined;
   const inCodex = env["CODEX_THREAD_ID"] !== undefined || env["CODEX_CI"] !== undefined;
 
   if (inClaude === inCodex) {

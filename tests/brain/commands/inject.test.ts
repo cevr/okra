@@ -6,7 +6,6 @@ import { Path } from "effect/Path";
 import { BunServices } from "@effect/platform-bun";
 import { ConfigService } from "../../../src/brain/services/Config.js";
 import { VaultService } from "../../../src/brain/services/Vault.js";
-import { withTempDir } from "../helpers/index.js";
 
 const makeTestConfig = (
   globalVault: string,
@@ -106,146 +105,141 @@ const runInject = (opts: { json: boolean }) =>
   });
 
 describe("inject", () => {
-  it.live("outputs index content from global vault", () =>
-    withTempDir((dir) =>
-      Effect.gen(function* () {
-        const vault = yield* VaultService;
-        const fs = yield* FileSystem;
+  it.scoped("outputs index content from global vault", () =>
+    Effect.gen(function* () {
+      const vault = yield* VaultService;
+      const fs = yield* FileSystem;
+      const dir = yield* fs.makeTempDirectoryScoped();
 
-        yield* vault.init(dir);
-        yield* fs.writeFileString(`${dir}/principles/testing.md`, "# Testing\n");
-        yield* vault.rebuildIndex(dir);
+      yield* vault.init(dir);
+      yield* fs.writeFileString(`${dir}/principles/testing.md`, "# Testing\n");
+      yield* vault.rebuildIndex(dir);
 
-        const result = yield* runInject({ json: false }).pipe(Effect.provide(makeTestConfig(dir)));
+      const result = yield* runInject({ json: false }).pipe(Effect.provide(makeTestConfig(dir)));
 
-        expect(result).toBeTypeOf("string");
-        expect(result as string).toContain("Brain vault");
-        expect(result as string).toContain("principles/testing");
-      }),
-    ).pipe(Effect.provide(VaultService.layer.pipe(Layer.provideMerge(BunServices.layer)))),
+      expect(result).toBeTypeOf("string");
+      expect(result as string).toContain("Brain vault");
+      expect(result as string).toContain("principles/testing");
+    }).pipe(Effect.provide(VaultService.layer.pipe(Layer.provideMerge(BunServices.layer)))),
   );
 
-  it.live("returns null when vault missing (graceful)", () =>
-    withTempDir((dir) =>
-      Effect.gen(function* () {
-        const missingPath = `${dir}/nonexistent`;
-        const result = yield* runInject({ json: false }).pipe(
-          Effect.provide(makeTestConfig(missingPath)),
-        );
+  it.scoped("returns null when vault missing (graceful)", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const dir = yield* fs.makeTempDirectoryScoped();
+      const missingPath = `${dir}/nonexistent`;
+      const result = yield* runInject({ json: false }).pipe(
+        Effect.provide(makeTestConfig(missingPath)),
+      );
 
-        expect(result).toBeNull();
-      }),
-    ).pipe(Effect.provide(VaultService.layer.pipe(Layer.provideMerge(BunServices.layer)))),
+      expect(result).toBeNull();
+    }).pipe(Effect.provide(VaultService.layer.pipe(Layer.provideMerge(BunServices.layer)))),
   );
 
-  it.live("--json outputs structured object", () =>
-    withTempDir((dir) =>
-      Effect.gen(function* () {
-        const vault = yield* VaultService;
-        const fs = yield* FileSystem;
+  it.scoped("--json outputs structured object", () =>
+    Effect.gen(function* () {
+      const vault = yield* VaultService;
+      const fs = yield* FileSystem;
+      const dir = yield* fs.makeTempDirectoryScoped();
 
-        yield* vault.init(dir);
-        yield* fs.writeFileString(`${dir}/principles/testing.md`, "# Testing\n");
-        yield* vault.rebuildIndex(dir);
+      yield* vault.init(dir);
+      yield* fs.writeFileString(`${dir}/principles/testing.md`, "# Testing\n");
+      yield* vault.rebuildIndex(dir);
 
-        const result = yield* runInject({ json: true }).pipe(Effect.provide(makeTestConfig(dir)));
+      const result = yield* runInject({ json: true }).pipe(Effect.provide(makeTestConfig(dir)));
 
-        expect(result).not.toBeNull();
-        const obj = result as Record<string, unknown>;
-        expect(obj).toHaveProperty("global");
-        expect(obj).toHaveProperty("project");
-        expect(obj).toHaveProperty("projectName");
-        expect(obj).toHaveProperty("projectNotes");
-        expect(obj).toHaveProperty("index");
-        expect(obj["global"]).toBeTypeOf("string");
-        expect(obj["project"]).toBeNull();
-        expect(obj["projectName"]).toBeNull();
-        expect(obj["projectNotes"]).toBeNull();
-        expect(obj["index"] as string).toContain("principles/testing");
-      }),
-    ).pipe(Effect.provide(VaultService.layer.pipe(Layer.provideMerge(BunServices.layer)))),
+      expect(result).not.toBeNull();
+      const obj = result as Record<string, unknown>;
+      expect(obj).toHaveProperty("global");
+      expect(obj).toHaveProperty("project");
+      expect(obj).toHaveProperty("projectName");
+      expect(obj).toHaveProperty("projectNotes");
+      expect(obj).toHaveProperty("index");
+      expect(obj["global"]).toBeTypeOf("string");
+      expect(obj["project"]).toBeNull();
+      expect(obj["projectName"]).toBeNull();
+      expect(obj["projectNotes"]).toBeNull();
+      expect(obj["index"] as string).toContain("principles/testing");
+    }).pipe(Effect.provide(VaultService.layer.pipe(Layer.provideMerge(BunServices.layer)))),
   );
 
-  it.live("handles project vault overlay", () =>
-    withTempDir((dir) =>
-      Effect.gen(function* () {
-        const vault = yield* VaultService;
-        const fs = yield* FileSystem;
+  it.scoped("handles project vault overlay", () =>
+    Effect.gen(function* () {
+      const vault = yield* VaultService;
+      const fs = yield* FileSystem;
+      const dir = yield* fs.makeTempDirectoryScoped();
 
-        const globalDir = `${dir}/global`;
-        const projectDir = `${dir}/project`;
+      const globalDir = `${dir}/global`;
+      const projectDir = `${dir}/project`;
 
-        // Set up both vaults
-        yield* vault.init(globalDir);
-        yield* fs.writeFileString(`${globalDir}/principles/global-note.md`, "# Global\n");
-        yield* vault.rebuildIndex(globalDir);
+      // Set up both vaults
+      yield* vault.init(globalDir);
+      yield* fs.writeFileString(`${globalDir}/principles/global-note.md`, "# Global\n");
+      yield* vault.rebuildIndex(globalDir);
 
-        yield* vault.init(projectDir);
-        yield* fs.writeFileString(`${projectDir}/plans/local-note.md`, "# Local\n");
-        yield* vault.rebuildIndex(projectDir);
+      yield* vault.init(projectDir);
+      yield* fs.writeFileString(`${projectDir}/plans/local-note.md`, "# Local\n");
+      yield* vault.rebuildIndex(projectDir);
 
-        const result = yield* runInject({ json: true }).pipe(
-          Effect.provide(makeTestConfig(globalDir, Option.some(projectDir))),
-        );
+      const result = yield* runInject({ json: true }).pipe(
+        Effect.provide(makeTestConfig(globalDir, Option.some(projectDir))),
+      );
 
-        expect(result).not.toBeNull();
-        const obj = result as Record<string, unknown>;
-        expect(obj["global"]).toBeTypeOf("string");
-        expect(obj["project"]).toBeTypeOf("string");
-        expect(obj["global"] as string).toContain("global-note");
-        expect(obj["project"] as string).toContain("local-note");
-        expect(obj["index"] as string).toContain("global-note");
-        expect(obj["index"] as string).toContain("local-note");
-      }),
-    ).pipe(Effect.provide(VaultService.layer.pipe(Layer.provideMerge(BunServices.layer)))),
+      expect(result).not.toBeNull();
+      const obj = result as Record<string, unknown>;
+      expect(obj["global"]).toBeTypeOf("string");
+      expect(obj["project"]).toBeTypeOf("string");
+      expect(obj["global"] as string).toContain("global-note");
+      expect(obj["project"] as string).toContain("local-note");
+      expect(obj["index"] as string).toContain("global-note");
+      expect(obj["index"] as string).toContain("local-note");
+    }).pipe(Effect.provide(VaultService.layer.pipe(Layer.provideMerge(BunServices.layer)))),
   );
 
-  it.live("injects project-specific notes from projects/<name>/", () =>
-    withTempDir((dir) =>
-      Effect.gen(function* () {
-        const vault = yield* VaultService;
-        const fs = yield* FileSystem;
+  it.scoped("injects project-specific notes from projects/<name>/", () =>
+    Effect.gen(function* () {
+      const vault = yield* VaultService;
+      const fs = yield* FileSystem;
+      const dir = yield* fs.makeTempDirectoryScoped();
 
-        yield* vault.init(dir);
-        yield* fs.makeDirectory(`${dir}/projects/myapp`, { recursive: true });
-        yield* fs.writeFileString(`${dir}/projects/myapp/api-notes.md`, "# API\n");
-        yield* fs.writeFileString(`${dir}/projects/myapp/deploy.md`, "# Deploy\n");
-        yield* vault.rebuildIndex(dir);
+      yield* vault.init(dir);
+      yield* fs.makeDirectory(`${dir}/projects/myapp`, { recursive: true });
+      yield* fs.writeFileString(`${dir}/projects/myapp/api-notes.md`, "# API\n");
+      yield* fs.writeFileString(`${dir}/projects/myapp/deploy.md`, "# Deploy\n");
+      yield* vault.rebuildIndex(dir);
 
-        const result = yield* runInject({ json: true }).pipe(
-          Effect.provide(makeTestConfig(dir, Option.none(), Option.some("myapp"))),
-        );
+      const result = yield* runInject({ json: true }).pipe(
+        Effect.provide(makeTestConfig(dir, Option.none(), Option.some("myapp"))),
+      );
 
-        expect(result).not.toBeNull();
-        const obj = result as Record<string, unknown>;
-        expect(obj["projectName"]).toBe("myapp");
-        expect(obj["projectNotes"]).toBeTypeOf("string");
-        expect(obj["projectNotes"] as string).toContain("[[projects/myapp/api-notes]]");
-        expect(obj["projectNotes"] as string).toContain("[[projects/myapp/deploy]]");
-        expect(obj["index"] as string).toContain("projects/myapp/api-notes");
-      }),
-    ).pipe(Effect.provide(VaultService.layer.pipe(Layer.provideMerge(BunServices.layer)))),
+      expect(result).not.toBeNull();
+      const obj = result as Record<string, unknown>;
+      expect(obj["projectName"]).toBe("myapp");
+      expect(obj["projectNotes"]).toBeTypeOf("string");
+      expect(obj["projectNotes"] as string).toContain("[[projects/myapp/api-notes]]");
+      expect(obj["projectNotes"] as string).toContain("[[projects/myapp/deploy]]");
+      expect(obj["index"] as string).toContain("projects/myapp/api-notes");
+    }).pipe(Effect.provide(VaultService.layer.pipe(Layer.provideMerge(BunServices.layer)))),
   );
 
-  it.live("skips project notes when projects/<name>/ doesn't exist", () =>
-    withTempDir((dir) =>
-      Effect.gen(function* () {
-        const vault = yield* VaultService;
-        const fs = yield* FileSystem;
+  it.scoped("skips project notes when projects/<name>/ doesn't exist", () =>
+    Effect.gen(function* () {
+      const vault = yield* VaultService;
+      const fs = yield* FileSystem;
+      const dir = yield* fs.makeTempDirectoryScoped();
 
-        yield* vault.init(dir);
-        yield* fs.writeFileString(`${dir}/principles/testing.md`, "# Testing\n");
-        yield* vault.rebuildIndex(dir);
+      yield* vault.init(dir);
+      yield* fs.writeFileString(`${dir}/principles/testing.md`, "# Testing\n");
+      yield* vault.rebuildIndex(dir);
 
-        const result = yield* runInject({ json: true }).pipe(
-          Effect.provide(makeTestConfig(dir, Option.none(), Option.some("nonexistent"))),
-        );
+      const result = yield* runInject({ json: true }).pipe(
+        Effect.provide(makeTestConfig(dir, Option.none(), Option.some("nonexistent"))),
+      );
 
-        expect(result).not.toBeNull();
-        const obj = result as Record<string, unknown>;
-        expect(obj["projectName"]).toBeNull();
-        expect(obj["projectNotes"]).toBeNull();
-      }),
-    ).pipe(Effect.provide(VaultService.layer.pipe(Layer.provideMerge(BunServices.layer)))),
+      expect(result).not.toBeNull();
+      const obj = result as Record<string, unknown>;
+      expect(obj["projectName"]).toBeNull();
+      expect(obj["projectNotes"]).toBeNull();
+    }).pipe(Effect.provide(VaultService.layer.pipe(Layer.provideMerge(BunServices.layer)))),
   );
 });

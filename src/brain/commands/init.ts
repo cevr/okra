@@ -87,7 +87,7 @@ export const init = Command.make("init", {
 
       // Copy starter principles if principles/ is empty (skip for project sub-vaults)
       if (!isProjectSubVault) {
-        yield* copyStarterPrinciples(fs, path, vaultPath);
+        yield* copyStarterPrinciples(vaultPath);
       }
 
       const cfgPath = yield* config.configFilePath();
@@ -134,7 +134,7 @@ export const init = Command.make("init", {
       for (const providerId of providerIds) {
         const agent = yield* platform.getProvider(providerId);
         const hooksChanged = agent.integration.supportsHooks
-          ? yield* wireHooks(fs, path, agent.integration.settingsPath)
+          ? yield* wireHooks(agent.integration.settingsPath)
           : false;
         const hooksSkipped = !agent.integration.supportsHooks;
 
@@ -193,11 +193,9 @@ export const init = Command.make("init", {
 );
 
 /** @internal */
-export const wireHooks = Effect.fn("wireHooks")(function* (
-  fs: FileSystem,
-  path: Path,
-  settingsPath: string,
-) {
+export const wireHooks = Effect.fn("wireHooks")(function* (settingsPath: string) {
+  const fs = yield* FileSystem;
+  const path = yield* Path;
   const dir = path.dirname(settingsPath);
   yield* fs.makeDirectory(dir, { recursive: true }).pipe(
     Effect.mapError(
@@ -312,10 +310,10 @@ export const wireHooks = Effect.fn("wireHooks")(function* (
 
 /** @internal */
 export const copyStarterPrinciples = Effect.fn("copyStarterPrinciples")(function* (
-  fs: FileSystem,
-  path: Path,
   vaultPath: string,
 ) {
+  const fs = yield* FileSystem;
+  const path = yield* Path;
   const { repoRoot } = yield* BuildInfo;
   const root = repoRoot;
   const principlesDir = path.join(vaultPath, "principles");

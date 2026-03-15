@@ -5,6 +5,7 @@ import type { PlatformError } from "effect/PlatformError";
 import { BrainError } from "../../errors/index.js";
 import { requireDarwin, requireHome } from "./state.js";
 import { resolveExecutable } from "../../../shared/executable.js";
+import { escapeXml } from "../../../shared/xml.js";
 
 const LABEL_PREFIX = "com.cvr.okra.brain-daemon";
 const UNIFIED_LABEL = LABEL_PREFIX;
@@ -49,27 +50,27 @@ export const generatePlist = (
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>${label(job)}</string>
+  <string>${escapeXml(label(job))}</string>
   <key>ProgramArguments</key>
   <array>
-    <string>${brainBin}</string>
+    <string>${escapeXml(brainBin)}</string>
     <string>brain</string>
     <string>daemon</string>
     <string>run</string>
-    <string>${job}</string>
+    <string>${escapeXml(job)}</string>
   </array>
   <key>EnvironmentVariables</key>
   <dict>
     <key>HOME</key>
-    <string>${home}</string>
+    <string>${escapeXml(home)}</string>
     <key>PATH</key>
-    <string>${pathEnv}</string>
+    <string>${escapeXml(pathEnv)}</string>
   </dict>
 ${scheduleKey}
   <key>StandardOutPath</key>
-  <string>${logPath(home, job, path)}</string>
+  <string>${escapeXml(logPath(home, job, path))}</string>
   <key>StandardErrorPath</key>
-  <string>${logPath(home, job, path)}</string>
+  <string>${escapeXml(logPath(home, job, path))}</string>
   <key>KeepAlive</key>
   <false/>
 </dict>
@@ -213,7 +214,7 @@ export const rotateLogs = Effect.fn("rotateLogs")(function* () {
     .pipe(Effect.catch(() => Effect.succeed([] as string[])));
 
   for (const file of files) {
-    if (!file.startsWith("daemon-") || !file.endsWith(".log")) continue;
+    if (!file.endsWith(".log") || (!file.startsWith("daemon-") && file !== "daemon.log")) continue;
     const filePath = path.join(dir, file);
     const stat = yield* fs.stat(filePath).pipe(Effect.catch(() => Effect.succeed(null)));
     if (stat === null) continue;
@@ -241,10 +242,10 @@ export const generateUnifiedPlist = (home: string, brainBin: string, path: Path)
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>${UNIFIED_LABEL}</string>
+  <string>${escapeXml(UNIFIED_LABEL)}</string>
   <key>ProgramArguments</key>
   <array>
-    <string>${brainBin}</string>
+    <string>${escapeXml(brainBin)}</string>
     <string>brain</string>
     <string>daemon</string>
     <string>tick</string>
@@ -252,9 +253,9 @@ export const generateUnifiedPlist = (home: string, brainBin: string, path: Path)
   <key>EnvironmentVariables</key>
   <dict>
     <key>HOME</key>
-    <string>${home}</string>
+    <string>${escapeXml(home)}</string>
     <key>PATH</key>
-    <string>${pathEnv}</string>
+    <string>${escapeXml(pathEnv)}</string>
   </dict>
   <key>StartCalendarInterval</key>
   <array>
@@ -264,9 +265,9 @@ export const generateUnifiedPlist = (home: string, brainBin: string, path: Path)
     <dict><key>Hour</key><integer>21</integer></dict>
   </array>
   <key>StandardOutPath</key>
-  <string>${unifiedLogPath(home, path)}</string>
+  <string>${escapeXml(unifiedLogPath(home, path))}</string>
   <key>StandardErrorPath</key>
-  <string>${unifiedLogPath(home, path)}</string>
+  <string>${escapeXml(unifiedLogPath(home, path))}</string>
   <key>KeepAlive</key>
   <false/>
 </dict>

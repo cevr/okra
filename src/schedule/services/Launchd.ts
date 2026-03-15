@@ -5,20 +5,12 @@ import type { PlatformError } from "effect/PlatformError";
 import { ScheduleError } from "../errors.js";
 import { PathEnv, resolvePaths } from "../paths.js";
 import { resolveExecutable } from "../../shared/executable.js";
+import { escapeXml } from "../../shared/xml.js";
 import type { Task } from "./Store.js";
 import { toCalendarIntervals } from "./Schedule.js";
 
 const LABEL_PREFIX = "com.cvr.okra.schedule";
 const label = (id: string) => `${LABEL_PREFIX}-${id}`;
-
-/** @internal */
-export const escapeXml = (s: string): string =>
-  s
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&apos;");
 
 const calendarIntervalXml = (intervals: ReadonlyArray<Record<string, number>>): string => {
   if (intervals.length === 1) {

@@ -100,21 +100,22 @@ const root = Command.make(
       });
       yield* launchd.install(task);
 
-      yield* Console.log(`Scheduled task ${id}`);
-      yield* Console.log(`  Prompt:   ${prompt}`);
-      yield* Console.log(`  Provider: ${provider}`);
-      yield* Console.log(`  Schedule: ${Schedule.describe(schedule)}`);
+      yield* Console.error(`Scheduled task ${id}`);
+      yield* Console.error(`  Prompt:   ${prompt}`);
+      yield* Console.error(`  Provider: ${provider}`);
+      yield* Console.error(`  Schedule: ${Schedule.describe(schedule)}`);
       if (task.stopConditions !== undefined && task.stopConditions.length > 0) {
-        yield* Console.log(`  Stop:     ${StopEvaluator.describe(task.stopConditions, task)}`);
+        yield* Console.error(`  Stop:     ${StopEvaluator.describe(task.stopConditions, task)}`);
       }
       if (task.conditionalStop !== undefined) {
-        yield* Console.log(`  When:     ${task.conditionalStop.condition}`);
+        yield* Console.error(`  When:     ${task.conditionalStop.condition}`);
       }
-      yield* Console.log(`  CWD:      ${cwd}`);
+      yield* Console.error(`  CWD:      ${cwd}`);
       if (context !== undefined) {
-        if (context.gitBranch !== undefined) yield* Console.log(`  Branch:   ${context.gitBranch}`);
+        if (context.gitBranch !== undefined)
+          yield* Console.error(`  Branch:   ${context.gitBranch}`);
         if (context.prNumber !== undefined)
-          yield* Console.log(`  PR:       #${String(context.prNumber)}`);
+          yield* Console.error(`  PR:       #${String(context.prNumber)}`);
       }
     }),
 ).pipe(
@@ -141,8 +142,8 @@ const root = Command.make(
       command: 'okra schedule "run tests" -s "in 30 minutes"',
       description: "Schedule a one-shot task",
     },
-    { command: "okra schedule ls", description: "List scheduled tasks" },
-    { command: "okra schedule rm <id>", description: "Remove a task" },
+    { command: "okra schedule list", description: "List scheduled tasks" },
+    { command: "okra schedule remove <id>", description: "Remove a task" },
   ]),
 );
 

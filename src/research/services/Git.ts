@@ -98,7 +98,7 @@ export class GitService extends ServiceMap.Service<
       branchExists: (name) =>
         run(["rev-parse", "--verify", `refs/heads/${name}`]).pipe(
           Effect.as(true),
-          Effect.catchTag("ResearchError", () => Effect.succeed(false)),
+          Effect.catchTag("@cvr/okra/research/ResearchError", () => Effect.succeed(false)),
         ),
 
       addWorktree: (path, branch) => run(["worktree", "add", path, branch]).pipe(Effect.asVoid),

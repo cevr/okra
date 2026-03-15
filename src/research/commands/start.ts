@@ -92,17 +92,17 @@ export const startCommand = Command.make(
       if (exists) {
         // Resume existing session
         const session = yield* sessionSvc.load(projectRoot);
-        yield* Console.log(`Resuming experiment: ${session.name}`);
+        yield* Console.error(`Resuming experiment: ${session.name}`);
 
         const isRunning = yield* daemon.isRunning(projectRoot);
         if (isRunning) {
-          yield* Console.log("Daemon already running.");
+          yield* Console.error("Daemon already running.");
           return;
         }
 
         yield* agentPlatform.ensureExecutable(session.provider);
         const pid = yield* daemon.start(projectRoot);
-        yield* Console.log(`Daemon started (pid ${pid})`);
+        yield* Console.error(`Daemon started (pid ${pid})`);
         return;
       }
 
@@ -114,8 +114,10 @@ export const startCommand = Command.make(
       const hasUntil = untilOpt._tag === "Some";
 
       if (hasMaxMinutes && hasUntil) {
-        yield* Console.error("Error: --max-minutes and --until are mutually exclusive");
-        return;
+        return yield* new ResearchError({
+          message: "--max-minutes and --until are mutually exclusive",
+          code: ErrorCode.INVALID_INPUT,
+        });
       }
 
       // Normalize to deadline
@@ -128,7 +130,7 @@ export const startCommand = Command.make(
           catch: (e) =>
             new ResearchError({
               message: `Invalid --until value: ${e instanceof Error ? e.message : String(e)}`,
-              code: ErrorCode.SESSION_NOT_FOUND,
+              code: ErrorCode.INVALID_INPUT,
             }),
         });
         deadline = parsed.toISOString();
@@ -151,18 +153,18 @@ export const startCommand = Command.make(
       });
 
       yield* sessionSvc.init(session);
-      yield* Console.log(`Experiment "${name}" initialized.`);
-      yield* Console.log(`  direction: ${direction}`);
-      yield* Console.log(`  benchmark: ${benchmark}`);
-      yield* Console.log(`  provider: ${provider}`);
-      yield* Console.log(`  max iterations: ${maxIterations}`);
+      yield* Console.error(`Experiment "${name}" initialized.`);
+      yield* Console.error(`  direction: ${direction}`);
+      yield* Console.error(`  benchmark: ${benchmark}`);
+      yield* Console.error(`  provider: ${provider}`);
+      yield* Console.error(`  max iterations: ${maxIterations}`);
       if (deadline !== undefined) {
-        yield* Console.log(`  deadline: ${deadline}`);
+        yield* Console.error(`  deadline: ${deadline}`);
       }
 
-      yield* Console.log(`Starting daemon...`);
+      yield* Console.error(`Starting daemon...`);
       const pid = yield* daemon.start(projectRoot);
-      yield* Console.log(`Daemon started (pid ${pid})`);
-      yield* Console.log(`Tip: run 'okra research logs -f' to watch progress`);
+      yield* Console.error(`Daemon started (pid ${pid})`);
+      yield* Console.error(`Tip: run 'okra research logs -f' to watch progress`);
     }),
 ).pipe(Command.withDescription("Initialize and start an experiment"));

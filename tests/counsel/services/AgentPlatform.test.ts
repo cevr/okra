@@ -9,8 +9,8 @@ import {
 } from "../../../src/counsel/services/AgentPlatform.js";
 
 describe("AgentPlatform helpers", () => {
-  it.effect("detects Claude from CLAUDE_CODE", () =>
-    detectSourceFromEnv({ CLAUDE_CODE: "1" }).pipe(
+  it.effect("detects Claude from CLAUDECODE", () =>
+    detectSourceFromEnv({ CLAUDECODE: "1" }).pipe(
       Effect.map((provider) => {
         expect(provider).toBe("claude");
       }),

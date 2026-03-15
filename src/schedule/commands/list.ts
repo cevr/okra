@@ -6,7 +6,7 @@ import * as StopEvaluator from "../services/StopEvaluator.js";
 import { isColorEnabled } from "../../shared/env.js";
 
 export const list = Command.make(
-  "ls",
+  "list",
   {
     json: Flag.boolean("json").pipe(Flag.withAlias("j"), Flag.withDefault(false)),
   },

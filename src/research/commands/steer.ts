@@ -18,6 +18,6 @@ export const steerCommand = Command.make(
       mkdirSync(paths.steerDir, { recursive: true });
       const filename = `${Date.now()}.txt`;
       writeFileSync(join(paths.steerDir, filename), guidance);
-      yield* Console.log(`Steer queued: ${filename}`);
+      yield* Console.error(`Steer queued: ${filename}`);
     }),
 ).pipe(Command.withDescription("Send guidance to the experiment"));

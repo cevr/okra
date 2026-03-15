@@ -36,7 +36,7 @@ export class ConfigService extends ServiceMap.Service<
     readonly saveConfigFile: (config: ConfigFile) => Effect.Effect<void, ConfigError>;
   }
 >()("@cvr/okra/brain/services/Config/ConfigService") {
-  static layer: Layer.Layer<ConfigService, never, FileSystem | Path> = Layer.effect(
+  static layer: Layer.Layer<ConfigService, ConfigError, FileSystem | Path> = Layer.effect(
     ConfigService,
     Effect.gen(function* () {
       const fs = yield* FileSystem;
@@ -44,9 +44,10 @@ export class ConfigService extends ServiceMap.Service<
 
       const home = process.env["HOME"] ?? process.env["USERPROFILE"];
       if (home === undefined) {
-        return yield* Effect.die(
-          new ConfigError({ message: "HOME environment variable is not set", code: "READ_FAILED" }),
-        );
+        return yield* new ConfigError({
+          message: "HOME environment variable is not set",
+          code: "READ_FAILED",
+        });
       }
       const xdgConfig = process.env["XDG_CONFIG_HOME"] ?? path.join(home, ".config");
 

@@ -16,7 +16,7 @@ const isScheduleError = Schema.is(ScheduleError);
 const isResearchError = Schema.is(ResearchError);
 
 const RECOVERY_HINTS: Record<string, string> = {
-  NOT_FOUND: "Run 'okra schedule ls' to see available tasks.",
+  NOT_FOUND: "Run 'okra schedule list' to see available tasks.",
   INVALID_SCHEDULE: "See 'okra schedule --help' for schedule formats.",
 };
 
@@ -41,7 +41,7 @@ const program = cli.pipe(
         if (reason._tag !== "Fail") continue;
         const err = reason.error;
         if (isScheduleError(err)) {
-          yield* Console.error(err.message);
+          yield* Console.error(`[${err.code}] ${err.message}`);
           const hint = RECOVERY_HINTS[err.code];
           if (hint !== undefined) {
             yield* Console.error(hint);
@@ -51,7 +51,7 @@ const program = cli.pipe(
         } else if (isResearchError(err)) {
           yield* Console.error(`[${err.code}] ${err.message}`);
         } else if (isBrainDomainError(err)) {
-          yield* Console.error(err.message);
+          yield* Console.error(`[${err.code}] ${err.message}`);
         }
       }
     }),

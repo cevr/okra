@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { escapeXml, generatePlist } from "../../../src/schedule/services/Launchd.js";
+import { generatePlist } from "../../../src/schedule/services/Launchd.js";
+import { escapeXml } from "../../../src/shared/xml.js";
 import { Task } from "../../../src/schedule/services/Store.js";
 
 describe("escapeXml", () => {

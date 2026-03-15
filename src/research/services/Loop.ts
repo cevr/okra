@@ -329,7 +329,7 @@ export class LoopService extends ServiceMap.Service<
               const benchResult = yield* runner
                 .run(session.benchmarkCmd, worktreePath, benchmarkTimeoutMs)
                 .pipe(
-                  Effect.catchTag("ResearchError", (e) =>
+                  Effect.catchTag("@cvr/okra/research/ResearchError", (e) =>
                     Effect.succeed({
                       exitCode: 1,
                       stdout: "",
