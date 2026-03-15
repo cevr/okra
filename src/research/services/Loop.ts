@@ -33,6 +33,10 @@ import { WorkspaceService } from "./Workspace.js";
 
 const now = () => new Date().toISOString();
 
+const logProgress = (daemonLog: string, message: string) => {
+  appendFileSync(daemonLog, `[${now()}] ${message}\n`);
+};
+
 const hashFiles = Effect.fn("hashFiles")(function* (files: ReadonlyArray<string>) {
   return yield* Effect.try({
     try: () => {
@@ -98,6 +102,7 @@ export class LoopService extends ServiceMap.Service<
 
             // --- STARTUP ---
             yield* appendLifecycle(log, projectRoot, "started");
+            logProgress(paths.daemonLog, "daemon started");
             const session = yield* sessionSvc.load(projectRoot);
 
             // Reconstruct state from JSONL
@@ -133,6 +138,7 @@ export class LoopService extends ServiceMap.Service<
 
             // Baseline if needed
             if (state.baseline === undefined) {
+              logProgress(paths.daemonLog, "running baseline benchmark...");
               const baselineResult = yield* runner.run(session.benchmarkCmd, worktreePath);
               const sourceCommit = yield* git.headSha(worktreePath);
 
@@ -189,6 +195,8 @@ export class LoopService extends ServiceMap.Service<
                 bestCommit: sourceCommit,
               });
 
+              logProgress(paths.daemonLog, `baseline: ${baselineValue} ${session.unit}`);
+
               state = yield* log.reconstructState(projectRoot);
             }
 
@@ -204,6 +212,10 @@ export class LoopService extends ServiceMap.Service<
             while (true) {
               const budgetCheck = yield* budget.check(session, state);
               if (!budgetCheck.canContinue) {
+                logProgress(
+                  paths.daemonLog,
+                  `budget exhausted: ${budgetCheck.reason ?? "unknown"}`,
+                );
                 yield* appendLifecycle(log, projectRoot, "budget_exhausted", budgetCheck.reason);
                 yield* log.regenerateMarkdown(projectRoot, session);
                 break;
@@ -224,6 +236,12 @@ export class LoopService extends ServiceMap.Service<
                   code: ErrorCode.BENCHMARK_TAMPERED,
                 });
               }
+
+              const nextIter = state.iteration + 1;
+              logProgress(
+                paths.daemonLog,
+                `iter ${nextIter}/${session.maxIterations}: invoking ${session.provider}...`,
+              );
 
               // Build prompt and invoke agent
               const allSteers = [...state.steers, ...steers];
@@ -247,6 +265,10 @@ export class LoopService extends ServiceMap.Service<
 
               // Agent failed — revert and log
               if (agentResult.exitCode !== 0) {
+                logProgress(
+                  paths.daemonLog,
+                  `iter ${nextIteration}: agent failed (exit ${agentResult.exitCode})`,
+                );
                 yield* git.revertWorktree(worktreePath);
                 yield* log.append(
                   projectRoot,
@@ -271,6 +293,7 @@ export class LoopService extends ServiceMap.Service<
               const isWorktreeClean = yield* git.isClean(worktreePath);
 
               if (isWorktreeClean) {
+                logProgress(paths.daemonLog, `iter ${nextIteration}: no changes — discarded`);
                 yield* log.append(
                   projectRoot,
                   new ResultEvent({
@@ -304,7 +327,7 @@ export class LoopService extends ServiceMap.Service<
                   kind: "trial",
                   status: "pending",
                   durationMs: agentResult.durationMs,
-                  summary: agentResult.output.slice(0, 200),
+                  summary: agentResult.output.trim().slice(-500),
                   diff: diffOutput.slice(0, 1000),
                 }),
               );
@@ -327,6 +350,10 @@ export class LoopService extends ServiceMap.Service<
               const bestValue = state.best?.value;
 
               if (benchResult.exitCode !== 0) {
+                logProgress(
+                  paths.daemonLog,
+                  `iter ${nextIteration}: benchmark failed (exit ${benchResult.exitCode}) — reverted`,
+                );
                 yield* git.revertWorktree(worktreePath);
                 yield* log.append(
                   projectRoot,
@@ -376,6 +403,10 @@ export class LoopService extends ServiceMap.Service<
                     bestValue: metricValue,
                     bestCommit: sha,
                   });
+                  logProgress(
+                    paths.daemonLog,
+                    `iter ${nextIteration}: ${metricValue} ${session.unit} — KEPT (was ${bestValue} ${session.unit})`,
+                  );
                 } else {
                   yield* git.revertWorktree(worktreePath);
                   yield* log.append(
@@ -392,6 +423,10 @@ export class LoopService extends ServiceMap.Service<
                   yield* sessionSvc.update(projectRoot, {
                     currentIteration: nextIteration,
                   });
+                  logProgress(
+                    paths.daemonLog,
+                    `iter ${nextIteration}: ${metricValue ?? "N/A"} ${session.unit} — discarded (best: ${bestValue} ${session.unit})`,
+                  );
                 }
               }
 
