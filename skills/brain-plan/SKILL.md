@@ -1,5 +1,5 @@
 ---
-name: plan
+name: brain-plan
 description: Create structured implementation plans grounded in brain vault principles. Planning only — no implementation. Use when user says "plan this", "break this down", or needs a structured approach before coding.
 ---
 

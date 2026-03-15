@@ -1,5 +1,5 @@
 ---
-name: okra-schedule
+name: schedule
 description: AI agent task scheduler via macOS launchd. Use when scheduling agent tasks, managing scheduled jobs, viewing task logs, or any interaction with `~/.okra/schedule/`. Triggers on "schedule agent", "schedule task", "agent scheduler", "launchd agent", "okra schedule".
 ---
 
@@ -25,9 +25,9 @@ What do you need?
 | `okra schedule "<prompt>" -s "<schedule>"` | Schedule task (default: claude) |
 | `okra schedule "<prompt>" -s "<schedule>" -p codex` | Schedule with specific provider |
 | `okra schedule "<prompt>" -s "<schedule>" --stop-when "<condition>" --max-runs N` | Conditional stop with fallback |
-| `okra schedule ls` | List all tasks |
-| `okra schedule ls -j` | List tasks as JSON |
-| `okra schedule rm <id>` | Remove task + unload plist |
+| `okra schedule list` | List all tasks |
+| `okra schedule list -j` | List tasks as JSON |
+| `okra schedule remove <id>` | Remove task + unload plist |
 | `okra schedule run <id>` | Execute task (called by launchd) |
 | `okra schedule logs` | List available logs |
 | `okra schedule logs <id>` | View task log |

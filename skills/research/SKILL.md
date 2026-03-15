@@ -1,5 +1,5 @@
 ---
-name: okra-research
+name: research
 description: Autonomous experiment daemon that optimizes any measurable metric using AI agents. Use when running optimization experiments, benchmarking code changes, managing experiment sessions, or any interaction with `.xp/` directories. Triggers on "research", "experiment", "optimize", "benchmark", "xp", "okra research".
 ---
 

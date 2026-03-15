@@ -1,5 +1,5 @@
 ---
-name: okra-brain
+name: brain
 description: Persistent agent memory vault managed by `okra brain`. Use when writing to brain, reading vault files, checking vault status, running daemon, or any interaction with the `~/.brain/` vault. Triggers on "brain", "add to brain", "write to brain", "vault", "brain status", "brain daemon", "daemon start", "daemon stop", "okra brain".
 ---
 

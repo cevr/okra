@@ -1,5 +1,5 @@
 ---
-name: okra-counsel
+name: counsel
 description: Route a prompt to the opposite local coding agent. Use when in Claude and wanting Codex, or in Codex and wanting Claude, for an independent second opinion on code, architecture, bugs, migrations, or tests. Triggers on "counsel", "ask codex", "ask claude", "second opinion", "route to the other model", "okra counsel".
 ---
 
