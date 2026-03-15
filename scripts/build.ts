@@ -25,6 +25,7 @@ const buildResult = await Bun.build({
   minify: false,
   define: {
     __VERSION__: JSON.stringify(pkg.version),
+    __ASSET_ROOT__: JSON.stringify(rootDir),
   },
   compile: {
     target: `bun-${platform}-${arch}`,

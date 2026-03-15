@@ -5,8 +5,8 @@
     "": {
       "name": "@cvr/okra",
       "dependencies": {
-        "@effect/platform-bun": "4.0.0-beta.29",
-        "effect": "4.0.0-beta.29",
+        "@effect/platform-bun": "4.0.0-beta.31",
+        "effect": "4.0.0-beta.31",
       },
       "devDependencies": {
         "@changesets/changelog-github": "^0.6.0",
@@ -65,7 +65,7 @@
 
     "@effect/language-service": ["@effect/language-service@0.79.0", "", { "bin": { "effect-language-service": "cli.js" } }, "sha512-DEmIOsg1GjjP6s9HXH1oJrW+gDmzkhVv9WOZl6to5eNyyCrjz1S2PDqQ7aYrW/HuifhfwI5Bik1pK4pj7Z+lrg=="],
 
-    "@effect/platform-bun": ["@effect/platform-bun@4.0.0-beta.29", "", { "dependencies": { "@effect/platform-node-shared": "^4.0.0-beta.29" }, "peerDependencies": { "effect": "^4.0.0-beta.29" } }, "sha512-Yd7VTbbRjqkfrYu63bJbg/4w4sax8By6y9FHrbkZ9hCpDxF+Imcg3cMeoUcRlwgd4elyn+cSPFWS9CGh3eYqRw=="],
+    "@effect/platform-bun": ["@effect/platform-bun@4.0.0-beta.31", "", { "dependencies": { "@effect/platform-node-shared": "^4.0.0-beta.31" }, "peerDependencies": { "effect": "^4.0.0-beta.31" } }, "sha512-BtUDWyfppKPEAHY2hTjNGnDOQN7ZADZPbnzCMFsyYFJgwucAtK9ZL0onfLuSjNA5WDW7XR046PeU3Pf7gQhyoQ=="],
 
     "@effect/platform-node-shared": ["@effect/platform-node-shared@4.0.0-beta.31", "", { "dependencies": { "@types/ws": "^8.18.1", "ws": "^8.19.0" }, "peerDependencies": { "effect": "^4.0.0-beta.31" } }, "sha512-m/4FT+kWEh9VtzrMQaJwPCF2Mhzjc7KEPeHqS/0dfodA/Wxn4gdlv9sstn9rpk0NLO5DVcSfXBPUAB37Znrmkg=="],
 
@@ -243,7 +243,7 @@
 
     "dotenv": ["dotenv@8.6.0", "", {}, "sha512-IrPdXQsk2BbzvCBGBOTmmSH5SodmqZNt4ERAZDmW4CT+tL8VtvinqywuANaFu4bOMWki16nqf0e4oC0QIaDr/g=="],
 
-    "effect": ["effect@4.0.0-beta.29", "", { "dependencies": { "@standard-schema/spec": "^1.1.0", "fast-check": "^4.5.3", "find-my-way-ts": "^0.1.6", "ini": "^6.0.0", "kubernetes-types": "^1.30.0", "msgpackr": "^1.11.8", "multipasta": "^0.2.7", "toml": "^3.0.0", "uuid": "^13.0.0", "yaml": "^2.8.2" } }, "sha512-7UoBAEiktoS81XLMX/39Mq/Ymq8whxmqFpsI0MEYdMlbDcbytzQlyuyhvrwEIdrd9qrqa8DZ5mKblWasamryqw=="],
+    "effect": ["effect@4.0.0-beta.31", "", { "dependencies": { "@standard-schema/spec": "^1.1.0", "fast-check": "^4.5.3", "find-my-way-ts": "^0.1.6", "ini": "^6.0.0", "kubernetes-types": "^1.30.0", "msgpackr": "^1.11.8", "multipasta": "^0.2.7", "toml": "^3.0.0", "uuid": "^13.0.0", "yaml": "^2.8.2" } }, "sha512-w3QwJnlaLtWWiUSzhCXUTIisnULPsxLzpO6uqaBFjXybKx6FvCqsLJT6v4dV7G9eA9jeTtG6Gv7kF+jGe3HxzA=="],
 
     "effect-bun-test": ["effect-bun-test@0.2.1", "", { "peerDependencies": { "bun": "*", "effect": ">=3.19.0" } }, "sha512-B59+azJrzoLoLh9vMyZZZcHlV5p2rH49B9hG9jsN+vnKj44H10Jx9bLDmQ1vsAFLf0GR+012ZeUt3Ub3A+bnzQ=="],
 

@@ -36,7 +36,7 @@ export const generateSlug = (source: Provider, target: Provider, now: DateTime.U
   const parts = DateTime.toPartsUtc(now);
   const pad = (value: number) => String(value).padStart(2, "0");
   const stamp = [String(parts.year), pad(parts.month), pad(parts.day)].join("");
-  const time = [pad(parts.hours), pad(parts.minutes), pad(parts.seconds)].join("");
+  const time = [pad(parts.hour), pad(parts.minute), pad(parts.second)].join("");
   const suffix = crypto.randomUUID().slice(0, 6);
   return `${stamp}-${time}-${source}-to-${target}-${suffix}`;
 };

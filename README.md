@@ -1,10 +1,11 @@
 # okra
 
-AI agent orchestration toolkit. Three subcommands:
+AI agent orchestration toolkit. Four subcommands:
 
 - **`okra schedule`** — Schedule AI agent tasks via macOS launchd
 - **`okra counsel`** — Route prompts between Claude and Codex for second opinions
 - **`okra research`** — Autonomous experiment daemon that optimizes measurable metrics
+- **`okra brain`** — Persistent agent memory vault with AI-powered maintenance
 
 ## Install
 
@@ -26,6 +27,10 @@ okra counsel "Review the auth refactor for blind spots"
 
 # Run an optimization experiment
 okra research start --direction min --benchmark "bun run bench.ts" --objective "Minimize runtime"
+
+# Initialize and manage agent memory
+okra brain init
+okra brain daemon start
 ```
 
 ## Development
@@ -38,4 +43,4 @@ bun test        # tests only
 
 ## Stack
 
-Effect v4 (beta.29), Bun, `effect/unstable/cli`, oxlint, oxfmt, lefthook.
+Effect v4 (beta.31), Bun, `effect/unstable/cli`, oxlint, oxfmt, lefthook.

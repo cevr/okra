@@ -5,8 +5,9 @@ import type { PlatformError } from "effect/PlatformError";
 import { ScheduleError } from "../errors.js";
 import { resolvePaths } from "../paths.js";
 import { ScheduleSchema, type Schedule } from "./Schedule.js";
+import type { Provider } from "../../shared/provider.js";
 
-export type Provider = "claude" | "codex";
+export type { Provider };
 
 const OptionalString = Schema.optional(Schema.String);
 const OptionalNumber = Schema.optional(Schema.Number);

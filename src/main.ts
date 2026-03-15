@@ -8,6 +8,7 @@ import { counselCommand } from "./counsel/index.js";
 import { isCounselError } from "./counsel/errors.js";
 import { researchCommand, ResearchServiceLayer } from "./research/index.js";
 import { ResearchError } from "./research/errors.js";
+import { brainCommand, BrainServiceLayer, isBrainDomainError } from "./brain/index.js";
 
 const VERSION = typeof __VERSION__ !== "undefined" ? __VERSION__ : "0.0.0-dev";
 
@@ -21,14 +22,16 @@ const RECOVERY_HINTS: Record<string, string> = {
 
 const root = Command.make("okra", {}, () => Effect.void).pipe(
   Command.withDescription("AI agent orchestration toolkit"),
-  Command.withSubcommands([scheduleCommand, counselCommand, researchCommand]),
+  Command.withSubcommands([scheduleCommand, counselCommand, researchCommand, brainCommand]),
 );
 
 const cli = Command.run(root, { version: VERSION });
 
-const ServiceLayer = Layer.mergeAll(ScheduleServiceLayer, ResearchServiceLayer).pipe(
-  Layer.provideMerge(BunServices.layer),
-);
+const ServiceLayer = Layer.mergeAll(
+  ScheduleServiceLayer,
+  ResearchServiceLayer,
+  BrainServiceLayer,
+).pipe(Layer.provideMerge(BunServices.layer));
 
 const program = cli.pipe(
   Effect.tapDefect((defect) => Console.error(`Internal error: ${String(defect)}`)),
@@ -47,6 +50,8 @@ const program = cli.pipe(
           yield* Console.error(`[${err.code}] ${err.message}`);
         } else if (isResearchError(err)) {
           yield* Console.error(`[${err.code}] ${err.message}`);
+        } else if (isBrainDomainError(err)) {
+          yield* Console.error(err.message);
         }
       }
     }),
