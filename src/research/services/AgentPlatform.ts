@@ -48,6 +48,8 @@ const buildArgs = (provider: Provider, prompt: string, cwd: string): Array<strin
         "--dangerously-skip-permissions",
         "--model",
         "opus",
+        "--effort",
+        "max",
         "--no-session-persistence",
         "--output-format",
         "text",

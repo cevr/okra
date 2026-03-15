@@ -7,8 +7,6 @@ import { HostService } from "./Host.js";
 const modelReasoningEffort = (profile: Profile): string =>
   profile === "deep" ? "xhigh" : "medium";
 
-const claudeModel = (profile: Profile): string => (profile === "deep" ? "opus" : "sonnet");
-
 export const detectSourceFromEnv = (
   env: Record<string, string | undefined>,
 ): Effect.Effect<Provider, CounselError> => {
@@ -33,6 +31,8 @@ export const oppositeProvider = (source: Provider): Provider =>
 export const buildPromptInstruction = (promptFilePath: string): string =>
   `Read the file at ${sanitizePath(promptFilePath)} and follow the instructions within it.`;
 
+const claudeEffort = (profile: Profile): string => (profile === "deep" ? "max" : "medium");
+
 export const buildClaudeInvocation = (
   command: string,
   promptFilePath: string,
@@ -45,7 +45,9 @@ export const buildClaudeInvocation = (
     "--output-format",
     "text",
     "--model",
-    claudeModel(profile),
+    "opus",
+    "--effort",
+    claudeEffort(profile),
     "--tools",
     CLAUDE_READ_ONLY_TOOLS,
     "--allowedTools",

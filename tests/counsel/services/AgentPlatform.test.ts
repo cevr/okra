@@ -55,6 +55,8 @@ describe("AgentPlatform helpers", () => {
       expect(invocation.cmd).toBe("claude");
       expect(invocation.args).toContain("--model");
       expect(invocation.args).toContain("opus");
+      expect(invocation.args).toContain("--effort");
+      expect(invocation.args).toContain("max");
       expect(invocation.args).toContain("--allowedTools");
       expect(invocation.args).toContain("--no-session-persistence");
       expect(invocation.args[invocation.args.length - 1]).toContain("/tmp/prompt.md");
