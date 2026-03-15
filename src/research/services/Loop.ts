@@ -119,13 +119,7 @@ export class LoopService extends ServiceMap.Service<
             if (!existsSync(paths.setupJson) && state.iteration === 0) {
               yield* appendLifecycle(log, projectRoot, "setup_discover");
               const setupPrompt = buildSetupPrompt(projectRoot, worktreePath, session.benchmarkCmd);
-              const setupResult = yield* agent.invoke(session.provider, setupPrompt, worktreePath);
-              if (setupResult.stderr.trim() !== "") {
-                appendFileSync(
-                  paths.daemonLog,
-                  `[${now()}] setup agent stderr:\n${setupResult.stderr}\n`,
-                );
-              }
+              yield* agent.invoke(session.provider, setupPrompt, worktreePath, paths.daemonLog);
             } else if (existsSync(paths.setupJson)) {
               yield* appendLifecycle(log, projectRoot, "setup_replay");
             }
@@ -253,13 +247,12 @@ export class LoopService extends ServiceMap.Service<
                 allSteers,
               );
 
-              const agentResult = yield* agent.invoke(session.provider, prompt, worktreePath);
-
-              // Log agent stderr for debugging
-              if (agentResult.stderr.trim() !== "") {
-                const logLine = `[${now()}] iter ${state.iteration + 1} agent stderr:\n${agentResult.stderr}\n`;
-                appendFileSync(paths.daemonLog, logLine);
-              }
+              const agentResult = yield* agent.invoke(
+                session.provider,
+                prompt,
+                worktreePath,
+                paths.daemonLog,
+              );
 
               const nextIteration = state.iteration + 1;
 
