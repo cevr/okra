@@ -89,7 +89,7 @@ export class AgentPlatformService extends ServiceMap.Service<
             invoke: (prompt, profile) =>
               Effect.tryPromise({
                 try: async () => {
-                  const model = profile === "deep" ? "opus" : "sonnet";
+                  const effort = profile === "deep" ? "max" : "medium";
                   const proc = Bun.spawn(
                     [
                       "claude",
@@ -97,7 +97,9 @@ export class AgentPlatformService extends ServiceMap.Service<
                       prompt,
                       "--dangerously-skip-permissions",
                       "--model",
-                      model,
+                      "opus",
+                      "--effort",
+                      effort,
                       "--no-session-persistence",
                     ],
                     { stdout: "ignore", stderr: "inherit" },
