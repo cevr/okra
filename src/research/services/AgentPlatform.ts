@@ -1,12 +1,10 @@
 // @effect-diagnostics effect/nodeBuiltinImport:off
 import { createWriteStream } from "node:fs";
-import { Duration, Effect, Layer, ServiceMap, Stream } from "effect";
+import { Effect, Layer, ServiceMap, Stream } from "effect";
 import { ResearchError, ErrorCode } from "../errors.js";
 import { resolveExecutable } from "../../shared/executable.js";
 import { AgentResult } from "../types.js";
 import type { Provider } from "../types.js";
-
-const DEFAULT_AGENT_TIMEOUT = Duration.minutes(10);
 
 const agentFailed = (e: unknown) =>
   new ResearchError({
@@ -125,16 +123,6 @@ export class AgentPlatformService extends ServiceMap.Service<
           }),
         ],
         { concurrency: "unbounded" },
-      ).pipe(
-        Effect.timeout(DEFAULT_AGENT_TIMEOUT),
-        Effect.catchTag("TimeoutError", () =>
-          Effect.fail(
-            new ResearchError({
-              message: `Agent timed out after ${Duration.toMillis(DEFAULT_AGENT_TIMEOUT)}ms`,
-              code: ErrorCode.AGENT_TIMEOUT,
-            }),
-          ),
-        ),
       );
 
       const durationMs = Date.now() - start;
