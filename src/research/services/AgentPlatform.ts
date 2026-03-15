@@ -50,8 +50,6 @@ const buildArgs = (provider: Provider, prompt: string, cwd: string): Array<strin
         "--dangerously-skip-permissions",
         "--model",
         "opus",
-        "--max-turns",
-        "20",
         "--no-session-persistence",
         "--output-format",
         "text",
