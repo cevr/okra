@@ -76,6 +76,8 @@ export const buildCodexInvocation = (
     "web_search=live",
     "-c",
     `model_reasoning_effort=${modelReasoningEffort(profile)}`,
+    "-c",
+    "service_tier=fast",
     "--skip-git-repo-check",
     buildPromptInstruction(promptFilePath),
   ],

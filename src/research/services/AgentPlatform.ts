@@ -63,6 +63,8 @@ const buildArgs = (provider: Provider, prompt: string, cwd: string): Array<strin
         "--skip-git-repo-check",
         "-c",
         "model_reasoning_effort=xhigh",
+        "-c",
+        "service_tier=fast",
         prompt,
       ];
 

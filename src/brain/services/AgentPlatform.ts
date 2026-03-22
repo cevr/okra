@@ -143,6 +143,8 @@ export class AgentPlatformService extends ServiceMap.Service<
                     cwd ?? process.cwd(),
                     "-c",
                     `model_reasoning_effort=${profile === "deep" ? '"high"' : '"medium"'}`,
+                    "-c",
+                    "service_tier=fast",
                     "--dangerously-bypass-approvals-and-sandbox",
                     "--skip-git-repo-check",
                     prompt,
