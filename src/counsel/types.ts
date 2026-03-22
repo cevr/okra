@@ -45,6 +45,7 @@ export const RunManifest = Schema.Struct({
   promptFilePath: Schema.String,
   outputFile: Schema.String,
   stderrFile: Schema.String,
+  eventsFile: Schema.String,
 });
 export type RunManifest = typeof RunManifest.Type;
 

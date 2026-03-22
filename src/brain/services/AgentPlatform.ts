@@ -141,6 +141,8 @@ export class AgentPlatformService extends ServiceMap.Service<
                     "exec",
                     "-C",
                     cwd ?? process.cwd(),
+                    "--color",
+                    "never",
                     "-c",
                     `model_reasoning_effort=${profile === "deep" ? '"high"' : '"medium"'}`,
                     "-c",

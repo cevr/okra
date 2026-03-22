@@ -6,6 +6,7 @@ import { CounselError, ErrorCode } from "../errors.js";
 import { AgentPlatformService } from "./AgentPlatform.js";
 import { InvocationRunnerService } from "./InvocationRunner.js";
 import type { DryRunPreview, Profile, Provider, RunManifest } from "../types.js";
+import { extractClaudeMessage, extractCodexMessage } from "../../shared/agent-output.js";
 
 export type RunInput = {
   readonly cwd: string;
@@ -170,9 +171,28 @@ export class RunService extends ServiceMap.Service<
 
         yield* writeTextFile(promptFilePath, promptInput.content);
 
-        const outputFile = path.join(outputDir, `${target}.md`);
+        // Both providers emit JSONL (codex --json, claude --output-format stream-json)
+        const eventsFile = path.join(outputDir, "events.jsonl");
         const stderrFile = path.join(outputDir, `${target}.stderr`);
-        const executed = yield* invocationRunner.execute(invocation, outputFile, stderrFile);
+        const executed = yield* invocationRunner.execute(invocation, eventsFile, stderrFile);
+
+        // Extract agent message from JSONL events → .md
+        const outputFile = path.join(outputDir, `${target}.md`);
+        const jsonl = yield* fs.readFileString(eventsFile).pipe(
+          Effect.mapError(
+            (error: PlatformError) =>
+              new CounselError({
+                message: `Failed to read events: ${error.message}`,
+                code: ErrorCode.READ_FAILED,
+              }),
+          ),
+        );
+        const extractMessage = target === "codex" ? extractCodexMessage : extractClaudeMessage;
+        const message = extractMessage(jsonl);
+        yield* writeTextFile(
+          outputFile,
+          Option.getOrElse(message, () => ""),
+        );
 
         const manifest: RunManifest = {
           timestamp: DateTime.formatIso(now),
@@ -188,6 +208,7 @@ export class RunService extends ServiceMap.Service<
           promptFilePath,
           outputFile,
           stderrFile,
+          eventsFile,
         };
 
         return { _tag: "Completed" as const, manifest };

@@ -53,6 +53,9 @@ describe("AgentPlatform helpers", () => {
     Effect.sync(() => {
       const invocation = buildClaudeInvocation("claude", "/tmp/prompt.md", "deep", "/tmp/project");
       expect(invocation.cmd).toBe("claude");
+      expect(invocation.args).toContain("--output-format");
+      expect(invocation.args).toContain("stream-json");
+      expect(invocation.args).toContain("--verbose");
       expect(invocation.args).toContain("--model");
       expect(invocation.args).toContain("opus");
       expect(invocation.args).toContain("--effort");
@@ -73,6 +76,7 @@ describe("AgentPlatform helpers", () => {
       );
       expect(invocation.cmd).toBe("codex");
       expect(invocation.args).toContain("exec");
+      expect(invocation.args).toContain("--json");
       expect(invocation.args).toContain("--sandbox");
       expect(invocation.args).toContain("read-only");
       expect(invocation.args).toContain("model_reasoning_effort=medium");

@@ -1,8 +1,9 @@
 // @effect-diagnostics effect/nodeBuiltinImport:off
 import { createWriteStream } from "node:fs";
-import { Effect, Layer, ServiceMap, Stream } from "effect";
+import { Effect, Layer, Option, ServiceMap, Stream } from "effect";
 import { ResearchError, ErrorCode } from "../errors.js";
 import { resolveExecutable } from "../../shared/executable.js";
+import { extractCodexMessage } from "../../shared/agent-output.js";
 import { AgentResult } from "../types.js";
 import type { Provider } from "../types.js";
 
@@ -59,6 +60,9 @@ const buildArgs = (provider: Provider, prompt: string, cwd: string): Array<strin
         "exec",
         "-C",
         cwd,
+        "--json",
+        "--color",
+        "never",
         "--dangerously-bypass-approvals-and-sandbox",
         "--skip-git-repo-check",
         "-c",
@@ -130,7 +134,10 @@ export class AgentPlatformService extends ServiceMap.Service<
       );
 
       const durationMs = Date.now() - start;
-      return new AgentResult({ exitCode, output, stderr, durationMs });
+      // Codex --json emits JSONL events; extract the final agent message text
+      const agentOutput =
+        provider === "codex" ? Option.getOrElse(extractCodexMessage(output), () => "") : output;
+      return new AgentResult({ exitCode, output: agentOutput, stderr, durationMs });
     }),
 
     ensureExecutable: (provider) =>

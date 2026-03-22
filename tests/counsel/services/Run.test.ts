@@ -24,8 +24,14 @@ const RunLayer = RunService.layer.pipe(
     InvocationRunnerService.layerTest({
       execute: (_invocation, outputFile, stderrFile) =>
         Effect.promise(async () => {
+          // Mock writes JSONL matching the provider's stream format.
+          // Target is claude (source=codex), so write claude stream-json.
+          const claudeJsonl = [
+            '{"type":"system","subtype":"init","session_id":"test"}',
+            '{"type":"result","subtype":"success","is_error":false,"result":"second opinion"}',
+          ].join("\n");
           await Promise.all([
-            Bun.write(outputFile, "second opinion\n"),
+            Bun.write(outputFile, claudeJsonl),
             Bun.write(stderrFile, "warning\n"),
           ]);
           return {
@@ -104,11 +110,10 @@ describe("RunService", () => {
       expect(manifest.profile).toBe("deep");
       expect(manifest.status).toBe("success");
       expect(promptText).toBe("check the command wiring");
-      expect(outputText).toContain("second opinion");
+      expect(outputText).toBe("second opinion");
       expect(stderrText).toContain("warning");
-      expect(yield* fs.exists(path.join(path.dirname(manifest.outputFile), "run.json"))).toBe(
-        false,
-      );
+      expect(manifest.eventsFile).toContain("events.jsonl");
+      expect(yield* fs.exists(manifest.eventsFile)).toBe(true);
     }).pipe(Effect.provide(TestLayer)),
   );
 
