@@ -1,9 +1,10 @@
 import { Console, Effect, Option } from "effect";
+import { Path } from "effect/Path";
 import { Argument, Command, Flag } from "effect/unstable/cli";
 import { DEFAULT_OUTPUT_DIR } from "../constants.js";
 import { RunService } from "../services/Run.js";
 import { HostService } from "../services/Host.js";
-import { encodeDryRunPreview, encodeRunManifest, type Provider } from "../types.js";
+import { encodeDryRunPreview, type Provider } from "../types.js";
 
 const promptArgument = Argument.string("prompt").pipe(
   Argument.optional,
@@ -51,13 +52,10 @@ export const counselCommandDef = Command.make(
     Effect.gen(function* () {
       const run = yield* RunService;
       const host = yield* HostService;
+      const path = yield* Path;
       const stdinText =
         Option.isNone(prompt) && Option.isNone(file) ? yield* host.readPipedStdin() : undefined;
       const cwd = yield* host.getCwd();
-
-      if (!dryRun) {
-        yield* Console.error("Routing prompt to the opposite agent...");
-      }
 
       const result = yield* run.run({
         cwd,
@@ -76,8 +74,7 @@ export const counselCommandDef = Command.make(
         return;
       }
 
-      const encoded = yield* encodeRunManifest(result.manifest);
-      yield* Console.log(encoded);
+      yield* Console.log(path.dirname(result.manifest.outputFile));
 
       if (result.manifest.status === "timeout") {
         yield* host.setExitCode(124);

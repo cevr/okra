@@ -105,6 +105,7 @@ describe("RunService", () => {
       const promptText = yield* fs.readFileString(manifest.promptFilePath);
 
       expect(manifest.promptSource).toBe("file");
+      expect(manifest.outputBucket).toMatch(/[a-f0-9]{8}$/);
       expect(manifest.source).toBe("codex");
       expect(manifest.target).toBe("claude");
       expect(manifest.profile).toBe("deep");

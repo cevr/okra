@@ -2,6 +2,7 @@ import { DateTime, Effect, Layer, Option, ServiceMap } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
+import { cwdBucket } from "../constants.js";
 import { CounselError, ErrorCode } from "../errors.js";
 import { AgentPlatformService } from "./AgentPlatform.js";
 import { InvocationRunnerService } from "./InvocationRunner.js";
@@ -131,7 +132,8 @@ export class RunService extends ServiceMap.Service<
         const profile: Profile = input.deep ? "deep" : "standard";
         const now = yield* DateTime.now;
         const slug = generateSlug(source, target, now);
-        const outputDir = path.resolve(input.cwd, input.outputDir, slug);
+        const outputBucket = cwdBucket(input.cwd);
+        const outputDir = path.resolve(input.cwd, input.outputDir, outputBucket, slug);
         const promptFilePath = path.join(outputDir, "prompt.md");
         const invocation = yield* platform.buildInvocation(
           target,
@@ -148,6 +150,7 @@ export class RunService extends ServiceMap.Service<
               target,
               profile,
               promptSource: promptInput.promptSource,
+              outputBucket,
               outputDir,
               promptFilePath,
               invocation: {
@@ -198,6 +201,7 @@ export class RunService extends ServiceMap.Service<
           timestamp: DateTime.formatIso(now),
           slug,
           cwd: input.cwd,
+          outputBucket,
           promptSource: promptInput.promptSource,
           source,
           target,
