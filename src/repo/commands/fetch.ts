@@ -57,14 +57,19 @@ export const fetch = Command.make(
           yield* metadata.remove(parsedSpec);
           fresh = true;
         } else if (isGit) {
-          yield* Console.error(`Updating ${specStr}...`);
-          yield* git
-            .update(existing.path)
-            .pipe(
-              Effect.catch((e) =>
-                Console.error(`Update failed, repo may be up to date: ${e._tag}`),
-              ),
-            );
+          // Only update versionless specs — pinned versions are immutable
+          if (Option.isNone(parsedSpec.version)) {
+            yield* Console.error(`Updating ${specStr}...`);
+            yield* git
+              .update(existing.path)
+              .pipe(
+                Effect.catch((e) =>
+                  Console.error(`Update failed, repo may be up to date: ${e._tag}`),
+                ),
+              );
+          } else {
+            yield* Console.error(`Already cached (pinned): ${specStr}`);
+          }
 
           const sizeBytes = yield* cache.getSize(existing.path);
           const currentRef = yield* git
@@ -81,7 +86,9 @@ export const fetch = Command.make(
             path: existing.path,
           });
 
-          yield* Console.error(`Updated: ${existing.path}`);
+          if (Option.isNone(parsedSpec.version)) {
+            yield* Console.error(`Updated: ${existing.path}`);
+          }
           yield* Console.error(`Ref: ${currentRef}`);
           yield* Console.error(`Size: ${formatBytes(sizeBytes)}`);
 

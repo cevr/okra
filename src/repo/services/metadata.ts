@@ -85,9 +85,6 @@ export class MetadataService extends ServiceMap.Service<
           yield* Ref.set(cacheRef, { index: Option.some(index), dirty: false });
         });
 
-      const updateCache = (index: MetadataIndex): Effect.Effect<void> =>
-        Ref.set(cacheRef, { index: Option.some(index), dirty: true });
-
       const add = (metadata: RepoMetadata): Effect.Effect<void> =>
         Effect.gen(function* () {
           const index = yield* load();
@@ -129,7 +126,7 @@ export class MetadataService extends ServiceMap.Service<
             }
             return r;
           });
-          yield* updateCache({ ...index, repos: updated });
+          yield* save({ ...index, repos: updated });
         });
 
       const all = (): Effect.Effect<readonly RepoMetadata[]> =>

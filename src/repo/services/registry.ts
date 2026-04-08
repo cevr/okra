@@ -210,14 +210,16 @@ export class RegistryService extends ServiceMap.Service<
           }
 
           const sdist = data.urls.find((u) => u.packagetype === "sdist");
-          const wheel = data.urls.find((u) => u.packagetype === "bdist_wheel");
-          const tarballUrl = sdist?.url ?? wheel?.url;
 
-          if (tarballUrl === undefined) {
-            return yield* registryError("pypi", "get-download-url", "No source distribution found");
+          if (sdist === undefined) {
+            return yield* registryError(
+              "pypi",
+              "get-download-url",
+              "No source distribution (sdist) found — only wheels available",
+            );
           }
 
-          yield* downloadAndExtractTarball(tarballUrl, destPath, "pypi");
+          yield* downloadAndExtractTarball(sdist.url, destPath, "pypi");
         });
 
       const fetchCrates = (spec: PackageSpec, destPath: string, depth?: number) =>

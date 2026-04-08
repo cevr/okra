@@ -2,6 +2,7 @@ import { Command, Flag } from "effect/unstable/cli";
 import { Clock, Console, Effect, Option } from "effect";
 import { formatBytes, specToString } from "../types.js";
 import type { PackageSpec } from "../types.js";
+import { RepoError } from "../errors.js";
 import { CacheService } from "../services/cache.js";
 import { MetadataService } from "../services/metadata.js";
 
@@ -91,8 +92,10 @@ export const clean = Command.make(
       const hasFilter = Option.isSome(days) || Option.isSome(maxSize);
 
       if (!all && !hasFilter) {
-        yield* Console.error("Specify --days, --max-size, or --all");
-        return yield* Effect.die("missing-flags");
+        return yield* new RepoError({
+          message: "Specify --days, --max-size, or --all",
+          code: "MISSING_FLAGS",
+        });
       }
 
       const repos = yield* metadata.all();

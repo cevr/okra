@@ -1,6 +1,7 @@
 import { Argument, Command } from "effect/unstable/cli";
 import { Console, Effect, Option } from "effect";
 import { specToString } from "../types.js";
+import { RepoError } from "../errors.js";
 import { MetadataService } from "../services/metadata.js";
 import { RegistryService } from "../services/registry.js";
 
@@ -17,9 +18,10 @@ export const path = Command.make("path", { spec: specArg }, ({ spec }) =>
     const existingOpt = yield* metadata.find(parsedSpec);
 
     if (Option.isNone(existingOpt)) {
-      yield* Console.error(`Not cached: ${specToString(parsedSpec)}`);
-      yield* Console.error(`Run: okra repo fetch ${spec}`);
-      return yield* Effect.die("not-found");
+      return yield* new RepoError({
+        message: `Not cached: ${specToString(parsedSpec)}. Run: okra repo fetch ${spec}`,
+        code: "NOT_CACHED",
+      });
     }
 
     yield* Console.log(existingOpt.value.path);
