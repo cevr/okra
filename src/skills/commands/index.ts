@@ -89,5 +89,6 @@ const updateCommand = Command.make("update", {}, () => runUpdate()).pipe(
 );
 
 export const skillsRoot = skillsCommand.pipe(
+  Command.withDescription("Manage AI agent skills"),
   Command.withSubcommands([addCommand, searchCommand, removeCommand, updateCommand]),
 );
