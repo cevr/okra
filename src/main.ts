@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { Console, Effect, Schema } from "effect";
+import { Console, Effect, Layer, Schema } from "effect";
 import { Command } from "effect/unstable/cli";
 import { BunRuntime, BunServices } from "@effect/platform-bun";
+import { FetchHttpClient } from "effect/unstable/http";
 import { scheduleCommand } from "./schedule/index.js";
 import { ScheduleError } from "./schedule/errors.js";
 import { counselCommand } from "./counsel/index.js";
@@ -27,7 +28,7 @@ const root = Command.make("okra", {}, () => Effect.void).pipe(
 
 const cli = Command.run(root, { version: VERSION });
 
-const PlatformLayer = BunServices.layer;
+const PlatformLayer = Layer.mergeAll(BunServices.layer, FetchHttpClient.layer);
 
 const program = cli.pipe(
   Effect.tapDefect((defect) => Console.error(`Internal error: ${String(defect)}`)),
