@@ -10,6 +10,8 @@ import { isCounselError } from "./counsel/errors.js";
 import { researchCommand } from "./research/index.js";
 import { ResearchError } from "./research/errors.js";
 import { brainCommand, isBrainDomainError } from "./brain/index.js";
+import { repoCommand } from "./repo/index.js";
+import { isRepoError } from "./repo/errors.js";
 
 const VERSION = typeof __VERSION__ !== "undefined" ? __VERSION__ : "0.0.0-dev";
 
@@ -23,7 +25,13 @@ const RECOVERY_HINTS: Record<string, string> = {
 
 const root = Command.make("okra", {}, () => Effect.void).pipe(
   Command.withDescription("AI agent orchestration toolkit"),
-  Command.withSubcommands([scheduleCommand, counselCommand, researchCommand, brainCommand]),
+  Command.withSubcommands([
+    scheduleCommand,
+    counselCommand,
+    researchCommand,
+    brainCommand,
+    repoCommand,
+  ]),
 );
 
 const cli = Command.run(root, { version: VERSION });
@@ -48,6 +56,8 @@ const program = cli.pipe(
         } else if (isResearchError(err)) {
           yield* Console.error(`[${err.code}] ${err.message}`);
         } else if (isBrainDomainError(err)) {
+          yield* Console.error(`[${err.code}] ${err.message}`);
+        } else if (isRepoError(err)) {
           yield* Console.error(`[${err.code}] ${err.message}`);
         }
       }
