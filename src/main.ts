@@ -1,14 +1,14 @@
 #!/usr/bin/env bun
-import { Console, Effect, Layer, Schema } from "effect";
+import { Console, Effect, Schema } from "effect";
 import { Command } from "effect/unstable/cli";
 import { BunRuntime, BunServices } from "@effect/platform-bun";
-import { scheduleCommand, ScheduleServiceLayer } from "./schedule/index.js";
+import { scheduleCommand } from "./schedule/index.js";
 import { ScheduleError } from "./schedule/errors.js";
 import { counselCommand } from "./counsel/index.js";
 import { isCounselError } from "./counsel/errors.js";
-import { researchCommand, ResearchServiceLayer } from "./research/index.js";
+import { researchCommand } from "./research/index.js";
 import { ResearchError } from "./research/errors.js";
-import { brainCommand, BrainServiceLayer, isBrainDomainError } from "./brain/index.js";
+import { brainCommand, isBrainDomainError } from "./brain/index.js";
 
 const VERSION = typeof __VERSION__ !== "undefined" ? __VERSION__ : "0.0.0-dev";
 
@@ -27,11 +27,7 @@ const root = Command.make("okra", {}, () => Effect.void).pipe(
 
 const cli = Command.run(root, { version: VERSION });
 
-const ServiceLayer = Layer.mergeAll(
-  ScheduleServiceLayer,
-  ResearchServiceLayer,
-  BrainServiceLayer,
-).pipe(Layer.provideMerge(BunServices.layer));
+const PlatformLayer = BunServices.layer;
 
 const program = cli.pipe(
   Effect.tapDefect((defect) => Console.error(`Internal error: ${String(defect)}`)),
@@ -59,4 +55,4 @@ const program = cli.pipe(
 );
 
 // @effect-diagnostics-next-line effect/strictEffectProvide:off
-BunRuntime.runMain(program.pipe(Effect.provide(ServiceLayer)), { disableErrorReporting: true });
+BunRuntime.runMain(program.pipe(Effect.provide(PlatformLayer)), { disableErrorReporting: true });

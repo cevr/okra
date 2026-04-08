@@ -1,4 +1,5 @@
 import { Layer } from "effect";
+import { Command } from "effect/unstable/cli";
 import { researchRoot } from "./commands/index.js";
 import { AgentPlatformService } from "./services/AgentPlatform.js";
 import { BudgetService } from "./services/Budget.js";
@@ -9,8 +10,6 @@ import { LoopService } from "./services/Loop.js";
 import { RunnerService } from "./services/Runner.js";
 import { SessionService } from "./services/Session.js";
 import { WorkspaceService } from "./services/Workspace.js";
-
-export const researchCommand = researchRoot;
 
 // Base services with no inter-service dependencies
 const BaseLayer = Layer.mergeAll(
@@ -25,6 +24,8 @@ const BaseLayer = Layer.mergeAll(
 
 // WorkspaceService depends on GitService
 // LoopService depends on all other services
-export const ResearchServiceLayer = LoopService.layer.pipe(
+const ResearchServiceLayer = LoopService.layer.pipe(
   Layer.provideMerge(WorkspaceService.layer.pipe(Layer.provideMerge(BaseLayer))),
 );
+
+export const researchCommand = researchRoot.pipe(Command.provide(ResearchServiceLayer));
