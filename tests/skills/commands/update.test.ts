@@ -1,7 +1,7 @@
 // @effect-diagnostics effect/strictEffectProvide:off effect/nodeBuiltinImport:off
 import { describe, expect, it } from "effect-bun-test";
 import { ConfigProvider, Effect, Layer, Option } from "effect";
-import { NodeServices } from "@effect/platform-node";
+import { BunServices } from "@effect/platform-bun";
 import { existsSync, mkdtempSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -17,7 +17,7 @@ const makeTestLayer = (dir: string, github: GitHubShape) =>
   SkillLockLive.pipe(
     Layer.provideMerge(SkillStoreLive),
     Layer.provideMerge(GitHub.layerTest(github)),
-    Layer.provideMerge(NodeServices.layer),
+    Layer.provideMerge(BunServices.layer),
     Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({ SKILLS_DIR: dir }))),
   );
 

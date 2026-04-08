@@ -1,7 +1,7 @@
 // @effect-diagnostics effect/strictEffectProvide:off effect/nodeBuiltinImport:off effect/anyUnknownInErrorContext:off effect/missingEffectContext:off
 import { describe, expect, it } from "effect-bun-test";
 import { ConfigProvider, Effect, Layer } from "effect";
-import { NodeServices } from "@effect/platform-node";
+import { BunServices } from "@effect/platform-bun";
 import { SkillStore, SkillStoreLive } from "../../../src/skills/services/SkillStore.js";
 import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -11,7 +11,7 @@ const makeTempDir = () => mkdtempSync(join(tmpdir(), "skills-test-"));
 
 const makeTestLayer = (dir: string) =>
   SkillStoreLive.pipe(
-    Layer.provide(NodeServices.layer),
+    Layer.provide(BunServices.layer),
     Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({ SKILLS_DIR: dir }))),
   );
 

@@ -1,7 +1,7 @@
 // @effect-diagnostics effect/strictEffectProvide:off effect/nodeBuiltinImport:off
 import { describe, expect, it } from "effect-bun-test";
 import { ConfigProvider, Effect, Layer, Option } from "effect";
-import { NodeServices } from "@effect/platform-node";
+import { BunServices } from "@effect/platform-bun";
 import { SkillStoreLive } from "../../../src/skills/services/SkillStore.js";
 import { SkillLock, SkillLockLive } from "../../../src/skills/services/SkillLock.js";
 import { mkdtempSync } from "node:fs";
@@ -13,7 +13,7 @@ const makeTempDir = () => mkdtempSync(join(tmpdir(), "skills-lock-test-"));
 const makeTestLayer = (dir: string) =>
   SkillLockLive.pipe(
     Layer.provideMerge(SkillStoreLive),
-    Layer.provide(NodeServices.layer),
+    Layer.provide(BunServices.layer),
     Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({ SKILLS_DIR: dir }))),
   );
 
