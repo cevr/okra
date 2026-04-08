@@ -22,14 +22,14 @@ What do you need?
 
 | Command                      | What it does                                                        |
 | ---------------------------- | ------------------------------------------------------------------- |
-| `okra okra repo fetch <spec>`          | Fetch/update. stdout = path, stderr = progress. `--json`, `--force` |
-| `okra okra repo path <spec>`           | Pure cache lookup. stdout = path, nonzero on miss. No network.      |
-| `okra okra repo list`                  | List cached repos. `--registry`, `--sort`, `--json`                 |
-| `okra okra repo remove <spec>`         | Remove from cache                                                   |
-| `okra okra repo clean --days N`        | Prune by age                                                        |
-| `okra okra repo clean --max-size 100M` | Prune by size                                                       |
-| `okra okra repo clean --all -y`        | Remove everything                                                   |
-| `okra okra repo clean --dry-run`       | Preview what would be removed                                       |
+| `okra repo fetch <spec>`          | Fetch/update. stdout = path, stderr = progress. `--json`, `--force` |
+| `okra repo path <spec>`           | Pure cache lookup. stdout = path, nonzero on miss. No network.      |
+| `okra repo list`                  | List cached repos. `--registry`, `--sort`, `--json`                 |
+| `okra repo remove <spec>`         | Remove from cache                                                   |
+| `okra repo clean --days N`        | Prune by age                                                        |
+| `okra repo clean --max-size 100M` | Prune by size                                                       |
+| `okra repo clean --all -y`        | Remove everything                                                   |
+| `okra repo clean --dry-run`       | Preview what would be removed                                       |
 
 ### Spec Formats
 
