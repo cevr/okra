@@ -12,6 +12,8 @@ import { ResearchError } from "./research/errors.js";
 import { brainCommand, isBrainDomainError } from "./brain/index.js";
 import { repoCommand } from "./repo/index.js";
 import { isRepoError } from "./repo/errors.js";
+import { skillsCommand } from "./skills/index.js";
+import { isSkillsError } from "./skills/errors.js";
 
 const VERSION = typeof __VERSION__ !== "undefined" ? __VERSION__ : "0.0.0-dev";
 
@@ -31,6 +33,7 @@ const root = Command.make("okra", {}, () => Effect.void).pipe(
     researchCommand,
     brainCommand,
     repoCommand,
+    skillsCommand,
   ]),
 );
 
@@ -58,6 +61,8 @@ const program = cli.pipe(
         } else if (isBrainDomainError(err)) {
           yield* Console.error(`[${err.code}] ${err.message}`);
         } else if (isRepoError(err)) {
+          yield* Console.error(`[${err.code}] ${err.message}`);
+        } else if (isSkillsError(err)) {
           yield* Console.error(`[${err.code}] ${err.message}`);
         }
       }
