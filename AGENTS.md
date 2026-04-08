@@ -12,7 +12,7 @@ bun run build         # compile binary to bin/okra
 
 ## Architecture
 
-Four orthogonal domains under `src/`, each with own errors, services, commands:
+Six orthogonal domains under `src/`, each with own errors, services, commands:
 
 | Domain | Subcommand | Error tag | Data dir |
 | ------ | ---------- | --------- | -------- |
@@ -20,13 +20,16 @@ Four orthogonal domains under `src/`, each with own errors, services, commands:
 | `counsel/` | `okra counsel` | `CounselError` | `/tmp/counsel/` |
 | `research/` | `okra research` | `ResearchError` | `.xp/` (project-local) |
 | `brain/` | `okra brain` | `BrainError`/`VaultError`/`ConfigError` | `~/.brain/` |
+| `repo/` | `okra repo` | `RepoError` | `~/.cache/repo/` |
+| `skills/` | `okra skills` | `SkillsError` | `$SKILLS_DIR` or `~/Developer/personal/dotfiles/skills` |
 
 Shared utilities in `src/shared/`: `Provider` schema, `resolveExecutable`, `isColorEnabled`.
 
-- `main.ts` wires root CLI, error handler matches all four domain error tags
-- Each domain exports its command + service layer from `index.ts`
-- Schedule, Research, Brain layers provided at root; Counsel uses `Command.provide` on its own command
+- `main.ts` wires root CLI with `PlatformLayer` (BunServices + FetchHttpClient), error handler matches all domain error tags
+- Each domain exports its command via `Command.provide(DomainServiceLayer)` from `index.ts`
+- All domains self-provide their service layers at command level — no domain layers in main.ts
 - Brain has 3 internal error classes, exposed via single `isBrainDomainError` guard
+- Repo and Skills use structural `isRepoError`/`isSkillsError` guards (same pattern as brain)
 - Effect v4: `ServiceMap.Service`, `Effect.fn`, `Schema.TaggedErrorClass`, `effect/unstable/cli`
 
 ## Gotchas
@@ -42,6 +45,11 @@ Shared utilities in `src/shared/`: `Provider` schema, `resolveExecutable`, `isCo
 - `resolveExecutable` falls back to `~/.bun/bin`, `/usr/local/bin`, `~/.local/bin` when `Bun.which` fails (daemon PATH issue)
 - oxlint forbids `!` non-null assertions — use `as T` with existence guards
 - `@effect-diagnostics effect/nodeBuiltinImport:off` on files using raw `node:fs`/`node:path` (research domain, brain daemon/state, shared/executable)
+- Skills' `GitHub.ts` uses `Bun.spawn`/`Bun.which` directly, not via Effect's `ChildProcessSpawner`
+- Skills' `SkillStore` reads `$SKILLS_DIR` env var at layer construction time via `Config.option`
+- Skills has `lib/` subdirectory for non-service code (frontmatter, source parsing, search API, fs helpers)
+- Repo's `CacheService` creates `~/.cache/repo/` directory at layer construction time
+- Repo test-utils are at `src/repo/test-utils/` with mock layers for all 4 services
 
 ## Skills
 
@@ -51,3 +59,4 @@ Shared utilities in `src/shared/`: `Provider` schema, `resolveExecutable`, `isCo
 | `okra counsel` | `skills/counsel/SKILL.md` |
 | `okra research` | `skills/research/SKILL.md` |
 | `okra brain` | `skills/brain/SKILL.md` |
+| `okra repo` | `skills/repo/SKILL.md` |
