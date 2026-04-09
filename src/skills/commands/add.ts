@@ -40,7 +40,7 @@ const installSkillDir = Effect.fn("command.add.installSkillDir")(function* (
   });
   const skillMdPath = skillDir ? `${skillDir}/SKILL.md` : "SKILL.md";
 
-  yield* store.installDir(name, files);
+  yield* store.syncDir(name, files);
   yield* Console.log(`  Installed: ${name} (${files.length} file${files.length === 1 ? "" : "s"})`);
 
   return { name, source: sourceStr, skillPath: skillMdPath, ref };
@@ -85,7 +85,7 @@ const installLocalSkillDir = Effect.fn("command.add.installLocalSkillDir")(funct
   if (skillFilter && toKebab(skillFilter) !== name) return Option.none();
 
   const sourceStr = `local:${absPath}`;
-  yield* store.installDir(name, files);
+  yield* store.syncDir(name, files);
   yield* Console.log(`  Installed: ${name} (${files.length} file${files.length === 1 ? "" : "s"})`);
 
   return Option.some({ name, source: sourceStr, skillPath: "SKILL.md" });
@@ -205,7 +205,7 @@ const addFromRepo = Effect.fn("command.add.fromRepo")(function* (source: GitHubR
 const addFromRepoWithSkill = Effect.fn("command.add.fromRepoWithSkill")(function* (
   source: GitHubRepoWithSkill,
 ) {
-  const { owner, repo, skillFilter } = source;
+  const { owner, repo, skillFilter, ref } = source;
   const lock = yield* SkillLock;
   const gh = yield* GitHub;
   const sourceStr = `${owner}/${repo}@${skillFilter}`;
@@ -218,33 +218,33 @@ const addFromRepoWithSkill = Effect.fn("command.add.fromRepoWithSkill")(function
 
   for (const skillDir of probePaths) {
     const directPath = `${skillDir}/SKILL.md`;
-    const direct = yield* gh.fetchRaw(owner, repo, directPath).pipe(Effect.option);
+    const direct = yield* gh.fetchRaw(owner, repo, directPath, ref).pipe(Effect.option);
 
     if (direct._tag === "Some") {
-      const result = yield* installSkillDir(owner, repo, skillDir, undefined, sourceStr);
+      const result = yield* installSkillDir(owner, repo, skillDir, ref, sourceStr);
       yield* lock.add(result.name, result.source, result.skillPath, result.ref);
       return;
     }
   }
 
-  const rootContent = yield* gh.fetchRaw(owner, repo, "SKILL.md").pipe(Effect.option);
+  const rootContent = yield* gh.fetchRaw(owner, repo, "SKILL.md", ref).pipe(Effect.option);
 
   if (rootContent._tag === "Some") {
     const frontmatter = yield* tryParseFrontmatter(rootContent.value);
     if (Option.isSome(frontmatter) && toKebab(frontmatter.value.name) === toKebab(skillFilter)) {
-      const result = yield* installSkillDir(owner, repo, "", undefined, sourceStr);
+      const result = yield* installSkillDir(owner, repo, "", ref, sourceStr);
       yield* lock.add(result.name, result.source, result.skillPath, result.ref);
       return;
     }
   }
 
-  const skills = yield* gh.discoverSkills(owner, repo);
+  const skills = yield* gh.discoverSkills(owner, repo, ref);
 
   for (const skill of skills) {
-    const content = yield* gh.fetchRaw(owner, repo, skill.skillMdPath);
+    const content = yield* gh.fetchRaw(owner, repo, skill.skillMdPath, ref);
     const frontmatter = yield* tryParseFrontmatter(content);
     if (Option.isSome(frontmatter) && toKebab(frontmatter.value.name) === toKebab(skillFilter)) {
-      const result = yield* installSkillDir(owner, repo, skill.skillDir, undefined, sourceStr);
+      const result = yield* installSkillDir(owner, repo, skill.skillDir, ref, sourceStr);
       yield* lock.add(result.name, result.source, result.skillPath, result.ref);
       return;
     }
@@ -316,6 +316,7 @@ export const runAdd = Effect.fn("command.add")(function* (
       owner: parsed.owner,
       repo: parsed.repo,
       skillFilter,
+      ref: parsed.ref,
     });
     return;
   }

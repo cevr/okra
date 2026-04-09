@@ -45,27 +45,7 @@ export class GitService extends ServiceMap.Service<
               .pipe(Effect.mapError((cause) => gitError("clone", url, cause)));
 
             if (exitCode !== 0) {
-              // If ref failed, try without it (fallback to default branch)
-              if (options?.ref !== undefined) {
-                // Remove failed clone dest before retry
-                yield* spawner.exitCode(ChildProcess.make("rm", ["-rf", dest])).pipe(Effect.ignore);
-
-                const fallbackArgs = ["clone"];
-                if (options.depth !== undefined) {
-                  fallbackArgs.push("--depth", String(options.depth));
-                }
-                fallbackArgs.push(url, dest);
-
-                const fallbackResult = yield* spawner
-                  .exitCode(ChildProcess.make("git", fallbackArgs))
-                  .pipe(Effect.mapError((cause) => gitError("clone-fallback", url, cause)));
-
-                if (fallbackResult !== 0) {
-                  return yield* gitError("clone", url, `exit code ${fallbackResult}`);
-                }
-              } else {
-                return yield* gitError("clone", url, `exit code ${exitCode}`);
-              }
+              return yield* gitError("clone", url, `exit code ${exitCode}`);
             }
           }),
 

@@ -66,7 +66,7 @@ export class CacheService extends ServiceMap.Service<
             case "npm":
             case "pypi":
             case "crates":
-              return pathService.join(cacheDir, spec.name, version);
+              return pathService.join(cacheDir, spec.registry, spec.name, version);
           }
         }).pipe(Effect.orDie);
 

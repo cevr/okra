@@ -12,6 +12,7 @@ export interface GitHubRepoWithSkill {
   readonly owner: string;
   readonly repo: string;
   readonly skillFilter: string;
+  readonly ref?: string;
 }
 
 export interface LocalPath {

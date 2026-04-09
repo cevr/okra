@@ -51,7 +51,7 @@ export function createMockCacheService(options: CreateMockCacheServiceOptions = 
         case "npm":
         case "pypi":
         case "crates":
-          result = `${s.cacheDir}/${spec.name}/${version}`;
+          result = `${s.cacheDir}/${spec.registry}/${spec.name}/${version}`;
           break;
       }
       yield* record("getPath", { spec }, result);
