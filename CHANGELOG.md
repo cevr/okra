@@ -1,5 +1,17 @@
 # @cvr/okra
 
+## 0.3.0
+
+### Minor Changes
+
+- [`182920b`](https://github.com/cevr/okra/commit/182920b8deb25e2b1c6f8f080904de21307cfebe) Thanks [@cevr](https://github.com/cevr)! - Add skills and repo as okra subcommands
+
+  - `okra skills` — manage AI agent skills from GitHub repos (add, search, remove, update)
+  - `okra repo` — multi-registry source code cache manager (fetch, list, remove, clean, path)
+  - All domains now use command-level layer provision via `Command.provide`
+  - FetchHttpClient added to global platform layer
+  - Unified error handling with centralized `tapCause` in main.ts
+
 ## 0.2.0
 
 ### Minor Changes
