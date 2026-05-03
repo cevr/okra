@@ -1,10 +1,11 @@
-import { Console, Effect, FileSystem, Option } from "effect";
+import { Console, Effect, FileSystem, Option, Result } from "effect";
 import { SkillStore } from "../services/SkillStore.js";
 import { GitHub } from "../services/GitHub.js";
 import { SkillLock, type LockEntry } from "../services/SkillLock.js";
 import { parseSource } from "../lib/source.js";
 import { walkDir } from "../lib/fs.js";
 import { DEFAULT_REF } from "../lib/constants.js";
+import { make as makeProgress, type Progress, type SkillStatus } from "../lib/progress.js";
 
 type FileEntry = { readonly path: string; readonly content: string };
 
@@ -77,6 +78,8 @@ const updateLocalSkill = Effect.fn("command.update.updateLocalSkill")(function* 
   return "updated" as const;
 });
 
+type DoneStatus = "updated" | "unchanged" | "removed";
+
 const updateSkill = Effect.fn("command.update.updateSkill")(function* (
   name: string,
   entry: LockEntry,
@@ -86,43 +89,49 @@ const updateSkill = Effect.fn("command.update.updateSkill")(function* (
 
   if (entry.source.startsWith("local:")) {
     const localPath = entry.source.slice("local:".length);
-    return yield* updateLocalSkill(name, localPath);
+    const status = yield* updateLocalSkill(name, localPath);
+    return Result.succeed<DoneStatus>(status);
   }
 
   const source = resolveRepoSource(entry);
   if (Option.isNone(source)) {
-    yield* Console.error(`  Skipping ${name}: invalid source "${entry.source}"`);
-    return "failed" as const;
+    return Result.fail<string>(`invalid source "${entry.source}"`);
   }
 
   const { owner, repo, ref } = source.value;
 
   // P6: Parallel fetch+read
-  const result = yield* Effect.all([
-    gh.fetchSkillDir(owner, repo, skillDirFromPath(entry.skillPath), ref).pipe(
-      Effect.catchTag("@cvr/okra/skills/SkillsError", (error) =>
-        Console.error(`  Failed to update ${name}: ${error.message}`).pipe(
-          Effect.as(Option.none<ReadonlyArray<FileEntry>>()),
-        ),
-      ),
-      Effect.map((v) => (Option.isOption(v) ? v : Option.some(v))),
+  const fetched = yield* gh.fetchSkillDir(owner, repo, skillDirFromPath(entry.skillPath), ref).pipe(
+    Effect.map(Result.succeed),
+    Effect.catchTag("@cvr/okra/skills/SkillsError", (error) =>
+      Effect.succeed(Result.fail(error.message)),
     ),
-    store
-      .readDir(name)
-      .pipe(Effect.catchDefect(() => Effect.succeed([] as ReadonlyArray<FileEntry>))),
-  ]);
+  );
+  const installed = yield* store
+    .readDir(name)
+    .pipe(Effect.catchDefect(() => Effect.succeed([] as ReadonlyArray<FileEntry>)));
 
-  const [incomingOpt, installed] = result;
+  if (Result.isFailure(fetched)) return Result.fail(fetched.failure);
 
-  if (Option.isNone(incomingOpt)) return "failed" as const;
-
-  const incoming = incomingOpt.value;
-
-  if (filesEqual(incoming, installed)) return "unchanged" as const;
+  const incoming = fetched.success;
+  if (filesEqual(incoming, installed)) return Result.succeed<DoneStatus>("unchanged");
 
   yield* store.syncDir(name, incoming);
+  return Result.succeed<DoneStatus>("updated");
+});
 
-  return "updated" as const;
+const statusFromResult = (result: Result.Result<DoneStatus, string>): SkillStatus =>
+  Result.isFailure(result) ? "failed" : result.success;
+
+const runOne = Effect.fn("command.update.runOne")(function* (
+  progress: Progress,
+  name: string,
+  entry: LockEntry,
+) {
+  yield* progress.setStatus(name, "running");
+  const result = yield* updateSkill(name, entry);
+  yield* progress.setStatus(name, statusFromResult(result));
+  return { name, result };
 });
 
 // P1: Parallel update loop + batched lock writes
@@ -138,32 +147,31 @@ export const runUpdate = Effect.fn("command.update")(function* () {
 
   yield* Console.error(`Checking ${entries.length} skill(s)...\n`);
 
-  const results = yield* Effect.forEach(
-    entries,
-    ([name, entry]) => updateSkill(name, entry).pipe(Effect.map((status) => ({ name, status }))),
-    { concurrency: 5 },
-  );
+  const progress = yield* makeProgress(entries.map(([name]) => name));
+
+  const results = yield* Effect.forEach(entries, ([name, entry]) => runOne(progress, name, entry), {
+    concurrency: 5,
+  }).pipe(Effect.ensuring(progress.finish));
 
   const updatedNames: Array<string> = [];
   const removedNames: Array<string> = [];
+  const failures: Array<{ name: string; note: string }> = [];
   let unchanged = 0;
-  let failed = 0;
 
-  for (const { name, status } of results) {
-    switch (status) {
+  for (const { name, result } of results) {
+    if (Result.isFailure(result)) {
+      failures.push({ name, note: result.failure });
+      continue;
+    }
+    switch (result.success) {
       case "updated":
-        yield* Console.log(`  Updated: ${name}`);
         updatedNames.push(name);
         break;
       case "removed":
-        yield* Console.log(`  Removed: ${name} (source no longer exists)`);
         removedNames.push(name);
         break;
       case "unchanged":
         unchanged++;
-        break;
-      case "failed":
-        failed++;
         break;
     }
   }
@@ -173,13 +181,17 @@ export const runUpdate = Effect.fn("command.update")(function* () {
     yield* lock.updateMany(updatedNames);
   }
 
+  for (const { name, note } of failures) {
+    yield* Console.error(`  Failed to update ${name}: ${note}`);
+  }
+
   const parts: Array<string> = [];
   if (updatedNames.length > 0) parts.push(`${updatedNames.length} updated`);
   if (unchanged > 0) parts.push(`${unchanged} unchanged`);
   if (removedNames.length > 0) parts.push(`${removedNames.length} removed`);
-  if (failed > 0) parts.push(`${failed} failed`);
+  if (failures.length > 0) parts.push(`${failures.length} failed`);
 
-  if (updatedNames.length === 0 && removedNames.length === 0 && failed === 0) {
+  if (updatedNames.length === 0 && removedNames.length === 0 && failures.length === 0) {
     yield* Console.log("All skills up to date.");
   } else {
     yield* Console.log(`\n${parts.join(", ")}.`);
