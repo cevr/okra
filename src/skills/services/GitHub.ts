@@ -1,6 +1,6 @@
 // @effect-diagnostics effect/strictBooleanExpressions:off
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http";
-import { Config, Effect, Layer, Option, Schema, ServiceMap } from "effect";
+import { Config, Effect, Layer, Option, Schema, Context } from "effect";
 import { SkillsError } from "../errors.js";
 import { DEFAULT_REF, SKILL_DIR_PREFIXES } from "../lib/constants.js";
 
@@ -349,7 +349,7 @@ const makeFetchSkillDir = (
     );
   });
 
-export class GitHubCli extends ServiceMap.Service<GitHubCli, GitHubCliShape>()(
+export class GitHubCli extends Context.Service<GitHubCli, GitHubCliShape>()(
   "@cvr/okra/skills/services/GitHub/GitHubCli",
 ) {
   static readonly layer = Layer.sync(this, () => {
@@ -444,7 +444,7 @@ export class GitHubCli extends ServiceMap.Service<GitHubCli, GitHubCliShape>()(
   });
 }
 
-export class GitHubHttp extends ServiceMap.Service<GitHubHttp, GitHubHttpShape>()(
+export class GitHubHttp extends Context.Service<GitHubHttp, GitHubHttpShape>()(
   "@cvr/okra/skills/services/GitHub/GitHubHttp",
 ) {
   static readonly layer = Layer.effect(
@@ -541,7 +541,7 @@ export class GitHubHttp extends ServiceMap.Service<GitHubHttp, GitHubHttpShape>(
   );
 }
 
-export class GitHub extends ServiceMap.Service<GitHub, GitHubShape>()(
+export class GitHub extends Context.Service<GitHub, GitHubShape>()(
   "@cvr/okra/skills/services/GitHub",
 ) {
   static readonly layer = Layer.effect(

@@ -1,7 +1,7 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 import { CounselError, ErrorCode } from "../errors.js";
 
-export class HostService extends ServiceMap.Service<
+export class HostService extends Context.Service<
   HostService,
   {
     readonly getCwd: () => Effect.Effect<string>;
@@ -36,7 +36,7 @@ export class HostService extends ServiceMap.Service<
   });
 
   static layerTest = (
-    impl: Partial<ServiceMap.Service.Shape<typeof HostService>> = {},
+    impl: Partial<Context.Service.Shape<typeof HostService>> = {},
   ): Layer.Layer<HostService> =>
     Layer.succeed(HostService, {
       getCwd: () => Effect.succeed("/tmp/counsel-test"),

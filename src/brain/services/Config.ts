@@ -1,4 +1,4 @@
-import { Config, ConfigProvider, Console, Effect, Layer, Option, Schema, ServiceMap } from "effect";
+import { Config, ConfigProvider, Console, Effect, Layer, Option, Schema, Context } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
@@ -23,7 +23,7 @@ const ConfigFileJson = Schema.fromJsonString(ConfigFileSchema);
 const decodeConfigFile = Schema.decodeUnknownEffect(ConfigFileJson);
 const encodeConfigFile = Schema.encodeEffect(ConfigFileJson);
 
-export class ConfigService extends ServiceMap.Service<
+export class ConfigService extends Context.Service<
   ConfigService,
   {
     readonly globalVaultPath: () => Effect.Effect<string, ConfigError>;

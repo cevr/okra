@@ -1,12 +1,12 @@
 // @effect-diagnostics effect/nodeBuiltinImport:off
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 import { ResearchError, ErrorCode } from "../errors.js";
 import { Session, decodeSession, encodeSession } from "../types.js";
 import { xpPaths } from "../paths.js";
 
-export class SessionService extends ServiceMap.Service<
+export class SessionService extends Context.Service<
   SessionService,
   {
     readonly init: (session: Session) => Effect.Effect<Session, ResearchError>;

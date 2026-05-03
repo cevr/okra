@@ -1,4 +1,4 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 import { ResearchError, ErrorCode } from "../errors.js";
 import { BenchmarkResult } from "../types.js";
 
@@ -23,7 +23,7 @@ const parseResult = (stdout: string): { value: number | undefined; count: number
   return { value, count };
 };
 
-export class RunnerService extends ServiceMap.Service<
+export class RunnerService extends Context.Service<
   RunnerService,
   {
     readonly run: (

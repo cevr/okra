@@ -1,4 +1,4 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 import type { ExperimentState, Session } from "../types.js";
 
 export interface BudgetCheck {
@@ -6,7 +6,7 @@ export interface BudgetCheck {
   readonly reason?: string;
 }
 
-export class BudgetService extends ServiceMap.Service<
+export class BudgetService extends Context.Service<
   BudgetService,
   {
     readonly check: (session: Session, state: ExperimentState) => Effect.Effect<BudgetCheck>;

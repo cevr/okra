@@ -9,7 +9,7 @@ import {
 } from "node:fs";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 import { ResearchError, ErrorCode } from "../errors.js";
 import {
   CommittedEvent,
@@ -68,7 +68,7 @@ const parseBenchmarkFiles = (cmd: string, cwd: string): ReadonlyArray<string> =>
   return files;
 };
 
-export class LoopService extends ServiceMap.Service<
+export class LoopService extends Context.Service<
   LoopService,
   {
     readonly run: (projectRoot: string) => Effect.Effect<void, ResearchError>;
@@ -436,7 +436,7 @@ export class LoopService extends ServiceMap.Service<
 }
 
 const appendLifecycle = Effect.fn("appendLifecycle")(function* (
-  log: ServiceMap.Service.Shape<typeof ExperimentLogService>,
+  log: Context.Service.Shape<typeof ExperimentLogService>,
   projectRoot: string,
   event: LifecycleEventEntry["event"],
   detail?: string,
@@ -490,8 +490,8 @@ const consumeSteers = Effect.fn("consumeSteers")(function* (
 });
 
 const reconcile = Effect.fn("reconcile")(function* (
-  log: ServiceMap.Service.Shape<typeof ExperimentLogService>,
-  git: ServiceMap.Service.Shape<typeof GitService>,
+  log: Context.Service.Shape<typeof ExperimentLogService>,
+  git: Context.Service.Shape<typeof GitService>,
   projectRoot: string,
   state: ExperimentState,
 ) {

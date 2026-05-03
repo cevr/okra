@@ -1,11 +1,11 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 import { RepoError } from "../errors.js";
 
 const gitError = (operation: string, repo: string, cause: unknown) =>
   new RepoError({ message: `Git ${operation} failed on ${repo}: ${String(cause)}`, code: "GIT" });
 
-export class GitService extends ServiceMap.Service<
+export class GitService extends Context.Service<
   GitService,
   {
     readonly clone: (

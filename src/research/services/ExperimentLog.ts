@@ -1,6 +1,6 @@
 // @effect-diagnostics effect/nodeBuiltinImport:off
 import { existsSync, readFileSync, writeFileSync, appendFileSync } from "node:fs";
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 import { ResearchError, ErrorCode } from "../errors.js";
 import { decodeExperimentEvent, encodeExperimentEvent, ResultEvent } from "../types.js";
 import type { Direction, ExperimentEvent, ExperimentState, Session, SteerEvent } from "../types.js";
@@ -147,7 +147,7 @@ const generateMarkdown = (session: Session, state: ExperimentState): string => {
   return lines.join("\n");
 };
 
-export class ExperimentLogService extends ServiceMap.Service<
+export class ExperimentLogService extends Context.Service<
   ExperimentLogService,
   {
     readonly append: (

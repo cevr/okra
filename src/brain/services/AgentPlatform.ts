@@ -1,4 +1,4 @@
-import { Effect, Layer, Option, ServiceMap } from "effect";
+import { Effect, Layer, Option, Context } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import { ConfigService } from "./Config.js";
@@ -36,7 +36,7 @@ export const allProviderIds = ["claude", "codex"] as const;
 const whichExists = (cmd: string): Effect.Effect<boolean, never> =>
   Effect.sync(() => Bun.which(cmd) !== null);
 
-export class AgentPlatformService extends ServiceMap.Service<
+export class AgentPlatformService extends Context.Service<
   AgentPlatformService,
   {
     readonly getProvider: (id: Provider) => Effect.Effect<AgentProvider, BrainError>;

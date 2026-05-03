@@ -144,8 +144,8 @@ REPO=$(okra repo path effect-ts/effect-smol)
 
 # 3. Explore
 Read file_path="$REPO/package.json"
-rg "ServiceMap" $REPO/packages --type ts -C 2
-ast-grep --pattern 'class $NAME extends ServiceMap.Service<$$$>()($$$) { $$$ }' --lang ts $REPO
+rg "Context" $REPO/packages --type ts -C 2
+ast-grep --pattern 'class $NAME extends Context.Service<$$$>()($$$) { $$$ }' --lang ts $REPO
 
 # 4. Or use Explore agent
 Agent subagent_type="Explore" prompt="Explore $REPO to understand the service pattern..."

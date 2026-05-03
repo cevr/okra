@@ -1,4 +1,4 @@
-import { DateTime, Effect, Layer, Option, ServiceMap } from "effect";
+import { DateTime, Effect, Layer, Option, Context } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
@@ -43,7 +43,7 @@ export const generateSlug = (source: Provider, target: Provider, now: DateTime.U
   return `${stamp}-${time}-${source}-to-${target}-${suffix}`;
 };
 
-export class RunService extends ServiceMap.Service<
+export class RunService extends Context.Service<
   RunService,
   {
     readonly run: (input: RunInput) => Effect.Effect<RunResult, CounselError>;

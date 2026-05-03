@@ -1,5 +1,5 @@
 // @effect-diagnostics effect/strictBooleanExpressions:off effect/strictEffectProvide:off
-import { Config, Effect, FileSystem, Layer, Option, Path, ServiceMap } from "effect";
+import { Config, Effect, FileSystem, Layer, Option, Path, Context } from "effect";
 import { SkillsError } from "../errors.js";
 import { tryParseFrontmatter } from "../lib/frontmatter.js";
 import { walkDir } from "../lib/fs.js";
@@ -10,7 +10,7 @@ export interface InstalledSkill {
   readonly dirPath: string;
 }
 
-export class SkillStore extends ServiceMap.Service<
+export class SkillStore extends Context.Service<
   SkillStore,
   {
     readonly dir: string;

@@ -1,4 +1,4 @@
-import { Console, Effect, Layer, Option, Schema, ServiceMap } from "effect";
+import { Console, Effect, Layer, Option, Schema, Context } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
@@ -80,7 +80,7 @@ const TaskJson = Schema.fromJsonString(Task);
 const decodeTask = Schema.decodeUnknownEffect(TaskJson);
 const encodeTask = Schema.encodeEffect(TaskJson);
 
-class StoreService extends ServiceMap.Service<
+class StoreService extends Context.Service<
   StoreService,
   {
     readonly add: (input: TaskInput) => Effect.Effect<Task, ScheduleError>;

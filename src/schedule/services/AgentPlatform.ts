@@ -1,4 +1,4 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 import { ScheduleError } from "../errors.js";
 import { resolveExecutable } from "../../shared/executable.js";
 import type { Provider } from "./Store.js";
@@ -33,7 +33,7 @@ export type InvokeResult = {
   readonly output: string;
 };
 
-class AgentPlatformService extends ServiceMap.Service<
+class AgentPlatformService extends Context.Service<
   AgentPlatformService,
   {
     readonly invoke: (

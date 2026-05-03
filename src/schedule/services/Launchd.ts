@@ -1,4 +1,4 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
@@ -76,7 +76,7 @@ ${intervalXml}
 `;
 };
 
-class LaunchdService extends ServiceMap.Service<
+class LaunchdService extends Context.Service<
   LaunchdService,
   {
     readonly install: (task: Task) => Effect.Effect<void, ScheduleError>;

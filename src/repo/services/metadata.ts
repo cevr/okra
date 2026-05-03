@@ -8,7 +8,7 @@ import {
   Path,
   Ref,
   Schema,
-  ServiceMap,
+  Context,
 } from "effect";
 import type { PackageSpec, RepoMetadata } from "../types.js";
 import { MetadataIndex, specMatches } from "../types.js";
@@ -22,7 +22,7 @@ interface CacheState {
 const MetadataIndexJson = Schema.fromJsonString(MetadataIndex);
 
 // Service interface
-export class MetadataService extends ServiceMap.Service<
+export class MetadataService extends Context.Service<
   MetadataService,
   {
     readonly load: () => Effect.Effect<MetadataIndex>;

@@ -1,5 +1,5 @@
 // @effect-diagnostics strictEffectProvide:off
-import { Clock, Effect, FileSystem, Layer, Option, Result, ServiceMap } from "effect";
+import { Clock, Effect, FileSystem, Layer, Option, Result, Context } from "effect";
 import { HttpClient } from "effect/unstable/http";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 import type { PackageSpec, Registry } from "../types.js";
@@ -18,7 +18,7 @@ const networkError = (url: string, cause: unknown) =>
   new RepoError({ message: `Network request failed: ${url}: ${String(cause)}`, code: "NETWORK" });
 
 // Service interface
-export class RegistryService extends ServiceMap.Service<
+export class RegistryService extends Context.Service<
   RegistryService,
   {
     readonly parseSpec: (input: string) => Effect.Effect<PackageSpec, RepoError>;

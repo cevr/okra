@@ -1,8 +1,8 @@
-import { Config, Effect, FileSystem, Layer, Option, Path, ServiceMap } from "effect";
+import { Config, Effect, FileSystem, Layer, Option, Path, Context } from "effect";
 import type { PackageSpec } from "../types.js";
 
 // Service interface
-export class CacheService extends ServiceMap.Service<
+export class CacheService extends Context.Service<
   CacheService,
   {
     readonly cacheDir: string;

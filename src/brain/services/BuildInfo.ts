@@ -1,6 +1,6 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 
-export class BuildInfo extends ServiceMap.Service<
+export class BuildInfo extends Context.Service<
   BuildInfo,
   {
     readonly repoRoot: string;

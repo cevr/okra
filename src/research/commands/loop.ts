@@ -1,3 +1,4 @@
+// @effect-diagnostics effect/runEffectInsideEffect:off
 import { Deferred, Effect, Fiber } from "effect";
 import { Command, Flag } from "effect/unstable/cli";
 import { ResearchError, ErrorCode } from "../errors.js";

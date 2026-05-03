@@ -1,7 +1,7 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 import { ResearchError, ErrorCode } from "../errors.js";
 
-export class GitService extends ServiceMap.Service<
+export class GitService extends Context.Service<
   GitService,
   {
     readonly currentBranch: () => Effect.Effect<string, ResearchError>;
@@ -123,7 +123,7 @@ export class GitService extends ServiceMap.Service<
     };
   });
 
-  static layerTest = (impl: Partial<ServiceMap.Service.Shape<typeof GitService>> = {}) =>
+  static layerTest = (impl: Partial<Context.Service.Shape<typeof GitService>> = {}) =>
     Layer.succeed(GitService, {
       currentBranch: () => Effect.succeed("main"),
       headSha: () => Effect.succeed("abc123"),

@@ -1,5 +1,5 @@
 // @effect-diagnostics effect/strictBooleanExpressions:off effect/effectFnOpportunity:off
-import { Effect, FileSystem, Layer, Option, Path, Schema, ServiceMap } from "effect";
+import { Effect, FileSystem, Layer, Option, Path, Schema, Context } from "effect";
 import { SkillsError } from "../errors.js";
 import { SkillStore } from "./SkillStore.js";
 
@@ -19,7 +19,7 @@ export class LockFile extends Schema.Class<LockFile>("LockFile")({
 const decodeLockFileJson = Schema.decodeUnknownEffect(Schema.fromJsonString(LockFile));
 const encodeLockFileJson = Schema.encodeUnknownEffect(Schema.fromJsonString(LockFile));
 
-export class SkillLock extends ServiceMap.Service<
+export class SkillLock extends Context.Service<
   SkillLock,
   {
     readonly read: Effect.Effect<LockFile, SkillsError>;

@@ -1,6 +1,6 @@
 // @effect-diagnostics effect/nodeBuiltinImport:off
 import { createWriteStream } from "node:fs";
-import { Effect, Layer, Option, ServiceMap, Stream } from "effect";
+import { Effect, Layer, Option, Context, Stream } from "effect";
 import { ResearchError, ErrorCode } from "../errors.js";
 import { resolveExecutable } from "../../shared/executable.js";
 import { extractCodexMessage } from "../../shared/agent-output.js";
@@ -96,7 +96,7 @@ const spawnAgent = Effect.fn("AgentPlatform.spawnAgent")(function* (
   });
 });
 
-export class AgentPlatformService extends ServiceMap.Service<
+export class AgentPlatformService extends Context.Service<
   AgentPlatformService,
   {
     readonly invoke: (

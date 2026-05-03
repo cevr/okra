@@ -1,4 +1,4 @@
-import { Clock, Effect, Layer, ServiceMap } from "effect";
+import { Clock, Effect, Layer, Context } from "effect";
 import { DEFAULT_TIMEOUT_SECONDS, KILL_GRACE_PERIOD_MS } from "../constants.js";
 import { CounselError, ErrorCode } from "../errors.js";
 import type { ExecutionResult, Invocation } from "../types.js";
@@ -99,7 +99,7 @@ const waitForExit = Effect.fn("InvocationRunner.waitForExit")(function* (
   });
 });
 
-export class InvocationRunnerService extends ServiceMap.Service<
+export class InvocationRunnerService extends Context.Service<
   InvocationRunnerService,
   {
     readonly execute: (
@@ -126,7 +126,7 @@ export class InvocationRunnerService extends ServiceMap.Service<
   });
 
   static layerTest = (
-    impl: Partial<ServiceMap.Service.Shape<typeof InvocationRunnerService>> = {},
+    impl: Partial<Context.Service.Shape<typeof InvocationRunnerService>> = {},
   ): Layer.Layer<InvocationRunnerService> =>
     Layer.succeed(InvocationRunnerService, {
       execute: () =>

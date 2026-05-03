@@ -1,4 +1,4 @@
-import { Effect, Layer, Option, ServiceMap } from "effect";
+import { Effect, Layer, Option, Context } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
@@ -60,7 +60,7 @@ function extractSections(files: string[]): Record<string, number> {
   return sections;
 }
 
-export class VaultService extends ServiceMap.Service<
+export class VaultService extends Context.Service<
   VaultService,
   {
     readonly init: (

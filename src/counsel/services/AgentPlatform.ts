@@ -1,4 +1,4 @@
-import { Effect, Layer, Option, ServiceMap } from "effect";
+import { Effect, Layer, Option, Context } from "effect";
 import { CLAUDE_READ_ONLY_TOOLS, sanitizePath } from "../constants.js";
 import { CounselError, ErrorCode } from "../errors.js";
 import type { Invocation, Profile, Provider } from "../types.js";
@@ -86,7 +86,7 @@ export const buildCodexInvocation = (
   cwd,
 });
 
-export class AgentPlatformService extends ServiceMap.Service<
+export class AgentPlatformService extends Context.Service<
   AgentPlatformService,
   {
     readonly resolveSource: (
@@ -155,7 +155,7 @@ export class AgentPlatformService extends ServiceMap.Service<
   );
 
   static layerTest = (
-    impl: Partial<ServiceMap.Service.Shape<typeof AgentPlatformService>> = {},
+    impl: Partial<Context.Service.Shape<typeof AgentPlatformService>> = {},
   ): Layer.Layer<AgentPlatformService> =>
     Layer.succeed(AgentPlatformService, {
       resolveSource: (requested) =>

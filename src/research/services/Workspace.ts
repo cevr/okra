@@ -2,14 +2,14 @@
 import { existsSync, readFileSync, mkdirSync, copyFileSync, symlinkSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { dirname } from "node:path";
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 import { ResearchError, ErrorCode } from "../errors.js";
 import { xpPaths } from "../paths.js";
 import { decodeSetupManifest } from "../types.js";
 import type { Session } from "../types.js";
 import { GitService } from "./Git.js";
 
-export class WorkspaceService extends ServiceMap.Service<
+export class WorkspaceService extends Context.Service<
   WorkspaceService,
   {
     readonly setup: (session: Session) => Effect.Effect<string, ResearchError>;

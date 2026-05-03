@@ -1,6 +1,6 @@
 // @effect-diagnostics effect/nodeBuiltinImport:off
 import { existsSync, readFileSync, writeFileSync, unlinkSync, openSync, closeSync } from "node:fs";
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 import { ResearchError, ErrorCode } from "../errors.js";
 import { xpPaths } from "../paths.js";
 
@@ -18,7 +18,7 @@ const isProcessRunning = (pid: number): boolean => {
   }
 };
 
-export class DaemonService extends ServiceMap.Service<
+export class DaemonService extends Context.Service<
   DaemonService,
   {
     readonly start: (projectRoot: string) => Effect.Effect<number, ResearchError>;

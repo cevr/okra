@@ -1,3 +1,4 @@
+// @effect-diagnostics effect/preferSchemaOverJson:off
 import { Console, Effect, Option } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
@@ -132,7 +133,7 @@ const scanClaudeSessions = Effect.fn("scanClaudeSessions")(function* (state: Dae
       const fileStat = yield* statOption(fs.stat(filePath));
       if (Option.isNone(fileStat) || fileStat.value.type !== "File") continue;
 
-      const mtime = fileStat.value.mtime ?? new Date(0);
+      const mtime = Option.getOrElse(fileStat.value.mtime, () => new Date(0));
       if (!isSettled(mtime) || !isWithinReflectLookback(mtime)) continue;
 
       const sessionKey = `${dirName}/${file}`;
@@ -206,7 +207,7 @@ const scanCodexSessions = Effect.fn("scanCodexSessions")(function* (state: Daemo
     const stat = yield* statOption(fs.stat(filePath));
     if (Option.isNone(stat) || stat.value.type !== "File") continue;
 
-    const mtime = stat.value.mtime ?? new Date(0);
+    const mtime = Option.getOrElse(stat.value.mtime, () => new Date(0));
     if (!isSettled(mtime) || !isWithinReflectLookback(mtime)) continue;
 
     const mtimeIso = mtime.toISOString();

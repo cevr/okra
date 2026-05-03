@@ -197,7 +197,7 @@ export const extractConversations = Effect.fn("extractConversations")(function* 
     // Skip small files
     if ((stat.size ?? 0) < (opts.minSize ?? 500)) continue;
 
-    const mtime = stat.mtime ?? new Date(0);
+    const mtime = Option.getOrElse(stat.mtime, () => new Date(0));
     const mtimeMs = mtime.getTime();
 
     // Date filtering on file mtime
