@@ -1,4 +1,3 @@
-// @effect-diagnostics effect/strictBooleanExpressions:off
 import { describe, expect, it } from "effect-bun-test";
 import { it as syncIt } from "bun:test";
 import { Effect } from "effect";

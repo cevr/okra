@@ -1,4 +1,3 @@
-// @effect-diagnostics effect/nodeBuiltinImport:off
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { Effect, Layer } from "effect";
@@ -12,7 +11,6 @@ const TEST_ROOT = "/tmp/okra-test-log";
 const TestLayer = ExperimentLogService.layer.pipe(Layer.provide(BunServices.layer));
 
 const runSync = <A>(effect: Effect.Effect<A, ResearchError, ExperimentLogService>) =>
-  // @effect-diagnostics-next-line effect/strictEffectProvide:off
   Effect.runPromise(effect.pipe(Effect.provide(TestLayer)));
 
 describe("ExperimentLogService", () => {

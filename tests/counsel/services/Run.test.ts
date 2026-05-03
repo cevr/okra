@@ -1,4 +1,3 @@
-/** @effect-diagnostics effect/strictEffectProvide:skip-file effect/preferSchemaOverJson:skip-file */
 import { BunServices } from "@effect/platform-bun";
 import { describe, expect, it } from "effect-bun-test";
 import { Effect, Layer, Option } from "effect";

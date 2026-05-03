@@ -1,4 +1,3 @@
-// @effect-diagnostics strictEffectProvide:off
 import { Clock, Effect, FileSystem, Layer, Option, Result, Context } from "effect";
 import { HttpClient } from "effect/unstable/http";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";

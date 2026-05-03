@@ -1,4 +1,3 @@
-// @effect-diagnostics effect/strictBooleanExpressions:off
 import { Console, Effect, FileSystem, Option, Path } from "effect";
 import { SkillsError } from "../errors.js";
 import { SKILL_DIR_PREFIXES } from "../lib/constants.js";

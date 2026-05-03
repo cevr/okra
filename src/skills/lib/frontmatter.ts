@@ -1,4 +1,3 @@
-// @effect-diagnostics effect/strictBooleanExpressions:off
 import { Effect, Option, Schema } from "effect";
 
 export class SkillFrontmatter extends Schema.Class<SkillFrontmatter>("SkillFrontmatter")({

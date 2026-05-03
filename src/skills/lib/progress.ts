@@ -1,4 +1,3 @@
-// @effect-diagnostics effect/strictBooleanExpressions:off effect/nodeBuiltinImport:off
 import { Effect, Fiber, Ref, Schedule } from "effect";
 
 export type SkillStatus =

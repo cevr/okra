@@ -1,4 +1,3 @@
-/** @effect-diagnostics effect/strictEffectProvide:skip-file */
 import { describe, expect } from "bun:test";
 import { it } from "effect-bun-test";
 import { Effect } from "effect";

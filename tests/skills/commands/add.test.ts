@@ -1,4 +1,3 @@
-// @effect-diagnostics effect/strictEffectProvide:off effect/nodeBuiltinImport:off
 import { describe, expect, it } from "effect-bun-test";
 import { ConfigProvider, Effect, Layer, Option } from "effect";
 import { FetchHttpClient } from "effect/unstable/http";

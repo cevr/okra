@@ -1,4 +1,3 @@
-// @effect-diagnostics effect/strictBooleanExpressions:off
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http";
 import { Config, Effect, Layer, Option, Schema, Context } from "effect";
 import { SkillsError } from "../errors.js";

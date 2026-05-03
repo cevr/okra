@@ -1,4 +1,3 @@
-// @effect-diagnostics effect/strictEffectProvide:off effect/nodeBuiltinImport:off effect/anyUnknownInErrorContext:off effect/missingEffectContext:off
 import { describe, expect, it } from "effect-bun-test";
 import { ConfigProvider, Effect, Layer } from "effect";
 import { BunServices } from "@effect/platform-bun";

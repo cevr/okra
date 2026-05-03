@@ -1,4 +1,3 @@
-/** @effect-diagnostics effect/strictEffectProvide:skip-file */
 import { describe, it, expect } from "effect-bun-test";
 import { Effect, Exit, Schema } from "effect";
 import { FileSystem } from "effect/FileSystem";

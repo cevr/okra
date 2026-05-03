@@ -1,4 +1,3 @@
-/** @effect-diagnostics effect/strictEffectProvide:skip-file */
 import { describe, expect, it } from "effect-bun-test";
 import { Effect, Layer } from "effect";
 import { AgentPlatformService } from "../../../src/schedule/services/AgentPlatform.js";

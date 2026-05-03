@@ -1,4 +1,3 @@
-// @effect-diagnostics strictEffectProvide:off
 import { Effect, Option } from "effect";
 import { describe, expect, it } from "effect-bun-test";
 import { createTestLayer } from "../../src/repo/test-utils/index.js";

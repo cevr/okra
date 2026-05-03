@@ -1,4 +1,3 @@
-// @effect-diagnostics effect/strictBooleanExpressions:off
 export interface GitHubRepo {
   readonly _tag: "GitHubRepo";
   readonly owner: string;

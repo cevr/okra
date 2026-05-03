@@ -1,4 +1,3 @@
-// @effect-diagnostics effect/strictBooleanExpressions:off
 import { Argument, Command } from "effect/unstable/cli";
 import { Console, Effect, Path } from "effect";
 import { SkillStore } from "../services/SkillStore.js";

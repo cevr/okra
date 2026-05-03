@@ -1,4 +1,3 @@
-// @effect-diagnostics strictEffectProvide:off
 import { Effect, Option } from "effect";
 import { TestClock } from "effect/testing";
 import { describe, expect, it } from "effect-bun-test";

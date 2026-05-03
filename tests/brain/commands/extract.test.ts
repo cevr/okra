@@ -1,6 +1,5 @@
-/** @effect-diagnostics effect/strictEffectProvide:skip-file effect/strictBooleanExpressions:skip-file effect/tryCatchInEffectGen:skip-file effect/preferSchemaOverJson:skip-file effect/nodeBuiltinImport:off */
 import { describe, it, expect } from "effect-bun-test";
-import { Effect, Option } from "effect";
+import { Effect, Option, Schema } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import { BunServices } from "@effect/platform-bun";
@@ -9,9 +8,11 @@ import { extractConversations } from "../../../src/brain/commands/extract.js";
 
 const TestLayer = BunServices.layer;
 
+const encodeLine = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
+
 // Helper: create a JSONL file with lines
 const writeJsonl = (fs: FileSystem, filePath: string, lines: Record<string, unknown>[]) =>
-  fs.writeFileString(filePath, lines.map((l) => JSON.stringify(l)).join("\n") + "\n");
+  fs.writeFileString(filePath, lines.map((l) => encodeLine(l)).join("\n") + "\n");
 
 // Helper: build a standard user message line
 const userMsg = (content: string | Array<{ type: string; text: string }>) => ({

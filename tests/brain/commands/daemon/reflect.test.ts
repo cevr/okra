@@ -1,6 +1,5 @@
-/** @effect-diagnostics effect/strictEffectProvide:skip-file effect/preferSchemaOverJson:skip-file effect/nodeBuiltinImport:off */
 import { describe, it, expect } from "effect-bun-test";
-import { Effect, Layer, Option, Ref } from "effect";
+import { Effect, Layer, Option, Ref, Schema } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import { BunServices } from "@effect/platform-bun";
@@ -14,6 +13,8 @@ import { VaultService } from "../../../../src/brain/services/Vault.js";
 
 const TestLayer = BunServices.layer;
 
+const encodeLine = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
+
 // Dashify: `/foo/bar` → `-foo-bar`, `/.hidden` → `--hidden`
 const dashify = (p: string) => p.replaceAll("/.", "--").replaceAll("/", "-");
 
@@ -24,7 +25,7 @@ const fakeDirName = (parentDir: string, projectName: string) =>
 
 // Helper: create a JSONL file with lines
 const writeJsonl = (fs: FileSystem, filePath: string, lines: Record<string, unknown>[]) =>
-  fs.writeFileString(filePath, lines.map((l) => JSON.stringify(l)).join("\n") + "\n");
+  fs.writeFileString(filePath, lines.map((l) => encodeLine(l)).join("\n") + "\n");
 
 const userMsg = (content: string) => ({
   type: "user",

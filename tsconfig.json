@@ -63,7 +63,7 @@
         ],
         "overrides": [
           {
-            "include": ["tests/**/*"],
+            "include": ["tests/**/*", "src/**/test-utils/**/*"],
             "options": {
               "diagnosticSeverity": {
                 "strictEffectProvide": "off",
