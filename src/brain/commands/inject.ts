@@ -1,11 +1,20 @@
 import { Command, Flag } from "effect/unstable/cli";
-import { Console, Effect, Option } from "effect";
+import { Console, Effect, Option, Schema } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import { ConfigService } from "../services/Config.js";
 import { VaultService } from "../services/Vault.js";
 
 const jsonFlag = Flag.boolean("json").pipe(Flag.withDescription("Output as JSON"));
+
+const InjectOutput = Schema.Struct({
+  global: Schema.String,
+  project: Schema.NullOr(Schema.String),
+  projectName: Schema.NullOr(Schema.String),
+  projectNotes: Schema.NullOr(Schema.String),
+  index: Schema.String,
+});
+const encodeInjectOutput = Schema.encodeSync(Schema.fromJsonString(InjectOutput));
 
 export const inject = Command.make("inject", { json: jsonFlag }).pipe(
   Command.withDescription("Inject vault index into session (SessionStart hook)"),
@@ -62,9 +71,8 @@ export const inject = Command.make("inject", { json: jsonFlag }).pipe(
       }
 
       if (json) {
-        // @effect-diagnostics-next-line effect/preferSchemaOverJson:off
         yield* Console.log(
-          JSON.stringify({
+          encodeInjectOutput({
             global: globalIndex,
             project: Option.isSome(projectPath) && projectIndex.length > 0 ? projectIndex : null,
             projectName: Option.getOrNull(detectedProject),

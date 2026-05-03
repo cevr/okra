@@ -1,8 +1,16 @@
 import { Command, Flag } from "effect/unstable/cli";
-import { Console, Effect, Option } from "effect";
+import { Console, Effect, Option, Schema } from "effect";
 import { ConfigService } from "../services/Config.js";
 import { VaultService } from "../services/Vault.js";
 import { VaultError } from "../errors/index.js";
+
+const ReindexOutput = Schema.Struct({
+  vault: Schema.String,
+  files: Schema.Number,
+  sections: Schema.Record(Schema.String, Schema.Number),
+  changed: Schema.Boolean,
+});
+const encodeReindexOutput = Schema.encodeSync(Schema.fromJsonString(ReindexOutput));
 
 const allFlag = Flag.boolean("all").pipe(
   Flag.withAlias("a"),
@@ -60,8 +68,7 @@ export const reindex = Command.make("reindex", {
         }
 
         if (json) {
-          // @effect-diagnostics-next-line effect/preferSchemaOverJson:off
-          yield* Console.log(JSON.stringify(result));
+          yield* Console.log(encodeReindexOutput(result));
         } else if (result.changed) {
           yield* Console.error(
             `Reindexed ${vaultPath}/index.md (${result.files} files, ${Object.keys(result.sections).length} sections)`,

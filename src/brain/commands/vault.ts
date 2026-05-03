@@ -1,7 +1,14 @@
 import { Command, Flag } from "effect/unstable/cli";
-import { Console, Effect, Option } from "effect";
+import { Console, Effect, Option, Schema } from "effect";
 import { ConfigService } from "../services/Config.js";
 import { BrainError } from "../errors/index.js";
+
+const VaultOutput = Schema.Struct({
+  global: Schema.String,
+  project: Schema.NullOr(Schema.String),
+  active: Schema.String,
+});
+const encodeVaultOutput = Schema.encodeSync(Schema.fromJsonString(VaultOutput));
 
 const projectFlag = Flag.boolean("project").pipe(
   Flag.withAlias("p"),
@@ -27,9 +34,8 @@ export const vault = Command.make("vault", {
         const globalPath = yield* config.globalVaultPath();
         const projectPath = yield* config.projectVaultPath();
         const active = yield* config.activeVaultPath();
-        // @effect-diagnostics-next-line effect/preferSchemaOverJson:off
         yield* Console.log(
-          JSON.stringify({
+          encodeVaultOutput({
             global: globalPath,
             project: Option.getOrNull(projectPath),
             active,

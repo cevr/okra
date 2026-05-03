@@ -103,13 +103,7 @@ class LaunchdService extends Context.Service<
         ),
       );
 
-      const resolveBinPath = Effect.fn("LaunchdService.resolveBinPath")(function* () {
-        return yield* Effect.try({
-          try: () => resolveExecutable("okra"),
-          catch: () =>
-            new ScheduleError({ message: "Cannot resolve okra binary", code: "READ_FAILED" }),
-        });
-      });
+      const okraBin = yield* resolveExecutable("okra");
 
       const plistPath = (id: string) => path.join(agentsDir, `${label(id)}.plist`);
       const logPath = (id: string) => path.join(logsDir, `${id}.log`);
@@ -147,9 +141,8 @@ class LaunchdService extends Context.Service<
       });
 
       const install = Effect.fn("LaunchdService.install")(function* (task: Task) {
-        const binPath = yield* resolveBinPath();
         const plist = plistPath(task.id);
-        const content = generatePlist(task, binPath, home, logPath(task.id), pathEnv);
+        const content = generatePlist(task, okraBin, home, logPath(task.id), pathEnv);
 
         yield* fs.makeDirectory(agentsDir, { recursive: true }).pipe(
           Effect.mapError(

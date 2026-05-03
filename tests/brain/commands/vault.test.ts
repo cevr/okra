@@ -1,4 +1,4 @@
-/** @effect-diagnostics effect/strictEffectProvide:skip-file effect/preferSchemaOverJson:skip-file */
+/** @effect-diagnostics effect/strictEffectProvide:skip-file */
 import { describe, it, expect } from "effect-bun-test";
 import { Effect, Exit, Layer, Option } from "effect";
 import { FileSystem } from "effect/FileSystem";
@@ -15,13 +15,11 @@ const runVault = (opts: { project: boolean; global: boolean; json: boolean }) =>
       const globalPath = yield* config.globalVaultPath();
       const projectPath = yield* config.projectVaultPath();
       const active = yield* config.activeVaultPath();
-      return JSON.parse(
-        JSON.stringify({
-          global: globalPath,
-          project: Option.getOrNull(projectPath),
-          active,
-        }),
-      ) as Record<string, unknown>;
+      return {
+        global: globalPath,
+        project: Option.getOrNull(projectPath),
+        active,
+      } as Record<string, unknown>;
     }
 
     if (opts.global) {

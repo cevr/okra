@@ -1,8 +1,12 @@
-import { Console, Effect } from "effect";
+import { Console, Effect, Schema } from "effect";
 import { Command, Flag } from "effect/unstable/cli";
 import { ExperimentLogService } from "../services/ExperimentLog.js";
 import { SessionService } from "../services/Session.js";
 import { formatResultForLog } from "../prompt.js";
+import { ResultEvent } from "../types.js";
+
+const ResultsJson = Schema.fromJsonString(Schema.Array(ResultEvent));
+const encodeResultsJson = Schema.encodeSync(ResultsJson);
 
 export const resultsCommand = Command.make(
   "results",
@@ -24,8 +28,7 @@ export const resultsCommand = Command.make(
       const results = last._tag === "Some" ? state.results.slice(-last.value) : state.results;
 
       if (json) {
-        // @effect-diagnostics-next-line effect/preferSchemaOverJson:off
-        yield* Console.log(JSON.stringify(results, null, 2));
+        yield* Console.log(encodeResultsJson(results));
       } else {
         if (results.length === 0) {
           yield* Console.log("No results yet.");

@@ -1,7 +1,8 @@
 // @effect-diagnostics effect/nodeBuiltinImport:off
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
 import { existsSync, mkdirSync, rmSync } from "node:fs";
-import { Effect } from "effect";
+import { Effect, Layer } from "effect";
+import { BunServices } from "@effect/platform-bun";
 import { Session } from "../../../src/research/types.js";
 import type { ResearchError } from "../../../src/research/errors.js";
 import { SessionService } from "../../../src/research/services/Session.js";
@@ -24,9 +25,11 @@ const makeSession = (): Session =>
     createdAt: new Date().toISOString(),
   });
 
+const TestLayer = SessionService.layer.pipe(Layer.provide(BunServices.layer));
+
 const runSync = <A>(effect: Effect.Effect<A, ResearchError, SessionService>) =>
   // @effect-diagnostics-next-line effect/strictEffectProvide:off
-  Effect.runSync(effect.pipe(Effect.provide(SessionService.layer)));
+  Effect.runPromise(effect.pipe(Effect.provide(TestLayer)));
 
 describe("SessionService", () => {
   beforeEach(() => {
@@ -38,9 +41,9 @@ describe("SessionService", () => {
     if (existsSync(TEST_ROOT)) rmSync(TEST_ROOT, { recursive: true });
   });
 
-  test("init creates session.json", () => {
+  test("init creates session.json", async () => {
     const session = makeSession();
-    const result = runSync(
+    const result = await runSync(
       Effect.gen(function* () {
         const svc = yield* SessionService;
         return yield* svc.init(session);
@@ -50,15 +53,15 @@ describe("SessionService", () => {
     expect(existsSync(`${TEST_ROOT}/.xp/session.json`)).toBe(true);
   });
 
-  test("load reads session back", () => {
+  test("load reads session back", async () => {
     const session = makeSession();
-    runSync(
+    await runSync(
       Effect.gen(function* () {
         const svc = yield* SessionService;
         yield* svc.init(session);
       }),
     );
-    const loaded = runSync(
+    const loaded = await runSync(
       Effect.gen(function* () {
         const svc = yield* SessionService;
         return yield* svc.load(TEST_ROOT);
@@ -68,15 +71,15 @@ describe("SessionService", () => {
     expect(loaded.unit).toBe("ms");
   });
 
-  test("update patches session", () => {
+  test("update patches session", async () => {
     const session = makeSession();
-    runSync(
+    await runSync(
       Effect.gen(function* () {
         const svc = yield* SessionService;
         yield* svc.init(session);
       }),
     );
-    const updated = runSync(
+    const updated = await runSync(
       Effect.gen(function* () {
         const svc = yield* SessionService;
         return yield* svc.update(TEST_ROOT, { currentIteration: 5, bestValue: 42 });
@@ -86,8 +89,8 @@ describe("SessionService", () => {
     expect(updated.bestValue).toBe(42);
   });
 
-  test("exists returns false for missing session", () => {
-    const result = runSync(
+  test("exists returns false for missing session", async () => {
+    const result = await runSync(
       Effect.gen(function* () {
         const svc = yield* SessionService;
         return yield* svc.exists(TEST_ROOT);

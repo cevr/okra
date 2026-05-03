@@ -1,8 +1,10 @@
-/** @effect-diagnostics effect/strictEffectProvide:skip-file effect/preferSchemaOverJson:skip-file */
+/** @effect-diagnostics effect/strictEffectProvide:skip-file */
 import { describe, it, expect } from "effect-bun-test";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { BunServices } from "@effect/platform-bun";
+
+const encodeUnknownJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
 import {
   readState,
   writeState,
@@ -63,7 +65,7 @@ describe("daemon state", () => {
         const dir = yield* fs.makeTempDirectoryScoped();
         yield* fs.writeFileString(
           `${dir}/.daemon.json`,
-          JSON.stringify({
+          encodeUnknownJson({
             reflect: {
               lastRun: "2024-06-01T00:00:00.000Z",
               processedSessions: { "proj/session.jsonl": "2024-06-01T00:00:00.000Z" },

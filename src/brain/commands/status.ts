@@ -1,10 +1,18 @@
 import { Command, Flag } from "effect/unstable/cli";
-import { Console, Effect } from "effect";
+import { Console, Effect, Schema } from "effect";
 import { ConfigService } from "../services/Config.js";
 import { VaultService } from "../services/Vault.js";
 import { VaultError } from "../errors/index.js";
 
 const jsonFlag = Flag.boolean("json").pipe(Flag.withDescription("Output as JSON"));
+
+const StatusOutput = Schema.Struct({
+  vault: Schema.String,
+  files: Schema.Number,
+  sections: Schema.Record(Schema.String, Schema.Number),
+  orphans: Schema.Array(Schema.String),
+});
+const encodeStatusOutput = Schema.encodeSync(Schema.fromJsonString(StatusOutput));
 
 export const status = Command.make("status", { json: jsonFlag }).pipe(
   Command.withDescription("Show vault status"),
@@ -38,8 +46,7 @@ export const status = Command.make("status", { json: jsonFlag }).pipe(
       );
 
       if (json) {
-        // @effect-diagnostics-next-line effect/preferSchemaOverJson:off
-        yield* Console.log(JSON.stringify(result));
+        yield* Console.log(encodeStatusOutput(result));
       } else {
         yield* Console.log(`Vault: ${result.vault}`);
         yield* Console.log(`Files: ${result.files}`);

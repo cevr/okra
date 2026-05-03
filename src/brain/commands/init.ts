@@ -1,6 +1,5 @@
-// @effect-diagnostics effect/preferSchemaOverJson:off
 import { Command, Flag } from "effect/unstable/cli";
-import { Console, Effect, Option } from "effect";
+import { Console, Effect, Option, Schema } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import { PlatformError } from "effect/PlatformError";
@@ -14,6 +13,27 @@ import {
 } from "../services/AgentPlatform.js";
 import type { Provider } from "../../shared/provider.js";
 import { BrainError, ConfigError } from "../errors/index.js";
+
+const decodeUnknownJson = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown));
+
+const InitOutput = Schema.Struct({
+  vault: Schema.String,
+  config: Schema.String,
+  files: Schema.Array(Schema.String),
+  providers: Schema.Array(
+    Schema.Struct({
+      provider: Schema.String,
+      hooks: Schema.NullOr(Schema.String),
+      hooksChanged: Schema.Boolean,
+      hooksSkipped: Schema.Boolean,
+    }),
+  ),
+});
+const encodeInitOutput = Schema.encodeSync(Schema.fromJsonString(InitOutput));
+
+// Settings file is freeform JSON we read+write — use Unknown for round-tripping unknown keys.
+const SettingsJson = Schema.fromJsonString(Schema.Unknown);
+const encodeSettingsJson = Schema.encodeSync(SettingsJson);
 
 const projectFlag = Flag.boolean("project").pipe(
   Flag.withAlias("p"),
@@ -150,13 +170,17 @@ export const init = Command.make("init", {
       }
 
       if (json) {
-        // @effect-diagnostics-next-line effect/preferSchemaOverJson:off
         yield* Console.log(
-          JSON.stringify({
+          encodeInitOutput({
             vault: vaultPath,
             config: cfgPath,
             files: created,
-            providers: integrations,
+            providers: integrations.map((integration) => ({
+              provider: integration.provider,
+              hooks: Option.getOrNull(integration.hooks),
+              hooksChanged: integration.hooksChanged,
+              hooksSkipped: integration.hooksSkipped,
+            })),
           }),
         );
       } else {
@@ -223,7 +247,7 @@ export const wireHooks = Effect.fn("wireHooks")(function* (settingsPath: string)
   );
 
   const parsed = yield* Effect.try({
-    try: () => JSON.parse(existing) as Record<string, unknown>,
+    try: () => decodeUnknownJson(existing) as Record<string, unknown>,
     catch: () => new ConfigError({ message: "Cannot parse settings.json", code: "PARSE_FAILED" }),
   });
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
@@ -294,8 +318,7 @@ export const wireHooks = Effect.fn("wireHooks")(function* (settingsPath: string)
 
   if (changed) {
     parsed["hooks"] = hooks;
-    // @effect-diagnostics-next-line effect/preferSchemaOverJson:off
-    yield* fs.writeFileString(settingsPath, JSON.stringify(parsed, null, 2) + "\n").pipe(
+    yield* fs.writeFileString(settingsPath, encodeSettingsJson(parsed) + "\n").pipe(
       Effect.mapError(
         (e: PlatformError) =>
           new ConfigError({

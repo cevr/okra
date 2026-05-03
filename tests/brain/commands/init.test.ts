@@ -1,6 +1,6 @@
-/** @effect-diagnostics effect/strictEffectProvide:skip-file effect/preferSchemaOverJson:skip-file */
+/** @effect-diagnostics effect/strictEffectProvide:skip-file */
 import { describe, it, expect } from "effect-bun-test";
-import { Effect, Exit } from "effect";
+import { Effect, Exit, Schema } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { BunServices } from "@effect/platform-bun";
 import { wireHooks, copyStarterPrinciples } from "../../../src/brain/commands/init.js";
@@ -9,11 +9,14 @@ import { BuildInfo } from "../../../src/brain/services/BuildInfo.js";
 
 const TestLayer = BunServices.layer;
 
+const decodeUnknownJson = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown));
+const encodeUnknownJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
+
 const readSettings = (path: string) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem;
     const raw = yield* fs.readFileString(path);
-    return JSON.parse(raw) as Record<string, unknown>;
+    return decodeUnknownJson(raw) as Record<string, unknown>;
   });
 
 describe("wireHooks", () => {
@@ -57,7 +60,7 @@ describe("wireHooks", () => {
 
       yield* fs.writeFileString(
         settingsPath,
-        JSON.stringify({
+        encodeUnknownJson({
           hooks: {
             SessionStart: [{ matcher: ".*", hooks: [{ type: "command", command: "echo hi" }] }],
           },
@@ -83,7 +86,7 @@ describe("wireHooks", () => {
 
       yield* fs.writeFileString(
         settingsPath,
-        JSON.stringify({
+        encodeUnknownJson({
           hooks: {
             SessionStart: [
               {
@@ -152,7 +155,7 @@ describe("wireHooks", () => {
       const dir = yield* fs.makeTempDirectoryScoped();
       const settingsPath = `${dir}/settings.json`;
 
-      yield* fs.writeFileString(settingsPath, JSON.stringify({ hooks: "not-an-object" }));
+      yield* fs.writeFileString(settingsPath, encodeUnknownJson({ hooks: "not-an-object" }));
 
       const changed = yield* wireHooks(settingsPath);
       expect(changed).toBe(false);
@@ -167,7 +170,7 @@ describe("wireHooks", () => {
 
       yield* fs.writeFileString(
         settingsPath,
-        JSON.stringify({ hooks: { SessionStart: "not-array" } }),
+        encodeUnknownJson({ hooks: { SessionStart: "not-array" } }),
       );
 
       const changed = yield* wireHooks(settingsPath);

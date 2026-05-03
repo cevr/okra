@@ -1,10 +1,13 @@
-// @effect-diagnostics effect/nodeBuiltinImport:off
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { dirname } from "node:path";
 import { Effect, Layer, Context } from "effect";
+import { FileSystem } from "effect/FileSystem";
+import { Path } from "effect/Path";
+import type { PlatformError } from "effect/PlatformError";
 import { ResearchError, ErrorCode } from "../errors.js";
 import { Session, decodeSession, encodeSession } from "../types.js";
-import { xpPaths } from "../paths.js";
+import { buildXpPaths } from "../paths.js";
+
+const wrapIO = (e: PlatformError, code: ErrorCode = ErrorCode.WRITE_FAILED) =>
+  new ResearchError({ message: e.message, code });
 
 export class SessionService extends Context.Service<
   SessionService,
@@ -18,52 +21,86 @@ export class SessionService extends Context.Service<
     readonly exists: (projectRoot: string) => Effect.Effect<boolean>;
   }
 >()("@cvr/okra/research/services/Session/SessionService") {
-  static layer: Layer.Layer<SessionService> = Layer.succeed(SessionService, {
-    init: (session) =>
-      Effect.gen(function* () {
-        const paths = xpPaths(session.projectRoot);
-        if (existsSync(paths.sessionJson)) {
-          return yield* new ResearchError({
-            message: `Session already exists at ${paths.sessionJson}`,
-            code: ErrorCode.SESSION_EXISTS,
-          });
-        }
-        mkdirSync(dirname(paths.sessionJson), { recursive: true });
-        const json = encodeSession(session);
-        writeFileSync(paths.sessionJson, json);
-        return session;
-      }),
+  static layer: Layer.Layer<SessionService, never, FileSystem | Path> = Layer.effect(
+    SessionService,
+    Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const path = yield* Path;
 
-    load: (projectRoot) =>
-      Effect.gen(function* () {
-        const paths = xpPaths(projectRoot);
-        if (!existsSync(paths.sessionJson)) {
-          return yield* new ResearchError({
-            message: `No session found at ${paths.sessionJson}`,
-            code: ErrorCode.SESSION_NOT_FOUND,
-          });
-        }
-        const raw = readFileSync(paths.sessionJson, "utf-8");
-        return decodeSession(raw);
-      }),
+      return {
+        init: Effect.fn("Session.init")(function* (session: Session) {
+          const paths = buildXpPaths(path, session.projectRoot);
+          const exists = yield* fs
+            .exists(paths.sessionJson)
+            .pipe(Effect.catch(() => Effect.succeed(false)));
+          if (exists) {
+            return yield* new ResearchError({
+              message: `Session already exists at ${paths.sessionJson}`,
+              code: ErrorCode.SESSION_EXISTS,
+            });
+          }
+          yield* fs
+            .makeDirectory(path.dirname(paths.sessionJson), { recursive: true })
+            .pipe(Effect.mapError((e) => wrapIO(e)));
+          const json = encodeSession(session);
+          yield* fs
+            .writeFileString(paths.sessionJson, json)
+            .pipe(Effect.mapError((e) => wrapIO(e)));
+          return session;
+        }),
 
-    update: (projectRoot, patch) =>
-      Effect.gen(function* () {
-        const paths = xpPaths(projectRoot);
-        if (!existsSync(paths.sessionJson)) {
-          return yield* new ResearchError({
-            message: `No session found at ${paths.sessionJson}`,
-            code: ErrorCode.SESSION_NOT_FOUND,
-          });
-        }
-        const raw = readFileSync(paths.sessionJson, "utf-8");
-        const existing = decodeSession(raw);
-        const updated = new Session({ ...existing, ...patch });
-        const json = encodeSession(updated);
-        writeFileSync(paths.sessionJson, json);
-        return updated;
-      }),
+        load: Effect.fn("Session.load")(function* (projectRoot: string) {
+          const paths = buildXpPaths(path, projectRoot);
+          const exists = yield* fs
+            .exists(paths.sessionJson)
+            .pipe(Effect.catch(() => Effect.succeed(false)));
+          if (!exists) {
+            return yield* new ResearchError({
+              message: `No session found at ${paths.sessionJson}`,
+              code: ErrorCode.SESSION_NOT_FOUND,
+            });
+          }
+          const raw = yield* fs
+            .readFileString(paths.sessionJson)
+            .pipe(Effect.mapError((e) => wrapIO(e, ErrorCode.READ_FAILED)));
+          return decodeSession(raw);
+        }),
 
-    exists: (projectRoot) => Effect.sync(() => existsSync(xpPaths(projectRoot).sessionJson)),
-  });
+        update: Effect.fn("Session.update")(function* (
+          projectRoot: string,
+          patch: Partial<
+            Pick<Session, "currentIteration" | "bestValue" | "bestCommit" | "segment">
+          >,
+        ) {
+          const paths = buildXpPaths(path, projectRoot);
+          const exists = yield* fs
+            .exists(paths.sessionJson)
+            .pipe(Effect.catch(() => Effect.succeed(false)));
+          if (!exists) {
+            return yield* new ResearchError({
+              message: `No session found at ${paths.sessionJson}`,
+              code: ErrorCode.SESSION_NOT_FOUND,
+            });
+          }
+          const raw = yield* fs
+            .readFileString(paths.sessionJson)
+            .pipe(Effect.mapError((e) => wrapIO(e, ErrorCode.READ_FAILED)));
+          const existing = decodeSession(raw);
+          const updated = new Session({ ...existing, ...patch });
+          const json = encodeSession(updated);
+          yield* fs
+            .writeFileString(paths.sessionJson, json)
+            .pipe(Effect.mapError((e) => wrapIO(e)));
+          return updated;
+        }),
+
+        exists: Effect.fn("Session.exists")(function* (projectRoot: string) {
+          const paths = buildXpPaths(path, projectRoot);
+          return yield* fs
+            .exists(paths.sessionJson)
+            .pipe(Effect.catch(() => Effect.succeed(false)));
+        }),
+      };
+    }),
+  );
 }

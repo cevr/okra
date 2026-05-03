@@ -1,4 +1,4 @@
-/** @effect-diagnostics effect/strictEffectProvide:skip-file effect/preferSchemaOverJson:skip-file */
+/** @effect-diagnostics effect/strictEffectProvide:skip-file */
 import { describe, it, expect } from "effect-bun-test";
 import { Effect, Layer, Option } from "effect";
 import { FileSystem } from "effect/FileSystem";
@@ -74,18 +74,16 @@ const runInject = (opts: { json: boolean }) =>
     }
 
     if (opts.json) {
-      return JSON.parse(
-        JSON.stringify({
-          global: globalIndex,
-          project: Option.isSome(projectPath) && projectIndex.length > 0 ? projectIndex : null,
-          projectName: detectedProject,
-          projectNotes: projectNotes.length > 0 ? projectNotes : null,
-          index:
-            globalIndex +
-            (projectNotes.length > 0 ? "\n" + projectNotes : "") +
-            (projectIndex.length > 0 ? "\n" + projectIndex : ""),
-        }),
-      ) as Record<string, unknown>;
+      return {
+        global: globalIndex,
+        project: Option.isSome(projectPath) && projectIndex.length > 0 ? projectIndex : null,
+        projectName: detectedProject,
+        projectNotes: projectNotes.length > 0 ? projectNotes : null,
+        index:
+          globalIndex +
+          (projectNotes.length > 0 ? "\n" + projectNotes : "") +
+          (projectIndex.length > 0 ? "\n" + projectIndex : ""),
+      } as Record<string, unknown>;
     }
 
     let output = "Brain vault — read relevant files before acting:\n\n";

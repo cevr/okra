@@ -1,14 +1,14 @@
-// @effect-diagnostics effect/nodeBuiltinImport:off
-import { basename } from "node:path";
 import { Console, Effect, Option } from "effect";
+import { FileSystem } from "effect/FileSystem";
+import { Path } from "effect/Path";
+import type { PlatformError } from "effect/PlatformError";
 import { Command, Flag } from "effect/unstable/cli";
 import { Session } from "../types.js";
 import { ResearchError, ErrorCode } from "../errors.js";
 import { SessionService } from "../services/Session.js";
 import { DaemonService } from "../services/Daemon.js";
 import { AgentPlatformService } from "../services/AgentPlatform.js";
-import { xpPaths } from "../paths.js";
-import { mkdirSync } from "node:fs";
+import { buildXpPaths } from "../paths.js";
 
 const parseUntil = (raw: string): Date => {
   // Try full ISO datetime first
@@ -78,14 +78,24 @@ export const startCommand = Command.make(
       const sessionSvc = yield* SessionService;
       const daemon = yield* DaemonService;
       const agentPlatform = yield* AgentPlatformService;
+      const fs = yield* FileSystem;
+      const path = yield* Path;
 
       const projectRoot = process.cwd();
-      const paths = xpPaths(projectRoot);
+      const paths = buildXpPaths(path, projectRoot);
 
       // Ensure .xp directory exists
-      mkdirSync(paths.xpDir, { recursive: true });
+      yield* fs.makeDirectory(paths.xpDir, { recursive: true }).pipe(
+        Effect.mapError(
+          (e: PlatformError) =>
+            new ResearchError({
+              message: `Failed to create ${paths.xpDir}: ${e.message}`,
+              code: ErrorCode.WRITE_FAILED,
+            }),
+        ),
+      );
 
-      const name = Option.getOrElse(nameOpt, () => basename(projectRoot));
+      const name = Option.getOrElse(nameOpt, () => path.basename(projectRoot));
 
       // Check if resuming
       const exists = yield* sessionSvc.exists(projectRoot);

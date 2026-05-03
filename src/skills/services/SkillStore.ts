@@ -1,4 +1,3 @@
-// @effect-diagnostics effect/strictBooleanExpressions:off effect/strictEffectProvide:off
 import { Config, Effect, FileSystem, Layer, Option, Path, Context } from "effect";
 import { SkillsError } from "../errors.js";
 import { tryParseFrontmatter } from "../lib/frontmatter.js";
@@ -18,7 +17,11 @@ export class SkillStore extends Context.Service<
     readonly read: (name: string) => Effect.Effect<string, SkillsError>;
     readonly readDir: (
       name: string,
-    ) => Effect.Effect<ReadonlyArray<{ path: string; content: string }>>;
+    ) => Effect.Effect<
+      ReadonlyArray<{ path: string; content: string }>,
+      never,
+      FileSystem.FileSystem | Path.Path
+    >;
     readonly installDir: (
       name: string,
       files: ReadonlyArray<{ path: string; content: string }>,
@@ -99,14 +102,8 @@ export const SkillStoreLive = Layer.effect(
         return yield* fs.readFileString(skillMdPath).pipe(Effect.orDie);
       }).pipe(Effect.withSpan("SkillStore.read", { attributes: { name } }));
 
-    const platformLayer = Layer.merge(
-      Layer.succeed(FileSystem.FileSystem, fs),
-      Layer.succeed(Path.Path, pathService),
-    );
-
     const readDir = (name: string) =>
       walkDir(pathService.join(dir, name)).pipe(
-        Effect.provide(platformLayer),
         Effect.withSpan("SkillStore.readDir", { attributes: { name } }),
       );
 

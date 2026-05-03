@@ -1,4 +1,3 @@
-// @effect-diagnostics effect/runEffectInsideEffect:off
 import { Deferred, Effect, Fiber } from "effect";
 import { Command, Flag } from "effect/unstable/cli";
 import { ResearchError, ErrorCode } from "../errors.js";
@@ -28,9 +27,10 @@ export const loopCommand = Command.make(
 
       // Create a deferred that resolves on SIGTERM
       const shutdown = yield* Deferred.make<void>();
+      const services = yield* Effect.context<never>();
       process.on("SIGTERM", () => {
         console.log("Received SIGTERM, shutting down...");
-        Effect.runFork(Deferred.succeed(shutdown, undefined));
+        Effect.runForkWith(services)(Deferred.succeed(shutdown, undefined));
       });
 
       // Fork the loop, then race against SIGTERM

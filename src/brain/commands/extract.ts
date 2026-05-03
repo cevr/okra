@@ -1,11 +1,18 @@
 import { Argument, Command, Flag } from "effect/unstable/cli";
-import { Console, Effect, Option } from "effect";
+import { Console, Effect, Option, Schema } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
 import { BrainError } from "../errors/index.js";
 import { isAgentProviderId } from "../services/AgentPlatform.js";
 import type { Provider } from "../../shared/provider.js";
+
+const ExtractOutput = Schema.Struct({
+  conversations: Schema.Number,
+  batches: Schema.Array(Schema.String),
+  output: Schema.String,
+});
+const encodeExtractOutput = Schema.encodeSync(Schema.fromJsonString(ExtractOutput));
 
 const dirArg = Argument.string("dir").pipe(
   Argument.withDescription("Path to JSONL conversation directory"),
@@ -343,9 +350,8 @@ export const extract = Command.make("extract", {
         }
 
         if (json) {
-          // @effect-diagnostics-next-line effect/preferSchemaOverJson:off
           yield* Console.log(
-            JSON.stringify({
+            encodeExtractOutput({
               conversations: result.conversations.length,
               batches: result.batchPaths,
               output,

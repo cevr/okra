@@ -1,8 +1,8 @@
-// @effect-diagnostics effect/nodeBuiltinImport:off
-import { existsSync } from "node:fs";
 import { Effect } from "effect";
+import { FileSystem } from "effect/FileSystem";
+import { Path } from "effect/Path";
 import { Command, Flag } from "effect/unstable/cli";
-import { xpPaths } from "../paths.js";
+import { buildXpPaths } from "../paths.js";
 import { ResearchError, ErrorCode } from "../errors.js";
 
 export const logsCommand = Command.make(
@@ -16,10 +16,15 @@ export const logsCommand = Command.make(
   },
   ({ follow }) =>
     Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const path = yield* Path;
       const projectRoot = process.cwd();
-      const paths = xpPaths(projectRoot);
+      const paths = buildXpPaths(path, projectRoot);
 
-      if (!existsSync(paths.daemonLog)) {
+      const exists = yield* fs
+        .exists(paths.daemonLog)
+        .pipe(Effect.catch(() => Effect.succeed(false)));
+      if (!exists) {
         return yield* new ResearchError({
           message: "No daemon log found. Start an experiment first.",
           code: ErrorCode.READ_FAILED,

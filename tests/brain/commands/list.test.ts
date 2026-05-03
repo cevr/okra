@@ -1,4 +1,4 @@
-/** @effect-diagnostics effect/strictEffectProvide:skip-file effect/preferSchemaOverJson:skip-file */
+/** @effect-diagnostics effect/strictEffectProvide:skip-file */
 import { describe, it, expect } from "effect-bun-test";
 import { Effect, Layer } from "effect";
 import { FileSystem } from "effect/FileSystem";
@@ -55,7 +55,7 @@ describe("list", () => {
       const files = yield* vault.listFiles(dir);
 
       // Simulate the JSON output shape from the list command
-      const json = JSON.parse(JSON.stringify({ vault: dir, files })) as Record<string, unknown>;
+      const json: Record<string, unknown> = { vault: dir, files };
       expect(json).toHaveProperty("vault");
       expect(json).toHaveProperty("files");
       expect(json["vault"]).toBe(dir);

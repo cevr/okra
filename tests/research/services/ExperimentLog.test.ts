@@ -1,16 +1,19 @@
 // @effect-diagnostics effect/nodeBuiltinImport:off
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
 import { existsSync, mkdirSync, rmSync } from "node:fs";
-import { Effect } from "effect";
+import { Effect, Layer } from "effect";
+import { BunServices } from "@effect/platform-bun";
 import { ConfigEvent, LifecycleEventEntry, ResultEvent } from "../../../src/research/types.js";
 import type { ResearchError } from "../../../src/research/errors.js";
 import { ExperimentLogService } from "../../../src/research/services/ExperimentLog.js";
 
 const TEST_ROOT = "/tmp/okra-test-log";
 
+const TestLayer = ExperimentLogService.layer.pipe(Layer.provide(BunServices.layer));
+
 const runSync = <A>(effect: Effect.Effect<A, ResearchError, ExperimentLogService>) =>
   // @effect-diagnostics-next-line effect/strictEffectProvide:off
-  Effect.runSync(effect.pipe(Effect.provide(ExperimentLogService.layer)));
+  Effect.runPromise(effect.pipe(Effect.provide(TestLayer)));
 
 describe("ExperimentLogService", () => {
   beforeEach(() => {
@@ -22,21 +25,21 @@ describe("ExperimentLogService", () => {
     if (existsSync(TEST_ROOT)) rmSync(TEST_ROOT, { recursive: true });
   });
 
-  test("append and readAll round-trip", () => {
+  test("append and readAll round-trip", async () => {
     const event = new LifecycleEventEntry({
       _tag: "lifecycle",
       timestamp: new Date().toISOString(),
       event: "started",
     });
 
-    runSync(
+    await runSync(
       Effect.gen(function* () {
         const log = yield* ExperimentLogService;
         yield* log.append(TEST_ROOT, event);
       }),
     );
 
-    const events = runSync(
+    const events = await runSync(
       Effect.gen(function* () {
         const log = yield* ExperimentLogService;
         return yield* log.readAll(TEST_ROOT);
@@ -47,8 +50,8 @@ describe("ExperimentLogService", () => {
     expect(events[0]?._tag).toBe("lifecycle");
   });
 
-  test("reconstructState from empty", () => {
-    const state = runSync(
+  test("reconstructState from empty", async () => {
+    const state = await runSync(
       Effect.gen(function* () {
         const log = yield* ExperimentLogService;
         return yield* log.reconstructState(TEST_ROOT);
@@ -61,7 +64,7 @@ describe("ExperimentLogService", () => {
     expect(state.results).toHaveLength(0);
   });
 
-  test("reconstructState with baseline", () => {
+  test("reconstructState with baseline", async () => {
     const config = new ConfigEvent({
       _tag: "config",
       timestamp: new Date().toISOString(),
@@ -87,7 +90,7 @@ describe("ExperimentLogService", () => {
       summary: "Baseline",
     });
 
-    runSync(
+    await runSync(
       Effect.gen(function* () {
         const log = yield* ExperimentLogService;
         yield* log.append(TEST_ROOT, config);
@@ -95,7 +98,7 @@ describe("ExperimentLogService", () => {
       }),
     );
 
-    const state = runSync(
+    const state = await runSync(
       Effect.gen(function* () {
         const log = yield* ExperimentLogService;
         return yield* log.reconstructState(TEST_ROOT);

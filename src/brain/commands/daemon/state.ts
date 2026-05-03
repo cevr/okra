@@ -1,6 +1,4 @@
-// @effect-diagnostics effect/preferSchemaOverJson:skip-file effect/nodeBuiltinImport:off
-import { writeFileSync } from "node:fs";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
@@ -26,6 +24,30 @@ export interface DaemonState {
 }
 
 const EMPTY_STATE: DaemonState = { reflect: {}, ruminate: {}, meditate: {} };
+
+const decodeUnknownJson = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown));
+
+// Schema for write-side encoding (lossy: structure preserved, but normalization runs first).
+const ProviderMapString = Schema.Record(Schema.String, Schema.String);
+const ProviderMapRecord = Schema.Record(Schema.String, Schema.Record(Schema.String, Schema.String));
+
+const ReflectStateSchema = Schema.Struct({
+  lastSourceScanByProvider: Schema.optional(ProviderMapString),
+  lastExecutorRun: Schema.optional(Schema.String),
+  processedSessionsByProvider: Schema.optional(ProviderMapRecord),
+});
+
+const JobStateSchema = Schema.Struct({
+  lastRun: Schema.optional(Schema.String),
+});
+
+const DaemonStateSchema = Schema.Struct({
+  reflect: Schema.optional(ReflectStateSchema),
+  ruminate: Schema.optional(JobStateSchema),
+  meditate: Schema.optional(JobStateSchema),
+});
+
+const encodeDaemonStateJson = Schema.encodeSync(Schema.fromJsonString(DaemonStateSchema));
 
 // --- Constants ---
 
@@ -134,7 +156,7 @@ export const readState = Effect.fn("readState")(function* (brainDir: string) {
   );
 
   return yield* Effect.try({
-    try: () => normalizeDaemonState(JSON.parse(text)),
+    try: () => normalizeDaemonState(decodeUnknownJson(text)),
     catch: () => new BrainError({ message: "Cannot parse daemon state", code: "READ_FAILED" }),
   }).pipe(Effect.catch(() => Effect.succeed(EMPTY_STATE)));
 });
@@ -146,7 +168,7 @@ export const writeState = Effect.fn("writeState")(function* (brainDir: string, s
   const filePath = path.join(brainDir, STATE_FILE);
   const tmpPath = `${filePath}.tmp`;
 
-  const text = JSON.stringify(normalizeDaemonState(state), null, 2);
+  const text = encodeDaemonStateJson(normalizeDaemonState(state));
 
   yield* fs.writeFileString(tmpPath, text + "\n").pipe(
     Effect.mapError(
@@ -218,13 +240,10 @@ export const acquireLock = Effect.fn("acquireLock")(function* (brainDir: string,
   const lock = lockPath(brainDir, job, path);
   const pid = `${process.pid}\n`;
 
-  const created = yield* Effect.try({
-    try: () => {
-      writeFileSync(lock, pid, { flag: "wx" });
-      return true as const;
-    },
-    catch: () => new BrainError({ message: "Lock file exists", code: "LOCKED" }),
-  }).pipe(Effect.catch(() => Effect.succeed(false as const)));
+  const created = yield* fs.writeFileString(lock, pid, { flag: "wx" }).pipe(
+    Effect.as(true as const),
+    Effect.catch(() => Effect.succeed(false as const)),
+  );
 
   if (created) return;
 
@@ -240,16 +259,15 @@ export const acquireLock = Effect.fn("acquireLock")(function* (brainDir: string,
 
   yield* fs.remove(lock).pipe(Effect.catch(() => Effect.void));
 
-  yield* Effect.try({
-    try: () => {
-      writeFileSync(lock, pid, { flag: "wx" });
-    },
-    catch: () =>
-      new BrainError({
-        message: `Cannot acquire lock for "${job}" — concurrent process won the race`,
-        code: "LOCKED",
-      }),
-  });
+  yield* fs.writeFileString(lock, pid, { flag: "wx" }).pipe(
+    Effect.mapError(
+      () =>
+        new BrainError({
+          message: `Cannot acquire lock for "${job}" — concurrent process won the race`,
+          code: "LOCKED",
+        }),
+    ),
+  );
 });
 
 /** Check if a lock file exists for a daemon job */

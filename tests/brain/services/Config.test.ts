@@ -1,4 +1,4 @@
-/** @effect-diagnostics effect/strictEffectProvide:skip-file effect/strictBooleanExpressions:skip-file effect/unnecessaryPipeChain:skip-file */
+/** @effect-diagnostics effect/strictEffectProvide:skip-file */
 import { describe, it, expect } from "effect-bun-test";
 import { Effect, Layer, Option } from "effect";
 import type { FileSystem } from "effect/FileSystem";
@@ -36,16 +36,15 @@ describe("ConfigService", () => {
         const config = yield* ConfigService;
         const result = yield* config.globalVaultPath();
         expect(result).toBe("/custom/brain");
-      })
-        .pipe(Effect.provide(makeTestLayer()))
-        .pipe(
-          Effect.ensuring(
-            Effect.sync(() => {
-              if (original === undefined) delete process.env["BRAIN_DIR"];
-              else process.env["BRAIN_DIR"] = original;
-            }),
-          ),
-        );
+      }).pipe(
+        Effect.provide(makeTestLayer()),
+        Effect.ensuring(
+          Effect.sync(() => {
+            if (original === undefined) delete process.env["BRAIN_DIR"];
+            else process.env["BRAIN_DIR"] = original;
+          }),
+        ),
+      );
     });
 
     it.live("falls back to ~/.brain when no env or config", () => {
@@ -56,15 +55,14 @@ describe("ConfigService", () => {
         const result = yield* config.globalVaultPath();
         const home = process.env["HOME"] ?? process.env["USERPROFILE"];
         expect(result).toBe(`${home}/.brain`);
-      })
-        .pipe(Effect.provide(makeTestLayer()))
-        .pipe(
-          Effect.ensuring(
-            Effect.sync(() => {
-              if (original !== undefined) process.env["BRAIN_DIR"] = original;
-            }),
-          ),
-        );
+      }).pipe(
+        Effect.provide(makeTestLayer()),
+        Effect.ensuring(
+          Effect.sync(() => {
+            if (original !== undefined) process.env["BRAIN_DIR"] = original;
+          }),
+        ),
+      );
     });
   });
 
@@ -106,16 +104,15 @@ describe("ConfigService", () => {
         const config = yield* ConfigService;
         const result = yield* config.configFilePath();
         expect(result).toBe("/custom/config/brain/config.json");
-      })
-        .pipe(Effect.provide(layer))
-        .pipe(
-          Effect.ensuring(
-            Effect.sync(() => {
-              if (original === undefined) delete process.env["XDG_CONFIG_HOME"];
-              else process.env["XDG_CONFIG_HOME"] = original;
-            }),
-          ),
-        );
+      }).pipe(
+        Effect.provide(layer),
+        Effect.ensuring(
+          Effect.sync(() => {
+            if (original === undefined) delete process.env["XDG_CONFIG_HOME"];
+            else process.env["XDG_CONFIG_HOME"] = original;
+          }),
+        ),
+      );
     });
   });
 
@@ -169,18 +166,17 @@ describe("ConfigService", () => {
         if (Option.isSome(result)) {
           expect(result.value).toBe("/projects/myapp/brain");
         }
-      })
-        .pipe(Effect.provide(layer))
-        .pipe(
-          Effect.ensuring(
-            Effect.sync(() => {
-              if (origClaude === undefined) delete process.env["CLAUDE_PROJECT_DIR"];
-              else process.env["CLAUDE_PROJECT_DIR"] = origClaude;
-              if (origBrain === undefined) delete process.env["BRAIN_PROJECT_DIR"];
-              else process.env["BRAIN_PROJECT_DIR"] = origBrain;
-            }),
-          ),
-        );
+      }).pipe(
+        Effect.provide(layer),
+        Effect.ensuring(
+          Effect.sync(() => {
+            if (origClaude === undefined) delete process.env["CLAUDE_PROJECT_DIR"];
+            else process.env["CLAUDE_PROJECT_DIR"] = origClaude;
+            if (origBrain === undefined) delete process.env["BRAIN_PROJECT_DIR"];
+            else process.env["BRAIN_PROJECT_DIR"] = origBrain;
+          }),
+        ),
+      );
     });
 
     it.live("returns None when CLAUDE_PROJECT_DIR brain/ has no index.md", () => {
@@ -198,18 +194,17 @@ describe("ConfigService", () => {
         const config = yield* ConfigService;
         const result = yield* config.projectVaultPath();
         expect(Option.isNone(result)).toBe(true);
-      })
-        .pipe(Effect.provide(layer))
-        .pipe(
-          Effect.ensuring(
-            Effect.sync(() => {
-              if (origClaude === undefined) delete process.env["CLAUDE_PROJECT_DIR"];
-              else process.env["CLAUDE_PROJECT_DIR"] = origClaude;
-              if (origBrain === undefined) delete process.env["BRAIN_PROJECT_DIR"];
-              else process.env["BRAIN_PROJECT_DIR"] = origBrain;
-            }),
-          ),
-        );
+      }).pipe(
+        Effect.provide(layer),
+        Effect.ensuring(
+          Effect.sync(() => {
+            if (origClaude === undefined) delete process.env["CLAUDE_PROJECT_DIR"];
+            else process.env["CLAUDE_PROJECT_DIR"] = origClaude;
+            if (origBrain === undefined) delete process.env["BRAIN_PROJECT_DIR"];
+            else process.env["BRAIN_PROJECT_DIR"] = origBrain;
+          }),
+        ),
+      );
     });
   });
 
@@ -224,16 +219,15 @@ describe("ConfigService", () => {
         if (Option.isSome(result)) {
           expect(result.value).toBe("myapp");
         }
-      })
-        .pipe(Effect.provide(makeTestLayer()))
-        .pipe(
-          Effect.ensuring(
-            Effect.sync(() => {
-              if (original === undefined) delete process.env["BRAIN_PROJECT"];
-              else process.env["BRAIN_PROJECT"] = original;
-            }),
-          ),
-        );
+      }).pipe(
+        Effect.provide(makeTestLayer()),
+        Effect.ensuring(
+          Effect.sync(() => {
+            if (original === undefined) delete process.env["BRAIN_PROJECT"];
+            else process.env["BRAIN_PROJECT"] = original;
+          }),
+        ),
+      );
     });
 
     it.live("falls back to git root basename", () => {
@@ -247,15 +241,14 @@ describe("ConfigService", () => {
         if (Option.isSome(result)) {
           expect(result.value).toBe("okra");
         }
-      })
-        .pipe(Effect.provide(makeTestLayer()))
-        .pipe(
-          Effect.ensuring(
-            Effect.sync(() => {
-              if (original !== undefined) process.env["BRAIN_PROJECT"] = original;
-            }),
-          ),
-        );
+      }).pipe(
+        Effect.provide(makeTestLayer()),
+        Effect.ensuring(
+          Effect.sync(() => {
+            if (original !== undefined) process.env["BRAIN_PROJECT"] = original;
+          }),
+        ),
+      );
     });
   });
 });

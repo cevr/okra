@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+/** @effect-diagnostics strictEffectProvide:off */
 import { Console, Effect, Layer, Schema } from "effect";
 import { Command } from "effect/unstable/cli";
 import { BunRuntime, BunServices } from "@effect/platform-bun";
@@ -70,5 +71,4 @@ const program = cli.pipe(
   ),
 );
 
-// @effect-diagnostics-next-line effect/strictEffectProvide:off
 BunRuntime.runMain(program.pipe(Effect.provide(PlatformLayer)), { disableErrorReporting: true });

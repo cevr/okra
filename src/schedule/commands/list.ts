@@ -1,9 +1,12 @@
-import { Console, Effect } from "effect";
+import { Console, Effect, Schema } from "effect";
 import { Command, Flag } from "effect/unstable/cli";
-import { StoreService } from "../services/Store.js";
+import { StoreService, Task } from "../services/Store.js";
 import { describe } from "../services/Schedule.js";
 import * as StopEvaluator from "../services/StopEvaluator.js";
 import { isColorEnabled } from "../../shared/env.js";
+
+const TasksJson = Schema.fromJsonString(Schema.Array(Task));
+const encodeTasksJson = Schema.encodeSync(TasksJson);
 
 export const list = Command.make(
   "list",
@@ -16,22 +19,7 @@ export const list = Command.make(
       const tasks = yield* store.list();
 
       if (config.json) {
-        const out = tasks.map((t) => ({
-          id: t.id,
-          prompt: t.prompt,
-          provider: t.provider,
-          schedule: t.schedule,
-          cwd: t.cwd,
-          status: t.status,
-          createdAt: t.createdAt,
-          lastRun: t.lastRun,
-          runCount: t.runCount,
-          context: t.context,
-          stopConditions: t.stopConditions,
-          conditionalStop: t.conditionalStop,
-        }));
-        // @effect-diagnostics-next-line effect/preferSchemaOverJson:off
-        yield* Console.log(JSON.stringify(out, null, 2));
+        yield* Console.log(encodeTasksJson(tasks));
         return;
       }
 

@@ -1,8 +1,33 @@
-import { Console, Effect } from "effect";
+import { Console, Effect, Schema } from "effect";
 import { Command, Flag } from "effect/unstable/cli";
 import { DaemonService } from "../services/Daemon.js";
 import { SessionService } from "../services/Session.js";
 import { ExperimentLogService } from "../services/ExperimentLog.js";
+import { Direction, Provider } from "../types.js";
+
+const NoSessionOutput = Schema.Struct({
+  running: Schema.Literal(false),
+  session: Schema.Null,
+});
+const encodeNoSessionOutput = Schema.encodeSync(Schema.fromJsonString(NoSessionOutput));
+
+const StatusInfo = Schema.Struct({
+  running: Schema.Boolean,
+  pid: Schema.optional(Schema.Number),
+  name: Schema.String,
+  unit: Schema.String,
+  direction: Direction,
+  provider: Provider,
+  iteration: Schema.Number,
+  maxIterations: Schema.Number,
+  deadline: Schema.optional(Schema.String),
+  bestValue: Schema.optional(Schema.Number),
+  baselineValue: Schema.optional(Schema.Number),
+  totalTrials: Schema.Number,
+  keptTrials: Schema.Number,
+  failedTrials: Schema.Number,
+});
+const encodeStatusInfo = Schema.encodeSync(Schema.fromJsonString(StatusInfo));
 
 export const statusCommand = Command.make(
   "status",
@@ -24,8 +49,7 @@ export const statusCommand = Command.make(
 
       if (!exists) {
         if (json) {
-          // @effect-diagnostics-next-line effect/preferSchemaOverJson:off
-          yield* Console.log(JSON.stringify({ running: false, session: null }));
+          yield* Console.log(encodeNoSessionOutput({ running: false, session: null }));
         } else {
           yield* Console.log("No experiment session found.");
         }
@@ -53,8 +77,7 @@ export const statusCommand = Command.make(
       };
 
       if (json) {
-        // @effect-diagnostics-next-line effect/preferSchemaOverJson:off
-        yield* Console.log(JSON.stringify(info, null, 2));
+        yield* Console.log(encodeStatusInfo(info));
       } else {
         const statusIcon = daemonStatus.running ? "running" : "stopped";
         yield* Console.log(`Experiment: ${session.name} [${statusIcon}]`);

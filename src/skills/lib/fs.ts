@@ -1,4 +1,3 @@
-// @effect-diagnostics effect/strictBooleanExpressions:off
 import { Effect, FileSystem, Path } from "effect";
 
 export const walkDir = Effect.fn("walkDir")(function* (dirPath: string) {

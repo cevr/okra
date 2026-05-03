@@ -1,6 +1,9 @@
 import { Argument, Command, Flag } from "effect/unstable/cli";
-import { Console, Effect, Option } from "effect";
+import { Console, Effect, Option, Schema } from "effect";
 import { VaultService } from "../services/Vault.js";
+
+const SnapshotOutput = Schema.Struct({ path: Schema.String });
+const encodeSnapshotOutput = Schema.encodeSync(Schema.fromJsonString(SnapshotOutput));
 
 const dirArg = Argument.string("dir").pipe(
   Argument.withDescription("Path to markdown directory to snapshot"),
@@ -25,8 +28,7 @@ export const snapshot = Command.make("snapshot", {
       const result = yield* vault.snapshot(dir, output);
 
       if (json && Option.isSome(output)) {
-        // @effect-diagnostics-next-line effect/preferSchemaOverJson:off
-        yield* Console.log(JSON.stringify({ path: result }));
+        yield* Console.log(encodeSnapshotOutput({ path: result }));
       } else if (Option.isSome(output)) {
         yield* Console.error(`Wrote snapshot to ${result}`);
       } else {

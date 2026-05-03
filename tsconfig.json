@@ -25,7 +25,7 @@
           "missedPipeableOpportunity": "suggestion",
           "missingEffectServiceDependency": "warning",
           "schemaUnionOfLiterals": "warning",
-          "strictBooleanExpressions": "warning",
+          "strictBooleanExpressions": "off",
           "strictEffectProvide": "warning",
           "catchAllToMapError": "warning",
           "catchUnfailableEffect": "warning",
@@ -59,6 +59,26 @@
             "target": "error",
             "pattern": "default",
             "skipLeadingPath": ["src/"]
+          }
+        ],
+        "overrides": [
+          {
+            "include": ["tests/**/*"],
+            "options": {
+              "diagnosticSeverity": {
+                "strictEffectProvide": "off",
+                "nodeBuiltinImport": "off",
+                "runEffectInsideEffect": "off"
+              }
+            }
+          },
+          {
+            "include": ["scripts/**/*"],
+            "options": {
+              "diagnosticSeverity": {
+                "nodeBuiltinImport": "off"
+              }
+            }
           }
         ]
       }

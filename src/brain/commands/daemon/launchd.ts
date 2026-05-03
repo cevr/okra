@@ -84,7 +84,7 @@ export const installPlist = Effect.fn("installPlist")(function* (job: DaemonJob)
   const fs = yield* FileSystem;
   const path = yield* Path;
   const home = yield* requireHome();
-  const brainBin = resolveExecutable("okra");
+  const brainBin = yield* resolveExecutable("okra");
 
   // Ensure log directory exists
   yield* fs.makeDirectory(logDir(home, path), { recursive: true }).pipe(
@@ -281,7 +281,7 @@ export const installUnifiedPlist = Effect.fn("installUnifiedPlist")(function* ()
   const fs = yield* FileSystem;
   const path = yield* Path;
   const home = yield* requireHome();
-  const brainBin = resolveExecutable("okra");
+  const brainBin = yield* resolveExecutable("okra");
 
   yield* fs
     .makeDirectory(logDir(home, path), { recursive: true })

@@ -1,12 +1,16 @@
-// @effect-diagnostics effect/nodeBuiltinImport:off
-import { existsSync, readFileSync, writeFileSync, appendFileSync } from "node:fs";
 import { Effect, Layer, Context } from "effect";
+import { FileSystem } from "effect/FileSystem";
+import { Path } from "effect/Path";
+import type { PlatformError } from "effect/PlatformError";
 import { ResearchError, ErrorCode } from "../errors.js";
 import { decodeExperimentEvent, encodeExperimentEvent, ResultEvent } from "../types.js";
 import type { Direction, ExperimentEvent, ExperimentState, Session, SteerEvent } from "../types.js";
-import { xpPaths } from "../paths.js";
+import { buildXpPaths } from "../paths.js";
 import { formatResultForLog } from "../prompt.js";
 import { shouldKeep } from "../scoring.js";
+
+const wrapIO = (e: PlatformError, code: ErrorCode = ErrorCode.WRITE_FAILED) =>
+  new ResearchError({ message: e.message, code });
 
 const isBetterBest = (
   candidate: ResultEvent,
@@ -166,44 +170,50 @@ export class ExperimentLogService extends Context.Service<
     ) => Effect.Effect<void, ResearchError>;
   }
 >()("@cvr/okra/research/services/ExperimentLog/ExperimentLogService") {
-  static layer: Layer.Layer<ExperimentLogService> = Layer.succeed(ExperimentLogService, {
-    append: (projectRoot, event) =>
-      Effect.try({
-        try: () => {
-          const paths = xpPaths(projectRoot);
+  static layer: Layer.Layer<ExperimentLogService, never, FileSystem | Path> = Layer.effect(
+    ExperimentLogService,
+    Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const path = yield* Path;
+
+      return {
+        append: Effect.fn("ExperimentLog.append")(function* (projectRoot, event) {
+          const paths = buildXpPaths(path, projectRoot);
           const json = encodeExperimentEvent(event);
-          appendFileSync(paths.experimentsJsonl, json + "\n");
-        },
-        catch: (e) =>
-          new ResearchError({
-            message: `Failed to append event: ${e}`,
-            code: ErrorCode.WRITE_FAILED,
-          }),
-      }),
+          yield* fs
+            .writeFileString(paths.experimentsJsonl, json + "\n", { flag: "a" })
+            .pipe(Effect.mapError((e) => wrapIO(e)));
+        }),
 
-    readAll: (projectRoot) =>
-      Effect.try({
-        try: () => {
-          const paths = xpPaths(projectRoot);
-          if (!existsSync(paths.experimentsJsonl)) return [];
-          const raw = readFileSync(paths.experimentsJsonl, "utf-8");
-          return raw
-            .split("\n")
-            .filter((line) => line.trim().length > 0)
-            .map((line) => decodeExperimentEvent(line));
-        },
-        catch: (e) =>
-          new ResearchError({
-            message: `Failed to read experiment log: ${e}`,
-            code: ErrorCode.READ_FAILED,
-          }),
-      }),
+        readAll: Effect.fn("ExperimentLog.readAll")(function* (projectRoot) {
+          const paths = buildXpPaths(path, projectRoot);
+          const exists = yield* fs
+            .exists(paths.experimentsJsonl)
+            .pipe(Effect.catch(() => Effect.succeed(false)));
+          if (!exists) return [] as ReadonlyArray<ExperimentEvent>;
+          const raw = yield* fs
+            .readFileString(paths.experimentsJsonl)
+            .pipe(Effect.mapError((e) => wrapIO(e, ErrorCode.READ_FAILED)));
+          return yield* Effect.try({
+            try: () =>
+              raw
+                .split("\n")
+                .filter((line) => line.trim().length > 0)
+                .map((line) => decodeExperimentEvent(line)),
+            catch: (e) =>
+              new ResearchError({
+                message: `Failed to decode experiment log: ${String(e)}`,
+                code: ErrorCode.READ_FAILED,
+              }),
+          });
+        }),
 
-    reconstructState: (projectRoot) =>
-      Effect.try({
-        try: () => {
-          const paths = xpPaths(projectRoot);
-          if (!existsSync(paths.experimentsJsonl)) {
+        reconstructState: Effect.fn("ExperimentLog.reconstructState")(function* (projectRoot) {
+          const paths = buildXpPaths(path, projectRoot);
+          const exists = yield* fs
+            .exists(paths.experimentsJsonl)
+            .pipe(Effect.catch(() => Effect.succeed(false)));
+          if (!exists) {
             return {
               segment: 0,
               iteration: 0,
@@ -216,37 +226,52 @@ export class ExperimentLogService extends Context.Service<
               lastPendingCommit: undefined,
             } satisfies ExperimentState;
           }
-          const raw = readFileSync(paths.experimentsJsonl, "utf-8");
+          const raw = yield* fs
+            .readFileString(paths.experimentsJsonl)
+            .pipe(Effect.mapError((e) => wrapIO(e, ErrorCode.READ_FAILED)));
           const events: Array<ExperimentEvent> = [];
           for (const line of raw.split("\n")) {
             if (line.trim().length === 0) continue;
-            try {
-              events.push(decodeExperimentEvent(line));
-            } catch {
-              console.warn(`[okra research] skipping malformed JSONL line: ${line.slice(0, 80)}`);
-            }
+            const decoded = yield* Effect.try({
+              try: () => decodeExperimentEvent(line),
+              catch: () => "decode-failed" as const,
+            }).pipe(
+              Effect.catch(() =>
+                Effect.sync(() => {
+                  console.warn(
+                    `[okra research] skipping malformed JSONL line: ${line.slice(0, 80)}`,
+                  );
+                  return undefined;
+                }),
+              ),
+            );
+            if (decoded !== undefined) events.push(decoded);
           }
           return reconstructFromEvents(events);
-        },
-        catch: (e) =>
-          new ResearchError({
-            message: `Failed to reconstruct state: ${e}`,
-            code: ErrorCode.READ_FAILED,
-          }),
-      }),
+        }),
 
-    regenerateMarkdown: (projectRoot, session) =>
-      Effect.sync(() => {
-        const paths = xpPaths(projectRoot);
-        if (!existsSync(paths.experimentsJsonl)) return;
-        const raw = readFileSync(paths.experimentsJsonl, "utf-8");
-        const events = raw
-          .split("\n")
-          .filter((line) => line.trim().length > 0)
-          .map((line) => decodeExperimentEvent(line));
-        const state = reconstructFromEvents(events);
-        const md = generateMarkdown(session, state);
-        writeFileSync(paths.experimentMd, md);
-      }),
-  });
+        regenerateMarkdown: Effect.fn("ExperimentLog.regenerateMarkdown")(
+          function* (projectRoot, session) {
+            const paths = buildXpPaths(path, projectRoot);
+            const exists = yield* fs
+              .exists(paths.experimentsJsonl)
+              .pipe(Effect.catch(() => Effect.succeed(false)));
+            if (!exists) return;
+            const raw = yield* fs
+              .readFileString(paths.experimentsJsonl)
+              .pipe(Effect.mapError((e) => wrapIO(e, ErrorCode.READ_FAILED)));
+            const events = raw
+              .split("\n")
+              .filter((line) => line.trim().length > 0)
+              .map((line) => decodeExperimentEvent(line));
+            const state = reconstructFromEvents(events);
+            const md = generateMarkdown(session, state);
+            yield* fs
+              .writeFileString(paths.experimentMd, md)
+              .pipe(Effect.mapError((e) => wrapIO(e)));
+          },
+        ),
+      };
+    }),
+  );
 }

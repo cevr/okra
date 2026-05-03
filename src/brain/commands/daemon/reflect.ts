@@ -1,5 +1,4 @@
-// @effect-diagnostics effect/preferSchemaOverJson:off
-import { Console, Effect, Option } from "effect";
+import { Console, Effect, Option, Schema } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
@@ -22,6 +21,8 @@ import {
 
 const MAX_TOTAL_LINES = 2000;
 const REFLECT_LOOKBACK_MS = 24 * 60 * 60 * 1000;
+
+const decodeUnknownJson = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown));
 
 interface SessionFile {
   readonly provider: Provider;
@@ -73,7 +74,7 @@ const readCodexSessionMeta = Effect.fn("readCodexSessionMeta")(function* (filePa
   for (const line of lines) {
     if (line.trim().length === 0) continue;
     const parsed = yield* Effect.try({
-      try: () => Option.some(JSON.parse(line) as Record<string, unknown>),
+      try: () => Option.some(decodeUnknownJson(line) as Record<string, unknown>),
       catch: () => Option.none<Record<string, unknown>>(),
     });
     if (Option.isNone(parsed) || parsed.value["type"] !== "session_meta") continue;

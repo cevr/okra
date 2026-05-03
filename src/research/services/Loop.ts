@@ -1,15 +1,8 @@
-// @effect-diagnostics effect/nodeBuiltinImport:off
-import {
-  existsSync,
-  readFileSync,
-  readdirSync,
-  unlinkSync,
-  writeFileSync,
-  appendFileSync,
-} from "node:fs";
 import { createHash } from "node:crypto";
-import { join } from "node:path";
 import { Effect, Layer, Context } from "effect";
+import { FileSystem } from "effect/FileSystem";
+import { Path } from "effect/Path";
+import type { PlatformError } from "effect/PlatformError";
 import { ResearchError, ErrorCode } from "../errors.js";
 import {
   CommittedEvent,
@@ -20,7 +13,7 @@ import {
   SteerEvent,
 } from "../types.js";
 import type { ExperimentState } from "../types.js";
-import { xpPaths } from "../paths.js";
+import { buildXpPaths } from "../paths.js";
 import { buildExperimentPrompt, buildSetupPrompt } from "../prompt.js";
 import { shouldKeep } from "../scoring.js";
 import { AgentPlatformService } from "./AgentPlatform.js";
@@ -33,40 +26,42 @@ import { WorkspaceService } from "./Workspace.js";
 
 const now = () => new Date().toISOString();
 
-const logProgress = (daemonLog: string, message: string) => {
-  appendFileSync(daemonLog, `[${now()}] ${message}\n`);
-};
+const wrapIO = (e: PlatformError, code: ErrorCode = ErrorCode.WRITE_FAILED) =>
+  new ResearchError({ message: e.message, code });
 
-const hashFiles = Effect.fn("hashFiles")(function* (files: ReadonlyArray<string>) {
-  return yield* Effect.try({
-    try: () => {
-      const hash = createHash("sha256");
-      for (const file of files) {
-        if (existsSync(file)) {
-          hash.update(readFileSync(file));
-        }
+const logProgress = (fs: FileSystem, daemonLog: string, message: string) =>
+  fs
+    .writeFileString(daemonLog, `[${now()}] ${message}\n`, { flag: "a" })
+    .pipe(Effect.catch(() => Effect.void));
+
+const hashFiles = (fs: FileSystem, files: ReadonlyArray<string>) =>
+  Effect.gen(function* () {
+    const hash = createHash("sha256");
+    for (const file of files) {
+      const exists = yield* fs.exists(file).pipe(Effect.catch(() => Effect.succeed(false)));
+      if (exists) {
+        const buf = yield* fs
+          .readFile(file)
+          .pipe(Effect.mapError((e) => wrapIO(e, ErrorCode.BENCHMARK_FAILED)));
+        hash.update(buf);
       }
-      return hash.digest("hex");
-    },
-    catch: (e) =>
-      new ResearchError({
-        message: `Failed to hash benchmark files: ${e}`,
-        code: ErrorCode.BENCHMARK_FAILED,
-      }),
-  });
-});
-
-const parseBenchmarkFiles = (cmd: string, cwd: string): ReadonlyArray<string> => {
-  const parts = cmd.split(/\s+/);
-  const files: Array<string> = [];
-  for (const part of parts) {
-    const resolved = join(cwd, part);
-    if (existsSync(resolved)) {
-      files.push(resolved);
     }
-  }
-  return files;
-};
+    return hash.digest("hex");
+  });
+
+const parseBenchmarkFiles = (fs: FileSystem, path: Path, cmd: string, cwd: string) =>
+  Effect.gen(function* () {
+    const parts = cmd.split(/\s+/);
+    const files: Array<string> = [];
+    for (const part of parts) {
+      const resolved = path.join(cwd, part);
+      const exists = yield* fs.exists(resolved).pipe(Effect.catch(() => Effect.succeed(false)));
+      if (exists) {
+        files.push(resolved);
+      }
+    }
+    return files as ReadonlyArray<string>;
+  });
 
 export class LoopService extends Context.Service<
   LoopService,
@@ -84,6 +79,8 @@ export class LoopService extends Context.Service<
     | RunnerService
     | SessionService
     | WorkspaceService
+    | FileSystem
+    | Path
   > = Layer.effect(
     LoopService,
     Effect.gen(function* () {
@@ -94,45 +91,57 @@ export class LoopService extends Context.Service<
       const runner = yield* RunnerService;
       const sessionSvc = yield* SessionService;
       const workspace = yield* WorkspaceService;
+      const fs = yield* FileSystem;
+      const path = yield* Path;
 
       return {
         run: (projectRoot) =>
           Effect.gen(function* () {
-            const paths = xpPaths(projectRoot);
+            const paths = buildXpPaths(path, projectRoot);
 
             // --- STARTUP ---
             yield* appendLifecycle(log, projectRoot, "started");
-            logProgress(paths.daemonLog, "daemon started");
+            yield* logProgress(fs, paths.daemonLog, "daemon started");
             const session = yield* sessionSvc.load(projectRoot);
 
             // Reconstruct state from JSONL
             let state = yield* log.reconstructState(projectRoot);
 
             // Reconciliation
-            yield* reconcile(log, git, projectRoot, state);
+            yield* reconcile(fs, path, log, git, projectRoot, state);
             state = yield* log.reconstructState(projectRoot);
 
             // Ensure worktree
             const worktreePath = yield* workspace.setup(session);
 
             // Setup discovery if new session with no setup.json
-            if (!existsSync(paths.setupJson) && state.iteration === 0) {
+            const setupExists = yield* fs
+              .exists(paths.setupJson)
+              .pipe(Effect.catch(() => Effect.succeed(false)));
+            if (!setupExists && state.iteration === 0) {
               yield* appendLifecycle(log, projectRoot, "setup_discover");
               const setupPrompt = buildSetupPrompt(projectRoot, worktreePath, session.benchmarkCmd);
               yield* agent.invoke(session.provider, setupPrompt, worktreePath, paths.daemonLog);
-            } else if (existsSync(paths.setupJson)) {
+            } else if (setupExists) {
               yield* appendLifecycle(log, projectRoot, "setup_replay");
             }
 
             // Freeze benchmark digest
-            const benchmarkFiles = parseBenchmarkFiles(session.benchmarkCmd, worktreePath);
-            const benchmarkDigest = yield* hashFiles(benchmarkFiles);
-            writeFileSync(paths.benchmarkDigest, benchmarkDigest);
+            const benchmarkFiles = yield* parseBenchmarkFiles(
+              fs,
+              path,
+              session.benchmarkCmd,
+              worktreePath,
+            );
+            const benchmarkDigest = yield* hashFiles(fs, benchmarkFiles);
+            yield* fs
+              .writeFileString(paths.benchmarkDigest, benchmarkDigest)
+              .pipe(Effect.mapError((e) => wrapIO(e)));
             yield* appendLifecycle(log, projectRoot, "benchmark_frozen");
 
             // Baseline if needed
             if (state.baseline === undefined) {
-              logProgress(paths.daemonLog, "running baseline benchmark...");
+              yield* logProgress(fs, paths.daemonLog, "running baseline benchmark...");
               const baselineResult = yield* runner.run(session.benchmarkCmd, worktreePath);
               const sourceCommit = yield* git.headSha(worktreePath);
 
@@ -189,7 +198,7 @@ export class LoopService extends Context.Service<
                 bestCommit: sourceCommit,
               });
 
-              logProgress(paths.daemonLog, `baseline: ${baselineValue} ${session.unit}`);
+              yield* logProgress(fs, paths.daemonLog, `baseline: ${baselineValue} ${session.unit}`);
 
               state = yield* log.reconstructState(projectRoot);
             }
@@ -206,7 +215,8 @@ export class LoopService extends Context.Service<
             while (true) {
               const budgetCheck = yield* budget.check(session, state);
               if (!budgetCheck.canContinue) {
-                logProgress(
+                yield* logProgress(
+                  fs,
                   paths.daemonLog,
                   `budget exhausted: ${budgetCheck.reason ?? "unknown"}`,
                 );
@@ -216,14 +226,22 @@ export class LoopService extends Context.Service<
               }
 
               // Consume steers
-              const steers = yield* consumeSteers(paths.steerDir, session.segment, state.iteration);
+              const steers = yield* consumeSteers(
+                fs,
+                path,
+                paths.steerDir,
+                session.segment,
+                state.iteration,
+              );
               for (const steer of steers) {
                 yield* log.append(projectRoot, steer);
               }
 
               // Verify benchmark integrity
-              const currentDigest = yield* hashFiles(benchmarkFiles);
-              const storedDigest = readFileSync(paths.benchmarkDigest, "utf-8");
+              const currentDigest = yield* hashFiles(fs, benchmarkFiles);
+              const storedDigest = yield* fs
+                .readFileString(paths.benchmarkDigest)
+                .pipe(Effect.mapError((e) => wrapIO(e, ErrorCode.READ_FAILED)));
               if (currentDigest !== storedDigest) {
                 return yield* new ResearchError({
                   message: "Benchmark files were tampered with",
@@ -232,7 +250,8 @@ export class LoopService extends Context.Service<
               }
 
               const nextIter = state.iteration + 1;
-              logProgress(
+              yield* logProgress(
+                fs,
                 paths.daemonLog,
                 `iter ${nextIter}/${session.maxIterations}: invoking ${session.provider}...`,
               );
@@ -258,7 +277,8 @@ export class LoopService extends Context.Service<
 
               // Agent failed — revert and log
               if (agentResult.exitCode !== 0) {
-                logProgress(
+                yield* logProgress(
+                  fs,
                   paths.daemonLog,
                   `iter ${nextIteration}: agent failed (exit ${agentResult.exitCode})`,
                 );
@@ -286,7 +306,11 @@ export class LoopService extends Context.Service<
               const isWorktreeClean = yield* git.isClean(worktreePath);
 
               if (isWorktreeClean) {
-                logProgress(paths.daemonLog, `iter ${nextIteration}: no changes — discarded`);
+                yield* logProgress(
+                  fs,
+                  paths.daemonLog,
+                  `iter ${nextIteration}: no changes — discarded`,
+                );
                 yield* log.append(
                   projectRoot,
                   new ResultEvent({
@@ -343,7 +367,8 @@ export class LoopService extends Context.Service<
               const bestValue = state.best?.value;
 
               if (benchResult.exitCode !== 0) {
-                logProgress(
+                yield* logProgress(
+                  fs,
                   paths.daemonLog,
                   `iter ${nextIteration}: benchmark failed (exit ${benchResult.exitCode}) — reverted`,
                 );
@@ -396,7 +421,8 @@ export class LoopService extends Context.Service<
                     bestValue: metricValue,
                     bestCommit: sha,
                   });
-                  logProgress(
+                  yield* logProgress(
+                    fs,
                     paths.daemonLog,
                     `iter ${nextIteration}: ${metricValue} ${session.unit} — KEPT (was ${bestValue} ${session.unit})`,
                   );
@@ -416,7 +442,8 @@ export class LoopService extends Context.Service<
                   yield* sessionSvc.update(projectRoot, {
                     currentIteration: nextIteration,
                   });
-                  logProgress(
+                  yield* logProgress(
+                    fs,
                     paths.daemonLog,
                     `iter ${nextIteration}: ${metricValue ?? "N/A"} ${session.unit} — discarded (best: ${bestValue} ${session.unit})`,
                   );
@@ -452,74 +479,98 @@ const appendLifecycle = Effect.fn("appendLifecycle")(function* (
   );
 });
 
-const consumeSteers = Effect.fn("consumeSteers")(function* (
+const consumeSteers = (
+  fs: FileSystem,
+  path: Path,
   steerDir: string,
   segment: number,
   iteration: number,
-) {
-  return yield* Effect.try({
-    try: () => {
-      if (!existsSync(steerDir)) return [] as ReadonlyArray<SteerEvent>;
-      const files = readdirSync(steerDir)
-        .filter((f) => f.endsWith(".txt"))
-        .sort();
-      const steers: Array<SteerEvent> = [];
-      for (const file of files) {
-        const content = readFileSync(join(steerDir, file), "utf-8").trim();
-        if (content !== "") {
-          steers.push(
-            new SteerEvent({
-              _tag: "steer",
-              timestamp: now(),
-              segment,
-              iteration,
-              guidance: content,
-            }),
-          );
-        }
-        unlinkSync(join(steerDir, file));
+) =>
+  Effect.gen(function* () {
+    const exists = yield* fs.exists(steerDir).pipe(Effect.catch(() => Effect.succeed(false)));
+    if (!exists) return [] as ReadonlyArray<SteerEvent>;
+    const allFiles = yield* fs
+      .readDirectory(steerDir)
+      .pipe(Effect.mapError((e) => wrapIO(e, ErrorCode.READ_FAILED)));
+    const files = allFiles.filter((f) => f.endsWith(".txt")).sort();
+    const steers: Array<SteerEvent> = [];
+    for (const file of files) {
+      const filePath = path.join(steerDir, file);
+      const content = yield* fs
+        .readFileString(filePath)
+        .pipe(Effect.mapError((e) => wrapIO(e, ErrorCode.READ_FAILED)));
+      const trimmed = content.trim();
+      if (trimmed !== "") {
+        steers.push(
+          new SteerEvent({
+            _tag: "steer",
+            timestamp: now(),
+            segment,
+            iteration,
+            guidance: trimmed,
+          }),
+        );
       }
-      return steers as ReadonlyArray<SteerEvent>;
-    },
-    catch: (e) =>
-      new ResearchError({
-        message: `Failed to consume steers: ${e}`,
-        code: ErrorCode.READ_FAILED,
-      }),
+      yield* fs.remove(filePath).pipe(Effect.catch(() => Effect.void));
+    }
+    return steers as ReadonlyArray<SteerEvent>;
   });
-});
 
-const reconcile = Effect.fn("reconcile")(function* (
+const reconcile = (
+  fs: FileSystem,
+  path: Path,
   log: Context.Service.Shape<typeof ExperimentLogService>,
   git: Context.Service.Shape<typeof GitService>,
   projectRoot: string,
   state: ExperimentState,
-) {
-  if (state.lastPendingResult === undefined || state.hasDecisionForLastPending) return;
+) =>
+  Effect.gen(function* () {
+    if (state.lastPendingResult === undefined || state.hasDecisionForLastPending) return;
 
-  const paths = xpPaths(projectRoot);
-  const worktreePath = paths.worktree;
+    const paths = buildXpPaths(path, projectRoot);
+    const worktreePath = paths.worktree;
 
-  if (!existsSync(worktreePath)) {
-    yield* appendLifecycle(log, projectRoot, "recovery", "Worktree missing during reconciliation");
-    return;
-  }
-
-  const pendingCommit = state.lastPendingCommit;
-
-  if (pendingCommit !== undefined) {
-    const headSha = yield* git.headSha(worktreePath);
-    if (headSha === pendingCommit) {
-      yield* log.append(
+    const worktreeExists = yield* fs
+      .exists(worktreePath)
+      .pipe(Effect.catch(() => Effect.succeed(false)));
+    if (!worktreeExists) {
+      yield* appendLifecycle(
+        log,
         projectRoot,
-        new DecisionEvent({
-          _tag: "decision",
-          timestamp: now(),
-          segment: state.segment,
-          iteration: state.lastPendingResult.iteration,
-          status: "kept",
-        }),
+        "recovery",
+        "Worktree missing during reconciliation",
       );
+      return;
+    }
+
+    const pendingCommit = state.lastPendingCommit;
+
+    if (pendingCommit !== undefined) {
+      const headSha = yield* git.headSha(worktreePath);
+      if (headSha === pendingCommit) {
+        yield* log.append(
+          projectRoot,
+          new DecisionEvent({
+            _tag: "decision",
+            timestamp: now(),
+            segment: state.segment,
+            iteration: state.lastPendingResult.iteration,
+            status: "kept",
+          }),
+        );
+      } else {
+        yield* git.revertWorktree(worktreePath);
+        yield* log.append(
+          projectRoot,
+          new DecisionEvent({
+            _tag: "decision",
+            timestamp: now(),
+            segment: state.segment,
+            iteration: state.lastPendingResult.iteration,
+            status: "discarded",
+          }),
+        );
+      }
     } else {
       yield* git.revertWorktree(worktreePath);
       yield* log.append(
@@ -533,19 +584,6 @@ const reconcile = Effect.fn("reconcile")(function* (
         }),
       );
     }
-  } else {
-    yield* git.revertWorktree(worktreePath);
-    yield* log.append(
-      projectRoot,
-      new DecisionEvent({
-        _tag: "decision",
-        timestamp: now(),
-        segment: state.segment,
-        iteration: state.lastPendingResult.iteration,
-        status: "discarded",
-      }),
-    );
-  }
 
-  yield* appendLifecycle(log, projectRoot, "recovery", "Reconciled pending result");
-});
+    yield* appendLifecycle(log, projectRoot, "recovery", "Reconciled pending result");
+  });

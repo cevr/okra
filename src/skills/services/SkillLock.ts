@@ -1,4 +1,3 @@
-// @effect-diagnostics effect/strictBooleanExpressions:off effect/effectFnOpportunity:off
 import { Effect, FileSystem, Layer, Option, Path, Schema, Context } from "effect";
 import { SkillsError } from "../errors.js";
 import { SkillStore } from "./SkillStore.js";
@@ -110,26 +109,25 @@ export const SkillLockLive = Layer.effect(
       }).pipe(Effect.withSpan("SkillLock.add", { attributes: { name, source } }));
 
     // B1/B4: Single read-modify-write, preserve installedAt
-    const addMany = (
+    const addMany = Effect.fn("SkillLock.addMany")(function* (
       entries: ReadonlyArray<{ name: string; source: string; skillPath: string; ref?: string }>,
-    ) =>
-      Effect.gen(function* () {
-        if (entries.length === 0) return;
-        const lock = yield* readLock;
-        const now = new Date().toISOString();
-        const newSkills = { ...lock.skills };
-        for (const { name, source, skillPath, ref } of entries) {
-          const existing = newSkills[name];
-          newSkills[name] = new LockEntry({
-            source,
-            skillPath,
-            ref,
-            installedAt: existing?.installedAt ?? now,
-            updatedAt: now,
-          });
-        }
-        yield* writeLock(new LockFile({ version: 1, skills: newSkills }));
-      }).pipe(Effect.withSpan("SkillLock.addMany"));
+    ) {
+      if (entries.length === 0) return;
+      const lock = yield* readLock;
+      const now = new Date().toISOString();
+      const newSkills = { ...lock.skills };
+      for (const { name, source, skillPath, ref } of entries) {
+        const existing = newSkills[name];
+        newSkills[name] = new LockEntry({
+          source,
+          skillPath,
+          ref,
+          installedAt: existing?.installedAt ?? now,
+          updatedAt: now,
+        });
+      }
+      yield* writeLock(new LockFile({ version: 1, skills: newSkills }));
+    });
 
     const remove = (name: string) =>
       Effect.gen(function* () {
@@ -153,20 +151,19 @@ export const SkillLockLive = Layer.effect(
         yield* writeLock(updated);
       }).pipe(Effect.withSpan("SkillLock.update", { attributes: { name } }));
 
-    const updateMany = (names: ReadonlyArray<string>) =>
-      Effect.gen(function* () {
-        if (names.length === 0) return;
-        const lock = yield* readLock;
-        const now = new Date().toISOString();
-        const newSkills = { ...lock.skills };
-        for (const name of names) {
-          const entry = newSkills[name];
-          if (entry) {
-            newSkills[name] = new LockEntry({ ...entry, updatedAt: now });
-          }
+    const updateMany = Effect.fn("SkillLock.updateMany")(function* (names: ReadonlyArray<string>) {
+      if (names.length === 0) return;
+      const lock = yield* readLock;
+      const now = new Date().toISOString();
+      const newSkills = { ...lock.skills };
+      for (const name of names) {
+        const entry = newSkills[name];
+        if (entry) {
+          newSkills[name] = new LockEntry({ ...entry, updatedAt: now });
         }
-        yield* writeLock(new LockFile({ version: 1, skills: newSkills }));
-      }).pipe(Effect.withSpan("SkillLock.updateMany"));
+      }
+      yield* writeLock(new LockFile({ version: 1, skills: newSkills }));
+    });
 
     return { read: readLock, get, add, addMany, remove, update, updateMany };
   }),

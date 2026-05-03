@@ -1,4 +1,4 @@
-/** @effect-diagnostics effect/strictEffectProvide:skip-file effect/preferSchemaOverJson:skip-file */
+/** @effect-diagnostics effect/strictEffectProvide:skip-file */
 import { describe, it, expect } from "effect-bun-test";
 import { Effect, Layer } from "effect";
 import { FileSystem } from "effect/FileSystem";
@@ -60,7 +60,7 @@ describe("reindex", () => {
       const result = yield* vault.rebuildIndex(dir);
 
       // Simulate JSON output — verify the shape matches what the command would output
-      const json = JSON.parse(JSON.stringify(result)) as Record<string, unknown>;
+      const json: Record<string, unknown> = { ...result };
       expect(json).toHaveProperty("vault");
       expect(json).toHaveProperty("files");
       expect(json).toHaveProperty("sections");

@@ -1,5 +1,5 @@
 import { Argument, Command, Flag } from "effect/unstable/cli";
-import { Console, Effect, Option } from "effect";
+import { Console, Effect, Option, Schema } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import { ConfigService } from "../services/Config.js";
@@ -23,6 +23,47 @@ import {
 import { resolveJob, type TickInput } from "./daemon/schedule.js";
 
 const jsonFlag = Flag.boolean("json").pipe(Flag.withDescription("Output as JSON"));
+
+const StartedOutput = Schema.Struct({
+  schedule: Schema.String,
+  status: Schema.Literal("started"),
+});
+const encodeStartedOutput = Schema.encodeSync(Schema.fromJsonString(StartedOutput));
+
+const StoppedOutput = Schema.Struct({ status: Schema.Literal("stopped") });
+const encodeStoppedOutput = Schema.encodeSync(Schema.fromJsonString(StoppedOutput));
+
+const StatusOutput = Schema.Struct({
+  loaded: Schema.Boolean,
+  schedule: Schema.String,
+  jobs: Schema.Array(
+    Schema.Struct({
+      name: Schema.String,
+      lastRun: Schema.NullOr(Schema.String),
+      locked: Schema.Boolean,
+    }),
+  ),
+  processedSessions: Schema.Number,
+});
+const encodeStatusOutput = Schema.encodeSync(Schema.fromJsonString(StatusOutput));
+
+const RunOutput = Schema.Struct({
+  job: Schema.String,
+  status: Schema.Literal("completed"),
+});
+const encodeRunOutput = Schema.encodeSync(Schema.fromJsonString(RunOutput));
+
+const TickSkippedOutput = Schema.Struct({
+  job: Schema.Null,
+  status: Schema.Literal("skipped"),
+});
+const encodeTickSkippedOutput = Schema.encodeSync(Schema.fromJsonString(TickSkippedOutput));
+
+const TickCompletedOutput = Schema.Struct({
+  job: Schema.String,
+  status: Schema.Literal("completed"),
+});
+const encodeTickCompletedOutput = Schema.encodeSync(Schema.fromJsonString(TickCompletedOutput));
 
 const jobArg = Argument.string("job").pipe(
   Argument.withDescription("Job to run (reflect, ruminate, meditate)"),
@@ -108,8 +149,7 @@ const start = Command.make("start", { json: jsonFlag }).pipe(
       if (!json) yield* Console.error("  Installed unified scheduler");
 
       if (json) {
-        // @effect-diagnostics-next-line effect/preferSchemaOverJson:off
-        yield* Console.log(JSON.stringify({ schedule: UNIFIED_SCHEDULE, status: "started" }));
+        yield* Console.log(encodeStartedOutput({ schedule: UNIFIED_SCHEDULE, status: "started" }));
       } else {
         yield* Console.error(`\nDaemon started — ${UNIFIED_SCHEDULE}`);
       }
@@ -125,8 +165,7 @@ const stop = Command.make("stop", { json: jsonFlag }).pipe(
       yield* uninstallLegacyPlists();
 
       if (json) {
-        // @effect-diagnostics-next-line effect/preferSchemaOverJson:off
-        yield* Console.log(JSON.stringify({ status: "stopped" }));
+        yield* Console.log(encodeStoppedOutput({ status: "stopped" }));
       } else {
         yield* Console.error("\nDaemon stopped");
       }
@@ -155,9 +194,8 @@ const status = Command.make("status", { json: jsonFlag }).pipe(
       }
 
       if (json) {
-        // @effect-diagnostics-next-line effect/preferSchemaOverJson:off
         yield* Console.log(
-          JSON.stringify({
+          encodeStatusOutput({
             loaded,
             schedule: UNIFIED_SCHEDULE,
             jobs: jobs.map((job) => ({
@@ -232,8 +270,7 @@ const run = Command.make("run", {
       }
 
       if (json) {
-        // @effect-diagnostics-next-line effect/preferSchemaOverJson:off
-        yield* Console.log(JSON.stringify({ job, status: "completed" }));
+        yield* Console.log(encodeRunOutput({ job, status: "completed" }));
       }
     }),
   ),
@@ -253,8 +290,7 @@ const tick = Command.make("tick", {
 
       if (Option.isNone(job)) {
         if (json) {
-          // @effect-diagnostics-next-line effect/preferSchemaOverJson:off
-          yield* Console.log(JSON.stringify({ job: null, status: "skipped" }));
+          yield* Console.log(encodeTickSkippedOutput({ job: null, status: "skipped" }));
         } else {
           yield* Console.error("No job scheduled for this timeslot");
         }
@@ -289,8 +325,7 @@ const tick = Command.make("tick", {
       }
 
       if (json) {
-        // @effect-diagnostics-next-line effect/preferSchemaOverJson:off
-        yield* Console.log(JSON.stringify({ job: job.value, status: "completed" }));
+        yield* Console.log(encodeTickCompletedOutput({ job: job.value, status: "completed" }));
       }
     }),
   ),
