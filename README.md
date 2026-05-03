@@ -1,11 +1,13 @@
 # okra
 
-AI agent orchestration toolkit. Four subcommands:
+AI agent orchestration toolkit. Six subcommands:
 
 - **`okra schedule`** — Schedule AI agent tasks via macOS launchd
 - **`okra counsel`** — Route prompts between Claude and Codex for second opinions
 - **`okra research`** — Autonomous experiment daemon that optimizes measurable metrics
 - **`okra brain`** — Persistent agent memory vault with AI-powered maintenance
+- **`okra repo`** — Multi-registry source code cache for exploring external repos
+- **`okra skills`** — Manage AI agent skills from GitHub repos or local paths
 
 ## Install
 
@@ -31,6 +33,17 @@ okra research start --direction min --benchmark "bun run bench.ts" --objective "
 # Initialize and manage agent memory
 okra brain init
 okra brain daemon start
+
+# Install skills (variadic, multi-select for multi-skill repos)
+okra skills add owner/repo                # all skills (multi-select prompt)
+okra skills add owner/repo@name           # specific skill
+okra skills add ~/path/to/skill           # local path
+okra skills i owner/a owner/b ./local     # alias `i`, multiple at once
+okra skills rm my-skill                   # alias `rm` for remove
+
+# Cache an external repo for exploration
+okra repo fetch effect-ts/effect-smol
+okra repo path effect-ts/effect-smol
 ```
 
 ## Development
@@ -43,4 +56,4 @@ bun test        # tests only
 
 ## Stack
 
-Effect v4 (beta.31), Bun, `effect/unstable/cli`, oxlint, oxfmt, lefthook.
+Effect v4 (beta.60), Bun, `effect/unstable/cli`, oxlint, oxfmt, lefthook.

@@ -1,5 +1,6 @@
 // @effect-diagnostics effect/strictBooleanExpressions:off
 import { Console, Effect, FileSystem, Option, Path } from "effect";
+import { Prompt } from "effect/unstable/cli";
 import { SkillsError } from "../errors.js";
 import { walkDir } from "../lib/fs.js";
 import { DEFAULT_REF, SKILL_DIR_PREFIXES } from "../lib/constants.js";
@@ -16,7 +17,6 @@ import { GitHub } from "../services/GitHub.js";
 import { SkillLock } from "../services/SkillLock.js";
 import { SkillStore } from "../services/SkillStore.js";
 
-// B1/P2: Returns data instead of calling lock.add — callers batch the lock write
 const installSkillDir = Effect.fn("command.add.installSkillDir")(function* (
   owner: string,
   repo: string,
@@ -52,10 +52,8 @@ interface LocalInstallResult {
   readonly skillPath: string;
 }
 
-// Returns data instead of calling lock.add — callers batch
 const installLocalSkillDir = Effect.fn("command.add.installLocalSkillDir")(function* (
   dirPath: string,
-  skillFilter?: string,
 ) {
   const store = yield* SkillStore;
   const fs = yield* FileSystem.FileSystem;
@@ -82,22 +80,23 @@ const installLocalSkillDir = Effect.fn("command.add.installLocalSkillDir")(funct
     onSome: (fm) => toKebab(fm.name),
   });
 
-  if (skillFilter && toKebab(skillFilter) !== name) return Option.none();
-
   const sourceStr = `local:${absPath}`;
   yield* store.syncDir(name, files);
   yield* Console.log(`  Installed: ${name} (${files.length} file${files.length === 1 ? "" : "s"})`);
 
-  return Option.some({ name, source: sourceStr, skillPath: "SKILL.md" });
+  return { name, source: sourceStr, skillPath: "SKILL.md" };
 });
 
-const addFromLocal = Effect.fn("command.add.fromLocal")(function* (
+interface LocalSkillCandidate {
+  readonly absPath: string;
+  readonly name: string;
+}
+
+const discoverLocalCandidates = Effect.fn("command.add.discoverLocalCandidates")(function* (
   source: LocalPath,
-  skillFilter?: string,
 ) {
   const fs = yield* FileSystem.FileSystem;
   const pathService = yield* Path.Path;
-  const lock = yield* SkillLock;
 
   const inputPath = source.path.startsWith("~")
     ? pathService.join(
@@ -115,20 +114,22 @@ const addFromLocal = Effect.fn("command.add.fromLocal")(function* (
     });
   }
 
-  // Check if the path itself is a skill directory
   const hasRootSkillMd = yield* fs.exists(pathService.join(absPath, "SKILL.md")).pipe(Effect.orDie);
   if (hasRootSkillMd) {
-    const result = yield* installLocalSkillDir(absPath, skillFilter);
-    if (Option.isSome(result)) {
-      yield* lock.add(result.value.name, result.value.source, result.value.skillPath);
-    }
-    return;
+    const content = yield* fs
+      .readFileString(pathService.join(absPath, "SKILL.md"))
+      .pipe(Effect.orDie);
+    const frontmatter = yield* tryParseFrontmatter(content);
+    const name = Option.match(frontmatter, {
+      onNone: () => pathService.basename(absPath),
+      onSome: (fm) => toKebab(fm.name),
+    });
+    return [{ absPath, name }] as ReadonlyArray<LocalSkillCandidate>;
   }
 
-  // Discover skills in subdirectories (look in skills/, skill/, or direct children)
-  const discovered: Array<LocalInstallResult> = [];
+  const candidates: Array<LocalSkillCandidate> = [];
 
-  for (const prefix of ["skills", "skill", "."]) {
+  for (const prefix of [...SKILL_DIR_PREFIXES, "."]) {
     const searchDir = prefix === "." ? absPath : pathService.join(absPath, prefix);
     const searchExists = yield* fs.exists(searchDir).pipe(Effect.orDie);
     if (!searchExists) continue;
@@ -144,26 +145,60 @@ const addFromLocal = Effect.fn("command.add.fromLocal")(function* (
       const hasSkillMd = yield* fs.exists(skillMdPath).pipe(Effect.orDie);
       if (!hasSkillMd) continue;
 
-      const result = yield* installLocalSkillDir(entryPath, skillFilter);
-      if (Option.isSome(result)) discovered.push(result.value);
+      const content = yield* fs.readFileString(skillMdPath).pipe(Effect.orDie);
+      const frontmatter = yield* tryParseFrontmatter(content);
+      const name = Option.match(frontmatter, {
+        onNone: () => entry,
+        onSome: (fm) => toKebab(fm.name),
+      });
+      candidates.push({ absPath: entryPath, name });
     }
 
-    if (discovered.length > 0) break;
+    if (candidates.length > 0) break;
   }
 
-  if (discovered.length === 0) {
+  if (candidates.length === 0) {
     return yield* new SkillsError({
-      message: skillFilter
-        ? `Skill "${skillFilter}" not found in ${absPath}`
-        : `No skills found in ${absPath}`,
+      message: `No skills found in ${absPath}`,
       code: "NO_SKILLS_FOUND",
     });
   }
 
-  // Batch lock write for all discovered local skills
-  yield* lock.addMany(discovered);
+  return candidates as ReadonlyArray<LocalSkillCandidate>;
+});
 
-  yield* Console.log(`\n${discovered.length} skill(s) installed from ${absPath}`);
+// Multi-select if >1 skill, otherwise auto-install the single one
+const selectFrom = Effect.fn("command.add.selectFrom")(function* <A>(
+  message: string,
+  candidates: ReadonlyArray<{ name: string; value: A }>,
+) {
+  const single = candidates[0];
+  if (candidates.length === 1 && single) {
+    return [single.value] as ReadonlyArray<A>;
+  }
+  return yield* Prompt.multiSelect({
+    message,
+    choices: candidates.map((c) => ({ title: c.name, value: c.value })),
+    min: 1,
+  });
+});
+
+const addFromLocal = Effect.fn("command.add.fromLocal")(function* (source: LocalPath) {
+  const lock = yield* SkillLock;
+  const candidates = yield* discoverLocalCandidates(source);
+
+  const selected = yield* selectFrom(
+    `Select skills to install from ${source.path}`,
+    candidates.map((c) => ({ name: c.name, value: c })),
+  );
+
+  const installed: Array<LocalInstallResult> = [];
+  for (const candidate of selected) {
+    installed.push(yield* installLocalSkillDir(candidate.absPath));
+  }
+
+  yield* lock.addMany(installed);
+  yield* Console.log(`\n${installed.length} skill(s) installed.`);
 });
 
 const addFromRepo = Effect.fn("command.add.fromRepo")(function* (source: GitHubRepo) {
@@ -191,11 +226,13 @@ const addFromRepo = Effect.fn("command.add.fromRepo")(function* (source: GitHubR
     });
   }
 
-  yield* Console.error(`Found ${skills.length} skill(s):\n`);
+  const selected = yield* selectFrom(
+    `Select skills to install from ${owner}/${repo}`,
+    skills.map((s) => ({ name: s.dirName, value: s })),
+  );
 
-  // B1/P2: Install concurrently, batch lock write
   const results = yield* Effect.forEach(
-    skills,
+    selected,
     (skill) => installSkillDir(owner, repo, skill.skillDir, ref, sourceStr),
     { concurrency: 5 },
   );
@@ -210,7 +247,6 @@ const addFromRepoWithSkill = Effect.fn("command.add.fromRepoWithSkill")(function
   const gh = yield* GitHub;
   const sourceStr = `${owner}/${repo}@${skillFilter}`;
 
-  // Probe prefixed paths (skills/X, skill/X) then root-level (X)
   const probePaths = [
     ...SKILL_DIR_PREFIXES.map((prefix) => `${prefix}/${skillFilter}`),
     skillFilter,
@@ -256,7 +292,6 @@ const addFromRepoWithSkill = Effect.fn("command.add.fromRepoWithSkill")(function
   });
 });
 
-// B5: Safe source parsing instead of unsafe split/cast
 const addFromSearch = Effect.fn("command.add.fromSearch")(function* (query: string) {
   yield* Console.error(`Searching for "${query}"...`);
   const result = yield* search(query);
@@ -304,22 +339,8 @@ const addFromSearch = Effect.fn("command.add.fromSearch")(function* (query: stri
   });
 });
 
-export const runAdd = Effect.fn("command.add")(function* (
-  sourceInput: string | undefined,
-  skillFilter?: string,
-) {
-  const parsed = parseSource(sourceInput ?? ".");
-
-  if (skillFilter && parsed._tag === "GitHubRepo") {
-    yield* addFromRepoWithSkill({
-      _tag: "GitHubRepoWithSkill",
-      owner: parsed.owner,
-      repo: parsed.repo,
-      skillFilter,
-      ref: parsed.ref,
-    });
-    return;
-  }
+const addOne = Effect.fn("command.add.one")(function* (sourceInput: string) {
+  const parsed = parseSource(sourceInput);
 
   switch (parsed._tag) {
     case "GitHubRepo":
@@ -329,10 +350,19 @@ export const runAdd = Effect.fn("command.add")(function* (
       yield* addFromRepoWithSkill(parsed);
       break;
     case "LocalPath":
-      yield* addFromLocal(parsed, skillFilter);
+      yield* addFromLocal(parsed);
       break;
     case "SearchQuery":
       yield* addFromSearch(parsed.query);
       break;
+  }
+});
+
+export const runAdd = Effect.fn("command.add")(function* (sources: ReadonlyArray<string>) {
+  for (const source of sources) {
+    if (sources.length > 1) {
+      yield* Console.log(`\n— ${source} —`);
+    }
+    yield* addOne(source);
   }
 });

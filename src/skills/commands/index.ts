@@ -1,6 +1,6 @@
 // @effect-diagnostics effect/strictBooleanExpressions:off
-import { Argument, Command, Flag } from "effect/unstable/cli";
-import { Console, Effect, Option, Path } from "effect";
+import { Argument, Command } from "effect/unstable/cli";
+import { Console, Effect, Path } from "effect";
 import { SkillStore } from "../services/SkillStore.js";
 import { SkillLock } from "../services/SkillLock.js";
 import { runSearch } from "./search.js";
@@ -52,37 +52,52 @@ const skillsCommand = Command.make("skills", {}, () =>
   }).pipe(Effect.withSpan("command.list")),
 );
 
-const sourceArg = Argument.string("source").pipe(Argument.optional);
+const sourcesArg = Argument.string("source").pipe(Argument.variadic({ min: 1 }));
+const namesArg = Argument.string("name").pipe(Argument.variadic({ min: 1 }));
 const queryArg = Argument.string("query");
-const nameArg = Argument.string("name");
 
-const skillOption = Flag.string("skill").pipe(
-  Flag.withAlias("s"),
-  Flag.withDescription("Install a specific skill from a multi-skill repo"),
-  Flag.optional,
-);
-
-const ADD_DESCRIPTION = `Install a skill from GitHub, search query, or local path
+const ADD_DESCRIPTION = `Install one or more skills from GitHub, search query, or local path
 
 Examples:
-  okra skills add owner/repo          # all skills from repo
-  okra skills add owner/repo@name     # specific skill
-  okra skills add .                   # from current directory
-  okra skills add ~/path/to/skill     # from local path`;
+  okra skills add owner/repo                # all skills from repo (multi-select)
+  okra skills add owner/repo@name           # specific skill
+  okra skills add .                         # current directory (multi-select if many)
+  okra skills add ~/path/to/skill           # local path
+  okra skills add owner/a owner/b ./local   # multiple at once`;
 
-const addCommand = Command.make(
-  "add",
-  { source: sourceArg, skill: skillOption },
-  ({ source, skill }) => runAdd(Option.getOrUndefined(source), Option.getOrUndefined(skill)),
-).pipe(Command.withDescription(ADD_DESCRIPTION));
+const REMOVE_DESCRIPTION = `Remove one or more installed skills
+
+Examples:
+  okra skills remove my-skill
+  okra skills remove a b c
+  okra skills remove ./path/with/skills`;
+
+// Aliases: same handler, multiple subcommand names. effect/cli's Command.withAlias
+// only supports a single alias per command, so register parallel commands. The
+// canonical command holds the full description; secondary aliases get a short
+// pointer to keep `--help` readable.
+const makeAdd = (name: string, description: string, alias?: string) => {
+  const cmd = Command.make(name, { sources: sourcesArg }, ({ sources }) => runAdd(sources)).pipe(
+    Command.withDescription(description),
+  );
+  return alias === undefined ? cmd : cmd.pipe(Command.withAlias(alias));
+};
+
+const makeRemove = (name: string, description: string, alias?: string) => {
+  const cmd = Command.make(name, { names: namesArg }, ({ names }) => runRemove(names)).pipe(
+    Command.withDescription(description),
+  );
+  return alias === undefined ? cmd : cmd.pipe(Command.withAlias(alias));
+};
+
+const addCommand = makeAdd("add", ADD_DESCRIPTION, "i");
+const installCommand = makeAdd("install", "Alias of `add`");
+const removeCommand = makeRemove("remove", REMOVE_DESCRIPTION, "rm");
+const uninstallCommand = makeRemove("uninstall", "Alias of `remove`");
 
 const searchCommand = Command.make("search", { query: queryArg }, ({ query }) =>
   runSearch(query),
 ).pipe(Command.withDescription("Search skills.sh for skills"));
-
-const removeCommand = Command.make("remove", { name: nameArg }, ({ name }) => runRemove(name)).pipe(
-  Command.withDescription("Remove an installed skill"),
-);
 
 const updateCommand = Command.make("update", {}, () => runUpdate()).pipe(
   Command.withDescription("Re-fetch all installed skills from their sources"),
@@ -90,5 +105,12 @@ const updateCommand = Command.make("update", {}, () => runUpdate()).pipe(
 
 export const skillsRoot = skillsCommand.pipe(
   Command.withDescription("Manage AI agent skills"),
-  Command.withSubcommands([addCommand, searchCommand, removeCommand, updateCommand]),
+  Command.withSubcommands([
+    addCommand,
+    installCommand,
+    searchCommand,
+    removeCommand,
+    uninstallCommand,
+    updateCommand,
+  ]),
 );

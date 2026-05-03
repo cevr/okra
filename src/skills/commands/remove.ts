@@ -8,7 +8,6 @@ import { toKebab } from "../lib/util.js";
 import { SkillStore } from "../services/SkillStore.js";
 import { SkillLock } from "../services/SkillLock.js";
 
-// B7: Clean lock even when dir is already gone
 const removeByName = Effect.fn("command.remove.byName")(function* (name: string) {
   const store = yield* SkillStore;
   const lock = yield* SkillLock;
@@ -48,7 +47,6 @@ const discoverLocalSkillNames = Effect.fn("command.remove.discoverLocal")(functi
 
   const names: Array<string> = [];
 
-  // Check if the path itself is a skill directory
   const hasRootSkillMd = yield* fs.exists(pathService.join(absPath, "SKILL.md")).pipe(Effect.orDie);
   if (hasRootSkillMd) {
     const content = yield* fs
@@ -62,7 +60,6 @@ const discoverLocalSkillNames = Effect.fn("command.remove.discoverLocal")(functi
     return [name];
   }
 
-  // Discover skills in subdirectories
   for (const prefix of [...SKILL_DIR_PREFIXES, "."]) {
     const searchDir = prefix === "." ? absPath : pathService.join(absPath, prefix);
     const searchExists = yield* fs.exists(searchDir).pipe(Effect.orDie);
@@ -123,11 +120,20 @@ const removeFromLocal = Effect.fn("command.remove.fromLocal")(function* (inputPa
   yield* Console.log(`\n${toRemove.length} skill(s) removed.`);
 });
 
-export const runRemove = Effect.fn("command.remove")(function* (name: string) {
-  const parsed = parseSource(name);
+const removeOne = Effect.fn("command.remove.one")(function* (input: string) {
+  const parsed = parseSource(input);
   if (parsed._tag === "LocalPath") {
     yield* removeFromLocal(parsed.path);
   } else {
-    yield* removeByName(name);
+    yield* removeByName(input);
+  }
+});
+
+export const runRemove = Effect.fn("command.remove")(function* (names: ReadonlyArray<string>) {
+  for (const name of names) {
+    if (names.length > 1) {
+      yield* Console.log(`\n— ${name} —`);
+    }
+    yield* removeOne(name);
   }
 });

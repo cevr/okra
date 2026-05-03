@@ -30,7 +30,7 @@ Shared utilities in `src/shared/`: `Provider` schema, `resolveExecutable`, `isCo
 - All domains self-provide their service layers at command level — no domain layers in main.ts
 - Brain has 3 internal error classes, exposed via single `isBrainDomainError` guard
 - Repo and Skills use structural `isRepoError`/`isSkillsError` guards (same pattern as brain)
-- Effect v4: `ServiceMap.Service`, `Effect.fn`, `Schema.TaggedErrorClass`, `effect/unstable/cli`
+- Effect v4 (beta.60): `Context.Service`, `Effect.fn`, `Schema.TaggedErrorClass`, `effect/unstable/cli`
 
 ## Gotchas
 
@@ -60,3 +60,4 @@ Shared utilities in `src/shared/`: `Provider` schema, `resolveExecutable`, `isCo
 | `okra research` | `skills/research/SKILL.md` |
 | `okra brain` | `skills/brain/SKILL.md` |
 | `okra repo` | `skills/repo/SKILL.md` |
+| `okra skills` | `skills/skills/SKILL.md` |
