@@ -1,5 +1,5 @@
 // @effect-diagnostics effect/strictBooleanExpressions:off
-import { Console, Effect, FileSystem, Option, Path } from "effect";
+import { Console, Effect, FileSystem, Option, Path, Result } from "effect";
 import { Prompt } from "effect/unstable/cli";
 import { SkillsError } from "../errors.js";
 import { walkDir } from "../lib/fs.js";
@@ -16,6 +16,23 @@ import { toKebab } from "../lib/util.js";
 import { GitHub } from "../services/GitHub.js";
 import { SkillLock } from "../services/SkillLock.js";
 import { SkillStore } from "../services/SkillStore.js";
+import { make as makeProgress, type Progress, type SkillStatus } from "../lib/progress.js";
+
+export interface InstalledEntry {
+  readonly name: string;
+  readonly source: string;
+  readonly skillPath: string;
+  readonly ref?: string;
+}
+
+interface InstallPlan {
+  readonly displayName: string;
+  readonly run: Effect.Effect<
+    InstalledEntry,
+    SkillsError,
+    GitHub | SkillStore | FileSystem.FileSystem | Path.Path
+  >;
+}
 
 const installSkillDir = Effect.fn("command.add.installSkillDir")(function* (
   owner: string,
@@ -41,16 +58,9 @@ const installSkillDir = Effect.fn("command.add.installSkillDir")(function* (
   const skillMdPath = skillDir ? `${skillDir}/SKILL.md` : "SKILL.md";
 
   yield* store.syncDir(name, files);
-  yield* Console.log(`  Installed: ${name} (${files.length} file${files.length === 1 ? "" : "s"})`);
 
-  return { name, source: sourceStr, skillPath: skillMdPath, ref };
+  return { name, source: sourceStr, skillPath: skillMdPath, ref } satisfies InstalledEntry;
 });
-
-interface LocalInstallResult {
-  readonly name: string;
-  readonly source: string;
-  readonly skillPath: string;
-}
 
 const installLocalSkillDir = Effect.fn("command.add.installLocalSkillDir")(function* (
   dirPath: string,
@@ -82,9 +92,8 @@ const installLocalSkillDir = Effect.fn("command.add.installLocalSkillDir")(funct
 
   const sourceStr = `local:${absPath}`;
   yield* store.syncDir(name, files);
-  yield* Console.log(`  Installed: ${name} (${files.length} file${files.length === 1 ? "" : "s"})`);
 
-  return { name, source: sourceStr, skillPath: "SKILL.md" };
+  return { name, source: sourceStr, skillPath: "SKILL.md" } satisfies InstalledEntry;
 });
 
 interface LocalSkillCandidate {
@@ -183,27 +192,22 @@ const selectFrom = Effect.fn("command.add.selectFrom")(function* <A>(
   });
 });
 
-const addFromLocal = Effect.fn("command.add.fromLocal")(function* (source: LocalPath) {
-  const lock = yield* SkillLock;
+const planFromLocal = Effect.fn("command.add.planFromLocal")(function* (source: LocalPath) {
   const candidates = yield* discoverLocalCandidates(source);
-
   const selected = yield* selectFrom(
     `Select skills to install from ${source.path}`,
     candidates.map((c) => ({ name: c.name, value: c })),
   );
-
-  const installed: Array<LocalInstallResult> = [];
-  for (const candidate of selected) {
-    installed.push(yield* installLocalSkillDir(candidate.absPath));
-  }
-
-  yield* lock.addMany(installed);
-  yield* Console.log(`\n${installed.length} skill(s) installed.`);
+  return selected.map(
+    (candidate): InstallPlan => ({
+      displayName: candidate.name,
+      run: installLocalSkillDir(candidate.absPath),
+    }),
+  );
 });
 
-const addFromRepo = Effect.fn("command.add.fromRepo")(function* (source: GitHubRepo) {
+const planFromRepo = Effect.fn("command.add.planFromRepo")(function* (source: GitHubRepo) {
   const { owner, repo, ref, subpath } = source;
-  const lock = yield* SkillLock;
   const gh = yield* GitHub;
   const sourceStr = `${owner}/${repo}${ref ? `#${ref}` : ""}`;
 
@@ -211,9 +215,13 @@ const addFromRepo = Effect.fn("command.add.fromRepo")(function* (source: GitHubR
     const skillDir = subpath.endsWith("SKILL.md")
       ? subpath.split("/").slice(0, -1).join("/")
       : subpath;
-    const result = yield* installSkillDir(owner, repo, skillDir, ref, sourceStr);
-    yield* lock.add(result.name, result.source, result.skillPath, result.ref);
-    return;
+    const displayName = skillDir ? (skillDir.split("/").at(-1) ?? repo) : repo;
+    return [
+      {
+        displayName,
+        run: installSkillDir(owner, repo, skillDir, ref, sourceStr),
+      },
+    ] as ReadonlyArray<InstallPlan>;
   }
 
   yield* Console.error(`Discovering skills in ${owner}/${repo}...`);
@@ -231,19 +239,18 @@ const addFromRepo = Effect.fn("command.add.fromRepo")(function* (source: GitHubR
     skills.map((s) => ({ name: s.dirName, value: s })),
   );
 
-  const results = yield* Effect.forEach(
-    selected,
-    (skill) => installSkillDir(owner, repo, skill.skillDir, ref, sourceStr),
-    { concurrency: 5 },
+  return selected.map(
+    (skill): InstallPlan => ({
+      displayName: skill.dirName,
+      run: installSkillDir(owner, repo, skill.skillDir, ref, sourceStr),
+    }),
   );
-  yield* lock.addMany(results);
 });
 
-const addFromRepoWithSkill = Effect.fn("command.add.fromRepoWithSkill")(function* (
+const planFromRepoWithSkill = Effect.fn("command.add.planFromRepoWithSkill")(function* (
   source: GitHubRepoWithSkill,
 ) {
   const { owner, repo, skillFilter, ref } = source;
-  const lock = yield* SkillLock;
   const gh = yield* GitHub;
   const sourceStr = `${owner}/${repo}@${skillFilter}`;
 
@@ -257,9 +264,12 @@ const addFromRepoWithSkill = Effect.fn("command.add.fromRepoWithSkill")(function
     const direct = yield* gh.fetchRaw(owner, repo, directPath, ref).pipe(Effect.option);
 
     if (direct._tag === "Some") {
-      const result = yield* installSkillDir(owner, repo, skillDir, ref, sourceStr);
-      yield* lock.add(result.name, result.source, result.skillPath, result.ref);
-      return;
+      return [
+        {
+          displayName: skillFilter,
+          run: installSkillDir(owner, repo, skillDir, ref, sourceStr),
+        },
+      ] as ReadonlyArray<InstallPlan>;
     }
   }
 
@@ -268,9 +278,12 @@ const addFromRepoWithSkill = Effect.fn("command.add.fromRepoWithSkill")(function
   if (rootContent._tag === "Some") {
     const frontmatter = yield* tryParseFrontmatter(rootContent.value);
     if (Option.isSome(frontmatter) && toKebab(frontmatter.value.name) === toKebab(skillFilter)) {
-      const result = yield* installSkillDir(owner, repo, "", ref, sourceStr);
-      yield* lock.add(result.name, result.source, result.skillPath, result.ref);
-      return;
+      return [
+        {
+          displayName: skillFilter,
+          run: installSkillDir(owner, repo, "", ref, sourceStr),
+        },
+      ] as ReadonlyArray<InstallPlan>;
     }
   }
 
@@ -280,9 +293,12 @@ const addFromRepoWithSkill = Effect.fn("command.add.fromRepoWithSkill")(function
     const content = yield* gh.fetchRaw(owner, repo, skill.skillMdPath, ref);
     const frontmatter = yield* tryParseFrontmatter(content);
     if (Option.isSome(frontmatter) && toKebab(frontmatter.value.name) === toKebab(skillFilter)) {
-      const result = yield* installSkillDir(owner, repo, skill.skillDir, ref, sourceStr);
-      yield* lock.add(result.name, result.source, result.skillPath, result.ref);
-      return;
+      return [
+        {
+          displayName: skillFilter,
+          run: installSkillDir(owner, repo, skill.skillDir, ref, sourceStr),
+        },
+      ] as ReadonlyArray<InstallPlan>;
     }
   }
 
@@ -292,7 +308,7 @@ const addFromRepoWithSkill = Effect.fn("command.add.fromRepoWithSkill")(function
   });
 });
 
-const addFromSearch = Effect.fn("command.add.fromSearch")(function* (query: string) {
+const planFromSearch = Effect.fn("command.add.planFromSearch")(function* (query: string) {
   yield* Console.error(`Searching for "${query}"...`);
   const result = yield* search(query);
 
@@ -321,7 +337,7 @@ const addFromSearch = Effect.fn("command.add.fromSearch")(function* (query: stri
     }
     yield* Console.error("");
   }
-  yield* Console.error(`Installing: ${skill.name} (${skill.source})\n`);
+  yield* Console.error(`Installing: ${skill.name} (${skill.source})`);
 
   const parsed = parseSource(skill.source);
   if (parsed._tag !== "GitHubRepo" && parsed._tag !== "GitHubRepoWithSkill") {
@@ -331,7 +347,7 @@ const addFromSearch = Effect.fn("command.add.fromSearch")(function* (query: stri
     });
   }
 
-  yield* addFromRepoWithSkill({
+  return yield* planFromRepoWithSkill({
     _tag: "GitHubRepoWithSkill",
     owner: parsed.owner,
     repo: parsed.repo,
@@ -339,30 +355,126 @@ const addFromSearch = Effect.fn("command.add.fromSearch")(function* (query: stri
   });
 });
 
-const addOne = Effect.fn("command.add.one")(function* (sourceInput: string) {
+const planFromSource = Effect.fn("command.add.planFromSource")(function* (sourceInput: string) {
   const parsed = parseSource(sourceInput);
-
   switch (parsed._tag) {
     case "GitHubRepo":
-      yield* addFromRepo(parsed);
-      break;
+      return yield* planFromRepo(parsed);
     case "GitHubRepoWithSkill":
-      yield* addFromRepoWithSkill(parsed);
-      break;
+      return yield* planFromRepoWithSkill(parsed);
     case "LocalPath":
-      yield* addFromLocal(parsed);
-      break;
+      return yield* planFromLocal(parsed);
     case "SearchQuery":
-      yield* addFromSearch(parsed.query);
-      break;
+      return yield* planFromSearch(parsed.query);
   }
 });
 
-export const runAdd = Effect.fn("command.add")(function* (sources: ReadonlyArray<string>) {
-  for (const source of sources) {
-    if (sources.length > 1) {
-      yield* Console.log(`\n— ${source} —`);
+// Disambiguate display names so progress lines stay unique across sources
+const dedupeDisplayNames = (
+  plans: ReadonlyArray<{ source: string; plans: ReadonlyArray<InstallPlan> }>,
+): ReadonlyArray<{ source: string; key: string; plan: InstallPlan }> => {
+  const seen = new Map<string, number>();
+  const out: Array<{ source: string; key: string; plan: InstallPlan }> = [];
+  for (const { source, plans: ps } of plans) {
+    for (const plan of ps) {
+      const base = plan.displayName;
+      const count = seen.get(base) ?? 0;
+      const key = count === 0 ? base : `${base} (${source})`;
+      seen.set(base, count + 1);
+      out.push({ source, key, plan });
     }
-    yield* addOne(source);
+  }
+  return out;
+};
+
+const runOne = Effect.fn("command.add.runOne")(function* (
+  progress: Progress,
+  key: string,
+  plan: InstallPlan,
+) {
+  yield* progress.setStatus(key, "running");
+  const result = yield* plan.run.pipe(
+    Effect.map(Result.succeed),
+    Effect.catchTag("@cvr/okra/skills/SkillsError", (error) =>
+      Effect.succeed(Result.fail(error.message)),
+    ),
+  );
+  const status: SkillStatus = Result.isFailure(result) ? "failed" : "installed";
+  yield* progress.setStatus(key, status);
+  return { key, result };
+});
+
+export const runAdd = Effect.fn("command.add")(function* (sources: ReadonlyArray<string>) {
+  const lock = yield* SkillLock;
+
+  // Phase 1: discovery + prompts (sequential — prompts can't overlap)
+  const planResults: Array<{ source: string; plans: ReadonlyArray<InstallPlan> }> = [];
+  const planFailures: Array<{ source: string; note: string }> = [];
+
+  for (const source of sources) {
+    const result = yield* planFromSource(source).pipe(
+      Effect.map(Result.succeed),
+      Effect.catchTag("@cvr/okra/skills/SkillsError", (error) =>
+        Effect.succeed(Result.fail(error.message)),
+      ),
+    );
+    if (Result.isFailure(result)) {
+      planFailures.push({ source, note: result.failure });
+    } else {
+      planResults.push({ source, plans: result.success });
+    }
+  }
+
+  const items = dedupeDisplayNames(planResults);
+
+  if (items.length === 0) {
+    for (const { source, note } of planFailures) {
+      yield* Console.error(`  Failed: ${source}: ${note}`);
+    }
+    if (planFailures.length === 0) {
+      yield* Console.log("Nothing to install.");
+    }
+    return;
+  }
+
+  // Phase 2: parallel install with live progress
+  const progress = yield* makeProgress(
+    items.map((i) => i.key),
+    { runningVerb: "installing" },
+  );
+
+  const installResults = yield* Effect.forEach(
+    items,
+    ({ key, plan }) => runOne(progress, key, plan),
+    { concurrency: 5 },
+  ).pipe(Effect.ensuring(progress.finish));
+
+  const installed: Array<InstalledEntry> = [];
+  const installFailures: Array<{ key: string; note: string }> = [];
+  for (const { key, result } of installResults) {
+    if (Result.isFailure(result)) {
+      installFailures.push({ key, note: result.failure });
+    } else {
+      installed.push(result.success);
+    }
+  }
+
+  if (installed.length > 0) {
+    yield* lock.addMany(installed);
+  }
+
+  for (const { source, note } of planFailures) {
+    yield* Console.error(`  Failed: ${source}: ${note}`);
+  }
+  for (const { key, note } of installFailures) {
+    yield* Console.error(`  Failed: ${key}: ${note}`);
+  }
+
+  const totalFailed = planFailures.length + installFailures.length;
+  const parts: Array<string> = [];
+  if (installed.length > 0) parts.push(`${installed.length} installed`);
+  if (totalFailed > 0) parts.push(`${totalFailed} failed`);
+  if (parts.length > 0) {
+    yield* Console.log(`\n${parts.join(", ")}.`);
   }
 });

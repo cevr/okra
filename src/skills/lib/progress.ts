@@ -1,7 +1,14 @@
 // @effect-diagnostics effect/strictBooleanExpressions:off effect/nodeBuiltinImport:off
 import { Effect, Fiber, Ref, Schedule } from "effect";
 
-export type SkillStatus = "pending" | "running" | "updated" | "unchanged" | "removed" | "failed";
+export type SkillStatus =
+  | "pending"
+  | "running"
+  | "updated"
+  | "installed"
+  | "unchanged"
+  | "removed"
+  | "failed";
 
 interface State {
   readonly entries: ReadonlyArray<{ readonly name: string; readonly status: SkillStatus }>;
@@ -11,9 +18,9 @@ interface State {
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
-const isTTY = !!process.stderr.isTTY && !process.env["NO_COLOR"];
+const defaultIsTTY = !!process.stderr.isTTY && !process.env["NO_COLOR"];
 
-const writeStderr = (text: string) =>
+const defaultWrite = (text: string) =>
   Effect.sync(() => {
     process.stderr.write(text);
   });
@@ -33,6 +40,7 @@ const symbol = (status: SkillStatus, frame: number): string => {
     case "running":
       return SPINNER_FRAMES[frame % SPINNER_FRAMES.length] ?? "⠋";
     case "updated":
+    case "installed":
       return "✓";
     case "unchanged":
       return "·";
@@ -43,14 +51,16 @@ const symbol = (status: SkillStatus, frame: number): string => {
   }
 };
 
-const verb = (status: SkillStatus): string => {
+const verb = (status: SkillStatus, runningVerb: string): string => {
   switch (status) {
     case "pending":
       return "pending";
     case "running":
-      return "updating";
+      return runningVerb;
     case "updated":
       return "updated";
+    case "installed":
+      return "installed";
     case "unchanged":
       return "unchanged";
     case "removed":
@@ -60,32 +70,38 @@ const verb = (status: SkillStatus): string => {
   }
 };
 
-const colorEnabled = isTTY;
-const dim = (s: string) => (colorEnabled ? `\x1b[2m${s}\x1b[0m` : s);
-const green = (s: string) => (colorEnabled ? `\x1b[32m${s}\x1b[0m` : s);
-const red = (s: string) => (colorEnabled ? `\x1b[31m${s}\x1b[0m` : s);
-const cyan = (s: string) => (colorEnabled ? `\x1b[36m${s}\x1b[0m` : s);
+const dim = (s: string, color: boolean) => (color ? `\x1b[2m${s}\x1b[0m` : s);
+const green = (s: string, color: boolean) => (color ? `\x1b[32m${s}\x1b[0m` : s);
+const red = (s: string, color: boolean) => (color ? `\x1b[31m${s}\x1b[0m` : s);
+const cyan = (s: string, color: boolean) => (color ? `\x1b[36m${s}\x1b[0m` : s);
 
-const colorize = (status: SkillStatus, text: string): string => {
+const colorize = (status: SkillStatus, text: string, color: boolean): string => {
   switch (status) {
     case "pending":
-      return dim(text);
+      return dim(text, color);
     case "running":
-      return cyan(text);
+      return cyan(text, color);
     case "updated":
+    case "installed":
     case "removed":
-      return green(text);
+      return green(text, color);
     case "unchanged":
-      return dim(text);
+      return dim(text, color);
     case "failed":
-      return red(text);
+      return red(text, color);
   }
 };
 
-const renderLine = (name: string, status: SkillStatus, frame: number): string => {
+const renderLine = (
+  name: string,
+  status: SkillStatus,
+  frame: number,
+  runningVerb: string,
+  color: boolean,
+): string => {
   const sym = symbol(status, frame);
-  const v = verb(status);
-  return colorize(status, `  ${sym} ${v.padEnd(9)} ${name}`);
+  const v = verb(status, runningVerb);
+  return colorize(status, `  ${sym} ${v.padEnd(10)} ${name}`, color);
 };
 
 export interface Progress {
@@ -93,21 +109,38 @@ export interface Progress {
   readonly finish: Effect.Effect<void>;
 }
 
-const drawTty = (state: State): Effect.Effect<void> => {
-  const moveUp = ansi.up(state.drawn);
-  const lines = state.entries
-    .map((e) => `${ansi.clearLine}${ansi.cr}${renderLine(e.name, e.status, state.frame)}\n`)
-    .join("");
-  return writeStderr(`${moveUp}${lines}`);
-};
+export interface MakeOptions {
+  readonly runningVerb?: string;
+  readonly tty?: boolean;
+  readonly write?: (text: string) => Effect.Effect<void>;
+}
 
-const printPlain = (name: string, status: SkillStatus): Effect.Effect<void> => {
-  if (status === "running" || status === "pending") return Effect.void;
-  return writeStderr(`${renderLine(name, status, 0)}\n`);
-};
-
-export const make = (names: ReadonlyArray<string>): Effect.Effect<Progress, never, never> =>
+export const make = (
+  names: ReadonlyArray<string>,
+  options: MakeOptions = {},
+): Effect.Effect<Progress, never, never> =>
   Effect.gen(function* () {
+    const runningVerb = options.runningVerb ?? "updating";
+    const tty = options.tty ?? defaultIsTTY;
+    const write = options.write ?? defaultWrite;
+    const color = tty;
+
+    const drawTty = (state: State): Effect.Effect<void> => {
+      const moveUp = ansi.up(state.drawn);
+      const lines = state.entries
+        .map(
+          (e) =>
+            `${ansi.clearLine}${ansi.cr}${renderLine(e.name, e.status, state.frame, runningVerb, color)}\n`,
+        )
+        .join("");
+      return write(`${moveUp}${lines}`);
+    };
+
+    const printPlain = (name: string, status: SkillStatus): Effect.Effect<void> => {
+      if (status === "running" || status === "pending") return Effect.void;
+      return write(`${renderLine(name, status, 0, runningVerb, color)}\n`);
+    };
+
     const initial: State = {
       entries: names.map((name) => ({ name, status: "pending" as SkillStatus })),
       frame: 0,
@@ -115,14 +148,14 @@ export const make = (names: ReadonlyArray<string>): Effect.Effect<Progress, neve
     };
     const ref = yield* Ref.make<State>(initial);
 
-    if (isTTY) {
-      yield* writeStderr(ansi.hideCursor);
+    if (tty) {
+      yield* write(ansi.hideCursor);
       // Initial paint
       yield* Ref.update(ref, (s) => ({ ...s, drawn: s.entries.length }));
       yield* Ref.get(ref).pipe(Effect.flatMap(drawTty));
     }
 
-    const ticker = isTTY
+    const ticker = tty
       ? yield* Effect.gen(function* () {
           yield* Ref.update(ref, (s) => ({ ...s, frame: s.frame + 1 }));
           yield* Ref.get(ref).pipe(Effect.flatMap(drawTty));
@@ -139,7 +172,7 @@ export const make = (names: ReadonlyArray<string>): Effect.Effect<Progress, neve
           ...s,
           entries: s.entries.map((e) => (e.name === name ? { ...e, status } : e)),
         }));
-        if (isTTY) {
+        if (tty) {
           yield* Ref.get(ref).pipe(Effect.flatMap(drawTty));
         } else {
           yield* printPlain(name, status);
@@ -148,12 +181,12 @@ export const make = (names: ReadonlyArray<string>): Effect.Effect<Progress, neve
 
     const finish = Effect.gen(function* () {
       if (ticker !== null) yield* Fiber.interrupt(ticker);
-      if (isTTY) {
+      if (tty) {
         // Final paint with frame=0 so spinner glyph isn't left behind for
         // anything still marked "running" (shouldn't happen, but be safe)
         yield* Ref.update(ref, (s) => ({ ...s, frame: 0 }));
         yield* Ref.get(ref).pipe(Effect.flatMap(drawTty));
-        yield* writeStderr(ansi.showCursor);
+        yield* write(ansi.showCursor);
       }
     });
 
