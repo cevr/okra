@@ -1,5 +1,23 @@
 # @cvr/okra
 
+## 0.5.0
+
+### Minor Changes
+
+- [`de2a07c`](https://github.com/cevr/okra/commit/de2a07c17c1a6ffccf954a4bd1e1040aa5ee7f9f) Thanks [@cevr](https://github.com/cevr)! - Align with `project-scaffolding` skill spec: full Effect v4 idioms with strict tsgo diagnostics.
+  - Route all `process.env` access through `Config.option(Config.string(...)).asEffect()` so env reads honor the ambient `ConfigProvider` (enables `ConfigProvider.layer(...)` / `Effect.provideService` injection in tests instead of mutating `process.env`).
+  - Replace `new Date()` with `Clock.currentTimeMillis` / `DateTime.now` across `src/`; threading explicit `nowMs` into pure modules (`Schedule.parse`, `StopEvaluator.evaluate`, `formatRelativeTime`, `generateSlug`).
+  - Convert remaining `async function` blocks to `Effect.fn` with `Effect.tryPromise({ try: () => proc.exited })` shape.
+  - Migrate tests to `effect-bun-test` patterns: `it.scoped` + `FileSystem.makeTempDirectoryScoped`, `it.scopedLive` where production code uses the real Clock, `ConfigProvider.fromEnv({ env })` for env injection.
+  - Refactor 4 high-complexity functions inline (`Schedule.parseSync`, `ExperimentLog.reconstructFromEvents`, `Loop.run`, `init` handler, `brain extract.extractConversations`) without raising the `complexity: 20` lint ceiling.
+  - `lefthook.yml`: collapse pre-commit to a single `parallel: true` stage (`lint+fmt && typecheck && build && test` chained).
+  - `.oxlintrc.json`: disable `no-underscore-dangle`, `consistent-return`, and three noisy `typescript/no-unnecessary-*` rules.
+  - `tsconfig.json`: enable all Effect diagnostics at error severity except `effectMapFlatten`, `missedPipeableOpportunity`, `strictBooleanExpressions`, `unnecessaryPipe`, `unnecessaryPipeChain`; tests override only `strictEffectProvide`; scripts override every rule off.
+
+- [`f3e8ddb`](https://github.com/cevr/okra/commit/f3e8ddb5e698e1a859afc59cb29b859ea82ab6b9) Thanks [@cevr](https://github.com/cevr)! - **skills:** auto-recover `skillPath` when an upstream skill moves within its source repo.
+
+  When `okra skills update` 404s fetching a skill's directory (e.g. `mattpocock/skills` moved `handoff` from `skills/in-progress/` to `skills/productivity/`), the updater now falls back to `discoverSkills` on the repo, matches by leaf dirname, refetches from the new location, and rewrites the lock entry's `skillPath` in the batched lock write. Surfaces as a new `moved` status in the per-skill progress UI.
+
 ## 0.4.0
 
 ### Minor Changes
