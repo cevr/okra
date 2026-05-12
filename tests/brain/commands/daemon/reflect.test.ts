@@ -65,10 +65,13 @@ const setupProjectSessions = Effect.fn("setupProjectSessions")(function* (
 // runs with `it.scopedLive`.
 const fixtureMs = Effect.gen(function* () {
   const nowMs = yield* Clock.currentTimeMillis;
+  // Floor to whole seconds so `fs.utimes(path, sec, sec)` round-trips
+  // bit-exact through filesystem mtime, regardless of nanosecond precision.
+  const nowSec = Math.floor(nowMs / 1000) * 1000;
   return {
-    oldMs: nowMs - 60 * 60 * 1000, // 1 hour ago — settled
-    staleMs: nowMs - 25 * 60 * 60 * 1000, // 25 hours ago — too old
-    recentMs: nowMs - 5 * 60 * 1000, // 5 min ago — not settled
+    oldMs: nowSec - 60 * 60 * 1000, // 1 hour ago — settled
+    staleMs: nowSec - 25 * 60 * 60 * 1000, // 25 hours ago — too old
+    recentMs: nowSec - 5 * 60 * 1000, // 5 min ago — not settled
   };
 });
 
