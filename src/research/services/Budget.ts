@@ -1,4 +1,4 @@
-import { Effect, Layer, Context } from "effect";
+import { Clock, Effect, Layer, Context } from "effect";
 import type { ExperimentState, Session } from "../types.js";
 
 export interface BudgetCheck {
@@ -14,7 +14,7 @@ export class BudgetService extends Context.Service<
 >()("@cvr/okra/research/services/Budget/BudgetService") {
   static layer: Layer.Layer<BudgetService> = Layer.succeed(BudgetService, {
     check: (session, state) =>
-      Effect.sync(() => {
+      Effect.gen(function* () {
         // Max iterations
         if (state.iteration >= session.maxIterations) {
           return {
@@ -42,7 +42,9 @@ export class BudgetService extends Context.Service<
 
         // Deadline
         if (session.deadline !== undefined) {
-          if (Date.now() >= new Date(session.deadline).getTime()) {
+          const nowMs = yield* Clock.currentTimeMillis;
+          const deadlineMs = Date.parse(session.deadline);
+          if (nowMs >= deadlineMs) {
             return {
               canContinue: false,
               reason: `Deadline reached (${session.deadline})`,

@@ -5,8 +5,8 @@ export class RepoError extends Schema.TaggedErrorClass<RepoError>()("@cvr/okra/r
   code: Schema.String,
 }) {}
 
-export const isRepoError = (e: unknown): e is { _tag: string; code: string; message: string } =>
-  typeof e === "object" &&
-  e !== null &&
-  "_tag" in e &&
-  (e as { _tag: string })._tag === "@cvr/okra/repo/RepoError";
+export const isRepoError = (e: unknown): e is { _tag: string; code: string; message: string } => {
+  if (typeof e !== "object" || e === null || !("_tag" in e)) return false;
+  const tag = (e as { _tag: unknown })._tag;
+  return tag === "@cvr/okra/repo/RepoError";
+};

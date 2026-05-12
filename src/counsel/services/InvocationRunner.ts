@@ -21,82 +21,42 @@ const spawnProcess = (invocation: Invocation, outputFile: string, stderrFile: st
     catch: spawnFailed,
   });
 
+/**
+ * Terminate process: SIGTERM, wait grace period, then SIGKILL.
+ * Fork-and-forget so callers don't block on the grace period.
+ */
+const terminate = (proc: Bun.Subprocess) =>
+  Effect.gen(function* () {
+    proc.kill("SIGTERM");
+    yield* Effect.sleep(KILL_GRACE_PERIOD_MS);
+    proc.kill("SIGKILL");
+  });
+
+const awaitExit = (proc: Bun.Subprocess): Effect.Effect<number, CounselError> =>
+  Effect.tryPromise({
+    try: () => proc.exited,
+    catch: spawnFailed,
+  });
+
 const waitForExit = Effect.fn("InvocationRunner.waitForExit")(function* (
   proc: Bun.Subprocess,
   timeoutSeconds: number,
 ) {
-  return yield* Effect.callback<
-    { readonly exitCode: number; readonly timedOut: boolean },
-    CounselError
-  >((resume, signal) => {
-    let finished = false;
-    let timedOut = false;
-    let terminating = false;
-    let forceKill: ReturnType<typeof setTimeout> | undefined;
+  // Race process exit against timeout.
+  const result = yield* Effect.raceFirst(
+    awaitExit(proc).pipe(Effect.map((exitCode) => ({ exitCode, timedOut: false }))),
+    Effect.sleep(timeoutSeconds * 1_000).pipe(Effect.as({ exitCode: -1, timedOut: true } as const)),
+    // On interrupt (signal/abort) or timeout-branch win, fire terminate as a finalizer
+  ).pipe(Effect.onInterrupt(() => Effect.forkDetach(terminate(proc)).pipe(Effect.asVoid)));
 
-    const clearTimers = () => {
-      clearTimeout(timeout);
-      if (forceKill !== undefined) {
-        clearTimeout(forceKill);
-      }
-    };
+  if (result.timedOut) {
+    // Ensure process is terminated; await its actual exit code.
+    yield* Effect.forkDetach(terminate(proc));
+    const exitCode = yield* awaitExit(proc);
+    return { exitCode, timedOut: true };
+  }
 
-    const terminate = () => {
-      if (terminating) {
-        return;
-      }
-
-      terminating = true;
-      proc.kill("SIGTERM");
-      forceKill = setTimeout(() => {
-        proc.kill("SIGKILL");
-      }, KILL_GRACE_PERIOD_MS);
-    };
-
-    const finish = (
-      effect: Effect.Effect<
-        { readonly exitCode: number; readonly timedOut: boolean },
-        CounselError
-      >,
-    ) => {
-      if (finished) {
-        return;
-      }
-
-      finished = true;
-      signal.removeEventListener("abort", onAbort);
-      clearTimers();
-      resume(effect);
-    };
-
-    const onAbort = () => {
-      terminate();
-    };
-
-    signal.addEventListener("abort", onAbort, { once: true });
-
-    const timeout = setTimeout(() => {
-      timedOut = true;
-      terminate();
-    }, timeoutSeconds * 1_000);
-
-    void proc.exited.then(
-      (exitCode) => {
-        finish(Effect.succeed({ exitCode, timedOut }));
-      },
-      (error) => {
-        finish(Effect.fail(spawnFailed(error)));
-      },
-    );
-
-    return Effect.sync(() => {
-      signal.removeEventListener("abort", onAbort);
-      clearTimers();
-      if (!finished) {
-        terminate();
-      }
-    });
-  });
+  return result;
 });
 
 export class InvocationRunnerService extends Context.Service<

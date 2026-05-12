@@ -1,4 +1,4 @@
-import { Effect, Layer, Context } from "effect";
+import { Clock, Effect, Layer, Context } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
@@ -75,6 +75,7 @@ export class DaemonService extends Context.Service<
               stdout: logFile,
               stderr: logFile,
               cwd: projectRoot,
+              // eslint-disable-next-line node/no-process-env -- inherit full env for child process
               env: { ...process.env, OKRA_INTERNAL: "1" },
             });
 
@@ -117,8 +118,11 @@ export class DaemonService extends Context.Service<
             process.kill(pid, "SIGTERM");
 
             // Poll for up to 5s
-            const deadline = Date.now() + 5000;
-            while (isProcessRunning(pid) && Date.now() < deadline) {
+            const startMs = yield* Clock.currentTimeMillis;
+            const deadline = startMs + 5000;
+            while (isProcessRunning(pid)) {
+              const nowMs = yield* Clock.currentTimeMillis;
+              if (nowMs >= deadline) break;
               yield* Effect.sleep("200 millis");
             }
 

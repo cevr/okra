@@ -63,6 +63,9 @@ const providerFlag = Flag.string("provider").pipe(
 const detectProviderFromPath = (inputDir: string): Provider =>
   inputDir.includes("/.codex/") ? "codex" : "claude";
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 const parseClaudeMessage = (parsed: Record<string, unknown>): Message[] => {
   const msgType = parsed["type"];
   if (msgType !== "user" && msgType !== "assistant") return [];
@@ -78,21 +81,16 @@ const parseClaudeMessage = (parsed: Record<string, unknown>): Message[] => {
   }
 
   const msg = parsed["message"];
-  if (typeof msg !== "object" || msg === null) return [];
-  const rawContent = (msg as Record<string, unknown>)["content"];
+  if (!isRecord(msg)) return [];
+  const rawContent = msg["content"];
   const texts: string[] = [];
 
   if (typeof rawContent === "string") {
     texts.push(rawContent);
   } else if (Array.isArray(rawContent)) {
     for (const part of rawContent) {
-      if (
-        typeof part === "object" &&
-        part !== null &&
-        (part as Record<string, unknown>)["type"] === "text" &&
-        typeof (part as Record<string, unknown>)["text"] === "string"
-      ) {
-        texts.push((part as { text: string }).text);
+      if (isRecord(part) && part["type"] === "text" && typeof part["text"] === "string") {
+        texts.push(part["text"]);
       }
     }
   }
@@ -112,34 +110,107 @@ const parseClaudeMessage = (parsed: Record<string, unknown>): Message[] => {
 const parseCodexMessage = (parsed: Record<string, unknown>): Message[] => {
   if (parsed["type"] !== "response_item") return [];
   const payload = parsed["payload"];
-  if (typeof payload !== "object" || payload === null) return [];
-  const payloadRecord = payload as Record<string, unknown>;
-  if (payloadRecord["type"] !== "message") return [];
+  if (!isRecord(payload)) return [];
+  if (payload["type"] !== "message") return [];
 
-  const role = payloadRecord["role"];
+  const role = payload["role"];
   if (role !== "user" && role !== "assistant") return [];
 
-  const content = payloadRecord["content"];
+  const content = payload["content"];
   if (!Array.isArray(content)) return [];
 
   const texts = content
-    .flatMap((item) => {
-      if (typeof item !== "object" || item === null) return [];
-      const record = item as Record<string, unknown>;
-      const text = record["text"];
+    .flatMap((item: unknown) => {
+      if (!isRecord(item)) return [];
+      const text = item["text"];
       return typeof text === "string" ? [text] : [];
     })
-    .map((text) => text.trim())
-    .filter((text) => text.length > 10);
+    .map((text: string) => text.trim())
+    .filter((text: string) => text.length > 10);
 
-  return texts.map((text) => ({
+  return texts.map((text: string) => ({
     role,
     content: text.slice(0, role === "user" ? 3000 : 800),
   }));
 };
 
 const parseLine = (line: string): Option.Option<Record<string, unknown>> =>
-  Option.liftThrowable(() => JSON.parse(line) as Record<string, unknown>)();
+  Option.liftThrowable(() => {
+    const parsed: unknown = JSON.parse(line);
+    if (!isRecord(parsed)) throw new Error("not a record");
+    return parsed;
+  })();
+
+interface DateFilter {
+  readonly fromMs: Option.Option<number>;
+  readonly toMs: Option.Option<number>;
+}
+
+const parseDateFilter = (
+  from: Option.Option<string> | undefined,
+  to: Option.Option<string> | undefined,
+): DateFilter => ({
+  fromMs: Option.map(from ?? Option.none(), (d) => Date.parse(d)),
+  toMs: Option.map(to ?? Option.none(), (d) => Date.parse(d) + 86400000 - 1),
+});
+
+const parseMessages = (content: string, provider: Provider): Message[] => {
+  const lines = content.trim().split("\n");
+  const messages: Message[] = [];
+  for (const line of lines) {
+    if (line.trim().length === 0) continue;
+    const parsed = parseLine(line);
+    if (Option.isNone(parsed)) continue;
+    messages.push(
+      ...(provider === "claude"
+        ? parseClaudeMessage(parsed.value)
+        : parseCodexMessage(parsed.value)),
+    );
+  }
+  return messages;
+};
+
+const loadConversationFromFile = Effect.fn("extract.loadConversationFromFile")(function* (
+  fs: FileSystem,
+  path: Path,
+  inputDir: string,
+  file: string,
+  filter: DateFilter,
+  minSize: number,
+  provider: Provider,
+) {
+  const fullPath = path.join(inputDir, file);
+  const stat = yield* fs
+    .stat(fullPath)
+    .pipe(
+      Effect.mapError(
+        (e: PlatformError) =>
+          new BrainError({ message: `Cannot stat ${file}: ${e.message}`, code: "READ_FAILED" }),
+      ),
+    );
+
+  if (stat.type !== "File") return Option.none<Conversation>();
+  if ((stat.size ?? 0) < minSize) return Option.none<Conversation>();
+  if (Option.isNone(stat.mtime)) return Option.none<Conversation>();
+  const mtime = stat.mtime.value;
+  const mtimeMs = mtime.getTime();
+  if (Option.isSome(filter.fromMs) && mtimeMs < filter.fromMs.value)
+    return Option.none<Conversation>();
+  if (Option.isSome(filter.toMs) && mtimeMs > filter.toMs.value) return Option.none<Conversation>();
+
+  const content = yield* fs
+    .readFileString(fullPath)
+    .pipe(
+      Effect.mapError(
+        (e: PlatformError) =>
+          new BrainError({ message: `Cannot read ${file}: ${e.message}`, code: "READ_FAILED" }),
+      ),
+    );
+  const messages = parseMessages(content, provider);
+  if (messages.length < 2) return Option.none<Conversation>();
+  const uuid = file.endsWith(".jsonl") ? file.slice(0, -6) : file;
+  return Option.some<Conversation>({ uuid, messages, modifiedAt: mtime });
+});
 
 /** @internal */
 export const extractConversations = Effect.fn("extractConversations")(function* (
@@ -157,16 +228,15 @@ export const extractConversations = Effect.fn("extractConversations")(function* 
   const path = yield* Path;
   const provider = opts.provider ?? detectProviderFromPath(inputDir);
 
-  const fromMs = Option.map(opts.from ?? Option.none(), (d) => new Date(d).getTime());
-  const toMs = Option.map(opts.to ?? Option.none(), (d) => new Date(d).getTime() + 86400000 - 1);
+  const filter = parseDateFilter(opts.from, opts.to);
 
-  if (Option.isSome(fromMs) && Number.isNaN(fromMs.value)) {
+  if (Option.isSome(filter.fromMs) && Number.isNaN(filter.fromMs.value)) {
     return yield* new BrainError({
       message: "Invalid --from date. Use YYYY-MM-DD format.",
       code: "INVALID_DATE",
     });
   }
-  if (Option.isSome(toMs) && Number.isNaN(toMs.value)) {
+  if (Option.isSome(filter.toMs) && Number.isNaN(filter.toMs.value)) {
     return yield* new BrainError({
       message: "Invalid --to date. Use YYYY-MM-DD format.",
       code: "INVALID_DATE",
@@ -183,62 +253,20 @@ export const extractConversations = Effect.fn("extractConversations")(function* 
     );
 
   const jsonlFiles = files.filter((f) => f.endsWith(".jsonl")).sort();
-
+  const minSize = opts.minSize ?? 500;
   const conversations: Conversation[] = [];
 
   for (const file of jsonlFiles) {
-    const fullPath = path.join(inputDir, file);
-
-    const stat = yield* fs
-      .stat(fullPath)
-      .pipe(
-        Effect.mapError(
-          (e: PlatformError) =>
-            new BrainError({ message: `Cannot stat ${file}: ${e.message}`, code: "READ_FAILED" }),
-        ),
-      );
-
-    // Skip directories (e.g. foo.jsonl/)
-    if (stat.type !== "File") continue;
-
-    // Skip small files
-    if ((stat.size ?? 0) < (opts.minSize ?? 500)) continue;
-
-    const mtime = Option.getOrElse(stat.mtime, () => new Date(0));
-    const mtimeMs = mtime.getTime();
-
-    // Date filtering on file mtime
-    if (Option.isSome(fromMs) && mtimeMs < fromMs.value) continue;
-    if (Option.isSome(toMs) && mtimeMs > toMs.value) continue;
-
-    const content = yield* fs
-      .readFileString(fullPath)
-      .pipe(
-        Effect.mapError(
-          (e: PlatformError) =>
-            new BrainError({ message: `Cannot read ${file}: ${e.message}`, code: "READ_FAILED" }),
-        ),
-      );
-
-    const lines = content.trim().split("\n");
-    const messages: Message[] = [];
-
-    for (const line of lines) {
-      if (line.trim().length === 0) continue;
-      const parsed = parseLine(line);
-      if (Option.isNone(parsed)) continue;
-
-      messages.push(
-        ...(provider === "claude"
-          ? parseClaudeMessage(parsed.value)
-          : parseCodexMessage(parsed.value)),
-      );
-    }
-
-    if (messages.length < 2) continue;
-
-    const uuid = file.endsWith(".jsonl") ? file.slice(0, -6) : file;
-    conversations.push({ uuid, messages, modifiedAt: mtime });
+    const convOpt = yield* loadConversationFromFile(
+      fs,
+      path,
+      inputDir,
+      file,
+      filter,
+      minSize,
+      provider,
+    );
+    if (Option.isSome(convOpt)) conversations.push(convOpt.value);
   }
 
   // Newest first (match brainmaxxing)
@@ -331,7 +359,9 @@ export const extract = Command.make("extract", {
             code: "UNSUPPORTED_PROVIDER",
           });
         }
-        const selectedProvider = Option.map(provider, (value) => value as Provider);
+        const selectedProvider: Option.Option<Provider> = Option.flatMap(provider, (value) =>
+          isAgentProviderId(value) ? Option.some(value) : Option.none(),
+        );
 
         const result = yield* extractConversations(dir, output, {
           batches,

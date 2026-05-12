@@ -20,18 +20,18 @@ What do you need?
 
 ## Quick Reference
 
-| Command | What it does |
-| ------- | ------------ |
-| `okra schedule "<prompt>" -s "<schedule>"` | Schedule task (default: claude) |
-| `okra schedule "<prompt>" -s "<schedule>" -p codex` | Schedule with specific provider |
-| `okra schedule "<prompt>" -s "<schedule>" --stop-when "<condition>" --max-runs N` | Conditional stop with fallback |
-| `okra schedule list` | List all tasks |
-| `okra schedule list -j` | List tasks as JSON |
-| `okra schedule remove <id>` | Remove task + unload plist |
-| `okra schedule run <id>` | Execute task (called by launchd) |
-| `okra schedule logs` | List available logs |
-| `okra schedule logs <id>` | View task log |
-| `okra schedule logs <id> -f` | Tail task log |
+| Command                                                                           | What it does                     |
+| --------------------------------------------------------------------------------- | -------------------------------- |
+| `okra schedule "<prompt>" -s "<schedule>"`                                        | Schedule task (default: claude)  |
+| `okra schedule "<prompt>" -s "<schedule>" -p codex`                               | Schedule with specific provider  |
+| `okra schedule "<prompt>" -s "<schedule>" --stop-when "<condition>" --max-runs N` | Conditional stop with fallback   |
+| `okra schedule list`                                                              | List all tasks                   |
+| `okra schedule list -j`                                                           | List tasks as JSON               |
+| `okra schedule remove <id>`                                                       | Remove task + unload plist       |
+| `okra schedule run <id>`                                                          | Execute task (called by launchd) |
+| `okra schedule logs`                                                              | List available logs              |
+| `okra schedule logs <id>`                                                         | View task log                    |
+| `okra schedule logs <id> -f`                                                      | Tail task log                    |
 
 ## Scheduling
 
@@ -39,22 +39,22 @@ What do you need?
 
 Natural language (preferred):
 
-| Pattern | Type | Example |
-| ------- | ---- | ------- |
-| `in N minutes/hours/days` | Oneshot | `in 30 minutes` |
-| `tomorrow at HH:mm[am\|pm]` | Oneshot | `tomorrow at 9am` |
-| `every day at HH:mm[am\|pm]` | Recurring | `every day at 9:00` |
-| `every weekday at HH:mm` | Recurring | `every weekday at 9am` |
-| `every {day} at HH:mm` | Recurring | `every monday at 10:30am` |
+| Pattern                      | Type      | Example                   |
+| ---------------------------- | --------- | ------------------------- |
+| `in N minutes/hours/days`    | Oneshot   | `in 30 minutes`           |
+| `tomorrow at HH:mm[am\|pm]`  | Oneshot   | `tomorrow at 9am`         |
+| `every day at HH:mm[am\|pm]` | Recurring | `every day at 9:00`       |
+| `every weekday at HH:mm`     | Recurring | `every weekday at 9am`    |
+| `every {day} at HH:mm`       | Recurring | `every monday at 10:30am` |
 
 5-field cron fallback: `min hour dom month dow`
 
 ### Providers
 
-| Flag | CLI invoked |
-| ---- | ----------- |
+| Flag                  | CLI invoked                                                        |
+| --------------------- | ------------------------------------------------------------------ |
 | `-p claude` (default) | `claude -p <prompt> --dangerously-skip-permissions --model sonnet` |
-| `-p codex` | `codex exec -C <cwd> --dangerously-bypass-approvals-and-sandbox` |
+| `-p codex`            | `codex exec -C <cwd> --dangerously-bypass-approvals-and-sandbox`   |
 
 ## Context Metadata
 

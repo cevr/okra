@@ -1,4 +1,4 @@
-import { Console, Effect, FileSystem, Option, Path, Result } from "effect";
+import { Config, ConfigProvider, Console, Effect, FileSystem, Option, Path, Result } from "effect";
 import { Prompt } from "effect/unstable/cli";
 import { SkillsError } from "../errors.js";
 import { walkDir } from "../lib/fs.js";
@@ -106,9 +106,12 @@ const discoverLocalCandidates = Effect.fn("command.add.discoverLocalCandidates")
   const fs = yield* FileSystem.FileSystem;
   const pathService = yield* Path.Path;
 
+  const homeOpt = yield* Config.option(Config.string("HOME"))
+    .parse(ConfigProvider.fromEnv())
+    .pipe(Effect.catch(() => Effect.succeed(Option.none<string>())));
   const inputPath = source.path.startsWith("~")
     ? pathService.join(
-        Option.getOrElse(Option.fromNullishOr(process.env["HOME"]), () => ""),
+        Option.getOrElse(homeOpt, () => ""),
         source.path.slice(1),
       )
     : source.path;

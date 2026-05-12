@@ -20,14 +20,14 @@ What do you need?
 
 ## Quick Reference
 
-| Command | What it does |
-| ------- | ------------ |
-| `okra counsel "prompt"` | Send inline prompt to opposite agent |
-| `okra counsel -f prompt.md` | Send a prompt file |
-| `echo "prompt" \| okra counsel` | Send stdin |
-| `okra counsel --deep "prompt"` | Use deeper profile (opus/max effort) |
+| Command                               | What it does                                  |
+| ------------------------------------- | --------------------------------------------- |
+| `okra counsel "prompt"`               | Send inline prompt to opposite agent          |
+| `okra counsel -f prompt.md`           | Send a prompt file                            |
+| `echo "prompt" \| okra counsel`       | Send stdin                                    |
+| `okra counsel --deep "prompt"`        | Use deeper profile (opus/max effort)          |
 | `okra counsel --from claude "prompt"` | Force source when auto-detection is ambiguous |
-| `okra counsel --dry-run "prompt"` | Preview resolved invocation |
+| `okra counsel --dry-run "prompt"`     | Preview resolved invocation                   |
 
 ## When to Use
 

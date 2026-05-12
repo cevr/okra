@@ -1,4 +1,4 @@
-import { Console, Effect, Option } from "effect";
+import { Clock, Console, DateTime, Effect, Option } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
@@ -10,15 +10,15 @@ import { DaemonService } from "../services/Daemon.js";
 import { AgentPlatformService } from "../services/AgentPlatform.js";
 import { buildXpPaths } from "../paths.js";
 
-const parseUntil = (raw: string): Date => {
+const parseUntilMs = (raw: string): number => {
   // Try full ISO datetime first
-  const full = new Date(raw);
-  if (!Number.isNaN(full.getTime()) && raw.includes("T")) {
+  const full = Date.parse(raw);
+  if (!Number.isNaN(full) && raw.includes("T")) {
     return full;
   }
   // Date-only → EOD local
-  const dateOnly = new Date(`${raw}T23:59:59.999`);
-  if (Number.isNaN(dateOnly.getTime())) {
+  const dateOnly = Date.parse(`${raw}T23:59:59.999`);
+  if (Number.isNaN(dateOnly)) {
     throw new Error(`Invalid date: ${raw}`);
   }
   return dateOnly;
@@ -133,19 +133,21 @@ export const startCommand = Command.make(
       // Normalize to deadline
       let deadline: string | undefined;
       if (hasMaxMinutes) {
-        deadline = new Date(Date.now() + maxMinutes.value * 60_000).toISOString();
+        const nowMs = yield* Clock.currentTimeMillis;
+        deadline = DateTime.formatIso(DateTime.makeUnsafe(nowMs + maxMinutes.value * 60_000));
       } else if (hasUntil) {
-        const parsed = yield* Effect.try({
-          try: () => parseUntil(untilOpt.value),
+        const parsedMs = yield* Effect.try({
+          try: () => parseUntilMs(untilOpt.value),
           catch: (e) =>
             new ResearchError({
               message: `Invalid --until value: ${e instanceof Error ? e.message : String(e)}`,
               code: ErrorCode.INVALID_INPUT,
             }),
         });
-        deadline = parsed.toISOString();
+        deadline = DateTime.formatIso(DateTime.makeUnsafe(parsedMs));
       }
 
+      const createdAt = (yield* DateTime.now).pipe(DateTime.formatIso);
       const session = new Session({
         name,
         unit,
@@ -159,7 +161,7 @@ export const startCommand = Command.make(
         projectRoot,
         segment: 1,
         currentIteration: 0,
-        createdAt: new Date().toISOString(),
+        createdAt,
       });
 
       yield* sessionSvc.init(session);

@@ -17,7 +17,6 @@
   In non-TTY environments (CI, piped output), it falls back to printing each terminal status inline as it completes — preserving scriptable output.
 
 - [`a1421e7`](https://github.com/cevr/okra/commit/a1421e73d2e3175223da9d291d028b8f44c3da06) Thanks [@cevr](https://github.com/cevr)! - Skills CLI: variadic args, aliases, multi-select prompt
-
   - `okra skills add` and `okra skills remove` now accept multiple sources/names in one invocation (e.g. `okra skills add owner/a owner/b ./local`).
   - Aliases: `add` ↔ `i` ↔ `install`, `remove` ↔ `rm` ↔ `uninstall`.
   - When a repo or local folder contains multiple skills, an interactive multi-select prompt lets you choose which to install (single-skill paths still install directly).
@@ -30,7 +29,6 @@
 - [`7283211`](https://github.com/cevr/okra/commit/72832117e4545677ef8e75a4a09b0150334b5df2) Thanks [@cevr](https://github.com/cevr)! - Dev tooling: switch from `tsc` + `@effect/language-service` to `tsgo` (`@typescript/native-preview`) + `@effect/tsgo`.
 
   `tsgo` runs the Effect Language Service plugin natively at the CLI, which surfaced pre-existing diagnostic warnings the old toolchain silently dropped. As part of the swap:
-
   - Replaced raw `node:fs` / `node:path` usage with Effect platform services (`FileSystem`, `Path`) across research services/commands, brain daemon state, and `shared/executable` — removing the need for `@effect-diagnostics nodeBuiltinImport:off` pragmas in production code.
   - Replaced `JSON.parse` / `JSON.stringify` with `Schema.fromJsonString` across CLI `--json` output, state files, and tests.
   - Converted `SkillLock.addMany` / `updateMany` to `Effect.fn` form.
@@ -45,7 +43,6 @@
 ### Minor Changes
 
 - [`182920b`](https://github.com/cevr/okra/commit/182920b8deb25e2b1c6f8f080904de21307cfebe) Thanks [@cevr](https://github.com/cevr)! - Add skills and repo as okra subcommands
-
   - `okra skills` — manage AI agent skills from GitHub repos (add, search, remove, update)
   - `okra repo` — multi-registry source code cache manager (fetch, list, remove, clean, path)
   - All domains now use command-level layer provision via `Command.provide`
@@ -57,7 +54,6 @@
 ### Minor Changes
 
 - [`84d6c39`](https://github.com/cevr/okra/commit/84d6c39b95883767bf7c8f37fd8e201351fee796) Thanks [@cevr](https://github.com/cevr)! - Switch agent invocations to streaming JSON output for crash resilience
-
   - Counsel: claude uses `--output-format stream-json`, codex uses `--json`
   - Research: codex uses `--json`, extracts agent message from JSONL events
   - Both providers now write `events.jsonl` with incremental events, postprocessed to `.md`

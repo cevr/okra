@@ -1,111 +1,97 @@
-import { describe, expect, test, beforeEach, afterEach } from "bun:test";
-import { existsSync, mkdirSync, rmSync } from "node:fs";
+import { describe, expect, it } from "effect-bun-test";
 import { Effect, Layer } from "effect";
+import { FileSystem } from "effect/FileSystem";
+import { Path } from "effect/Path";
 import { BunServices } from "@effect/platform-bun";
 import { ConfigEvent, LifecycleEventEntry, ResultEvent } from "../../../src/research/types.js";
-import type { ResearchError } from "../../../src/research/errors.js";
 import { ExperimentLogService } from "../../../src/research/services/ExperimentLog.js";
 
-const TEST_ROOT = "/tmp/okra-test-log";
+const FIXTURE_ISO = "2026-01-01T00:00:00.000Z";
 
-const TestLayer = ExperimentLogService.layer.pipe(Layer.provide(BunServices.layer));
-
-const runSync = <A>(effect: Effect.Effect<A, ResearchError, ExperimentLogService>) =>
-  Effect.runPromise(effect.pipe(Effect.provide(TestLayer)));
+const TestLayer = ExperimentLogService.layer.pipe(Layer.provideMerge(BunServices.layer));
 
 describe("ExperimentLogService", () => {
-  beforeEach(() => {
-    if (existsSync(TEST_ROOT)) rmSync(TEST_ROOT, { recursive: true });
-    mkdirSync(`${TEST_ROOT}/.xp`, { recursive: true });
-  });
+  it.scoped("append and readAll round-trip", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const path = yield* Path;
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "okra-xp-log-" });
+      yield* fs.makeDirectory(path.join(root, ".xp"), { recursive: true });
 
-  afterEach(() => {
-    if (existsSync(TEST_ROOT)) rmSync(TEST_ROOT, { recursive: true });
-  });
+      const event = new LifecycleEventEntry({
+        _tag: "lifecycle",
+        timestamp: FIXTURE_ISO,
+        event: "started",
+      });
 
-  test("append and readAll round-trip", async () => {
-    const event = new LifecycleEventEntry({
-      _tag: "lifecycle",
-      timestamp: new Date().toISOString(),
-      event: "started",
-    });
+      const log = yield* ExperimentLogService;
+      yield* log.append(root, event);
 
-    await runSync(
-      Effect.gen(function* () {
-        const log = yield* ExperimentLogService;
-        yield* log.append(TEST_ROOT, event);
-      }),
-    );
+      const events = yield* log.readAll(root);
+      expect(events).toHaveLength(1);
+      expect(events[0]?._tag).toBe("lifecycle");
+    }).pipe(Effect.provide(TestLayer)),
+  );
 
-    const events = await runSync(
-      Effect.gen(function* () {
-        const log = yield* ExperimentLogService;
-        return yield* log.readAll(TEST_ROOT);
-      }),
-    );
+  it.scoped("reconstructState from empty", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const path = yield* Path;
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "okra-xp-log-" });
+      yield* fs.makeDirectory(path.join(root, ".xp"), { recursive: true });
 
-    expect(events).toHaveLength(1);
-    expect(events[0]?._tag).toBe("lifecycle");
-  });
+      const log = yield* ExperimentLogService;
+      const state = yield* log.reconstructState(root);
 
-  test("reconstructState from empty", async () => {
-    const state = await runSync(
-      Effect.gen(function* () {
-        const log = yield* ExperimentLogService;
-        return yield* log.reconstructState(TEST_ROOT);
-      }),
-    );
+      expect(state.segment).toBe(0);
+      expect(state.iteration).toBe(0);
+      expect(state.baseline).toBeUndefined();
+      expect(state.results).toHaveLength(0);
+    }).pipe(Effect.provide(TestLayer)),
+  );
 
-    expect(state.segment).toBe(0);
-    expect(state.iteration).toBe(0);
-    expect(state.baseline).toBeUndefined();
-    expect(state.results).toHaveLength(0);
-  });
+  it.scoped("reconstructState with baseline", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const path = yield* Path;
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "okra-xp-log-" });
+      yield* fs.makeDirectory(path.join(root, ".xp"), { recursive: true });
 
-  test("reconstructState with baseline", async () => {
-    const config = new ConfigEvent({
-      _tag: "config",
-      timestamp: new Date().toISOString(),
-      segment: 1,
-      name: "test",
-      unit: "ms",
-      direction: "min",
-      provider: "claude",
-      sourceCommit: "abc123",
-      benchmarkCmd: "./bench.sh",
-      benchmarkDigest: "deadbeef",
-    });
+      const config = new ConfigEvent({
+        _tag: "config",
+        timestamp: FIXTURE_ISO,
+        segment: 1,
+        name: "test",
+        unit: "ms",
+        direction: "min",
+        provider: "claude",
+        sourceCommit: "abc123",
+        benchmarkCmd: "./bench.sh",
+        benchmarkDigest: "deadbeef",
+      });
 
-    const baseline = new ResultEvent({
-      _tag: "result",
-      timestamp: new Date().toISOString(),
-      segment: 1,
-      iteration: 0,
-      kind: "baseline",
-      status: "kept",
-      value: 100,
-      durationMs: 1000,
-      summary: "Baseline",
-    });
+      const baseline = new ResultEvent({
+        _tag: "result",
+        timestamp: FIXTURE_ISO,
+        segment: 1,
+        iteration: 0,
+        kind: "baseline",
+        status: "kept",
+        value: 100,
+        durationMs: 1000,
+        summary: "Baseline",
+      });
 
-    await runSync(
-      Effect.gen(function* () {
-        const log = yield* ExperimentLogService;
-        yield* log.append(TEST_ROOT, config);
-        yield* log.append(TEST_ROOT, baseline);
-      }),
-    );
+      const log = yield* ExperimentLogService;
+      yield* log.append(root, config);
+      yield* log.append(root, baseline);
 
-    const state = await runSync(
-      Effect.gen(function* () {
-        const log = yield* ExperimentLogService;
-        return yield* log.reconstructState(TEST_ROOT);
-      }),
-    );
+      const state = yield* log.reconstructState(root);
 
-    expect(state.segment).toBe(1);
-    expect(state.baseline).toBeDefined();
-    expect(state.baseline?.value).toBe(100);
-    expect(state.best?.value).toBe(100);
-  });
+      expect(state.segment).toBe(1);
+      expect(state.baseline).toBeDefined();
+      expect(state.baseline?.value).toBe(100);
+      expect(state.best?.value).toBe(100);
+    }).pipe(Effect.provide(TestLayer)),
+  );
 });

@@ -1,5 +1,5 @@
 import { Argument, Command, Flag } from "effect/unstable/cli";
-import { Console, Effect, Option, Schema } from "effect";
+import { Clock, Console, DateTime, Effect, Option, Schema } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import { ConfigService } from "../services/Config.js";
@@ -124,8 +124,8 @@ interface JobStatus {
 
 const UNIFIED_SCHEDULE = "9am, 1pm, 5pm, 9pm Sun-Thu";
 
-const relativeTime = (iso: string): string => {
-  const diff = Date.now() - new Date(iso).getTime();
+const relativeTime = (iso: string, nowMs: number): string => {
+  const diff = nowMs - Date.parse(iso);
   if (diff < 0) return "just now";
   const mins = Math.floor(diff / 60_000);
   if (mins < 1) return "just now";
@@ -207,12 +207,13 @@ const status = Command.make("status", { json: jsonFlag }).pipe(
           }),
         );
       } else {
+        const nowMs = yield* Clock.currentTimeMillis;
         yield* Console.log(`Scheduler: ${loaded ? "loaded" : "not loaded"} (${UNIFIED_SCHEDULE})`);
         yield* Console.log("");
         for (const j of jobs) {
           const lastRunStr = Option.match(j.lastRun, {
             onNone: () => "never",
-            onSome: relativeTime,
+            onSome: (iso) => relativeTime(iso, nowMs),
           });
           const lockStr = j.locked ? " [LOCKED]" : "";
           yield* Console.log(`  ${j.name}: last run ${lastRunStr}${lockStr}`);
@@ -227,6 +228,8 @@ const status = Command.make("status", { json: jsonFlag }).pipe(
 
 const VALID_JOBS = new Set<string>(ALL_JOBS);
 
+const isDaemonJob = (job: string): job is DaemonJob => VALID_JOBS.has(job);
+
 const run = Command.make("run", {
   job: jobArg,
   json: jsonFlag,
@@ -236,7 +239,7 @@ const run = Command.make("run", {
   Command.withDescription("Run a specific daemon job immediately"),
   Command.withHandler(({ job, json, executorProvider, sourceProvider }) =>
     Effect.gen(function* () {
-      if (!VALID_JOBS.has(job)) {
+      if (!isDaemonJob(job)) {
         return yield* new BrainError({
           message: `Unknown job "${job}". Valid: ${ALL_JOBS.join(", ")}`,
           code: "INVALID_JOB",
@@ -248,7 +251,7 @@ const run = Command.make("run", {
 
       yield* rotateLogs();
 
-      const typedJob = job as DaemonJob;
+      const typedJob: DaemonJob = job;
       switch (typedJob) {
         case "reflect":
           yield* runReflect({
@@ -284,8 +287,11 @@ const tick = Command.make("tick", {
   Command.withDescription("Scheduler tick — dispatches the appropriate job based on current time"),
   Command.withHandler(({ json, executorProvider, sourceProvider }) =>
     Effect.gen(function* () {
-      const now = new Date();
-      const input: TickInput = { day: now.getDay(), hour: now.getHours() };
+      const local = yield* DateTime.nowInCurrentZone.pipe(DateTime.withCurrentZoneLocal);
+      const parts = DateTime.toParts(local);
+      // toParts returns weekDay as 1=Mon..7=Sun; resolveJob expects JS-style 0=Sun..6=Sat
+      const day = parts.weekDay === 7 ? 0 : parts.weekDay;
+      const input: TickInput = { day, hour: parts.hour };
       const job = resolveJob(input);
 
       if (Option.isNone(job)) {
@@ -349,11 +355,12 @@ const logs = Command.make("logs", { job: logsJobArg, tail: tailFlag }).pipe(
       const files = yield* fs
         .readDirectory(logsDir)
         .pipe(Effect.catch(() => Effect.succeed([] as string[])));
+      const jobName = Option.getOrUndefined(job);
       const logFiles = files
         .filter((f) => (f === "daemon.log" || f.startsWith("daemon-")) && f.endsWith(".log"))
         .filter((f) => {
-          if (job === undefined) return true;
-          return f === `daemon-${job}.log` || f === "daemon.log";
+          if (jobName === undefined) return true;
+          return f === `daemon-${jobName}.log` || f === "daemon.log";
         })
         .sort();
 
@@ -365,14 +372,12 @@ const logs = Command.make("logs", { job: logsJobArg, tail: tailFlag }).pipe(
       if (tail) {
         // tail -f on the log files
         const paths = logFiles.map((f) => path.join(logsDir, f));
+        const proc = Bun.spawn(["tail", "-f", ...paths], {
+          stdout: "inherit",
+          stderr: "inherit",
+        });
         yield* Effect.tryPromise({
-          try: async () => {
-            const proc = Bun.spawn(["tail", "-f", ...paths], {
-              stdout: "inherit",
-              stderr: "inherit",
-            });
-            await proc.exited;
-          },
+          try: () => proc.exited,
           catch: () => new BrainError({ message: "Cannot tail logs", code: "READ_FAILED" }),
         });
       } else {

@@ -23,23 +23,23 @@ What do you need?
 
 ## Quick Reference
 
-| Command | What it does |
-| ------- | ------------ |
-| `okra brain vault` | Print active vault path (pipeable) |
-| `okra brain vault --json` | `{ global, project, active }` |
-| `okra brain inject` | Print vault index (SessionStart hook) |
-| `okra brain reindex [--all]` | Rebuild `index.md` from disk (no-op if unchanged) |
-| `okra brain status [--json]` | File count, sections, orphans |
-| `okra brain init [--project] [--global]` | Scaffold vault, write config, wire hooks |
-| `okra brain snapshot <dir> [-o file]` | Concatenate `.md` files with `=== path ===` delimiters |
-| `okra brain extract <dir> <output> [-b N]` | Parse JSONL conversations into batched text files |
-| `okra brain list [--json]` | List all vault files (one per line) |
-| `okra brain daemon start` | Install unified scheduler (auto-migrates legacy plists) |
-| `okra brain daemon stop` | Uninstall daemon scheduler |
-| `okra brain daemon status [--json]` | Show scheduler state and per-job last run times |
-| `okra brain daemon tick` | Scheduler tick — dispatches job based on current day/hour |
-| `okra brain daemon run <job>` | Run a specific job immediately (reflect/ruminate/meditate) |
-| `okra brain daemon logs [job] [--tail]` | View daemon logs (optional job as positional arg) |
+| Command                                    | What it does                                               |
+| ------------------------------------------ | ---------------------------------------------------------- |
+| `okra brain vault`                         | Print active vault path (pipeable)                         |
+| `okra brain vault --json`                  | `{ global, project, active }`                              |
+| `okra brain inject`                        | Print vault index (SessionStart hook)                      |
+| `okra brain reindex [--all]`               | Rebuild `index.md` from disk (no-op if unchanged)          |
+| `okra brain status [--json]`               | File count, sections, orphans                              |
+| `okra brain init [--project] [--global]`   | Scaffold vault, write config, wire hooks                   |
+| `okra brain snapshot <dir> [-o file]`      | Concatenate `.md` files with `=== path ===` delimiters     |
+| `okra brain extract <dir> <output> [-b N]` | Parse JSONL conversations into batched text files          |
+| `okra brain list [--json]`                 | List all vault files (one per line)                        |
+| `okra brain daemon start`                  | Install unified scheduler (auto-migrates legacy plists)    |
+| `okra brain daemon stop`                   | Uninstall daemon scheduler                                 |
+| `okra brain daemon status [--json]`        | Show scheduler state and per-job last run times            |
+| `okra brain daemon tick`                   | Scheduler tick — dispatches job based on current day/hour  |
+| `okra brain daemon run <job>`              | Run a specific job immediately (reflect/ruminate/meditate) |
+| `okra brain daemon logs [job] [--tail]`    | View daemon logs (optional job as positional arg)          |
 
 ## Vault Structure
 
@@ -120,18 +120,18 @@ Read `brain/index.md` and the relevant entrypoint. Scan nearby files — prefer 
 
 Automated vault maintenance via launchd (**macOS-only**). Single unified plist (`com.cvr.okra.brain-daemon`) fires at 9am, 1pm, 5pm, 9pm.
 
-| Timeslot | Sun | Mon-Thu | Fri-Sat |
-| -------- | --- | ------- | ------- |
-| 9am | meditate | ruminate | skip |
-| 1pm | reflect | reflect | skip |
-| 5pm | reflect | reflect | skip |
-| 9pm | reflect | reflect | skip |
+| Timeslot | Sun      | Mon-Thu  | Fri-Sat |
+| -------- | -------- | -------- | ------- |
+| 9am      | meditate | ruminate | skip    |
+| 1pm      | reflect  | reflect  | skip    |
+| 5pm      | reflect  | reflect  | skip    |
+| 9pm      | reflect  | reflect  | skip    |
 
-| Job | Model | What |
-| --- | ----- | ---- |
-| reflect | sonnet | Pass session file paths to Claude per project |
-| ruminate | opus | Mine session archives for missed patterns |
-| meditate | opus | Audit + prune + distill vault quality |
+| Job      | Model  | What                                          |
+| -------- | ------ | --------------------------------------------- |
+| reflect  | sonnet | Pass session file paths to Claude per project |
+| ruminate | opus   | Mine session archives for missed patterns     |
+| meditate | opus   | Audit + prune + distill vault quality         |
 
 **State**: `~/.brain/.daemon.json`. **Locks**: `~/.brain/.daemon-{job}.lock` (O_EXCL).
 **Logs**: `~/.brain/logs/`. Size-based rotation (>10MB → last 1000 lines).

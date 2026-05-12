@@ -23,8 +23,8 @@ const BRAIN_ERROR_TAGS = new Set([
 
 export const isBrainDomainError = (
   e: unknown,
-): e is { _tag: string; code: string; message: string } =>
-  typeof e === "object" &&
-  e !== null &&
-  "_tag" in e &&
-  BRAIN_ERROR_TAGS.has((e as { _tag: string })._tag);
+): e is { _tag: string; code: string; message: string } => {
+  if (typeof e !== "object" || e === null || !("_tag" in e)) return false;
+  const tag = (e as { _tag: unknown })._tag;
+  return typeof tag === "string" && BRAIN_ERROR_TAGS.has(tag);
+};

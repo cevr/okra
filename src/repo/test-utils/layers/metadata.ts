@@ -1,4 +1,4 @@
-import { Effect, Layer, Option, Ref } from "effect";
+import { DateTime, Effect, Layer, Option, Ref } from "effect";
 import { MetadataService } from "../../services/metadata.js";
 import type { MetadataIndex } from "../../types.js";
 import { specMatches } from "../../types.js";
@@ -91,13 +91,14 @@ export function createMockMetadataService(options: CreateMockMetadataServiceOpti
     updateAccessTime: (spec) =>
       Effect.gen(function* () {
         yield* record("updateAccessTime", { spec });
+        const now = (yield* DateTime.now).pipe(DateTime.formatIso);
         yield* Ref.update(stateRef, (s) => ({
           ...s,
           index: {
             ...s.index,
             repos: s.index.repos.map((r) => {
               if (specMatches(r.spec, spec)) {
-                return { ...r, lastAccessedAt: new Date().toISOString() };
+                return { ...r, lastAccessedAt: now };
               }
               return r;
             }),

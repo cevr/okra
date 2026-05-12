@@ -1,4 +1,4 @@
-import { Console, Effect, Layer, Option, Schema, Context } from "effect";
+import { Console, DateTime, Effect, Layer, Option, Schema, Context } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
@@ -114,9 +114,10 @@ class StoreService extends Context.Service<
 
       const add = Effect.fn("StoreService.add")(function* (input: TaskInput) {
         yield* validateId(input.id);
+        const createdAt = (yield* DateTime.now).pipe(DateTime.formatIso);
         const task = new Task({
           ...input,
-          createdAt: new Date().toISOString(),
+          createdAt,
           status: "active",
           runCount: 0,
         });
@@ -189,7 +190,20 @@ class StoreService extends Context.Service<
       ) {
         yield* validateId(id);
         const existing = yield* get(id);
-        const updated = new Task({ ...existing, ...patch });
+        const updated = new Task({
+          id: existing.id,
+          prompt: existing.prompt,
+          provider: existing.provider,
+          schedule: existing.schedule,
+          cwd: existing.cwd,
+          createdAt: existing.createdAt,
+          status: patch.status ?? existing.status,
+          lastRun: patch.lastRun ?? existing.lastRun,
+          runCount: patch.runCount ?? existing.runCount,
+          context: existing.context,
+          stopConditions: existing.stopConditions,
+          conditionalStop: existing.conditionalStop,
+        });
         const json = yield* encodeTask(updated).pipe(
           Effect.mapError(
             (e) =>

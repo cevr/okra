@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { Effect, Layer, Context } from "effect";
+import { DateTime, Effect, Layer, Context } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
@@ -12,7 +12,7 @@ import {
   ResultEvent,
   SteerEvent,
 } from "../types.js";
-import type { ExperimentState } from "../types.js";
+import type { ExperimentState, Session } from "../types.js";
 import { buildXpPaths } from "../paths.js";
 import { buildExperimentPrompt, buildSetupPrompt } from "../prompt.js";
 import { shouldKeep } from "../scoring.js";
@@ -24,15 +24,18 @@ import { RunnerService } from "./Runner.js";
 import { SessionService } from "./Session.js";
 import { WorkspaceService } from "./Workspace.js";
 
-const now = () => new Date().toISOString();
-
 const wrapIO = (e: PlatformError, code: ErrorCode = ErrorCode.WRITE_FAILED) =>
   new ResearchError({ message: e.message, code });
 
+const nowIso = DateTime.now.pipe(Effect.map(DateTime.formatIso));
+
 const logProgress = (fs: FileSystem, daemonLog: string, message: string) =>
-  fs
-    .writeFileString(daemonLog, `[${now()}] ${message}\n`, { flag: "a" })
-    .pipe(Effect.catch(() => Effect.void));
+  Effect.gen(function* () {
+    const stamp = yield* nowIso;
+    yield* fs
+      .writeFileString(daemonLog, `[${stamp}] ${message}\n`, { flag: "a" })
+      .pipe(Effect.catch(() => Effect.void));
+  });
 
 const hashFiles = (fs: FileSystem, files: ReadonlyArray<string>) =>
   Effect.gen(function* () {
@@ -165,7 +168,7 @@ export class LoopService extends Context.Service<
                 projectRoot,
                 new ConfigEvent({
                   _tag: "config",
-                  timestamp: now(),
+                  timestamp: yield* nowIso,
                   segment: session.segment,
                   name: session.name,
                   unit: session.unit,
@@ -181,7 +184,7 @@ export class LoopService extends Context.Service<
                 projectRoot,
                 new ResultEvent({
                   _tag: "result",
-                  timestamp: now(),
+                  timestamp: yield* nowIso,
                   segment: session.segment,
                   iteration: 0,
                   kind: "baseline",
@@ -287,7 +290,7 @@ export class LoopService extends Context.Service<
                   projectRoot,
                   new ResultEvent({
                     _tag: "result",
-                    timestamp: now(),
+                    timestamp: yield* nowIso,
                     segment: session.segment,
                     iteration: nextIteration,
                     kind: "trial",
@@ -315,7 +318,7 @@ export class LoopService extends Context.Service<
                   projectRoot,
                   new ResultEvent({
                     _tag: "result",
-                    timestamp: now(),
+                    timestamp: yield* nowIso,
                     segment: session.segment,
                     iteration: nextIteration,
                     kind: "trial",
@@ -338,7 +341,7 @@ export class LoopService extends Context.Service<
                 projectRoot,
                 new ResultEvent({
                   _tag: "result",
-                  timestamp: now(),
+                  timestamp: yield* nowIso,
                   segment: session.segment,
                   iteration: nextIteration,
                   kind: "trial",
@@ -349,7 +352,7 @@ export class LoopService extends Context.Service<
                 }),
               );
 
-              // Run benchmark
+              // Run benchmark and decide outcome
               const benchResult = yield* runner
                 .run(session.benchmarkCmd, worktreePath, benchmarkTimeoutMs)
                 .pipe(
@@ -364,91 +367,19 @@ export class LoopService extends Context.Service<
                   ),
                 );
 
-              const bestValue = state.best?.value;
-
-              if (benchResult.exitCode !== 0) {
-                yield* logProgress(
-                  fs,
-                  paths.daemonLog,
-                  `iter ${nextIteration}: benchmark failed (exit ${benchResult.exitCode}) — reverted`,
-                );
-                yield* git.revertWorktree(worktreePath);
-                yield* log.append(
-                  projectRoot,
-                  new DecisionEvent({
-                    _tag: "decision",
-                    timestamp: now(),
-                    segment: session.segment,
-                    iteration: nextIteration,
-                    status: "failed",
-                  }),
-                );
-              } else {
-                const metricValue = benchResult.value;
-
-                if (
-                  metricValue !== undefined &&
-                  bestValue !== undefined &&
-                  shouldKeep(session.direction, metricValue, bestValue)
-                ) {
-                  const sha = yield* git.commitInWorktree(
-                    worktreePath,
-                    `xp(${session.name}): iter ${nextIteration} — ${metricValue}${session.unit !== "" ? " " + session.unit : ""}`,
-                  );
-                  yield* log.append(
-                    projectRoot,
-                    new CommittedEvent({
-                      _tag: "committed",
-                      timestamp: now(),
-                      segment: session.segment,
-                      iteration: nextIteration,
-                      commit: sha,
-                    }),
-                  );
-                  yield* log.append(
-                    projectRoot,
-                    new DecisionEvent({
-                      _tag: "decision",
-                      timestamp: now(),
-                      segment: session.segment,
-                      iteration: nextIteration,
-                      status: "kept",
-                      value: metricValue,
-                    }),
-                  );
-                  yield* sessionSvc.update(projectRoot, {
-                    currentIteration: nextIteration,
-                    bestValue: metricValue,
-                    bestCommit: sha,
-                  });
-                  yield* logProgress(
-                    fs,
-                    paths.daemonLog,
-                    `iter ${nextIteration}: ${metricValue} ${session.unit} — KEPT (was ${bestValue} ${session.unit})`,
-                  );
-                } else {
-                  yield* git.revertWorktree(worktreePath);
-                  yield* log.append(
-                    projectRoot,
-                    new DecisionEvent({
-                      _tag: "decision",
-                      timestamp: now(),
-                      segment: session.segment,
-                      iteration: nextIteration,
-                      status: "discarded",
-                      value: metricValue,
-                    }),
-                  );
-                  yield* sessionSvc.update(projectRoot, {
-                    currentIteration: nextIteration,
-                  });
-                  yield* logProgress(
-                    fs,
-                    paths.daemonLog,
-                    `iter ${nextIteration}: ${metricValue ?? "N/A"} ${session.unit} — discarded (best: ${bestValue} ${session.unit})`,
-                  );
-                }
-              }
+              yield* decideBenchmarkOutcome({
+                fs,
+                git,
+                log,
+                sessionSvc,
+                paths,
+                projectRoot,
+                session,
+                state,
+                benchResult,
+                nextIteration,
+                worktreePath,
+              });
 
               state = yield* log.reconstructState(projectRoot);
               yield* log.regenerateMarkdown(projectRoot, session);
@@ -462,6 +393,131 @@ export class LoopService extends Context.Service<
   );
 }
 
+interface BenchmarkRunResult {
+  readonly exitCode: number;
+  readonly stdout: string;
+  readonly stderr: string;
+  readonly durationMs: number;
+  readonly value?: number | undefined;
+}
+
+interface DecideArgs {
+  fs: FileSystem;
+  git: Context.Service.Shape<typeof GitService>;
+  log: Context.Service.Shape<typeof ExperimentLogService>;
+  sessionSvc: Context.Service.Shape<typeof SessionService>;
+  paths: ReturnType<typeof buildXpPaths>;
+  projectRoot: string;
+  session: Session;
+  state: ExperimentState;
+  benchResult: BenchmarkRunResult;
+  nextIteration: number;
+  worktreePath: string;
+}
+
+const decideBenchmarkOutcome = (args: DecideArgs) =>
+  Effect.gen(function* () {
+    const {
+      fs,
+      git,
+      log,
+      sessionSvc,
+      paths,
+      projectRoot,
+      session,
+      state,
+      benchResult,
+      nextIteration,
+      worktreePath,
+    } = args;
+    if (benchResult.exitCode !== 0) {
+      yield* logProgress(
+        fs,
+        paths.daemonLog,
+        `iter ${nextIteration}: benchmark failed (exit ${benchResult.exitCode}) — reverted`,
+      );
+      yield* git.revertWorktree(worktreePath);
+      yield* log.append(
+        projectRoot,
+        new DecisionEvent({
+          _tag: "decision",
+          timestamp: yield* nowIso,
+          segment: session.segment,
+          iteration: nextIteration,
+          status: "failed",
+        }),
+      );
+      return;
+    }
+
+    const bestValue = state.best?.value;
+    const metricValue = benchResult.value;
+
+    if (
+      metricValue !== undefined &&
+      bestValue !== undefined &&
+      shouldKeep(session.direction, metricValue, bestValue)
+    ) {
+      const sha = yield* git.commitInWorktree(
+        worktreePath,
+        `xp(${session.name}): iter ${nextIteration} — ${metricValue}${session.unit !== "" ? " " + session.unit : ""}`,
+      );
+      yield* log.append(
+        projectRoot,
+        new CommittedEvent({
+          _tag: "committed",
+          timestamp: yield* nowIso,
+          segment: session.segment,
+          iteration: nextIteration,
+          commit: sha,
+        }),
+      );
+      yield* log.append(
+        projectRoot,
+        new DecisionEvent({
+          _tag: "decision",
+          timestamp: yield* nowIso,
+          segment: session.segment,
+          iteration: nextIteration,
+          status: "kept",
+          value: metricValue,
+        }),
+      );
+      yield* sessionSvc.update(projectRoot, {
+        currentIteration: nextIteration,
+        bestValue: metricValue,
+        bestCommit: sha,
+      });
+      yield* logProgress(
+        fs,
+        paths.daemonLog,
+        `iter ${nextIteration}: ${metricValue} ${session.unit} — KEPT (was ${bestValue} ${session.unit})`,
+      );
+      return;
+    }
+
+    yield* git.revertWorktree(worktreePath);
+    yield* log.append(
+      projectRoot,
+      new DecisionEvent({
+        _tag: "decision",
+        timestamp: yield* nowIso,
+        segment: session.segment,
+        iteration: nextIteration,
+        status: "discarded",
+        value: metricValue,
+      }),
+    );
+    yield* sessionSvc.update(projectRoot, {
+      currentIteration: nextIteration,
+    });
+    yield* logProgress(
+      fs,
+      paths.daemonLog,
+      `iter ${nextIteration}: ${metricValue ?? "N/A"} ${session.unit} — discarded (best: ${bestValue} ${session.unit})`,
+    );
+  });
+
 const appendLifecycle = Effect.fn("appendLifecycle")(function* (
   log: Context.Service.Shape<typeof ExperimentLogService>,
   projectRoot: string,
@@ -472,7 +528,7 @@ const appendLifecycle = Effect.fn("appendLifecycle")(function* (
     projectRoot,
     new LifecycleEventEntry({
       _tag: "lifecycle",
-      timestamp: now(),
+      timestamp: yield* nowIso,
       event,
       detail,
     }),
@@ -504,7 +560,7 @@ const consumeSteers = (
         steers.push(
           new SteerEvent({
             _tag: "steer",
-            timestamp: now(),
+            timestamp: yield* nowIso,
             segment,
             iteration,
             guidance: trimmed,
@@ -552,7 +608,7 @@ const reconcile = (
           projectRoot,
           new DecisionEvent({
             _tag: "decision",
-            timestamp: now(),
+            timestamp: yield* nowIso,
             segment: state.segment,
             iteration: state.lastPendingResult.iteration,
             status: "kept",
@@ -564,7 +620,7 @@ const reconcile = (
           projectRoot,
           new DecisionEvent({
             _tag: "decision",
-            timestamp: now(),
+            timestamp: yield* nowIso,
             segment: state.segment,
             iteration: state.lastPendingResult.iteration,
             status: "discarded",
@@ -577,7 +633,7 @@ const reconcile = (
         projectRoot,
         new DecisionEvent({
           _tag: "decision",
-          timestamp: now(),
+          timestamp: yield* nowIso,
           segment: state.segment,
           iteration: state.lastPendingResult.iteration,
           status: "discarded",

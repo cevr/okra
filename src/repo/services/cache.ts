@@ -40,7 +40,12 @@ export class CacheService extends Context.Service<
               if (yield* fs.exists(normalizedPath)) return normalizedPath;
 
               // spec.name guaranteed to be "owner/repo" format for github registry
-              const [owner, repo] = spec.name.split("/") as [string, string];
+              const parts = spec.name.split("/");
+              const owner = parts[0];
+              const repo = parts[1];
+              if (owner === undefined || repo === undefined) {
+                return pathService.join(cacheDir, spec.name);
+              }
 
               const cacheExists = yield* fs.exists(cacheDir);
               if (!cacheExists) return normalizedPath;
@@ -78,7 +83,7 @@ export class CacheService extends Context.Service<
           }
         }).pipe(
           Effect.catchTag("PlatformError", (e) =>
-            Effect.logWarning(`Failed to remove ${path}: ${e}`),
+            Effect.logWarning(`Failed to remove ${path}: ${e.message}`),
           ),
         );
 
@@ -90,7 +95,9 @@ export class CacheService extends Context.Service<
             yield* fs.makeDirectory(cacheDir, { recursive: true });
           }
         }).pipe(
-          Effect.catchTag("PlatformError", (e) => Effect.logWarning(`Failed to clean cache: ${e}`)),
+          Effect.catchTag("PlatformError", (e) =>
+            Effect.logWarning(`Failed to clean cache: ${e.message}`),
+          ),
         );
 
       const getSize = (path: string): Effect.Effect<number> =>

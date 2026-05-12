@@ -1,4 +1,5 @@
-import { Effect, Option } from "effect";
+import { Clock, Effect, Option } from "effect";
+import { TestClock } from "effect/testing";
 import { describe, expect, it } from "effect-bun-test";
 import { createTestLayer } from "../../src/repo/test-utils/index.js";
 import { RegistryService } from "../../src/repo/services/registry.js";
@@ -6,6 +7,12 @@ import { GitService } from "../../src/repo/services/git.js";
 import { CacheService } from "../../src/repo/services/cache.js";
 import { MetadataService } from "../../src/repo/services/metadata.js";
 import { specToString } from "../../src/repo/types.js";
+
+// Fixed ISO timestamp for fixture data (production code doesn't read these back as Dates).
+const FIXTURE_ISO = "2026-01-01T00:00:00.000Z";
+// 2026-01-01T00:00:00.000Z = 1767225600000 ms since epoch.
+const FIXTURE_ISO_MS = 1767225600000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 describe("fetch flow", () => {
   it.effect("fetches a GitHub repo and adds it to metadata", () =>
@@ -26,11 +33,10 @@ describe("fetch flow", () => {
 
         yield* registry.fetch(spec, destPath);
 
-        const now = new Date().toISOString();
         yield* metadata.add({
           spec,
-          fetchedAt: now,
-          lastAccessedAt: now,
+          fetchedAt: FIXTURE_ISO,
+          lastAccessedAt: FIXTURE_ISO,
           sizeBytes: 1000,
           path: destPath,
         });
@@ -63,8 +69,8 @@ describe("fetch flow", () => {
         yield* registry.fetch(spec, destPath);
         yield* metadata.add({
           spec,
-          fetchedAt: new Date().toISOString(),
-          lastAccessedAt: new Date().toISOString(),
+          fetchedAt: FIXTURE_ISO,
+          lastAccessedAt: FIXTURE_ISO,
           sizeBytes: 500,
           path: destPath,
         });
@@ -117,8 +123,8 @@ describe("list flow", () => {
           yield* registry.fetch(spec, destPath);
           yield* metadata.add({
             spec,
-            fetchedAt: new Date().toISOString(),
-            lastAccessedAt: new Date().toISOString(),
+            fetchedAt: FIXTURE_ISO,
+            lastAccessedAt: FIXTURE_ISO,
             sizeBytes: 1000,
             path: destPath,
           });
@@ -151,8 +157,8 @@ describe("remove flow", () => {
         yield* registry.fetch(spec, destPath);
         yield* metadata.add({
           spec,
-          fetchedAt: new Date().toISOString(),
-          lastAccessedAt: new Date().toISOString(),
+          fetchedAt: FIXTURE_ISO,
+          lastAccessedAt: FIXTURE_ISO,
           sizeBytes: 1000,
           path: destPath,
         });
@@ -192,8 +198,8 @@ describe("clean flow", () => {
           yield* registry.fetch(spec, destPath);
           yield* metadata.add({
             spec,
-            fetchedAt: new Date().toISOString(),
-            lastAccessedAt: new Date().toISOString(),
+            fetchedAt: FIXTURE_ISO,
+            lastAccessedAt: FIXTURE_ISO,
             sizeBytes: 100,
             path: destPath,
           });
@@ -217,33 +223,38 @@ describe("clean flow", () => {
     Effect.gen(function* () {
       const { layer } = createTestLayer();
 
+      // Anchor TestClock at FIXTURE_ISO + 31 days so "FIXTURE_ISO" entries are 31 days old.
+      yield* TestClock.setTime(FIXTURE_ISO_MS + 31 * DAY_MS);
+
       yield* Effect.gen(function* () {
         const registry = yield* RegistryService;
         const cache = yield* CacheService;
         const metadata = yield* MetadataService;
 
         const oldSpec = yield* registry.parseSpec("old/repo");
-        const oldDate = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000);
+        const oldIso = FIXTURE_ISO; // 31 days before TestClock now
         yield* metadata.add({
           spec: oldSpec,
-          fetchedAt: oldDate.toISOString(),
-          lastAccessedAt: oldDate.toISOString(),
+          fetchedAt: oldIso,
+          lastAccessedAt: oldIso,
           sizeBytes: 1000,
           path: yield* cache.getPath(oldSpec),
         });
 
         const newSpec = yield* registry.parseSpec("new/repo");
+        const newIso = "2026-02-01T00:00:00.000Z"; // == TestClock now → 0 days old
         yield* metadata.add({
           spec: newSpec,
-          fetchedAt: new Date().toISOString(),
-          lastAccessedAt: new Date().toISOString(),
+          fetchedAt: newIso,
+          lastAccessedAt: newIso,
           sizeBytes: 1000,
           path: yield* cache.getPath(newSpec),
         });
 
         const all = yield* metadata.all();
-        const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
-        const oldRepos = all.filter((r) => new Date(r.lastAccessedAt).getTime() < cutoff);
+        const nowMs = yield* Clock.currentTimeMillis;
+        const cutoff = nowMs - 30 * DAY_MS;
+        const oldRepos = all.filter((r) => Date.parse(r.lastAccessedAt) < cutoff);
         expect(oldRepos.length).toBe(1);
         expect(oldRepos[0]?.spec.name).toBe("old/repo");
 
@@ -271,8 +282,8 @@ describe("clean flow", () => {
         const largeSpec = yield* registry.parseSpec("large/repo");
         yield* metadata.add({
           spec: largeSpec,
-          fetchedAt: new Date().toISOString(),
-          lastAccessedAt: new Date().toISOString(),
+          fetchedAt: FIXTURE_ISO,
+          lastAccessedAt: FIXTURE_ISO,
           sizeBytes: 100_000_000,
           path: yield* cache.getPath(largeSpec),
         });
@@ -280,8 +291,8 @@ describe("clean flow", () => {
         const smallSpec = yield* registry.parseSpec("small/repo");
         yield* metadata.add({
           spec: smallSpec,
-          fetchedAt: new Date().toISOString(),
-          lastAccessedAt: new Date().toISOString(),
+          fetchedAt: FIXTURE_ISO,
+          lastAccessedAt: FIXTURE_ISO,
           sizeBytes: 1_000_000,
           path: yield* cache.getPath(smallSpec),
         });
@@ -300,6 +311,10 @@ describe("update flow", () => {
     Effect.gen(function* () {
       const { layer } = createTestLayer();
 
+      // Set TestClock to FIXTURE_ISO + 1s; initialTime = FIXTURE_ISO; production's
+      // DateTime.now (via TestClock) will produce a later timestamp on updateAccessTime.
+      yield* TestClock.setTime(FIXTURE_ISO_MS + 1000);
+
       yield* Effect.gen(function* () {
         const registry = yield* RegistryService;
         const cache = yield* CacheService;
@@ -307,7 +322,7 @@ describe("update flow", () => {
 
         const spec = yield* registry.parseSpec("owner/repo");
         const destPath = yield* cache.getPath(spec);
-        const initialTime = new Date(Date.now() - 1000).toISOString();
+        const initialTime = FIXTURE_ISO;
         yield* metadata.add({
           spec,
           fetchedAt: initialTime,
@@ -320,12 +335,8 @@ describe("update flow", () => {
 
         const found = Option.getOrNull(yield* metadata.find(spec));
         expect(found).not.toBeNull();
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        expect(new Date(found!.lastAccessedAt).getTime()).toBeGreaterThan(
-          new Date(initialTime).getTime(),
-        );
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        expect(found!.fetchedAt).toBe(initialTime);
+        expect(Date.parse(found?.lastAccessedAt ?? "")).toBeGreaterThan(Date.parse(initialTime));
+        expect(found?.fetchedAt).toBe(initialTime);
       }).pipe(Effect.provide(layer));
     }),
   );
@@ -381,8 +392,8 @@ describe("spec parsing", () => {
         const destPath = yield* cache.getPath(spec1);
         yield* metadata.add({
           spec: spec1,
-          fetchedAt: new Date().toISOString(),
-          lastAccessedAt: new Date().toISOString(),
+          fetchedAt: FIXTURE_ISO,
+          lastAccessedAt: FIXTURE_ISO,
           sizeBytes: 1000,
           path: destPath,
         });
@@ -458,8 +469,8 @@ describe("path flow", () => {
         yield* registry.fetch(spec, destPath);
         yield* metadata.add({
           spec,
-          fetchedAt: new Date().toISOString(),
-          lastAccessedAt: new Date().toISOString(),
+          fetchedAt: FIXTURE_ISO,
+          lastAccessedAt: FIXTURE_ISO,
           sizeBytes: 1000,
           path: destPath,
         });
@@ -492,6 +503,9 @@ describe("integration flow", () => {
     Effect.gen(function* () {
       const { layer } = createTestLayer();
 
+      // Set TestClock to FIXTURE_ISO + 1s so updateAccessTime produces a strictly later timestamp.
+      yield* TestClock.setTime(FIXTURE_ISO_MS + 1000);
+
       yield* Effect.gen(function* () {
         const registry = yield* RegistryService;
         const cache = yield* CacheService;
@@ -510,11 +524,10 @@ describe("integration flow", () => {
           depth: 100,
         });
 
-        const now = new Date().toISOString();
         yield* metadata.add({
           spec,
-          fetchedAt: now,
-          lastAccessedAt: now,
+          fetchedAt: FIXTURE_ISO,
+          lastAccessedAt: FIXTURE_ISO,
           sizeBytes: 50000,
           path: destPath,
         });
@@ -528,13 +541,11 @@ describe("integration flow", () => {
         const isGit = yield* git.isGitRepo(destPath);
         expect(isGit).toBe(true);
 
-        const beforeUpdate = afterFetch?.lastAccessedAt;
+        const beforeUpdate = afterFetch?.lastAccessedAt ?? "";
         yield* metadata.updateAccessTime(spec);
         const updated = Option.getOrNull(yield* metadata.find(spec));
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        expect(new Date(updated!.lastAccessedAt).getTime()).toBeGreaterThanOrEqual(
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          new Date(beforeUpdate!).getTime(),
+        expect(Date.parse(updated?.lastAccessedAt ?? "")).toBeGreaterThanOrEqual(
+          Date.parse(beforeUpdate),
         );
 
         const all = yield* metadata.all();

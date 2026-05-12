@@ -1,4 +1,4 @@
-import { Console, Effect, FileSystem, Option, Path } from "effect";
+import { Config, ConfigProvider, Console, Effect, FileSystem, Option, Path } from "effect";
 import { SkillsError } from "../errors.js";
 import { SKILL_DIR_PREFIXES } from "../lib/constants.js";
 import { tryParseFrontmatter } from "../lib/frontmatter.js";
@@ -28,9 +28,12 @@ const discoverLocalSkillNames = Effect.fn("command.remove.discoverLocal")(functi
   const fs = yield* FileSystem.FileSystem;
   const pathService = yield* Path.Path;
 
+  const homeOpt = yield* Config.option(Config.string("HOME"))
+    .parse(ConfigProvider.fromEnv())
+    .pipe(Effect.catch(() => Effect.succeed(Option.none<string>())));
   const resolved = inputPath.startsWith("~")
     ? pathService.join(
-        Option.getOrElse(Option.fromNullishOr(process.env["HOME"]), () => ""),
+        Option.getOrElse(homeOpt, () => ""),
         inputPath.slice(1),
       )
     : inputPath;

@@ -1,5 +1,5 @@
 import { Argument, Command } from "effect/unstable/cli";
-import { Console, Effect, Path } from "effect";
+import { Config, ConfigProvider, Console, Effect, Option, Path } from "effect";
 import { SkillStore } from "../services/SkillStore.js";
 import { SkillLock } from "../services/SkillLock.js";
 import { runSearch } from "./search.js";
@@ -7,13 +7,23 @@ import { runAdd } from "./add.js";
 import { runRemove } from "./remove.js";
 import { runUpdate } from "./update.js";
 
-const stdoutColor = process.stdout.isTTY && !process.env["NO_COLOR"];
-const dim = (s: string) => (stdoutColor ? `\x1b[2m${s}\x1b[0m` : s);
-const bold = (s: string) => (stdoutColor ? `\x1b[1m${s}\x1b[0m` : s);
 const truncate = (s: string, max: number) => (s.length > max ? s.slice(0, max - 1) + "…" : s);
+
+const readNoColor = Config.option(Config.string("NO_COLOR"))
+  .parse(ConfigProvider.fromEnv())
+  .pipe(
+    Effect.map(Option.isSome),
+    Effect.catch(() => Effect.succeed(false)),
+  );
 
 const skillsCommand = Command.make("skills", {}, () =>
   Effect.gen(function* () {
+    const noColor = yield* readNoColor;
+    const isTty: boolean = process.stdout.isTTY ?? false;
+    const color = isTty && !noColor;
+    const dim = (s: string) => (color ? `\x1b[2m${s}\x1b[0m` : s);
+    const bold = (s: string) => (color ? `\x1b[1m${s}\x1b[0m` : s);
+
     const store = yield* SkillStore;
     const lock = yield* SkillLock;
     const pathService = yield* Path.Path;

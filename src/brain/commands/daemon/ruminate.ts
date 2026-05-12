@@ -1,4 +1,4 @@
-import { Console, Effect, Option } from "effect";
+import { Console, DateTime, Effect, Option } from "effect";
 import { AgentPlatformService } from "../../services/AgentPlatform.js";
 import type { Provider } from "../../../shared/provider.js";
 import { ConfigService } from "../../services/Config.js";
@@ -37,9 +37,10 @@ export const runRuminate = Effect.fn("runRuminate")(function* (opts: RunRuminate
     yield* Console.error(`Ruminating with ${executorId}...`);
     yield* executor.invoke(buildRuminatePrompt(brainDir, sourceProviders), "deep", brainDir);
 
+    const now = (yield* DateTime.now).pipe(DateTime.formatIso);
     yield* modifyState(brainDir, (state) => ({
       ...state,
-      ruminate: { lastRun: new Date().toISOString() },
+      ruminate: { lastRun: now },
     }));
 
     yield* Console.error("Ruminate complete");

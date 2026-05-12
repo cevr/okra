@@ -1,5 +1,5 @@
 import { describe, it, expect } from "effect-bun-test";
-import { Effect, Schema } from "effect";
+import { Config, DateTime, Effect, Schema } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { BunServices } from "@effect/platform-bun";
 
@@ -248,23 +248,27 @@ describe("daemon state", () => {
   });
 
   describe("isSettled", () => {
-    it.live("returns true for mtime > 30 min ago", () =>
+    // isSettled(mtime, nowMs) compares relative time — use fixed values so we don't read the clock.
+    const FIXED_NOW_MS = 1767225600000; // 2026-01-01T00:00:00.000Z
+    const dateAt = (ms: number) => DateTime.toDateUtc(DateTime.makeUnsafe(ms));
+
+    it.effect("returns true for mtime > 30 min ago", () =>
       Effect.sync(() => {
-        const old = new Date(Date.now() - 31 * 60 * 1000);
-        expect(isSettled(old)).toBe(true);
+        const old = dateAt(FIXED_NOW_MS - 31 * 60 * 1000);
+        expect(isSettled(old, FIXED_NOW_MS)).toBe(true);
       }),
     );
 
-    it.live("returns false for mtime < 30 min ago", () =>
+    it.effect("returns false for mtime < 30 min ago", () =>
       Effect.sync(() => {
-        const recent = new Date(Date.now() - 5 * 60 * 1000);
-        expect(isSettled(recent)).toBe(false);
+        const recent = dateAt(FIXED_NOW_MS - 5 * 60 * 1000);
+        expect(isSettled(recent, FIXED_NOW_MS)).toBe(false);
       }),
     );
 
-    it.live("returns false for mtime exactly now", () =>
+    it.effect("returns false for mtime exactly now", () =>
       Effect.sync(() => {
-        expect(isSettled(new Date())).toBe(false);
+        expect(isSettled(dateAt(FIXED_NOW_MS), FIXED_NOW_MS)).toBe(false);
       }),
     );
   });
@@ -330,7 +334,7 @@ describe("daemon state", () => {
       Effect.gen(function* () {
         // This would trigger macOS permission popup if we probed ~/Downloads
         // Instead it skips that probe and finds ~/Users/cvr as the match
-        const home = process.env["HOME"] ?? "";
+        const home = yield* Config.string("HOME").pipe(Config.withDefault(""));
         const dirName = dashify(`${home}/Downloads`) + "-prophecy-studies";
         const name = yield* deriveProjectName(dirName);
         // ~/Downloads is TCC-protected → skipped. Falls back to ~/Users/cvr match

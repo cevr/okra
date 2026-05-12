@@ -1,4 +1,4 @@
-import { DateTime, Effect, Layer, Option, Context } from "effect";
+import { DateTime, Effect, Layer, Option, Random, Context } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
@@ -27,6 +27,15 @@ export type RunResult =
 const trimToOption = (text: string | undefined): Option.Option<string> =>
   text !== undefined && text.trim().length > 0 ? Option.some(text) : Option.none();
 
+const runStatus = (executed: {
+  readonly timedOut: boolean;
+  readonly exitCode: number;
+}): "timeout" | "success" | "error" => {
+  if (executed.timedOut) return "timeout";
+  if (executed.exitCode === 0) return "success";
+  return "error";
+};
+
 const promptConflict = Effect.fail(
   new CounselError({
     message: "Provide exactly one prompt source: inline arg, --file, or stdin.",
@@ -34,14 +43,23 @@ const promptConflict = Effect.fail(
   }),
 );
 
-export const generateSlug = (source: Provider, target: Provider, now: DateTime.Utc): string => {
+export const generateSlug = (
+  source: Provider,
+  target: Provider,
+  now: DateTime.Utc,
+  suffix: string,
+): string => {
   const parts = DateTime.toPartsUtc(now);
   const pad = (value: number) => String(value).padStart(2, "0");
   const stamp = [String(parts.year), pad(parts.month), pad(parts.day)].join("");
   const time = [pad(parts.hour), pad(parts.minute), pad(parts.second)].join("");
-  const suffix = crypto.randomUUID().slice(0, 6);
   return `${stamp}-${time}-${source}-to-${target}-${suffix}`;
 };
+
+/** Generate a 6-char hex random suffix using the Effect Random module. */
+export const randomSlugSuffix = Effect.map(Random.next, (n) =>
+  n.toString(16).slice(2, 8).padEnd(6, "0"),
+);
 
 export class RunService extends Context.Service<
   RunService,
@@ -131,7 +149,8 @@ export class RunService extends Context.Service<
         const target = platform.resolveTarget(source);
         const profile: Profile = input.deep ? "deep" : "standard";
         const now = yield* DateTime.now;
-        const slug = generateSlug(source, target, now);
+        const suffix = yield* randomSlugSuffix;
+        const slug = generateSlug(source, target, now, suffix);
         const outputBucket = cwdBucket(input.cwd);
         const outputDir = path.resolve(input.cwd, input.outputDir, outputBucket, slug);
         const promptFilePath = path.join(outputDir, "prompt.md");
@@ -206,7 +225,7 @@ export class RunService extends Context.Service<
           source,
           target,
           profile,
-          status: executed.timedOut ? "timeout" : executed.exitCode === 0 ? "success" : "error",
+          status: runStatus(executed),
           exitCode: executed.exitCode,
           durationMs: executed.durationMs,
           promptFilePath,

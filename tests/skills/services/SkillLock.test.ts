@@ -1,15 +1,11 @@
 import { describe, expect, it } from "effect-bun-test";
 import { ConfigProvider, Effect, Layer, Option } from "effect";
+import { FileSystem } from "effect/FileSystem";
 import { BunServices } from "@effect/platform-bun";
 import { SkillStoreLive } from "../../../src/skills/services/SkillStore.js";
 import { SkillLock, SkillLockLive } from "../../../src/skills/services/SkillLock.js";
-import { mkdtempSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
 
-const makeTempDir = () => mkdtempSync(join(tmpdir(), "skills-lock-test-"));
-
-const makeTestLayer = (dir: string) =>
+const makeSkillsLayer = (dir: string) =>
   SkillLockLive.pipe(
     Layer.provideMerge(SkillStoreLive),
     Layer.provide(BunServices.layer),
@@ -17,64 +13,77 @@ const makeTestLayer = (dir: string) =>
   );
 
 describe("SkillLock", () => {
-  it.live("read returns empty lock for fresh dir", () => {
-    const dir = makeTempDir();
-    return Effect.gen(function* () {
-      const lock = yield* SkillLock;
-      const file = yield* lock.read;
+  it.scoped("read returns empty lock for fresh dir", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const dir = yield* fs.makeTempDirectoryScoped();
+      const file = yield* Effect.gen(function* () {
+        const lock = yield* SkillLock;
+        return yield* lock.read;
+      }).pipe(Effect.provide(makeSkillsLayer(dir)));
       expect(file.version).toBe(1);
       expect(Object.keys(file.skills).length).toBe(0);
-    }).pipe(Effect.provide(makeTestLayer(dir)));
-  });
+    }).pipe(Effect.provide(BunServices.layer)),
+  );
 
-  it.live("add and get round-trip", () => {
-    const dir = makeTempDir();
-    return Effect.gen(function* () {
-      const lock = yield* SkillLock;
-      yield* lock.add("my-skill", "owner/repo", "skills/my-skill/SKILL.md");
-
-      const entry = yield* lock.get("my-skill");
+  it.scoped("add and get round-trip", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const dir = yield* fs.makeTempDirectoryScoped();
+      const entry = yield* Effect.gen(function* () {
+        const lock = yield* SkillLock;
+        yield* lock.add("my-skill", "owner/repo", "skills/my-skill/SKILL.md");
+        return yield* lock.get("my-skill");
+      }).pipe(Effect.provide(makeSkillsLayer(dir)));
       expect(Option.isSome(entry)).toBe(true);
       const value = Option.getOrThrow(entry);
       expect(value.source).toBe("owner/repo");
       expect(value.skillPath).toBe("skills/my-skill/SKILL.md");
-    }).pipe(Effect.provide(makeTestLayer(dir)));
-  });
+    }).pipe(Effect.provide(BunServices.layer)),
+  );
 
-  it.live("remove deletes entry", () => {
-    const dir = makeTempDir();
-    return Effect.gen(function* () {
-      const lock = yield* SkillLock;
-      yield* lock.add("to-remove", "owner/repo", "skills/to-remove/SKILL.md");
-      yield* lock.remove("to-remove");
-
-      const entry = yield* lock.get("to-remove");
+  it.scoped("remove deletes entry", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const dir = yield* fs.makeTempDirectoryScoped();
+      const entry = yield* Effect.gen(function* () {
+        const lock = yield* SkillLock;
+        yield* lock.add("to-remove", "owner/repo", "skills/to-remove/SKILL.md");
+        yield* lock.remove("to-remove");
+        return yield* lock.get("to-remove");
+      }).pipe(Effect.provide(makeSkillsLayer(dir)));
       expect(Option.isNone(entry)).toBe(true);
-    }).pipe(Effect.provide(makeTestLayer(dir)));
-  });
+    }).pipe(Effect.provide(BunServices.layer)),
+  );
 
-  it.live("update writes updatedAt", () => {
-    const dir = makeTempDir();
-    return Effect.gen(function* () {
-      const lock = yield* SkillLock;
-      yield* lock.add("test", "owner/repo", "skills/test/SKILL.md");
-      yield* lock.update("test");
-      const after = yield* lock.get("test");
-
+  it.scoped("update writes updatedAt", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const dir = yield* fs.makeTempDirectoryScoped();
+      const after = yield* Effect.gen(function* () {
+        const lock = yield* SkillLock;
+        yield* lock.add("test", "owner/repo", "skills/test/SKILL.md");
+        yield* lock.update("test");
+        return yield* lock.get("test");
+      }).pipe(Effect.provide(makeSkillsLayer(dir)));
       expect(Option.isSome(after)).toBe(true);
       const value = Option.getOrThrow(after);
       expect(value.source).toBe("owner/repo");
       expect(value.updatedAt).toBeTruthy();
-      expect(new Date(value.updatedAt).toISOString()).toBe(value.updatedAt);
-    }).pipe(Effect.provide(makeTestLayer(dir)));
-  });
+      // updatedAt is produced by production code via DateTime.formatIso; verify ISO 8601 shape.
+      expect(value.updatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+    }).pipe(Effect.provide(BunServices.layer)),
+  );
 
-  it.live("get returns null for nonexistent", () => {
-    const dir = makeTempDir();
-    return Effect.gen(function* () {
-      const lock = yield* SkillLock;
-      const entry = yield* lock.get("nope");
+  it.scoped("get returns null for nonexistent", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const dir = yield* fs.makeTempDirectoryScoped();
+      const entry = yield* Effect.gen(function* () {
+        const lock = yield* SkillLock;
+        return yield* lock.get("nope");
+      }).pipe(Effect.provide(makeSkillsLayer(dir)));
       expect(Option.isNone(entry)).toBe(true);
-    }).pipe(Effect.provide(makeTestLayer(dir)));
-  });
+    }).pipe(Effect.provide(BunServices.layer)),
+  );
 });

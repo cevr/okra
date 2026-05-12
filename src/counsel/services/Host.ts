@@ -12,22 +12,22 @@ export class HostService extends Context.Service<
 >()("@cvr/okra/counsel/services/Host/HostService") {
   static layer: Layer.Layer<HostService> = Layer.succeed(HostService, {
     getCwd: () => Effect.sync(() => process.cwd()),
+    // eslint-disable-next-line node/no-process-env -- exposes full env map to counsel scripts
     getEnv: () => Effect.succeed(process.env),
     readPipedStdin: () =>
-      Effect.tryPromise({
-        try: async () => {
-          if (process.stdin.isTTY) {
-            return undefined;
-          }
-
-          const text = await new Response(Bun.stdin.stream()).text();
-          return text.length > 0 ? text : undefined;
-        },
-        catch: (error) =>
-          new CounselError({
-            message: error instanceof Error ? error.message : String(error),
-            code: ErrorCode.READ_FAILED,
-          }),
+      Effect.gen(function* () {
+        if (process.stdin.isTTY) {
+          return undefined;
+        }
+        const text = yield* Effect.tryPromise({
+          try: () => new Response(Bun.stdin.stream()).text(),
+          catch: (error) =>
+            new CounselError({
+              message: error instanceof Error ? error.message : String(error),
+              code: ErrorCode.READ_FAILED,
+            }),
+        });
+        return text.length > 0 ? text : undefined;
       }),
     setExitCode: (code) =>
       Effect.sync(() => {

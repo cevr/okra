@@ -263,9 +263,7 @@ const discoverFromListing = Effect.fn("GitHub.discoverFromListing")(function* (
         // Queue subdirs for next depth level
         if (depth < 1) {
           const subdirs = children.filter(
-            (c) =>
-              c.type === "dir" &&
-              !SKILL_DIR_PREFIXES.includes(c.name as (typeof SKILL_DIR_PREFIXES)[number]),
+            (c) => c.type === "dir" && !(SKILL_DIR_PREFIXES as readonly string[]).includes(c.name),
           );
           for (const sub of subdirs) {
             const subChildren = yield* listContents(owner, repo, sub.path, ref).pipe(

@@ -1,12 +1,19 @@
-import { Effect } from "effect";
+import { Config, ConfigProvider, Effect, Option } from "effect";
 import { FileSystem } from "effect/FileSystem";
+
+const readHome = Config.option(Config.string("HOME"))
+  .parse(ConfigProvider.fromEnv())
+  .pipe(
+    Effect.map((opt) => Option.getOrElse(opt, () => "")),
+    Effect.catch(() => Effect.succeed("")),
+  );
 
 export const resolveExecutable = Effect.fn("resolveExecutable")(function* (name: string) {
   const path = Bun.which(name);
   if (path !== null) return path;
   // Fallback: check common locations when PATH is incomplete (e.g. daemon context)
   const fs = yield* FileSystem;
-  const home = process.env["HOME"] ?? "";
+  const home = yield* readHome;
   const candidates = [
     `${home}/.bun/bin/${name}`,
     `/usr/local/bin/${name}`,

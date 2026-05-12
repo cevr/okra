@@ -1,4 +1,4 @@
-import { Console, Effect } from "effect";
+import { Clock, Console, DateTime, Effect, Random } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
 import { ScheduleError } from "../errors.js";
 import { StoreService, type ConditionalStop, type StopCondition } from "../services/Store.js";
@@ -12,18 +12,17 @@ import { run } from "./run.js";
 import { logs } from "./logs.js";
 
 const parseUntilDate = Effect.fn("parseUntilDate")(function* (input: string) {
-  const date = new Date(input);
-  if (Number.isNaN(date.getTime())) {
+  const trimmed = input.trim();
+  const baseMs = Date.parse(input);
+  if (Number.isNaN(baseMs)) {
     return yield* new ScheduleError({
       message: `Invalid --until date: "${input}". Use ISO 8601 or YYYY-MM-DD.`,
       code: "INVALID_DATE",
     });
   }
-  // If date-only (no time component), set to end of day local time
-  if (/^\d{4}-\d{2}-\d{2}$/.test(input.trim())) {
-    date.setHours(23, 59, 59, 999);
-  }
-  return date.toISOString();
+  // If date-only (no time component), set to end of day (UTC).
+  const finalMs = /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? baseMs + 86_400_000 - 1 : baseMs;
+  return DateTime.formatIso(DateTime.makeUnsafe(finalMs));
 });
 
 const root = Command.make(
@@ -56,8 +55,9 @@ const root = Command.make(
       const scheduleStr = config.schedule.value;
       const provider = config.provider;
 
-      const schedule = yield* Schedule.parse(scheduleStr);
-      const id = yield* Effect.sync(() => crypto.randomUUID().slice(0, 8));
+      const nowMs = yield* Clock.currentTimeMillis;
+      const schedule = yield* Schedule.parse(scheduleStr, nowMs);
+      const id = (yield* Random.next).toString(16).slice(2, 10).padEnd(8, "0");
       const cwd = yield* Effect.sync(() => process.cwd());
       const context = yield* captureContext(cwd);
 

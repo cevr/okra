@@ -1,6 +1,7 @@
 import {
   Clock,
   Config,
+  DateTime,
   Effect,
   FileSystem,
   Layer,
@@ -77,7 +78,13 @@ export class MetadataService extends Context.Service<
           const tempPath = `${metadataPath}.tmp.${now}`;
           yield* fs.writeFileString(tempPath, jsonStr);
           yield* fs.rename(tempPath, metadataPath);
-        }).pipe(Effect.catch((e) => Effect.logWarning(`Failed to save metadata: ${e}`)));
+        }).pipe(
+          Effect.catch((e) =>
+            Effect.logWarning(
+              `Failed to save metadata: ${e instanceof Error ? e.message : String(e)}`,
+            ),
+          ),
+        );
 
       const save = (index: MetadataIndex): Effect.Effect<void> =>
         Effect.gen(function* () {
@@ -118,8 +125,7 @@ export class MetadataService extends Context.Service<
       const updateAccessTime = (spec: PackageSpec): Effect.Effect<void> =>
         Effect.gen(function* () {
           const index = yield* load();
-          const now = yield* Clock.currentTimeMillis;
-          const nowStr = new Date(Number(now)).toISOString();
+          const nowStr = (yield* DateTime.now).pipe(DateTime.formatIso);
           const updated = index.repos.map((r) => {
             if (specMatches(r.spec, spec)) {
               return { ...r, lastAccessedAt: nowStr };

@@ -8,14 +8,13 @@ export function parseGithubSpec(input: string): ParseResult {
   const refMatch = input.match(/^([^@#]+)[@#](.+)$/);
   if (refMatch !== null) {
     const [, name, ref] = refMatch;
-    if (name === undefined || !name.includes("/")) {
+    if (name === undefined || !name.includes("/") || ref === undefined) {
       return { error: "GitHub spec must be owner/repo format" };
     }
     return {
       registry: "github" as Registry,
       name: name.toLowerCase(),
-      // ref is guaranteed to exist when refMatch matches
-      version: Option.some(ref as string),
+      version: Option.some(ref),
     };
   }
 
@@ -37,10 +36,12 @@ export function parseNpmSpec(input: string): ParseResult {
       return { error: "Invalid scoped npm package spec" };
     }
     const [, name, version] = match;
+    if (name === undefined) {
+      return { error: "Invalid scoped npm package spec" };
+    }
     return {
       registry: "npm" as Registry,
-      // name is guaranteed to exist when match succeeds
-      name: name as string,
+      name,
       version: version !== undefined ? Option.some(version) : Option.none(),
     };
   }

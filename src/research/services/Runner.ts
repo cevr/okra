@@ -1,6 +1,12 @@
-import { Effect, Layer, Context } from "effect";
+import { Clock, Effect, Layer, Context } from "effect";
 import { ResearchError, ErrorCode } from "../errors.js";
 import { BenchmarkResult } from "../types.js";
+
+const benchmarkFailed = (e: unknown) =>
+  new ResearchError({
+    message: `Benchmark execution failed: ${e instanceof Error ? e.message : String(e)}`,
+    code: ErrorCode.BENCHMARK_FAILED,
+  });
 
 const RESULT_RE = /^RESULT\s+([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)$/;
 
@@ -35,37 +41,35 @@ export class RunnerService extends Context.Service<
 >()("@cvr/okra/research/services/Runner/RunnerService") {
   static layer: Layer.Layer<RunnerService> = Layer.succeed(RunnerService, {
     run: (cmd, cwd, timeoutMs) => {
-      const execute = Effect.tryPromise({
-        try: async () => {
-          const start = Date.now();
-          const proc = Bun.spawn(["sh", "-c", cmd], {
-            stdout: "pipe",
-            stderr: "pipe",
-            cwd,
-          });
+      const execute = Effect.gen(function* () {
+        const start = yield* Clock.currentTimeMillis;
+        const proc = Bun.spawn(["sh", "-c", cmd], {
+          stdout: "pipe",
+          stderr: "pipe",
+          cwd,
+        });
 
-          const [stdout, stderr, exitCode] = await Promise.all([
-            new Response(proc.stdout).text(),
-            new Response(proc.stderr).text(),
-            proc.exited,
-          ]);
+        const [stdout, stderr, exitCode] = yield* Effect.tryPromise({
+          try: () =>
+            Promise.all([
+              new Response(proc.stdout).text(),
+              new Response(proc.stderr).text(),
+              proc.exited,
+            ]),
+          catch: benchmarkFailed,
+        });
 
-          const durationMs = Date.now() - start;
-          const parsed = parseResult(stdout);
+        const end = yield* Clock.currentTimeMillis;
+        const durationMs = end - start;
+        const parsed = parseResult(stdout);
 
-          return new BenchmarkResult({
-            stdout,
-            stderr,
-            exitCode,
-            durationMs,
-            value: parsed.value,
-          });
-        },
-        catch: (e) =>
-          new ResearchError({
-            message: `Benchmark execution failed: ${e instanceof Error ? e.message : String(e)}`,
-            code: ErrorCode.BENCHMARK_FAILED,
-          }),
+        return new BenchmarkResult({
+          stdout,
+          stderr,
+          exitCode,
+          durationMs,
+          value: parsed.value,
+        });
       });
 
       if (timeoutMs !== undefined) {

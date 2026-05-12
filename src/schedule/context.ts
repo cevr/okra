@@ -7,17 +7,23 @@ const PrJson = Schema.Struct({
 });
 const decodePrJson = Schema.decodeUnknownEffect(Schema.fromJsonString(PrJson));
 
-const exec = (args: Array<string>, cwd: string): Effect.Effect<Option.Option<string>> =>
-  Effect.tryPromise({
-    try: async () => {
-      const proc = Bun.spawn(args, { cwd, stdout: "pipe", stderr: "ignore" });
-      const code = await proc.exited;
-      if (code !== 0) throw new Error(`exit ${code}`);
-      const out = (await new Response(proc.stdout).text()).trim();
-      return out.length > 0 ? Option.some(out) : Option.none();
-    },
-    catch: (): Option.Option<string> => Option.none(),
-  }).pipe(Effect.catch(() => Effect.succeed(Option.none<string>())));
+const exec = Effect.fn("captureContext.exec")(
+  function* (args: Array<string>, cwd: string) {
+    const proc = Bun.spawn(args, { cwd, stdout: "pipe", stderr: "ignore" });
+    const code = yield* Effect.tryPromise({
+      try: () => proc.exited,
+      catch: () => "exec-failed" as const,
+    });
+    if (code !== 0) return Option.none<string>();
+    const text = yield* Effect.tryPromise({
+      try: () => new Response(proc.stdout).text(),
+      catch: () => "read-failed" as const,
+    });
+    const out = text.trim();
+    return out.length > 0 ? Option.some(out) : Option.none<string>();
+  },
+  Effect.catch(() => Effect.succeed(Option.none<string>())),
+);
 
 const parseRepoName = (remoteUrl: string): string | undefined => {
   const match = remoteUrl.match(/[:/]([^/]+?)(?:\.git)?$/);

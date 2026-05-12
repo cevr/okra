@@ -86,7 +86,23 @@ export class SessionService extends Context.Service<
             .readFileString(paths.sessionJson)
             .pipe(Effect.mapError((e) => wrapIO(e, ErrorCode.READ_FAILED)));
           const existing = decodeSession(raw);
-          const updated = new Session({ ...existing, ...patch });
+          const updated = new Session({
+            name: existing.name,
+            unit: existing.unit,
+            direction: existing.direction,
+            provider: existing.provider,
+            objective: existing.objective,
+            benchmarkCmd: existing.benchmarkCmd,
+            maxIterations: existing.maxIterations,
+            maxFailures: existing.maxFailures,
+            deadline: existing.deadline,
+            projectRoot: existing.projectRoot,
+            segment: patch.segment ?? existing.segment,
+            currentIteration: patch.currentIteration ?? existing.currentIteration,
+            bestValue: patch.bestValue ?? existing.bestValue,
+            bestCommit: patch.bestCommit ?? existing.bestCommit,
+            createdAt: existing.createdAt,
+          });
           const json = encodeSession(updated);
           yield* fs
             .writeFileString(paths.sessionJson, json)

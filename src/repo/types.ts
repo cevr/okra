@@ -36,18 +36,19 @@ export const formatBytes = (bytes: number): string => {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 };
 
-// Utility to format relative time
-export const formatRelativeTime = (date: Date): string => {
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
+// Utility to format relative time. Caller supplies `nowMs` so we stay
+// off the global clock — pass `yield* Clock.currentTimeMillis` from inside Effect.
+export const formatRelativeTime = (isoOrMs: string | number, nowMs: number): string => {
+  const targetMs = typeof isoOrMs === "number" ? isoOrMs : Date.parse(isoOrMs);
+  const diffMs = nowMs - targetMs;
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
   if (diffDays === 0) return "today";
   if (diffDays === 1) return "yesterday";
-  if (diffDays < 7) return `${diffDays} days ago`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
-  return `${Math.floor(diffDays / 365)} years ago`;
+  if (diffDays < 7) return `${String(diffDays)} days ago`;
+  if (diffDays < 30) return `${String(Math.floor(diffDays / 7))} weeks ago`;
+  if (diffDays < 365) return `${String(Math.floor(diffDays / 30))} months ago`;
+  return `${String(Math.floor(diffDays / 365))} years ago`;
 };
 
 // Spec display helper

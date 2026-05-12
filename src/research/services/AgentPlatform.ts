@@ -1,4 +1,4 @@
-import { Effect, Layer, Option, Context, Stream } from "effect";
+import { Clock, Effect, Layer, Option, Context, Stream } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import type { PlatformError } from "effect/PlatformError";
 import { ResearchError, ErrorCode } from "../errors.js";
@@ -91,7 +91,10 @@ const spawnAgent = Effect.fn("AgentPlatform.spawnAgent")(function* (
 ) {
   const args = buildArgs(provider, bin, prompt, cwd);
 
-  // Strip env vars that prevent nested agent sessions
+  // Strip env vars that prevent nested agent sessions.
+  // Full process.env spread is required so the child inherits the user's environment;
+  // Config only exposes individually-declared keys.
+  // eslint-disable-next-line node/no-process-env
   const env = { ...process.env };
   delete env["CLAUDECODE"];
   delete env["CLAUDE_CODE_ENTRYPOINT"];
@@ -136,7 +139,7 @@ export class AgentPlatformService extends Context.Service<
           cwd: string,
           daemonLog?: string,
         ) {
-          const start = Date.now();
+          const start = yield* Clock.currentTimeMillis;
           const proc = yield* spawnAgent(provider, binFor(provider), prompt, cwd);
 
           const [output, stderr, exitCode] = yield* Effect.all(
@@ -154,7 +157,8 @@ export class AgentPlatformService extends Context.Service<
             { concurrency: "unbounded" },
           );
 
-          const durationMs = Date.now() - start;
+          const end = yield* Clock.currentTimeMillis;
+          const durationMs = end - start;
           // Codex --json emits JSONL events; extract the final agent message text
           const agentOutput =
             provider === "codex" ? Option.getOrElse(extractCodexMessage(output), () => "") : output;

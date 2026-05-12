@@ -1,4 +1,4 @@
-import { Console, Effect, Option } from "effect";
+import { Console, DateTime, Effect, Option } from "effect";
 import { AgentPlatformService } from "../../services/AgentPlatform.js";
 import type { Provider } from "../../../shared/provider.js";
 import { ConfigService } from "../../services/Config.js";
@@ -33,9 +33,10 @@ export const runMeditate = Effect.fn("runMeditate")(function* (opts: RunMeditate
     yield* Console.error(`Meditating with ${executorId}...`);
     yield* executor.invoke(buildMeditatePrompt(brainDir), "deep", brainDir);
 
+    const now = (yield* DateTime.now).pipe(DateTime.formatIso);
     yield* modifyState(brainDir, (state) => ({
       ...state,
-      meditate: { lastRun: new Date().toISOString() },
+      meditate: { lastRun: now },
     }));
 
     yield* Console.error("Meditate complete");

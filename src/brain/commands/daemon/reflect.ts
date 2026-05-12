@@ -1,4 +1,4 @@
-import { Console, Effect, Option, Schema } from "effect";
+import { Clock, Console, DateTime, Effect, Option, Schema } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
@@ -24,6 +24,9 @@ const REFLECT_LOOKBACK_MS = 24 * 60 * 60 * 1000;
 
 const decodeUnknownJson = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown));
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 interface SessionFile {
   readonly provider: Provider;
   readonly name: string;
@@ -45,8 +48,8 @@ interface RunReflectOptions {
   readonly sourceProviders?: ReadonlyArray<Provider>;
 }
 
-const isWithinReflectLookback = (mtime: Date): boolean =>
-  Date.now() - mtime.getTime() <= REFLECT_LOOKBACK_MS;
+const isWithinReflectLookback = (mtime: Date, nowMs: number): boolean =>
+  nowMs - mtime.getTime() <= REFLECT_LOOKBACK_MS;
 
 const countLines = Effect.fn("countLines")(function* (filePath: string) {
   const fs = yield* FileSystem;
@@ -74,14 +77,16 @@ const readCodexSessionMeta = Effect.fn("readCodexSessionMeta")(function* (filePa
   for (const line of lines) {
     if (line.trim().length === 0) continue;
     const parsed = yield* Effect.try({
-      try: () => Option.some(decodeUnknownJson(line) as Record<string, unknown>),
+      try: () => {
+        const decoded = decodeUnknownJson(line);
+        return isRecord(decoded) ? Option.some(decoded) : Option.none<Record<string, unknown>>();
+      },
       catch: () => Option.none<Record<string, unknown>>(),
     });
     if (Option.isNone(parsed) || parsed.value["type"] !== "session_meta") continue;
     const payload = parsed.value["payload"];
-    if (typeof payload !== "object" || payload === null) continue;
-    const payloadRecord = payload as Record<string, unknown>;
-    const cwd = payloadRecord["cwd"];
+    if (!isRecord(payload)) continue;
+    const cwd = payload["cwd"];
     if (typeof cwd !== "string" || cwd.length === 0) continue;
     return Option.some({
       cwd,
@@ -134,8 +139,10 @@ const scanClaudeSessions = Effect.fn("scanClaudeSessions")(function* (state: Dae
       const fileStat = yield* statOption(fs.stat(filePath));
       if (Option.isNone(fileStat) || fileStat.value.type !== "File") continue;
 
-      const mtime = Option.getOrElse(fileStat.value.mtime, () => new Date(0));
-      if (!isSettled(mtime) || !isWithinReflectLookback(mtime)) continue;
+      if (Option.isNone(fileStat.value.mtime)) continue;
+      const mtime = fileStat.value.mtime.value;
+      const nowMs = yield* Clock.currentTimeMillis;
+      if (!isSettled(mtime, nowMs) || !isWithinReflectLookback(mtime, nowMs)) continue;
 
       const sessionKey = `${dirName}/${file}`;
       const mtimeIso = mtime.toISOString();
@@ -208,8 +215,10 @@ const scanCodexSessions = Effect.fn("scanCodexSessions")(function* (state: Daemo
     const stat = yield* statOption(fs.stat(filePath));
     if (Option.isNone(stat) || stat.value.type !== "File") continue;
 
-    const mtime = Option.getOrElse(stat.value.mtime, () => new Date(0));
-    if (!isSettled(mtime) || !isWithinReflectLookback(mtime)) continue;
+    if (Option.isNone(stat.value.mtime)) continue;
+    const mtime = stat.value.mtime.value;
+    const nowMs = yield* Clock.currentTimeMillis;
+    if (!isSettled(mtime, nowMs) || !isWithinReflectLookback(mtime, nowMs)) continue;
 
     const mtimeIso = mtime.toISOString();
     const relativeKey = path.relative(sessionsDir, filePath);
@@ -350,7 +359,7 @@ export const runReflect = Effect.fn("runReflect")(function* (opts: RunReflectOpt
         yield* executor.invoke(prompt, "standard", brainDir);
         yield* Console.error(`  Reflected on ${group.sessions.length} session(s)`);
 
-        const checkpointedAt = new Date().toISOString();
+        const checkpointedAt = (yield* DateTime.now).pipe(DateTime.formatIso);
         yield* modifyState(brainDir, (latestState) => {
           const processedSessionsByProvider = {
             ...(latestState.reflect?.processedSessionsByProvider ?? {}),
@@ -377,7 +386,11 @@ export const runReflect = Effect.fn("runReflect")(function* (opts: RunReflectOpt
           };
         });
       }).pipe(
-        Effect.catch((e) => Console.error(`  Failed to reflect on ${group.projectName}: ${e}`)),
+        Effect.catch((e) =>
+          Console.error(
+            `  Failed to reflect on ${group.projectName}: ${e instanceof Error ? e.message : String(e)}`,
+          ),
+        ),
       );
     }
 

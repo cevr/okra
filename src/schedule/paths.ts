@@ -4,7 +4,7 @@ import { ScheduleError } from "./errors.js";
 
 export const PathEnv = Config.withDefault(
   Config.string("PATH"),
-  process.env["PATH"] ?? "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+  "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
 );
 
 const Home = Config.string("HOME")

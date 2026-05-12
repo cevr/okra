@@ -1,4 +1,4 @@
-import { Console, Effect } from "effect";
+import { Config, ConfigProvider, Console, Effect, Option } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
@@ -6,6 +6,15 @@ import { BrainError } from "../../errors/index.js";
 import { requireDarwin, requireHome } from "./state.js";
 import { resolveExecutable } from "../../../shared/executable.js";
 import { escapeXml } from "../../../shared/xml.js";
+
+const readPathEnv = Config.option(Config.string("PATH"))
+  .parse(ConfigProvider.fromEnv())
+  .pipe(
+    Effect.map((opt) => Option.getOrElse(opt, () => "/usr/local/bin:/usr/bin:/bin")),
+    Effect.mapError(
+      () => new BrainError({ message: "Cannot read PATH config", code: "READ_FAILED" }),
+    ),
+  );
 
 const LABEL_PREFIX = "com.cvr.okra.brain-daemon";
 const UNIFIED_LABEL = LABEL_PREFIX;
@@ -34,16 +43,17 @@ export const generatePlist = (
   job: DaemonJob,
   home: string,
   brainBin: string,
+  pathEnv: string,
   path: Path,
 ): string => {
-  const pathEnv = process.env["PATH"] ?? "/usr/local/bin:/usr/bin:/bin";
-
-  const scheduleKey =
-    job === "reflect"
-      ? `  <key>StartInterval</key>\n  <integer>3600</integer>`
-      : job === "ruminate"
-        ? `  <key>StartCalendarInterval</key>\n  <dict>\n    <key>Hour</key>\n    <integer>3</integer>\n  </dict>`
-        : `  <key>StartCalendarInterval</key>\n  <dict>\n    <key>Weekday</key>\n    <integer>0</integer>\n    <key>Hour</key>\n    <integer>3</integer>\n  </dict>`;
+  let scheduleKey: string;
+  if (job === "reflect") {
+    scheduleKey = `  <key>StartInterval</key>\n  <integer>3600</integer>`;
+  } else if (job === "ruminate") {
+    scheduleKey = `  <key>StartCalendarInterval</key>\n  <dict>\n    <key>Hour</key>\n    <integer>3</integer>\n  </dict>`;
+  } else {
+    scheduleKey = `  <key>StartCalendarInterval</key>\n  <dict>\n    <key>Weekday</key>\n    <integer>0</integer>\n    <key>Hour</key>\n    <integer>3</integer>\n  </dict>`;
+  }
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -110,19 +120,18 @@ export const installPlist = Effect.fn("installPlist")(function* (job: DaemonJob)
   );
 
   const plist = plistPath(home, job, path);
-  const content = generatePlist(job, home, brainBin, path);
+  const pathEnv = yield* readPathEnv;
+  const content = generatePlist(job, home, brainBin, pathEnv, path);
 
   // Unload if already loaded
   const loaded = yield* isLoaded(job);
   if (loaded) {
+    const unloadProc = Bun.spawn(["launchctl", "unload", plist], {
+      stdout: "ignore",
+      stderr: "ignore",
+    });
     yield* Effect.tryPromise({
-      try: async () => {
-        const proc = Bun.spawn(["launchctl", "unload", plist], {
-          stdout: "ignore",
-          stderr: "ignore",
-        });
-        await proc.exited;
-      },
+      try: () => unloadProc.exited,
       catch: () =>
         new BrainError({ message: `Cannot unload ${label(job)}`, code: "LAUNCHD_FAILED" }),
     });
@@ -138,21 +147,25 @@ export const installPlist = Effect.fn("installPlist")(function* (job: DaemonJob)
     ),
   );
 
-  yield* Effect.tryPromise({
-    try: async () => {
-      const proc = Bun.spawn(["launchctl", "load", plist], { stdout: "ignore", stderr: "pipe" });
-      const code = await proc.exited;
-      if (code !== 0) {
-        const stderr = await new Response(proc.stderr).text();
-        throw new Error(stderr.trim() || `exit code ${code}`);
-      }
-    },
+  const loadProc = Bun.spawn(["launchctl", "load", plist], { stdout: "ignore", stderr: "pipe" });
+  const loadCode = yield* Effect.tryPromise({
+    try: () => loadProc.exited,
     catch: (e) =>
       new BrainError({
         message: `Cannot load ${label(job)}: ${e instanceof Error ? e.message : String(e)}`,
         code: "LAUNCHD_FAILED",
       }),
   });
+  if (loadCode !== 0) {
+    const stderrText = yield* Effect.tryPromise({
+      try: () => new Response(loadProc.stderr).text(),
+      catch: () => new BrainError({ message: `Cannot read load stderr`, code: "LAUNCHD_FAILED" }),
+    });
+    return yield* new BrainError({
+      message: `Cannot load ${label(job)}: ${stderrText.trim() || `exit code ${String(loadCode)}`}`,
+      code: "LAUNCHD_FAILED",
+    });
+  }
 });
 
 /** Uninstall a launchd plist for a daemon job */
@@ -165,14 +178,12 @@ export const uninstallPlist = Effect.fn("uninstallPlist")(function* (job: Daemon
 
   const loaded = yield* isLoaded(job);
   if (loaded) {
+    const unloadProc = Bun.spawn(["launchctl", "unload", plist], {
+      stdout: "ignore",
+      stderr: "ignore",
+    });
     yield* Effect.tryPromise({
-      try: async () => {
-        const proc = Bun.spawn(["launchctl", "unload", plist], {
-          stdout: "ignore",
-          stderr: "ignore",
-        });
-        await proc.exited;
-      },
+      try: () => unloadProc.exited,
       catch: () =>
         new BrainError({ message: `Cannot unload ${label(job)}`, code: "LAUNCHD_FAILED" }),
     });
@@ -183,17 +194,15 @@ export const uninstallPlist = Effect.fn("uninstallPlist")(function* (job: Daemon
 
 /** Check if a launchd job is loaded */
 export const isLoaded = Effect.fn("isLoaded")(function* (job: DaemonJob) {
-  return yield* Effect.tryPromise({
-    try: async () => {
-      const proc = Bun.spawn(["launchctl", "list", label(job)], {
-        stdout: "ignore",
-        stderr: "ignore",
-      });
-      const code = await proc.exited;
-      return code === 0;
-    },
+  const proc = Bun.spawn(["launchctl", "list", label(job)], {
+    stdout: "ignore",
+    stderr: "ignore",
+  });
+  const code = yield* Effect.tryPromise({
+    try: () => proc.exited,
     catch: () => new BrainError({ message: "Cannot check launchctl", code: "LAUNCHD_FAILED" }),
   });
+  return code === 0;
 });
 
 const MAX_LOG_SIZE = 10 * 1024 * 1024; // 10MB
@@ -234,10 +243,13 @@ export const rotateLogs = Effect.fn("rotateLogs")(function* () {
 // --- Unified scheduler ---
 
 /** Generate a launchd plist for the unified daemon scheduler (9, 13, 17, 21) */
-export const generateUnifiedPlist = (home: string, brainBin: string, path: Path): string => {
-  const pathEnv = process.env["PATH"] ?? "/usr/local/bin:/usr/bin:/bin";
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
+export const generateUnifiedPlist = (
+  home: string,
+  brainBin: string,
+  pathEnv: string,
+  path: Path,
+): string =>
+  `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -273,7 +285,6 @@ export const generateUnifiedPlist = (home: string, brainBin: string, path: Path)
 </dict>
 </plist>
 `;
-};
 
 /** Install the unified scheduler plist */
 export const installUnifiedPlist = Effect.fn("installUnifiedPlist")(function* () {
@@ -304,18 +315,17 @@ export const installUnifiedPlist = Effect.fn("installUnifiedPlist")(function* ()
   );
 
   const plist = unifiedPlistPath(home, path);
-  const content = generateUnifiedPlist(home, brainBin, path);
+  const pathEnv = yield* readPathEnv;
+  const content = generateUnifiedPlist(home, brainBin, pathEnv, path);
 
   const loaded = yield* isUnifiedLoaded();
   if (loaded) {
+    const unloadProc = Bun.spawn(["launchctl", "unload", plist], {
+      stdout: "ignore",
+      stderr: "ignore",
+    });
     yield* Effect.tryPromise({
-      try: async () => {
-        const proc = Bun.spawn(["launchctl", "unload", plist], {
-          stdout: "ignore",
-          stderr: "ignore",
-        });
-        await proc.exited;
-      },
+      try: () => unloadProc.exited,
       catch: () =>
         new BrainError({ message: `Cannot unload ${UNIFIED_LABEL}`, code: "LAUNCHD_FAILED" }),
     });
@@ -330,21 +340,25 @@ export const installUnifiedPlist = Effect.fn("installUnifiedPlist")(function* ()
       ),
     );
 
-  yield* Effect.tryPromise({
-    try: async () => {
-      const proc = Bun.spawn(["launchctl", "load", plist], { stdout: "ignore", stderr: "pipe" });
-      const code = await proc.exited;
-      if (code !== 0) {
-        const stderr = await new Response(proc.stderr).text();
-        throw new Error(stderr.trim() || `exit code ${code}`);
-      }
-    },
+  const loadProc = Bun.spawn(["launchctl", "load", plist], { stdout: "ignore", stderr: "pipe" });
+  const loadCode = yield* Effect.tryPromise({
+    try: () => loadProc.exited,
     catch: (e) =>
       new BrainError({
         message: `Cannot load ${UNIFIED_LABEL}: ${e instanceof Error ? e.message : String(e)}`,
         code: "LAUNCHD_FAILED",
       }),
   });
+  if (loadCode !== 0) {
+    const stderrText = yield* Effect.tryPromise({
+      try: () => new Response(loadProc.stderr).text(),
+      catch: () => new BrainError({ message: `Cannot read load stderr`, code: "LAUNCHD_FAILED" }),
+    });
+    return yield* new BrainError({
+      message: `Cannot load ${UNIFIED_LABEL}: ${stderrText.trim() || `exit code ${String(loadCode)}`}`,
+      code: "LAUNCHD_FAILED",
+    });
+  }
 });
 
 /** Uninstall the unified scheduler plist */
@@ -357,14 +371,12 @@ export const uninstallUnifiedPlist = Effect.fn("uninstallUnifiedPlist")(function
 
   const loaded = yield* isUnifiedLoaded();
   if (loaded) {
+    const unloadProc = Bun.spawn(["launchctl", "unload", plist], {
+      stdout: "ignore",
+      stderr: "ignore",
+    });
     yield* Effect.tryPromise({
-      try: async () => {
-        const proc = Bun.spawn(["launchctl", "unload", plist], {
-          stdout: "ignore",
-          stderr: "ignore",
-        });
-        await proc.exited;
-      },
+      try: () => unloadProc.exited,
       catch: () =>
         new BrainError({ message: `Cannot unload ${UNIFIED_LABEL}`, code: "LAUNCHD_FAILED" }),
     });
@@ -375,17 +387,15 @@ export const uninstallUnifiedPlist = Effect.fn("uninstallUnifiedPlist")(function
 
 /** Check if the unified scheduler is loaded */
 export const isUnifiedLoaded = Effect.fn("isUnifiedLoaded")(function* () {
-  return yield* Effect.tryPromise({
-    try: async () => {
-      const proc = Bun.spawn(["launchctl", "list", UNIFIED_LABEL], {
-        stdout: "ignore",
-        stderr: "ignore",
-      });
-      const code = await proc.exited;
-      return code === 0;
-    },
+  const proc = Bun.spawn(["launchctl", "list", UNIFIED_LABEL], {
+    stdout: "ignore",
+    stderr: "ignore",
+  });
+  const code = yield* Effect.tryPromise({
+    try: () => proc.exited,
     catch: () => new BrainError({ message: "Cannot check launchctl", code: "LAUNCHD_FAILED" }),
   });
+  return code === 0;
 });
 
 /** Remove legacy per-job plists (migration from 3-plist to unified) */

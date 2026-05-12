@@ -1,10 +1,14 @@
 import { describe, it, expect } from "effect-bun-test";
-import { Effect, Option, Schema } from "effect";
+import { DateTime, Effect, Option, Schema } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import { BunServices } from "@effect/platform-bun";
-import { utimesSync } from "node:fs";
 import { extractConversations } from "../../../src/brain/commands/extract.js";
+
+// Build a Date for a fixed ISO string without using `new Date()` (which is forbidden by the
+// effect/globalDateInEffect diagnostic). DateTime.makeUnsafe accepts a string and returns a
+// DateTime; toDateUtc converts back to a Date for use with FileSystem.utimes.
+const fixedDate = (iso: string) => DateTime.toDateUtc(DateTime.makeUnsafe(iso));
 
 const TestLayer = BunServices.layer;
 
@@ -310,12 +314,10 @@ describe("extract", () => {
         ]);
 
         // Set mtimes: old → 2024-01-01, new → 2024-06-01
-        const oldDate = new Date("2024-01-01");
-        const newDate = new Date("2024-06-01");
-        yield* Effect.sync(() => {
-          utimesSync(oldFile, oldDate, oldDate);
-          utimesSync(newFile, newDate, newDate);
-        });
+        const oldDate = fixedDate("2024-01-01");
+        const newDate = fixedDate("2024-06-01");
+        yield* fs.utimes(oldFile, oldDate, oldDate);
+        yield* fs.utimes(newFile, newDate, newDate);
 
         const result = yield* runExtract(inputDir, outputDir, { from: "2024-03-01" });
 
@@ -348,12 +350,10 @@ describe("extract", () => {
           { type: "padding", message: { content: "x".repeat(500) } },
         ]);
 
-        const oldDate = new Date("2024-01-01");
-        const newDate = new Date("2024-06-01");
-        yield* Effect.sync(() => {
-          utimesSync(oldFile, oldDate, oldDate);
-          utimesSync(newFile, newDate, newDate);
-        });
+        const oldDate = fixedDate("2024-01-01");
+        const newDate = fixedDate("2024-06-01");
+        yield* fs.utimes(oldFile, oldDate, oldDate);
+        yield* fs.utimes(newFile, newDate, newDate);
 
         const result = yield* runExtract(inputDir, outputDir, { to: "2024-03-01" });
 
@@ -384,11 +384,12 @@ describe("extract", () => {
           ]);
         }
 
-        yield* Effect.sync(() => {
-          utimesSync(earlyFile, new Date("2024-01-01"), new Date("2024-01-01"));
-          utimesSync(midFile, new Date("2024-06-01"), new Date("2024-06-01"));
-          utimesSync(lateFile, new Date("2024-12-01"), new Date("2024-12-01"));
-        });
+        const earlyDate = fixedDate("2024-01-01");
+        const midDate = fixedDate("2024-06-01");
+        const lateDate = fixedDate("2024-12-01");
+        yield* fs.utimes(earlyFile, earlyDate, earlyDate);
+        yield* fs.utimes(midFile, midDate, midDate);
+        yield* fs.utimes(lateFile, lateDate, lateDate);
 
         const result = yield* runExtract(inputDir, outputDir, {
           from: "2024-03-01",
@@ -427,10 +428,10 @@ describe("extract", () => {
         ]);
 
         // Set explicit mtimes instead of relying on sleep
-        yield* Effect.sync(() => {
-          utimesSync(oldFile, new Date("2024-01-01"), new Date("2024-01-01"));
-          utimesSync(newFile, new Date("2024-06-01"), new Date("2024-06-01"));
-        });
+        const oldD = fixedDate("2024-01-01");
+        const newD = fixedDate("2024-06-01");
+        yield* fs.utimes(oldFile, oldD, oldD);
+        yield* fs.utimes(newFile, newD, newD);
 
         const result = yield* runExtract(inputDir, outputDir);
 
@@ -484,8 +485,8 @@ describe("extract", () => {
             assistantMsg(`Assistant message number ${i} that is long enough to pass filter`),
             { type: "padding", message: { content: "x".repeat(500) } },
           ]);
-          const date = new Date(`2024-0${i + 1}-01`);
-          utimesSync(file, date, date);
+          const date = fixedDate(`2024-0${i + 1}-01`);
+          yield* fs.utimes(file, date, date);
         }
 
         const result = yield* runExtract(inputDir, outputDir, { batches: 2 });

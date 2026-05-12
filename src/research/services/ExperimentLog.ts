@@ -23,71 +23,111 @@ const isBetterBest = (
   return shouldKeep(direction, candidate.value, current.value);
 };
 
+interface MutableState {
+  segment: number;
+  iteration: number;
+  direction: Direction | undefined;
+  baseline: ResultEvent | undefined;
+  best: ResultEvent | undefined;
+  results: Array<ResultEvent>;
+  steers: Array<SteerEvent>;
+  lastPendingResult: ResultEvent | undefined;
+  hasDecisionForLastPending: boolean;
+  lastPendingCommit: string | undefined;
+}
+
+const applyResultEvent = (s: MutableState, event: ResultEvent): void => {
+  s.iteration = Math.max(s.iteration, event.iteration);
+  s.results.push(event);
+  if (event.kind === "baseline" && event.status !== "failed") {
+    s.baseline = event;
+    if (s.best === undefined) s.best = event;
+  }
+  if (
+    event.status === "kept" &&
+    event.value !== undefined &&
+    isBetterBest(event, s.best, s.direction)
+  ) {
+    s.best = event;
+  }
+  if (event.status === "pending") {
+    s.lastPendingResult = event;
+    s.hasDecisionForLastPending = false;
+  }
+};
+
+const applyDecisionEvent = (
+  s: MutableState,
+  event: Extract<ExperimentEvent, { readonly _tag: "decision" }>,
+): void => {
+  s.iteration = Math.max(s.iteration, event.iteration);
+  if (s.lastPendingResult === undefined || s.lastPendingResult.iteration !== event.iteration) {
+    return;
+  }
+  s.hasDecisionForLastPending = true;
+  const idx = s.results.findIndex((r) => r.iteration === event.iteration && r.status === "pending");
+  const r = idx !== -1 ? s.results[idx] : undefined;
+  if (r === undefined) return;
+  const updated = new ResultEvent({
+    timestamp: r.timestamp,
+    segment: r.segment,
+    iteration: r.iteration,
+    kind: r.kind,
+    status: event.status,
+    value: event.value ?? r.value,
+    durationMs: r.durationMs,
+    summary: r.summary,
+    provider: r.provider,
+    commit: r.commit,
+    diff: r.diff,
+    failure: r.failure,
+  });
+  s.results[idx] = updated;
+  if (
+    event.status === "kept" &&
+    updated.value !== undefined &&
+    isBetterBest(updated, s.best, s.direction)
+  ) {
+    s.best = updated;
+  }
+};
+
 const reconstructFromEvents = (events: ReadonlyArray<ExperimentEvent>): ExperimentState => {
-  let segment = 0;
-  let iteration = 0;
-  let direction: Direction | undefined;
-  let baseline: ResultEvent | undefined;
-  let best: ResultEvent | undefined;
-  const results: Array<ResultEvent> = [];
-  const steers: Array<SteerEvent> = [];
-  let lastPendingResult: ResultEvent | undefined;
-  let hasDecisionForLastPending = true;
-  let lastPendingCommit: string | undefined;
+  const s: MutableState = {
+    segment: 0,
+    iteration: 0,
+    direction: undefined,
+    baseline: undefined,
+    best: undefined,
+    results: [],
+    steers: [],
+    lastPendingResult: undefined,
+    hasDecisionForLastPending: true,
+    lastPendingCommit: undefined,
+  };
 
   for (const event of events) {
     switch (event._tag) {
       case "config":
-        segment = event.segment;
-        direction = event.direction;
+        s.segment = event.segment;
+        s.direction = event.direction;
         break;
       case "result":
-        iteration = Math.max(iteration, event.iteration);
-        results.push(event);
-        if (event.kind === "baseline" && event.status !== "failed") {
-          baseline = event;
-          if (best === undefined) best = event;
-        }
-        if (event.status === "kept" && event.value !== undefined) {
-          if (isBetterBest(event, best, direction)) {
-            best = event;
-          }
-        }
-        if (event.status === "pending") {
-          lastPendingResult = event;
-          hasDecisionForLastPending = false;
-        }
+        applyResultEvent(s, event);
         break;
       case "decision":
-        iteration = Math.max(iteration, event.iteration);
-        if (lastPendingResult !== undefined && lastPendingResult.iteration === event.iteration) {
-          hasDecisionForLastPending = true;
-          const idx = results.findIndex(
-            (r) => r.iteration === event.iteration && r.status === "pending",
-          );
-          const r = idx !== -1 ? results[idx] : undefined;
-          if (r !== undefined) {
-            const updated = new ResultEvent({
-              ...r,
-              status: event.status,
-              ...(event.value !== undefined ? { value: event.value } : {}),
-            });
-            results[idx] = updated;
-            if (event.status === "kept" && updated.value !== undefined) {
-              if (isBetterBest(updated, best, direction)) {
-                best = updated;
-              }
-            }
-          }
-        }
+        applyDecisionEvent(s, event);
         break;
       case "committed":
-        if (lastPendingResult !== undefined && lastPendingResult.iteration === event.iteration) {
-          lastPendingCommit = event.commit;
+        if (
+          s.lastPendingResult !== undefined &&
+          s.lastPendingResult.iteration === event.iteration
+        ) {
+          s.lastPendingCommit = event.commit;
         }
         break;
       case "steer":
-        steers.push(event);
+        s.steers.push(event);
         break;
       case "lifecycle":
         break;
@@ -95,15 +135,15 @@ const reconstructFromEvents = (events: ReadonlyArray<ExperimentEvent>): Experime
   }
 
   return {
-    segment,
-    iteration,
-    baseline,
-    best,
-    results,
-    steers,
-    lastPendingResult,
-    hasDecisionForLastPending,
-    lastPendingCommit,
+    segment: s.segment,
+    iteration: s.iteration,
+    baseline: s.baseline,
+    best: s.best,
+    results: s.results,
+    steers: s.steers,
+    lastPendingResult: s.lastPendingResult,
+    hasDecisionForLastPending: s.hasDecisionForLastPending,
+    lastPendingCommit: s.lastPendingCommit,
   };
 };
 
@@ -237,12 +277,12 @@ export class ExperimentLogService extends Context.Service<
               catch: () => "decode-failed" as const,
             }).pipe(
               Effect.catch(() =>
-                Effect.sync(() => {
-                  console.warn(
+                Effect.as(
+                  Effect.logWarning(
                     `[okra research] skipping malformed JSONL line: ${line.slice(0, 80)}`,
-                  );
-                  return undefined;
-                }),
+                  ),
+                  undefined,
+                ),
               ),
             );
             if (decoded !== undefined) events.push(decoded);

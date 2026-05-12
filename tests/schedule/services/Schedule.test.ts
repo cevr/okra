@@ -1,67 +1,84 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, it, test } from "effect-bun-test";
 import { Effect, Exit } from "effect";
 import * as Schedule from "../../../src/schedule/services/Schedule.js";
 
-const fixedNow = new Date("2026-03-15T12:00:00.000Z");
+// 2026-03-15T12:00:00.000Z in milliseconds since epoch
+const FIXED_NOW_MS = 1773576000000;
 
 describe("Schedule.parse", () => {
-  test("oneshot: in N minutes", async () => {
-    const schedule = await Effect.runPromise(Schedule.parse("in 30 minutes", fixedNow));
-    expect(schedule._tag).toBe("Oneshot");
-  });
+  it.effect("oneshot: in N minutes", () =>
+    Effect.gen(function* () {
+      const schedule = yield* Schedule.parse("in 30 minutes", FIXED_NOW_MS);
+      expect(schedule._tag).toBe("Oneshot");
+    }),
+  );
 
-  test("oneshot: in N hours", async () => {
-    const schedule = await Effect.runPromise(Schedule.parse("in 2 hours", fixedNow));
-    expect(schedule._tag).toBe("Oneshot");
-  });
+  it.effect("oneshot: in N hours", () =>
+    Effect.gen(function* () {
+      const schedule = yield* Schedule.parse("in 2 hours", FIXED_NOW_MS);
+      expect(schedule._tag).toBe("Oneshot");
+    }),
+  );
 
-  test("oneshot: tomorrow at", async () => {
-    const schedule = await Effect.runPromise(Schedule.parse("tomorrow at 9am", fixedNow));
-    expect(schedule._tag).toBe("Oneshot");
-  });
+  it.effect("oneshot: tomorrow at", () =>
+    Effect.gen(function* () {
+      const schedule = yield* Schedule.parse("tomorrow at 9am", FIXED_NOW_MS);
+      expect(schedule._tag).toBe("Oneshot");
+    }),
+  );
 
-  test("cron: every day at", async () => {
-    const schedule = await Effect.runPromise(Schedule.parse("every day at 9am", fixedNow));
-    expect(schedule._tag).toBe("Cron");
-    if (schedule._tag === "Cron") {
-      expect(schedule.hour).toBe(9);
-      expect(schedule.minute).toBe(0);
-      expect(schedule.dayOfWeek).toBe("*");
-    }
-  });
+  it.effect("cron: every day at", () =>
+    Effect.gen(function* () {
+      const schedule = yield* Schedule.parse("every day at 9am", FIXED_NOW_MS);
+      expect(schedule._tag).toBe("Cron");
+      if (schedule._tag === "Cron") {
+        expect(schedule.hour).toBe(9);
+        expect(schedule.minute).toBe(0);
+        expect(schedule.dayOfWeek).toBe("*");
+      }
+    }),
+  );
 
-  test("cron: every weekday at", async () => {
-    const schedule = await Effect.runPromise(Schedule.parse("every weekday at 9am", fixedNow));
-    expect(schedule._tag).toBe("Cron");
-    if (schedule._tag === "Cron") {
-      expect(schedule.hour).toBe(9);
-      expect(schedule.dayOfWeek).toBe("1-5");
-    }
-  });
+  it.effect("cron: every weekday at", () =>
+    Effect.gen(function* () {
+      const schedule = yield* Schedule.parse("every weekday at 9am", FIXED_NOW_MS);
+      expect(schedule._tag).toBe("Cron");
+      if (schedule._tag === "Cron") {
+        expect(schedule.hour).toBe(9);
+        expect(schedule.dayOfWeek).toBe("1-5");
+      }
+    }),
+  );
 
-  test("cron: every monday at", async () => {
-    const schedule = await Effect.runPromise(Schedule.parse("every monday at 10:30am", fixedNow));
-    expect(schedule._tag).toBe("Cron");
-    if (schedule._tag === "Cron") {
-      expect(schedule.hour).toBe(10);
-      expect(schedule.minute).toBe(30);
-      expect(schedule.dayOfWeek).toBe(1);
-    }
-  });
+  it.effect("cron: every monday at", () =>
+    Effect.gen(function* () {
+      const schedule = yield* Schedule.parse("every monday at 10:30am", FIXED_NOW_MS);
+      expect(schedule._tag).toBe("Cron");
+      if (schedule._tag === "Cron") {
+        expect(schedule.hour).toBe(10);
+        expect(schedule.minute).toBe(30);
+        expect(schedule.dayOfWeek).toBe(1);
+      }
+    }),
+  );
 
-  test("cron: 5-field", async () => {
-    const schedule = await Effect.runPromise(Schedule.parse("0 9 * * 1-5", fixedNow));
-    expect(schedule._tag).toBe("Cron");
-    if (schedule._tag === "Cron") {
-      expect(schedule.minute).toBe(0);
-      expect(schedule.hour).toBe(9);
-    }
-  });
+  it.effect("cron: 5-field", () =>
+    Effect.gen(function* () {
+      const schedule = yield* Schedule.parse("0 9 * * 1-5", FIXED_NOW_MS);
+      expect(schedule._tag).toBe("Cron");
+      if (schedule._tag === "Cron") {
+        expect(schedule.minute).toBe(0);
+        expect(schedule.hour).toBe(9);
+      }
+    }),
+  );
 
-  test("rejects invalid input", async () => {
-    const exit = await Effect.runPromiseExit(Schedule.parse("not a schedule", fixedNow));
-    expect(Exit.isFailure(exit)).toBe(true);
-  });
+  it.effect("rejects invalid input", () =>
+    Effect.gen(function* () {
+      const exit = yield* Effect.exit(Schedule.parse("not a schedule", FIXED_NOW_MS));
+      expect(Exit.isFailure(exit)).toBe(true);
+    }),
+  );
 });
 
 describe("Schedule.describe", () => {

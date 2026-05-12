@@ -18,9 +18,9 @@ function assertSequenceContains(actual: RecordedCall[], expected: ExpectedCall[]
     let found = false;
 
     while (actualIndex < actual.length) {
-      // actualIndex is within bounds due to while condition
-      const act = actual[actualIndex] as RecordedCall;
+      const act = actual[actualIndex];
       actualIndex++;
+      if (act === undefined) continue;
 
       if (act.service === exp.service && act.method === exp.method) {
         if (exp.match !== undefined) {
@@ -75,8 +75,12 @@ function createCliTestRunner(args: string[], layerOptions: CreateTestLayerOption
         const result = yield* run;
         expect(Result.isFailure(result)).toBe(true);
         if (Result.isFailure(result)) {
-          const error = result.failure as { _tag?: string };
-          expect(error._tag).toBe(errorTag);
+          const failure: unknown = result.failure;
+          const tag =
+            typeof failure === "object" && failure !== null && "_tag" in failure
+              ? (failure as { _tag: unknown })._tag
+              : undefined;
+          expect(tag).toBe(errorTag);
         }
       }),
 

@@ -1,4 +1,4 @@
-import { Clock, Effect, FileSystem, Layer, Option, Result, Context } from "effect";
+import { Clock, Effect, FileSystem, Layer, Option, Random, Result, Schema, Context } from "effect";
 import { HttpClient } from "effect/unstable/http";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 import type { PackageSpec, Registry } from "../types.js";
@@ -6,6 +6,46 @@ import { RepoError } from "../errors.js";
 import { parseSpec } from "../parsing.js";
 import { GitService } from "./git.js";
 import { CacheService } from "./cache.js";
+
+const NpmMetadata = Schema.Struct({
+  versions: Schema.Record(
+    Schema.String,
+    Schema.Struct({
+      dist: Schema.Struct({ tarball: Schema.String }),
+    }),
+  ),
+  "dist-tags": Schema.Record(Schema.String, Schema.String),
+  repository: Schema.optional(
+    Schema.Union([
+      Schema.String,
+      Schema.Struct({
+        type: Schema.optional(Schema.String),
+        url: Schema.optional(Schema.String),
+      }),
+    ]),
+  ),
+});
+
+const PypiMetadata = Schema.Struct({
+  urls: Schema.Array(Schema.Struct({ packagetype: Schema.String, url: Schema.String })),
+  info: Schema.Struct({
+    project_urls: Schema.optional(Schema.Record(Schema.String, Schema.String)),
+    home_page: Schema.optional(Schema.String),
+    version: Schema.String,
+  }),
+});
+
+const CratesMetadata = Schema.Struct({
+  crate: Schema.Struct({
+    repository: Schema.optional(Schema.String),
+    homepage: Schema.optional(Schema.String),
+  }),
+  versions: Schema.Array(Schema.Struct({ num: Schema.String, dl_path: Schema.String })),
+});
+
+const decodeNpmMetadata = Schema.decodeUnknownEffect(NpmMetadata);
+const decodePypiMetadata = Schema.decodeUnknownEffect(PypiMetadata);
+const decodeCratesMetadata = Schema.decodeUnknownEffect(CratesMetadata);
 
 const registryError = (registry: string, operation: string, cause: unknown) =>
   new RepoError({
@@ -68,7 +108,8 @@ export class RegistryService extends Context.Service<
           );
 
           const now = yield* Clock.currentTimeMillis;
-          const tempFile = `/tmp/repo-${now}-${Math.random().toString(36).slice(2)}.tgz`;
+          const randSuffix = (yield* Random.next).toString(36).slice(2);
+          const tempFile = `/tmp/repo-${String(now)}-${randSuffix}.tgz`;
 
           yield* fsService
             .writeFile(tempFile, new Uint8Array(buffer))
@@ -119,20 +160,21 @@ export class RegistryService extends Context.Service<
             return yield* registryError("npm", "fetch-metadata", `HTTP ${response.status}`);
           }
 
-          const data = (yield* response.json.pipe(
+          const raw = yield* response.json.pipe(
             Effect.mapError((cause) => registryError("npm", "parse-metadata", cause)),
-          )) as {
-            versions: Record<string, { dist: { tarball: string } }>;
-            "dist-tags": Record<string, string>;
-            repository?: { type?: string; url?: string } | string;
-          };
+          );
+          const data = yield* decodeNpmMetadata(raw).pipe(
+            Effect.mapError((cause) => registryError("npm", "parse-metadata", cause)),
+          );
 
-          const resolvedVersion =
-            version === "latest"
-              ? data["dist-tags"]?.["latest"]
-              : version in data.versions
-                ? version
-                : data["dist-tags"]?.[version];
+          let resolvedVersion: string | undefined;
+          if (version === "latest") {
+            resolvedVersion = data["dist-tags"]?.["latest"];
+          } else if (version in data.versions) {
+            resolvedVersion = version;
+          } else {
+            resolvedVersion = data["dist-tags"]?.[version];
+          }
 
           if (resolvedVersion === undefined || data.versions[resolvedVersion] === undefined) {
             return yield* registryError("npm", "resolve-version", `Version ${version} not found`);
@@ -178,16 +220,12 @@ export class RegistryService extends Context.Service<
             return yield* registryError("pypi", "fetch-metadata", `HTTP ${response.status}`);
           }
 
-          const data = (yield* response.json.pipe(
+          const raw = yield* response.json.pipe(
             Effect.mapError((cause) => registryError("pypi", "parse-metadata", cause)),
-          )) as {
-            urls: Array<{ packagetype: string; url: string }>;
-            info: {
-              project_urls?: Record<string, string>;
-              home_page?: string;
-              version: string;
-            };
-          };
+          );
+          const data = yield* decodePypiMetadata(raw).pipe(
+            Effect.mapError((cause) => registryError("pypi", "parse-metadata", cause)),
+          );
 
           const repoInfo = extractRepoInfoFromPypi(data.info);
 
@@ -231,12 +269,12 @@ export class RegistryService extends Context.Service<
             return yield* registryError("crates", "fetch-metadata", `HTTP ${response.status}`);
           }
 
-          const data = (yield* response.json.pipe(
+          const raw = yield* response.json.pipe(
             Effect.mapError((cause) => registryError("crates", "parse-metadata", cause)),
-          )) as {
-            crate: { repository?: string; homepage?: string };
-            versions: Array<{ num: string; dl_path: string }>;
-          };
+          );
+          const data = yield* decodeCratesMetadata(raw).pipe(
+            Effect.mapError((cause) => registryError("crates", "parse-metadata", cause)),
+          );
 
           const version = Option.getOrUndefined(spec.version);
           const versionInfo =

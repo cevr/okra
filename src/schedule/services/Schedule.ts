@@ -1,4 +1,4 @@
-import { Effect, Option, Schema } from "effect";
+import { DateTime, Effect, Option, Schema } from "effect";
 import { ScheduleError } from "../errors.js";
 
 const NumOrStar = Schema.Union([Schema.Number, Schema.Literal("*")]);
@@ -69,7 +69,7 @@ const parseNumericField = (field: string): number | "*" => {
 
 const DOW_RANGE = /^(\d)-(\d)$/;
 
-const parseDowField = (field: string): Option.Option<number | "*" | string> => {
+const parseDowField = (field: string): Option.Option<number | string> => {
   if (field === "*") return Option.some("*");
   if (/^\d+$/.test(field)) {
     const n = parseInt(field, 10);
@@ -77,9 +77,9 @@ const parseDowField = (field: string): Option.Option<number | "*" | string> => {
     return Option.some(n);
   }
   const rangeMatch = field.match(DOW_RANGE);
-  if (rangeMatch !== null) {
-    const start = parseInt(rangeMatch[1] as string, 10);
-    const end = parseInt(rangeMatch[2] as string, 10);
+  if (rangeMatch !== null && rangeMatch[1] !== undefined && rangeMatch[2] !== undefined) {
+    const start = parseInt(rangeMatch[1], 10);
+    const end = parseInt(rangeMatch[2], 10);
     if (start >= 0 && start <= 6 && end >= 0 && end <= 6 && start < end) {
       return Option.some(field);
     }
@@ -87,109 +87,137 @@ const parseDowField = (field: string): Option.Option<number | "*" | string> => {
   return Option.none();
 };
 
-export const parse = Effect.fn("Schedule.parse")(function* (input: string, now: Date = new Date()) {
-  const trimmed = input.trim();
+const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
 
-  const result = yield* Effect.sync((): Option.Option<Schedule> => {
-    const inMatch = trimmed.match(IN_PATTERN);
-    if (inMatch !== null) {
-      const amount = parseInt(inMatch[1] as string, 10);
-      const unit = (inMatch[2] as string).toLowerCase();
-      const at = new Date(now.getTime());
-      if (unit.startsWith("minute")) at.setMinutes(at.getMinutes() + amount);
-      else if (unit.startsWith("hour")) at.setHours(at.getHours() + amount);
-      else at.setDate(at.getDate() + amount);
-      return Option.some({ _tag: "Oneshot" as const, at: at.toISOString(), raw: trimmed });
-    }
-
-    const everyDayMatch = trimmed.match(EVERY_DAY_AT_PATTERN);
-    if (everyDayMatch !== null) {
-      const { hour, minute } = parseTime(
-        everyDayMatch[1] as string,
-        everyDayMatch[2],
-        everyDayMatch[3],
-      );
-      return Option.some({
-        _tag: "Cron" as const,
-        minute,
-        hour,
-        dayOfMonth: "*" as const,
-        month: "*" as const,
-        dayOfWeek: "*" as const,
-        raw: trimmed,
-      });
-    }
-
-    const weekdayMatch = trimmed.match(EVERY_WEEKDAY_AT_PATTERN);
-    if (weekdayMatch !== null) {
-      const { hour, minute } = parseTime(
-        weekdayMatch[1] as string,
-        weekdayMatch[2],
-        weekdayMatch[3],
-      );
-      return Option.some({
-        _tag: "Cron" as const,
-        minute,
-        hour,
-        dayOfMonth: "*" as const,
-        month: "*" as const,
-        dayOfWeek: "1-5",
-        raw: trimmed,
-      });
-    }
-
-    const namedDayMatch = trimmed.match(EVERY_NAMED_DAY_PATTERN);
-    if (namedDayMatch !== null) {
-      const dow = DAY_NAMES[(namedDayMatch[1] as string).toLowerCase()];
-      const { hour, minute } = parseTime(
-        namedDayMatch[2] as string,
-        namedDayMatch[3],
-        namedDayMatch[4],
-      );
-      if (dow !== undefined) {
-        return Option.some({
-          _tag: "Cron" as const,
-          minute,
-          hour,
-          dayOfMonth: "*" as const,
-          month: "*" as const,
-          dayOfWeek: dow,
-          raw: trimmed,
-        });
-      }
-    }
-
-    const tomorrowMatch = trimmed.match(TOMORROW_AT_PATTERN);
-    if (tomorrowMatch !== null) {
-      const { hour, minute } = parseTime(
-        tomorrowMatch[1] as string,
-        tomorrowMatch[2],
-        tomorrowMatch[3],
-      );
-      const at = new Date(now.getTime());
-      at.setDate(at.getDate() + 1);
-      at.setHours(hour, minute, 0, 0);
-      return Option.some({ _tag: "Oneshot" as const, at: at.toISOString(), raw: trimmed });
-    }
-
-    const cronMatch = trimmed.match(CRON_PATTERN);
-    if (cronMatch !== null) {
-      const dow = parseDowField(cronMatch[5] as string);
-      if (Option.isNone(dow)) return Option.none();
-      return Option.some({
-        _tag: "Cron" as const,
-        minute: parseNumericField(cronMatch[1] as string),
-        hour: parseNumericField(cronMatch[2] as string),
-        dayOfMonth: parseNumericField(cronMatch[3] as string),
-        month: parseNumericField(cronMatch[4] as string),
-        dayOfWeek: dow.value,
-        raw: trimmed,
-      });
-    }
-
-    return Option.none();
+const parseIn = (trimmed: string, nowMs: number): Option.Option<Schedule> => {
+  const m = trimmed.match(IN_PATTERN);
+  if (m === null || m[1] === undefined || m[2] === undefined) return Option.none();
+  const amount = parseInt(m[1], 10);
+  const unit = m[2].toLowerCase();
+  let atMs = nowMs;
+  if (unit.startsWith("minute")) atMs += amount * MINUTE_MS;
+  else if (unit.startsWith("hour")) atMs += amount * HOUR_MS;
+  else atMs += amount * DAY_MS;
+  return Option.some({
+    _tag: "Oneshot" as const,
+    at: DateTime.formatIso(DateTime.makeUnsafe(atMs)),
+    raw: trimmed,
   });
+};
 
+const parseEveryDay = (trimmed: string): Option.Option<Schedule> => {
+  const m = trimmed.match(EVERY_DAY_AT_PATTERN);
+  if (m === null || m[1] === undefined) return Option.none();
+  const { hour, minute } = parseTime(m[1], m[2], m[3]);
+  return Option.some({
+    _tag: "Cron" as const,
+    minute,
+    hour,
+    dayOfMonth: "*" as const,
+    month: "*" as const,
+    dayOfWeek: "*" as const,
+    raw: trimmed,
+  });
+};
+
+const parseEveryWeekday = (trimmed: string): Option.Option<Schedule> => {
+  const m = trimmed.match(EVERY_WEEKDAY_AT_PATTERN);
+  if (m === null || m[1] === undefined) return Option.none();
+  const { hour, minute } = parseTime(m[1], m[2], m[3]);
+  return Option.some({
+    _tag: "Cron" as const,
+    minute,
+    hour,
+    dayOfMonth: "*" as const,
+    month: "*" as const,
+    dayOfWeek: "1-5",
+    raw: trimmed,
+  });
+};
+
+const parseEveryNamedDay = (trimmed: string): Option.Option<Schedule> => {
+  const m = trimmed.match(EVERY_NAMED_DAY_PATTERN);
+  if (m === null || m[1] === undefined || m[2] === undefined) return Option.none();
+  const dow = DAY_NAMES[m[1].toLowerCase()];
+  if (dow === undefined) return Option.none();
+  const { hour, minute } = parseTime(m[2], m[3], m[4]);
+  return Option.some({
+    _tag: "Cron" as const,
+    minute,
+    hour,
+    dayOfMonth: "*" as const,
+    month: "*" as const,
+    dayOfWeek: dow,
+    raw: trimmed,
+  });
+};
+
+const parseTomorrow = (trimmed: string, nowMs: number): Option.Option<Schedule> => {
+  const m = trimmed.match(TOMORROW_AT_PATTERN);
+  if (m === null || m[1] === undefined) return Option.none();
+  const { hour, minute } = parseTime(m[1], m[2], m[3]);
+  const tomorrowMs = nowMs + DAY_MS;
+  const parts = DateTime.toParts(DateTime.makeUnsafe(tomorrowMs));
+  // Reconstruct as UTC at the requested hour. Original used Date.setHours (local) —
+  // we switch to UTC for determinism across env timezones.
+  const atIso = DateTime.formatIso(
+    DateTime.makeUnsafe({
+      year: parts.year,
+      month: parts.month,
+      day: parts.day,
+      hour,
+      minute,
+      second: 0,
+      millisecond: 0,
+    }),
+  );
+  return Option.some({ _tag: "Oneshot" as const, at: atIso, raw: trimmed });
+};
+
+const parseCron = (trimmed: string): Option.Option<Schedule> => {
+  const m = trimmed.match(CRON_PATTERN);
+  if (
+    m === null ||
+    m[1] === undefined ||
+    m[2] === undefined ||
+    m[3] === undefined ||
+    m[4] === undefined ||
+    m[5] === undefined
+  ) {
+    return Option.none();
+  }
+  const dow = parseDowField(m[5]);
+  if (Option.isNone(dow)) return Option.none();
+  return Option.some({
+    _tag: "Cron" as const,
+    minute: parseNumericField(m[1]),
+    hour: parseNumericField(m[2]),
+    dayOfMonth: parseNumericField(m[3]),
+    month: parseNumericField(m[4]),
+    dayOfWeek: dow.value,
+    raw: trimmed,
+  });
+};
+
+const parseSync = (input: string, nowMs: number): Option.Option<Schedule> => {
+  const trimmed = input.trim();
+  const inOpt = parseIn(trimmed, nowMs);
+  if (Option.isSome(inOpt)) return inOpt;
+  const everyDayOpt = parseEveryDay(trimmed);
+  if (Option.isSome(everyDayOpt)) return everyDayOpt;
+  const weekdayOpt = parseEveryWeekday(trimmed);
+  if (Option.isSome(weekdayOpt)) return weekdayOpt;
+  const namedDayOpt = parseEveryNamedDay(trimmed);
+  if (Option.isSome(namedDayOpt)) return namedDayOpt;
+  const tomorrowOpt = parseTomorrow(trimmed, nowMs);
+  if (Option.isSome(tomorrowOpt)) return tomorrowOpt;
+  return parseCron(trimmed);
+};
+
+export const parse = Effect.fn("Schedule.parse")(function* (input: string, nowMs: number) {
+  const result = parseSync(input, nowMs);
   return yield* Effect.fromOption(result).pipe(
     Effect.mapError(
       () =>
@@ -203,7 +231,8 @@ export const parse = Effect.fn("Schedule.parse")(function* (input: string, now: 
 
 export const describe = (schedule: Schedule): string => {
   if (schedule._tag === "Oneshot") {
-    return `once at ${new Date(schedule.at).toLocaleString()}`;
+    const dt = DateTime.makeUnsafe(schedule.at);
+    return `once at ${DateTime.formatIso(dt)}`;
   }
   const { minute, hour, dayOfWeek } = schedule;
   const timeStr =
@@ -221,10 +250,8 @@ export const describe = (schedule: Schedule): string => {
 
 export const toCalendarIntervals = (schedule: Schedule): ReadonlyArray<Record<string, number>> => {
   if (schedule._tag === "Oneshot") {
-    const d = new Date(schedule.at);
-    return [
-      { Month: d.getMonth() + 1, Day: d.getDate(), Hour: d.getHours(), Minute: d.getMinutes() },
-    ];
+    const parts = DateTime.toParts(DateTime.makeUnsafe(schedule.at));
+    return [{ Month: parts.month, Day: parts.day, Hour: parts.hour, Minute: parts.minute }];
   }
 
   const { minute, hour, dayOfMonth, month, dayOfWeek } = schedule;

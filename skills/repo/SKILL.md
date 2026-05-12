@@ -20,8 +20,8 @@ What do you need?
 
 ## Quick Reference
 
-| Command                      | What it does                                                        |
-| ---------------------------- | ------------------------------------------------------------------- |
+| Command                           | What it does                                                        |
+| --------------------------------- | ------------------------------------------------------------------- |
 | `okra repo fetch <spec>`          | Fetch/update. stdout = path, stderr = progress. `--json`, `--force` |
 | `okra repo path <spec>`           | Pure cache lookup. stdout = path, nonzero on miss. No network.      |
 | `okra repo list`                  | List cached repos. `--registry`, `--sort`, `--json`                 |
@@ -110,7 +110,7 @@ fd -e ts ~/.cache/repo/{owner}/{repo}
 | Code structures   | `ast-grep`                       |
 | File names        | `fd` or Glob tool                |
 | Specific files    | Read tool with full path         |
-| Directory tree    | `eza --tree` on okra repo path        |
+| Directory tree    | `eza --tree` on okra repo path   |
 
 ## Cache Management
 

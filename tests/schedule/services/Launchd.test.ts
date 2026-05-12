@@ -158,12 +158,11 @@ describe("generatePlist", () => {
   });
 
   test("generates oneshot calendar interval with Month/Day/Hour/Minute", () => {
-    const at = new Date("2024-06-15T10:30:00Z");
     const oneshotTask = new Task({
       id: "oneshot",
       prompt: "run",
       provider: "claude",
-      schedule: { _tag: "Oneshot", at: at.toISOString(), raw: "in 30 minutes" },
+      schedule: { _tag: "Oneshot", at: "2024-06-15T10:30:00.000Z", raw: "in 30 minutes" },
       cwd: "/tmp",
       createdAt: "2026-01-01T00:00:00Z",
       status: "active",

@@ -1,16 +1,12 @@
 import { describe, expect, it } from "effect-bun-test";
 import { ConfigProvider, Effect, Layer, Option } from "effect";
+import { FileSystem } from "effect/FileSystem";
 import { BunServices } from "@effect/platform-bun";
-import { existsSync, mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { runRemove } from "../../../src/skills/commands/remove.js";
 import { GitHub, type GitHubShape } from "../../../src/skills/services/GitHub.js";
 import { SkillLock, SkillLockLive } from "../../../src/skills/services/SkillLock.js";
 import { SkillStore, SkillStoreLive } from "../../../src/skills/services/SkillStore.js";
 import { SkillsError } from "../../../src/skills/errors.js";
-
-const makeTempDir = () => mkdtempSync(join(tmpdir(), "skills-remove-test-"));
 
 const makeTestLayer = (dir: string) =>
   SkillLockLive.pipe(
@@ -46,68 +42,83 @@ const makeTestLayer = (dir: string) =>
 const skillMd = (name: string) => `---\nname: ${name}\ndescription: test\n---\nbody\n`;
 
 describe("runRemove", () => {
-  it.live("removes a single skill by name", () => {
-    const dir = makeTempDir();
+  it.scoped("removes a single skill by name", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const dir = yield* fs.makeTempDirectoryScoped();
 
-    return Effect.gen(function* () {
-      const store = yield* SkillStore;
-      const lock = yield* SkillLock;
-      yield* store.installDir("alpha", [{ path: "SKILL.md", content: skillMd("alpha") }]);
-      yield* lock.add("alpha", "acme/repo@alpha", "skills/alpha/SKILL.md");
+      const alphaEntry = yield* Effect.gen(function* () {
+        const store = yield* SkillStore;
+        const lock = yield* SkillLock;
+        yield* store.installDir("alpha", [{ path: "SKILL.md", content: skillMd("alpha") }]);
+        yield* lock.add("alpha", "acme/repo@alpha", "skills/alpha/SKILL.md");
 
-      yield* runRemove(["alpha"]);
+        yield* runRemove(["alpha"]);
 
-      expect(Option.isNone(yield* lock.get("alpha"))).toBe(true);
-      expect(existsSync(join(dir, "alpha"))).toBe(false);
-    }).pipe(Effect.provide(makeTestLayer(dir)));
-  });
+        return yield* lock.get("alpha");
+      }).pipe(Effect.provide(makeTestLayer(dir)));
 
-  it.live("variadic: removes multiple skills in one invocation", () => {
-    const dir = makeTempDir();
+      expect(Option.isNone(alphaEntry)).toBe(true);
+      expect(yield* fs.exists(`${dir}/alpha`)).toBe(false);
+    }).pipe(Effect.provide(BunServices.layer)),
+  );
 
-    return Effect.gen(function* () {
-      const store = yield* SkillStore;
-      const lock = yield* SkillLock;
-      yield* store.installDir("a", [{ path: "SKILL.md", content: skillMd("a") }]);
-      yield* store.installDir("b", [{ path: "SKILL.md", content: skillMd("b") }]);
-      yield* store.installDir("c", [{ path: "SKILL.md", content: skillMd("c") }]);
-      yield* lock.add("a", "acme/repo@a", "skills/a/SKILL.md");
-      yield* lock.add("b", "acme/repo@b", "skills/b/SKILL.md");
-      yield* lock.add("c", "acme/repo@c", "skills/c/SKILL.md");
+  it.scoped("variadic: removes multiple skills in one invocation", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const dir = yield* fs.makeTempDirectoryScoped();
 
-      yield* runRemove(["a", "b", "c"]);
+      const [aEntry, bEntry, cEntry] = yield* Effect.gen(function* () {
+        const store = yield* SkillStore;
+        const lock = yield* SkillLock;
+        yield* store.installDir("a", [{ path: "SKILL.md", content: skillMd("a") }]);
+        yield* store.installDir("b", [{ path: "SKILL.md", content: skillMd("b") }]);
+        yield* store.installDir("c", [{ path: "SKILL.md", content: skillMd("c") }]);
+        yield* lock.add("a", "acme/repo@a", "skills/a/SKILL.md");
+        yield* lock.add("b", "acme/repo@b", "skills/b/SKILL.md");
+        yield* lock.add("c", "acme/repo@c", "skills/c/SKILL.md");
 
-      expect(Option.isNone(yield* lock.get("a"))).toBe(true);
-      expect(Option.isNone(yield* lock.get("b"))).toBe(true);
-      expect(Option.isNone(yield* lock.get("c"))).toBe(true);
-      expect(existsSync(join(dir, "a"))).toBe(false);
-      expect(existsSync(join(dir, "b"))).toBe(false);
-      expect(existsSync(join(dir, "c"))).toBe(false);
-    }).pipe(Effect.provide(makeTestLayer(dir)));
-  });
+        yield* runRemove(["a", "b", "c"]);
 
-  it.live("removes all matching skills when given a local folder path", () => {
-    const dir = makeTempDir();
-    const sourceDir = makeTempDir();
-    mkdirSync(join(sourceDir, "skills", "one"), { recursive: true });
-    mkdirSync(join(sourceDir, "skills", "two"), { recursive: true });
-    writeFileSync(join(sourceDir, "skills", "one", "SKILL.md"), skillMd("one"));
-    writeFileSync(join(sourceDir, "skills", "two", "SKILL.md"), skillMd("two"));
+        return [yield* lock.get("a"), yield* lock.get("b"), yield* lock.get("c")] as const;
+      }).pipe(Effect.provide(makeTestLayer(dir)));
 
-    return Effect.gen(function* () {
-      const store = yield* SkillStore;
-      const lock = yield* SkillLock;
-      yield* store.installDir("one", [{ path: "SKILL.md", content: skillMd("one") }]);
-      yield* store.installDir("two", [{ path: "SKILL.md", content: skillMd("two") }]);
-      yield* lock.add("one", `local:${join(sourceDir, "skills", "one")}`, "SKILL.md");
-      yield* lock.add("two", `local:${join(sourceDir, "skills", "two")}`, "SKILL.md");
+      expect(Option.isNone(aEntry)).toBe(true);
+      expect(Option.isNone(bEntry)).toBe(true);
+      expect(Option.isNone(cEntry)).toBe(true);
+      expect(yield* fs.exists(`${dir}/a`)).toBe(false);
+      expect(yield* fs.exists(`${dir}/b`)).toBe(false);
+      expect(yield* fs.exists(`${dir}/c`)).toBe(false);
+    }).pipe(Effect.provide(BunServices.layer)),
+  );
 
-      yield* runRemove([sourceDir]);
+  it.scoped("removes all matching skills when given a local folder path", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const dir = yield* fs.makeTempDirectoryScoped();
+      const sourceDir = yield* fs.makeTempDirectoryScoped();
+      yield* fs.makeDirectory(`${sourceDir}/skills/one`, { recursive: true });
+      yield* fs.makeDirectory(`${sourceDir}/skills/two`, { recursive: true });
+      yield* fs.writeFileString(`${sourceDir}/skills/one/SKILL.md`, skillMd("one"));
+      yield* fs.writeFileString(`${sourceDir}/skills/two/SKILL.md`, skillMd("two"));
 
-      expect(Option.isNone(yield* lock.get("one"))).toBe(true);
-      expect(Option.isNone(yield* lock.get("two"))).toBe(true);
-      expect(existsSync(join(dir, "one"))).toBe(false);
-      expect(existsSync(join(dir, "two"))).toBe(false);
-    }).pipe(Effect.provide(makeTestLayer(dir)));
-  });
+      const [oneEntry, twoEntry] = yield* Effect.gen(function* () {
+        const store = yield* SkillStore;
+        const lock = yield* SkillLock;
+        yield* store.installDir("one", [{ path: "SKILL.md", content: skillMd("one") }]);
+        yield* store.installDir("two", [{ path: "SKILL.md", content: skillMd("two") }]);
+        yield* lock.add("one", `local:${sourceDir}/skills/one`, "SKILL.md");
+        yield* lock.add("two", `local:${sourceDir}/skills/two`, "SKILL.md");
+
+        yield* runRemove([sourceDir]);
+
+        return [yield* lock.get("one"), yield* lock.get("two")] as const;
+      }).pipe(Effect.provide(makeTestLayer(dir)));
+
+      expect(Option.isNone(oneEntry)).toBe(true);
+      expect(Option.isNone(twoEntry)).toBe(true);
+      expect(yield* fs.exists(`${dir}/one`)).toBe(false);
+      expect(yield* fs.exists(`${dir}/two`)).toBe(false);
+    }).pipe(Effect.provide(BunServices.layer)),
+  );
 });

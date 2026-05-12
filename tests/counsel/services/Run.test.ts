@@ -22,17 +22,16 @@ const RunLayer = RunService.layer.pipe(
   Layer.provideMerge(
     InvocationRunnerService.layerTest({
       execute: (_invocation, outputFile, stderrFile) =>
-        Effect.promise(async () => {
+        Effect.gen(function* () {
           // Mock writes JSONL matching the provider's stream format.
           // Target is claude (source=codex), so write claude stream-json.
           const claudeJsonl = [
             '{"type":"system","subtype":"init","session_id":"test"}',
             '{"type":"result","subtype":"success","is_error":false,"result":"second opinion"}',
           ].join("\n");
-          await Promise.all([
-            Bun.write(outputFile, claudeJsonl),
-            Bun.write(stderrFile, "warning\n"),
-          ]);
+          yield* Effect.promise(() =>
+            Promise.all([Bun.write(outputFile, claudeJsonl), Bun.write(stderrFile, "warning\n")]),
+          );
           return {
             exitCode: 0,
             durationMs: 12,

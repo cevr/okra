@@ -13,8 +13,8 @@ const LABEL_PREFIX = "com.cvr.okra.schedule";
 const label = (id: string) => `${LABEL_PREFIX}-${id}`;
 
 const calendarIntervalXml = (intervals: ReadonlyArray<Record<string, number>>): string => {
-  if (intervals.length === 1) {
-    const entry = intervals[0] as Record<string, number>;
+  if (intervals.length === 1 && intervals[0] !== undefined) {
+    const entry = intervals[0];
     const inner = Object.entries(entry)
       .map(([k, v]) => `    <key>${k}</key>\n    <integer>${String(v)}</integer>`)
       .join("\n");
@@ -109,35 +109,36 @@ class LaunchdService extends Context.Service<
       const logPath = (id: string) => path.join(logsDir, `${id}.log`);
 
       const isLoaded = Effect.fn("LaunchdService.isLoaded")(function* (id: string) {
-        return yield* Effect.tryPromise({
-          try: async () => {
-            const proc = Bun.spawn(["launchctl", "list", label(id)], {
-              stdout: "ignore",
-              stderr: "ignore",
-            });
-            return (await proc.exited) === 0;
-          },
+        const proc = Bun.spawn(["launchctl", "list", label(id)], {
+          stdout: "ignore",
+          stderr: "ignore",
+        });
+        const code = yield* Effect.tryPromise({
+          try: () => proc.exited,
           catch: () =>
             new ScheduleError({ message: "Cannot check launchctl", code: "LAUNCHD_FAILED" }),
         });
+        return code === 0;
       });
 
       const launchctlUnload = Effect.fn("LaunchdService.launchctlUnload")(function* (
         plist: string,
       ) {
-        return yield* Effect.tryPromise({
-          try: async () => {
-            const proc = Bun.spawn(["launchctl", "unload", plist], {
-              stdout: "ignore",
-              stderr: "pipe",
-            });
-            const code = await proc.exited;
-            const stderr = await new Response(proc.stderr).text();
-            return { code, stderr: stderr.trim() };
-          },
+        const proc = Bun.spawn(["launchctl", "unload", plist], {
+          stdout: "ignore",
+          stderr: "pipe",
+        });
+        const code = yield* Effect.tryPromise({
+          try: () => proc.exited,
           catch: () =>
             new ScheduleError({ message: "Cannot run launchctl unload", code: "LAUNCHD_FAILED" }),
         });
+        const stderr = yield* Effect.tryPromise({
+          try: () => new Response(proc.stderr).text(),
+          catch: () =>
+            new ScheduleError({ message: "Cannot read unload stderr", code: "LAUNCHD_FAILED" }),
+        });
+        return { code, stderr: stderr.trim() };
       });
 
       const install = Effect.fn("LaunchdService.install")(function* (task: Task) {
@@ -173,22 +174,24 @@ class LaunchdService extends Context.Service<
           ),
         );
 
-        const loadResult = yield* Effect.tryPromise({
-          try: async () => {
-            const proc = Bun.spawn(["launchctl", "load", plist], {
-              stdout: "ignore",
-              stderr: "pipe",
-            });
-            const code = await proc.exited;
-            const stderr = await new Response(proc.stderr).text();
-            return { code, stderr: stderr.trim() };
-          },
+        const loadProc = Bun.spawn(["launchctl", "load", plist], {
+          stdout: "ignore",
+          stderr: "pipe",
+        });
+        const loadCode = yield* Effect.tryPromise({
+          try: () => loadProc.exited,
           catch: (e) =>
             new ScheduleError({
               message: `Cannot load ${label(task.id)}: ${e instanceof Error ? e.message : String(e)}`,
               code: "LAUNCHD_FAILED",
             }),
         });
+        const loadStderr = yield* Effect.tryPromise({
+          try: () => new Response(loadProc.stderr).text(),
+          catch: () =>
+            new ScheduleError({ message: "Cannot read load stderr", code: "LAUNCHD_FAILED" }),
+        });
+        const loadResult = { code: loadCode, stderr: loadStderr.trim() };
 
         if (loadResult.code !== 0) {
           // Rollback: restore old plist and re-load it
@@ -197,14 +200,12 @@ class LaunchdService extends Context.Service<
               .writeFileString(plist, oldContent.value)
               .pipe(Effect.catch(() => Effect.void));
             yield* launchctlUnload(plist).pipe(Effect.catch(() => Effect.void));
+            const rollbackProc = Bun.spawn(["launchctl", "load", plist], {
+              stdout: "ignore",
+              stderr: "ignore",
+            });
             yield* Effect.tryPromise({
-              try: async () => {
-                const proc = Bun.spawn(["launchctl", "load", plist], {
-                  stdout: "ignore",
-                  stderr: "ignore",
-                });
-                await proc.exited;
-              },
+              try: () => rollbackProc.exited,
               catch: () =>
                 new ScheduleError({ message: "Rollback load failed", code: "LAUNCHD_FAILED" }),
             }).pipe(Effect.catch(() => Effect.void));

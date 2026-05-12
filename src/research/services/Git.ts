@@ -34,7 +34,7 @@ export class GitService extends Context.Service<
         try: () => proc.exited,
         catch: (e) =>
           new ResearchError({
-            message: `git process failed: ${e}`,
+            message: `git process failed: ${e instanceof Error ? e.message : String(e)}`,
             code: ErrorCode.GIT_FAILED,
           }),
       }).pipe(
@@ -49,7 +49,7 @@ export class GitService extends Context.Service<
         try: () => new Response(proc.stdout).text(),
         catch: (e) =>
           new ResearchError({
-            message: `Failed to read git stdout: ${e}`,
+            message: `Failed to read git stdout: ${e instanceof Error ? e.message : String(e)}`,
             code: ErrorCode.GIT_FAILED,
           }),
       });
@@ -58,7 +58,7 @@ export class GitService extends Context.Service<
         try: () => new Response(proc.stderr).text(),
         catch: (e) =>
           new ResearchError({
-            message: `Failed to read git stderr: ${e}`,
+            message: `Failed to read git stderr: ${e instanceof Error ? e.message : String(e)}`,
             code: ErrorCode.GIT_FAILED,
           }),
       });

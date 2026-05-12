@@ -1,4 +1,4 @@
-import { Config, ConfigProvider, Console, Effect, Layer, Option, Schema, Context } from "effect";
+import { Config, Console, Effect, Layer, Option, Schema, Context } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
@@ -42,20 +42,40 @@ export class ConfigService extends Context.Service<
       const fs = yield* FileSystem;
       const path = yield* Path;
 
-      const home = process.env["HOME"] ?? process.env["USERPROFILE"];
-      if (home === undefined) {
+      const readEnv = (key: string): Effect.Effect<Option.Option<string>, ConfigError> =>
+        Config.option(Config.string(key))
+          .asEffect()
+          .pipe(
+            Effect.mapError(
+              () => new ConfigError({ message: `Cannot read ${key} config`, code: "READ_FAILED" }),
+            ),
+          );
+
+      const resolveHome = Effect.fn("ConfigService.resolveHome")(function* () {
+        const homeOpt = yield* readEnv("HOME");
+        if (Option.isSome(homeOpt)) return homeOpt.value;
+        const userProfileOpt = yield* readEnv("USERPROFILE");
+        if (Option.isSome(userProfileOpt)) return userProfileOpt.value;
         return yield* new ConfigError({
           message: "HOME environment variable is not set",
           code: "READ_FAILED",
         });
-      }
-      const xdgConfig = process.env["XDG_CONFIG_HOME"] ?? path.join(home, ".config");
+      });
 
-      const resolveConfigFilePath = () =>
-        Effect.succeed(path.join(xdgConfig, "brain", "config.json"));
+      const resolveXdgConfig = Effect.fn("ConfigService.resolveXdgConfig")(function* () {
+        const xdgConfigOpt = yield* readEnv("XDG_CONFIG_HOME");
+        if (Option.isSome(xdgConfigOpt)) return xdgConfigOpt.value;
+        const home = yield* resolveHome();
+        return path.join(home, ".config");
+      });
+
+      const resolveConfigFilePath = Effect.fn("ConfigService.configFilePath")(function* () {
+        const xdgConfig = yield* resolveXdgConfig();
+        return path.join(xdgConfig, "brain", "config.json");
+      });
 
       const loadConfigFile = Effect.fn("ConfigService.loadConfigFile")(function* () {
-        const cfgPath = path.join(xdgConfig, "brain", "config.json");
+        const cfgPath = yield* resolveConfigFilePath();
         const exists = yield* fs.exists(cfgPath).pipe(
           Effect.mapError(
             (e: PlatformError) =>
@@ -77,18 +97,21 @@ export class ConfigService extends Context.Service<
         );
         return yield* decodeConfigFile(text).pipe(
           Effect.catch((e) =>
-            Console.error(`Warning: corrupt config, using defaults: ${e}`).pipe(Effect.as({})),
+            Console.error(
+              `Warning: corrupt config, using defaults: ${e instanceof Error ? e.message : String(e)}`,
+            ).pipe(Effect.as({})),
           ),
         );
       });
 
       const globalVaultPath = Effect.fn("ConfigService.globalVaultPath")(function* () {
-        const envDir = process.env["BRAIN_DIR"];
-        if (envDir !== undefined) return envDir;
+        const envDir = yield* readEnv("BRAIN_DIR");
+        if (Option.isSome(envDir)) return envDir.value;
 
         const cfg = yield* loadConfigFile();
         if (cfg.globalVault !== undefined) return cfg.globalVault;
 
+        const home = yield* resolveHome();
         return path.join(home, ".brain");
       });
 
@@ -104,15 +127,15 @@ export class ConfigService extends Context.Service<
             ),
           );
 
-        const explicit = process.env["BRAIN_PROJECT_DIR"];
-        if (explicit !== undefined) {
-          const exists = yield* checkIndex(explicit);
-          return exists ? Option.some(explicit) : Option.none<string>();
+        const explicit = yield* readEnv("BRAIN_PROJECT_DIR");
+        if (Option.isSome(explicit)) {
+          const exists = yield* checkIndex(explicit.value);
+          return exists ? Option.some(explicit.value) : Option.none<string>();
         }
 
-        const claudeDir = process.env["CLAUDE_PROJECT_DIR"];
-        if (claudeDir !== undefined) {
-          const brainDir = path.join(claudeDir, "brain");
+        const claudeDir = yield* readEnv("CLAUDE_PROJECT_DIR");
+        if (Option.isSome(claudeDir)) {
+          const brainDir = path.join(claudeDir.value, "brain");
           const exists = yield* checkIndex(brainDir);
           return exists ? Option.some(brainDir) : Option.none<string>();
         }
@@ -168,17 +191,7 @@ export class ConfigService extends Context.Service<
 
       const currentProjectName = Effect.fn("ConfigService.currentProjectName")(function* () {
         // 1. Env override
-        const envProject = yield* Config.option(Config.string("BRAIN_PROJECT"))
-          .parse(ConfigProvider.fromEnv())
-          .pipe(
-            Effect.mapError(
-              () =>
-                new ConfigError({
-                  message: "Cannot read BRAIN_PROJECT config",
-                  code: "READ_FAILED",
-                }),
-            ),
-          );
+        const envProject = yield* readEnv("BRAIN_PROJECT");
         if (Option.isSome(envProject) && envProject.value.trim() !== "") {
           return Option.some(envProject.value.trim());
         }

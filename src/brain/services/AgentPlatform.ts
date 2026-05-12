@@ -1,4 +1,4 @@
-import { Effect, Layer, Option, Context } from "effect";
+import { Config, ConfigProvider, Effect, Layer, Option, Context } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import { ConfigService } from "./Config.js";
@@ -58,8 +58,20 @@ export class AgentPlatformService extends Context.Service<
         const fs = yield* FileSystem;
         const path = yield* Path;
 
-        const home = process.env["HOME"] ?? process.env["USERPROFILE"];
-        if (home === undefined) {
+        const envProvider = ConfigProvider.fromEnv();
+        const readEnv = (key: string) =>
+          Config.option(Config.string(key))
+            .parse(envProvider)
+            .pipe(
+              Effect.mapError(
+                () => new BrainError({ message: `Cannot read ${key} config`, code: "NO_HOME" }),
+              ),
+            );
+
+        const homeOpt = yield* readEnv("HOME");
+        const userProfileOpt = yield* readEnv("USERPROFILE");
+        const home = Option.getOrElse(homeOpt, () => Option.getOrElse(userProfileOpt, () => ""));
+        if (home === "") {
           return yield* new BrainError({
             message: "HOME environment variable is not set",
             code: "NO_HOME",
@@ -86,33 +98,37 @@ export class AgentPlatformService extends Context.Service<
                   .pipe(Effect.catch(() => Effect.succeed(false))),
                 whichExists("claude"),
               ]).pipe(Effect.map(([exists, which]) => exists && which)),
-            invoke: (prompt, profile) =>
-              Effect.tryPromise({
-                try: async () => {
-                  const effort = profile === "deep" ? "max" : "medium";
-                  const proc = Bun.spawn(
-                    [
-                      "claude",
-                      "-p",
-                      prompt,
-                      "--dangerously-skip-permissions",
-                      "--model",
-                      "opus",
-                      "--effort",
-                      effort,
-                      "--no-session-persistence",
-                    ],
-                    { stdout: "ignore", stderr: "inherit" },
-                  );
-                  const code = await proc.exited;
-                  if (code !== 0) throw new Error(`claude exited with code ${code}`);
-                },
+            invoke: Effect.fn("AgentPlatform.claude.invoke")(function* (prompt, profile) {
+              const effort = profile === "deep" ? "max" : "medium";
+              const proc = Bun.spawn(
+                [
+                  "claude",
+                  "-p",
+                  prompt,
+                  "--dangerously-skip-permissions",
+                  "--model",
+                  "opus",
+                  "--effort",
+                  effort,
+                  "--no-session-persistence",
+                ],
+                { stdout: "ignore", stderr: "inherit" },
+              );
+              const code = yield* Effect.tryPromise({
+                try: () => proc.exited,
                 catch: (e) =>
                   new BrainError({
                     message: `Claude invocation failed: ${e instanceof Error ? e.message : String(e)}`,
                     code: "SPAWN_FAILED",
                   }),
-              }),
+              });
+              if (code !== 0) {
+                return yield* new BrainError({
+                  message: `claude exited with code ${code}`,
+                  code: "SPAWN_FAILED",
+                });
+              }
+            }),
           },
           codex: {
             id: "codex",
@@ -133,37 +149,41 @@ export class AgentPlatformService extends Context.Service<
                   .pipe(Effect.catch(() => Effect.succeed(false))),
                 whichExists("codex"),
               ]).pipe(Effect.map(([exists, which]) => exists && which)),
-            invoke: (prompt, profile, cwd) =>
-              Effect.tryPromise({
-                try: async () => {
-                  const args = [
-                    "codex",
-                    "exec",
-                    "-C",
-                    cwd ?? process.cwd(),
-                    "--color",
-                    "never",
-                    "-c",
-                    `model_reasoning_effort=${profile === "deep" ? '"high"' : '"medium"'}`,
-                    "-c",
-                    "service_tier=fast",
-                    "--dangerously-bypass-approvals-and-sandbox",
-                    "--skip-git-repo-check",
-                    prompt,
-                  ];
-                  const proc = Bun.spawn(args, {
-                    stdout: "ignore",
-                    stderr: "inherit",
-                  });
-                  const code = await proc.exited;
-                  if (code !== 0) throw new Error(`codex exited with code ${code}`);
-                },
+            invoke: Effect.fn("AgentPlatform.codex.invoke")(function* (prompt, profile, cwd) {
+              const args = [
+                "codex",
+                "exec",
+                "-C",
+                cwd ?? process.cwd(),
+                "--color",
+                "never",
+                "-c",
+                `model_reasoning_effort=${profile === "deep" ? '"high"' : '"medium"'}`,
+                "-c",
+                "service_tier=fast",
+                "--dangerously-bypass-approvals-and-sandbox",
+                "--skip-git-repo-check",
+                prompt,
+              ];
+              const proc = Bun.spawn(args, {
+                stdout: "ignore",
+                stderr: "inherit",
+              });
+              const code = yield* Effect.tryPromise({
+                try: () => proc.exited,
                 catch: (e) =>
                   new BrainError({
                     message: `Codex invocation failed: ${e instanceof Error ? e.message : String(e)}`,
                     code: "SPAWN_FAILED",
                   }),
-              }),
+              });
+              if (code !== 0) {
+                return yield* new BrainError({
+                  message: `codex exited with code ${code}`,
+                  code: "SPAWN_FAILED",
+                });
+              }
+            }),
           },
         };
 
@@ -206,10 +226,14 @@ export class AgentPlatformService extends Context.Service<
             const requestedId = resolveRequested(requested);
             if (Option.isSome(requestedId)) return requestedId.value;
 
-            const envProvider = process.env["BRAIN_PROVIDER"];
-            if (envProvider === "claude" || envProvider === "codex") return envProvider;
+            const brainProvider = yield* readEnv("BRAIN_PROVIDER");
+            if (Option.isSome(brainProvider)) {
+              const value = brainProvider.value;
+              if (value === "claude" || value === "codex") return value;
+            }
 
-            if (process.env["CLAUDE_PROJECT_DIR"] !== undefined) return "claude";
+            const claudeProjectDir = yield* readEnv("CLAUDE_PROJECT_DIR");
+            if (Option.isSome(claudeProjectDir)) return "claude";
 
             const cfg = yield* config.loadConfigFile().pipe(
               Effect.mapError(

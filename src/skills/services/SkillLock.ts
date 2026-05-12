@@ -1,4 +1,4 @@
-import { Effect, FileSystem, Layer, Option, Path, Schema, Context } from "effect";
+import { DateTime, Effect, FileSystem, Layer, Option, Path, Schema, Context } from "effect";
 import { SkillsError } from "../errors.js";
 import { SkillStore } from "./SkillStore.js";
 
@@ -94,7 +94,7 @@ export const SkillLockLive = Layer.effect(
     const add = (name: string, source: string, skillPath: string, ref?: string) =>
       Effect.gen(function* () {
         const lock = yield* readLock;
-        const now = new Date().toISOString();
+        const now = (yield* DateTime.now).pipe(DateTime.formatIso);
         const existing = lock.skills[name];
         const entry = new LockEntry({
           source,
@@ -116,7 +116,7 @@ export const SkillLockLive = Layer.effect(
     ) {
       if (entries.length === 0) return;
       const lock = yield* readLock;
-      const now = new Date().toISOString();
+      const now = (yield* DateTime.now).pipe(DateTime.formatIso);
       const newSkills = { ...lock.skills };
       for (const { name, source, skillPath, ref } of entries) {
         const existing = newSkills[name];
@@ -143,11 +143,18 @@ export const SkillLockLive = Layer.effect(
         const lock = yield* readLock;
         const entry = lock.skills[name];
         if (!entry) return;
+        const now = (yield* DateTime.now).pipe(DateTime.formatIso);
         const updated = new LockFile({
           version: 1,
           skills: {
             ...lock.skills,
-            [name]: new LockEntry({ ...entry, updatedAt: new Date().toISOString() }),
+            [name]: new LockEntry({
+              source: entry.source,
+              skillPath: entry.skillPath,
+              ref: entry.ref,
+              installedAt: entry.installedAt,
+              updatedAt: now,
+            }),
           },
         });
         yield* writeLock(updated);
@@ -158,14 +165,16 @@ export const SkillLockLive = Layer.effect(
     ) {
       if (entries.length === 0) return;
       const lock = yield* readLock;
-      const now = new Date().toISOString();
+      const now = (yield* DateTime.now).pipe(DateTime.formatIso);
       const newSkills = { ...lock.skills };
       for (const { name, skillPath } of entries) {
         const entry = newSkills[name];
         if (entry) {
           newSkills[name] = new LockEntry({
-            ...entry,
-            ...(skillPath ? { skillPath } : {}),
+            source: entry.source,
+            skillPath: skillPath ?? entry.skillPath,
+            ref: entry.ref,
+            installedAt: entry.installedAt,
             updatedAt: now,
           });
         }

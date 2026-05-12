@@ -1,4 +1,4 @@
-import { Console, Effect, Option } from "effect";
+import { Clock, Console, DateTime, Effect, Option } from "effect";
 import { Argument, Command } from "effect/unstable/cli";
 import { StoreService } from "../services/Store.js";
 import { LaunchdService } from "../services/Launchd.js";
@@ -36,7 +36,8 @@ export const run = Command.make("run", { id: Argument.string("id") }, (config) =
     const task = yield* store.get(config.id);
 
     // Pre-run: check stop conditions before invoking agent
-    const preStop = StopEvaluator.evaluate(task);
+    const preNowMs = yield* Clock.currentTimeMillis;
+    const preStop = StopEvaluator.evaluate(task, preNowMs);
     if (Option.isSome(preStop)) {
       yield* complete(task.id, preStop.value.description);
       return;
@@ -62,8 +63,9 @@ export const run = Command.make("run", { id: Argument.string("id") }, (config) =
     const isOneshot = task.schedule._tag === "Oneshot";
 
     if (runResult._tag === "Failure") {
+      const lastRunFail = (yield* DateTime.now).pipe(DateTime.formatIso);
       yield* store.update(task.id, {
-        lastRun: new Date().toISOString(),
+        lastRun: lastRunFail,
         runCount: newRunCount,
       });
       yield* Console.error(`[okra schedule] Task ${task.id} failed on run #${String(newRunCount)}`);
@@ -74,8 +76,9 @@ export const run = Command.make("run", { id: Argument.string("id") }, (config) =
 
     const { output } = runResult.value;
 
+    const lastRun = (yield* DateTime.now).pipe(DateTime.formatIso);
     yield* store.update(task.id, {
-      lastRun: new Date().toISOString(),
+      lastRun,
       runCount: newRunCount,
       status: isOneshot ? "completed" : task.status,
     });
@@ -87,7 +90,8 @@ export const run = Command.make("run", { id: Argument.string("id") }, (config) =
 
     // Post-run: re-evaluate with updated runCount
     const updated = yield* store.get(task.id);
-    const postStop = StopEvaluator.evaluate(updated);
+    const postNowMs = yield* Clock.currentTimeMillis;
+    const postStop = StopEvaluator.evaluate(updated, postNowMs);
     if (Option.isSome(postStop)) {
       yield* complete(task.id, postStop.value.description);
       return;

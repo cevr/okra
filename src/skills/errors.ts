@@ -8,8 +8,8 @@ export class SkillsError extends Schema.TaggedErrorClass<SkillsError>()(
   },
 ) {}
 
-export const isSkillsError = (e: unknown): e is { _tag: string; code: string; message: string } =>
-  typeof e === "object" &&
-  e !== null &&
-  "_tag" in e &&
-  (e as { _tag: string })._tag === "@cvr/okra/skills/SkillsError";
+export const isSkillsError = (e: unknown): e is { _tag: string; code: string; message: string } => {
+  if (typeof e !== "object" || e === null || !("_tag" in e)) return false;
+  const tag = (e as { _tag: unknown })._tag;
+  return tag === "@cvr/okra/skills/SkillsError";
+};

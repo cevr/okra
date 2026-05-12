@@ -1,5 +1,5 @@
 import { Command, Flag } from "effect/unstable/cli";
-import { Console, Effect, Option, Schema } from "effect";
+import { Clock, Console, Effect, Option, Schema } from "effect";
 import { formatBytes, formatRelativeTime, specToString } from "../types.js";
 import { MetadataService } from "../services/metadata.js";
 
@@ -39,7 +39,7 @@ export const list = Command.make(
       const sorted = [...repos].sort((a, b) => {
         switch (sort) {
           case "date":
-            return new Date(b.lastAccessedAt).getTime() - new Date(a.lastAccessedAt).getTime();
+            return Date.parse(b.lastAccessedAt) - Date.parse(a.lastAccessedAt);
           case "size":
             return b.sizeBytes - a.sizeBytes;
           case "name":
@@ -75,10 +75,11 @@ export const list = Command.make(
       yield* Console.log(`Cached Repositories (${sorted.length})`);
       yield* Console.log("═".repeat(80));
 
+      const nowMs = yield* Clock.currentTimeMillis;
       for (const repo of sorted) {
         const spec = specToString(repo.spec);
         const size = formatBytes(repo.sizeBytes);
-        const date = formatRelativeTime(new Date(repo.lastAccessedAt));
+        const date = formatRelativeTime(repo.lastAccessedAt, nowMs);
         const registryStr = repo.spec.registry.padEnd(6);
 
         yield* Console.log(`${registryStr}  ${spec.padEnd(40)}  ${size.padStart(10)}  ${date}`);

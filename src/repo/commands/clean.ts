@@ -20,7 +20,7 @@ export const pruneByAge = Effect.fn("pruneByAge")(function* (days: number) {
 
   const nowMs = yield* Clock.currentTimeMillis;
   const cutoff = nowMs - days * 24 * 60 * 60 * 1000;
-  const stale = repos.filter((r) => new Date(r.lastAccessedAt).getTime() < cutoff);
+  const stale = repos.filter((r) => Date.parse(r.lastAccessedAt) < cutoff);
 
   for (const repo of stale) {
     yield* cache.remove(repo.path);
@@ -59,9 +59,9 @@ const dryRunFlag = Flag.boolean("dry-run").pipe(
 
 function parseSize(sizeStr: string): number | null {
   const match = sizeStr.match(/^(\d+(?:\.\d+)?)\s*(B|K|KB|M|MB|G|GB)?$/i);
-  if (match === null) return null;
+  if (match === null || match[1] === undefined) return null;
 
-  const value = parseFloat(match[1] as string);
+  const value = parseFloat(match[1]);
   const unit = (match[2] ?? "B").toUpperCase();
 
   switch (unit) {
@@ -129,7 +129,7 @@ export const clean = Command.make(
       if (Option.isSome(days)) {
         const nowMs = yield* Clock.currentTimeMillis;
         const cutoff = nowMs - days.value * 24 * 60 * 60 * 1000;
-        toRemove = toRemove.filter((r) => new Date(r.lastAccessedAt).getTime() < cutoff);
+        toRemove = toRemove.filter((r) => Date.parse(r.lastAccessedAt) < cutoff);
       }
 
       if (Option.isSome(maxSize)) {

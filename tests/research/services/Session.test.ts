@@ -1,14 +1,14 @@
-import { describe, expect, test, beforeEach, afterEach } from "bun:test";
-import { existsSync, mkdirSync, rmSync } from "node:fs";
+import { describe, expect, it } from "effect-bun-test";
 import { Effect, Layer } from "effect";
+import { FileSystem } from "effect/FileSystem";
+import { Path } from "effect/Path";
 import { BunServices } from "@effect/platform-bun";
 import { Session } from "../../../src/research/types.js";
-import type { ResearchError } from "../../../src/research/errors.js";
 import { SessionService } from "../../../src/research/services/Session.js";
 
-const TEST_ROOT = "/tmp/okra-test-session";
+const FIXTURE_ISO = "2026-01-01T00:00:00.000Z";
 
-const makeSession = (): Session =>
+const makeSession = (projectRoot: string): Session =>
   new Session({
     name: "test",
     unit: "ms",
@@ -18,82 +18,62 @@ const makeSession = (): Session =>
     benchmarkCmd: "./bench.sh",
     maxIterations: 10,
     maxFailures: 3,
-    projectRoot: TEST_ROOT,
+    projectRoot,
     segment: 1,
     currentIteration: 0,
-    createdAt: new Date().toISOString(),
+    createdAt: FIXTURE_ISO,
   });
 
-const TestLayer = SessionService.layer.pipe(Layer.provide(BunServices.layer));
-
-const runSync = <A>(effect: Effect.Effect<A, ResearchError, SessionService>) =>
-  Effect.runPromise(effect.pipe(Effect.provide(TestLayer)));
+const TestLayer = SessionService.layer.pipe(Layer.provideMerge(BunServices.layer));
 
 describe("SessionService", () => {
-  beforeEach(() => {
-    if (existsSync(TEST_ROOT)) rmSync(TEST_ROOT, { recursive: true });
-    mkdirSync(TEST_ROOT, { recursive: true });
-  });
+  it.scoped("init creates session.json", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const path = yield* Path;
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "okra-xp-session-" });
+      const svc = yield* SessionService;
 
-  afterEach(() => {
-    if (existsSync(TEST_ROOT)) rmSync(TEST_ROOT, { recursive: true });
-  });
+      const result = yield* svc.init(makeSession(root));
+      expect(result.name).toBe("test");
+      expect(yield* fs.exists(path.join(root, ".xp", "session.json"))).toBe(true);
+    }).pipe(Effect.provide(TestLayer)),
+  );
 
-  test("init creates session.json", async () => {
-    const session = makeSession();
-    const result = await runSync(
-      Effect.gen(function* () {
-        const svc = yield* SessionService;
-        return yield* svc.init(session);
-      }),
-    );
-    expect(result.name).toBe("test");
-    expect(existsSync(`${TEST_ROOT}/.xp/session.json`)).toBe(true);
-  });
+  it.scoped("load reads session back", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "okra-xp-session-" });
+      const svc = yield* SessionService;
 
-  test("load reads session back", async () => {
-    const session = makeSession();
-    await runSync(
-      Effect.gen(function* () {
-        const svc = yield* SessionService;
-        yield* svc.init(session);
-      }),
-    );
-    const loaded = await runSync(
-      Effect.gen(function* () {
-        const svc = yield* SessionService;
-        return yield* svc.load(TEST_ROOT);
-      }),
-    );
-    expect(loaded.name).toBe("test");
-    expect(loaded.unit).toBe("ms");
-  });
+      yield* svc.init(makeSession(root));
+      const loaded = yield* svc.load(root);
+      expect(loaded.name).toBe("test");
+      expect(loaded.unit).toBe("ms");
+    }).pipe(Effect.provide(TestLayer)),
+  );
 
-  test("update patches session", async () => {
-    const session = makeSession();
-    await runSync(
-      Effect.gen(function* () {
-        const svc = yield* SessionService;
-        yield* svc.init(session);
-      }),
-    );
-    const updated = await runSync(
-      Effect.gen(function* () {
-        const svc = yield* SessionService;
-        return yield* svc.update(TEST_ROOT, { currentIteration: 5, bestValue: 42 });
-      }),
-    );
-    expect(updated.currentIteration).toBe(5);
-    expect(updated.bestValue).toBe(42);
-  });
+  it.scoped("update patches session", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "okra-xp-session-" });
+      const svc = yield* SessionService;
 
-  test("exists returns false for missing session", async () => {
-    const result = await runSync(
-      Effect.gen(function* () {
-        const svc = yield* SessionService;
-        return yield* svc.exists(TEST_ROOT);
-      }),
-    );
-    expect(result).toBe(false);
-  });
+      yield* svc.init(makeSession(root));
+      const updated = yield* svc.update(root, { currentIteration: 5, bestValue: 42 });
+      expect(updated.currentIteration).toBe(5);
+      expect(updated.bestValue).toBe(42);
+    }).pipe(Effect.provide(TestLayer)),
+  );
+
+  it.scoped("exists returns false for missing session", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "okra-xp-session-" });
+      const svc = yield* SessionService;
+
+      const result = yield* svc.exists(root);
+      expect(result).toBe(false);
+    }).pipe(Effect.provide(TestLayer)),
+  );
 });

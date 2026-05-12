@@ -1,8 +1,10 @@
-import { Deferred, Effect, Fiber } from "effect";
+import { Config, ConfigProvider, Deferred, Effect, Fiber, Option } from "effect";
 import { Command, Flag } from "effect/unstable/cli";
 import { ResearchError, ErrorCode } from "../errors.js";
 import { LoopService } from "../services/Loop.js";
 import { DaemonService } from "../services/Daemon.js";
+
+const readInternal = Config.option(Config.string("OKRA_INTERNAL")).parse(ConfigProvider.fromEnv());
 
 export const loopCommand = Command.make(
   "_loop",
@@ -12,7 +14,17 @@ export const loopCommand = Command.make(
   ({ projectRoot }) =>
     Effect.gen(function* () {
       // Guard: only callable by the daemon
-      if (process.env["OKRA_INTERNAL"] !== "1") {
+      const internalOpt = yield* readInternal.pipe(
+        Effect.mapError(
+          () =>
+            new ResearchError({
+              message: "Cannot read OKRA_INTERNAL",
+              code: ErrorCode.AGENT_FAILED,
+            }),
+        ),
+      );
+      const internal = Option.getOrElse(internalOpt, () => "");
+      if (internal !== "1") {
         return yield* new ResearchError({
           message: "This command is for internal use only",
           code: ErrorCode.AGENT_FAILED,
@@ -29,8 +41,12 @@ export const loopCommand = Command.make(
       const shutdown = yield* Deferred.make<void>();
       const services = yield* Effect.context<never>();
       process.on("SIGTERM", () => {
-        console.log("Received SIGTERM, shutting down...");
-        Effect.runForkWith(services)(Deferred.succeed(shutdown, undefined));
+        Effect.runForkWith(services)(
+          Effect.andThen(
+            Effect.logInfo("Received SIGTERM, shutting down..."),
+            Deferred.succeed(shutdown, undefined),
+          ),
+        );
       });
 
       // Fork the loop, then race against SIGTERM

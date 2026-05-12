@@ -9,24 +9,24 @@ Install and manage agent skill packages from GitHub or local paths. Skills land 
 
 ## Quick Reference
 
-| Command | What it does |
-| ------- | ------------ |
-| `okra skills` | List managed skills |
-| `okra skills add <source...>` | Install one or more skills (aliases: `i`, `install`) |
+| Command                        | What it does                                              |
+| ------------------------------ | --------------------------------------------------------- |
+| `okra skills`                  | List managed skills                                       |
+| `okra skills add <source...>`  | Install one or more skills (aliases: `i`, `install`)      |
 | `okra skills remove <name...>` | Uninstall one or more skills (aliases: `rm`, `uninstall`) |
-| `okra skills search <query>` | Search skills.sh for skills |
-| `okra skills update` | Re-fetch all installed skills from their sources |
+| `okra skills search <query>`   | Search skills.sh for skills                               |
+| `okra skills update`           | Re-fetch all installed skills from their sources          |
 
 ### Source Formats
 
-| Source | Behavior |
-| ------ | -------- |
-| `owner/repo` | Discover skills in the repo. Multi-select prompt if >1 found. |
-| `owner/repo@name` | Install that specific skill. |
-| `owner/repo#ref` | Pin to a ref (branch/tag/sha). |
-| `https://github.com/owner/repo[/tree/ref/path]` | URL form, supports tree links. |
-| `./path` `~/path` `/abs/path` | Local folder. Multi-select prompt if folder has multiple skills. |
-| anything else | Treated as a search query against skills.sh. |
+| Source                                          | Behavior                                                         |
+| ----------------------------------------------- | ---------------------------------------------------------------- |
+| `owner/repo`                                    | Discover skills in the repo. Multi-select prompt if >1 found.    |
+| `owner/repo@name`                               | Install that specific skill.                                     |
+| `owner/repo#ref`                                | Pin to a ref (branch/tag/sha).                                   |
+| `https://github.com/owner/repo[/tree/ref/path]` | URL form, supports tree links.                                   |
+| `./path` `~/path` `/abs/path`                   | Local folder. Multi-select prompt if folder has multiple skills. |
+| anything else                                   | Treated as a search query against skills.sh.                     |
 
 ## Adding skills
 
@@ -79,7 +79,7 @@ For sources that no longer resolve (deleted local path, deleted repo), the lock 
 ## Gotchas
 
 - `$SKILLS_DIR` is read once at layer construction. Restart the process after changing it.
-- Lock entries record the *resolved* source (so `acme/repo@foo` stays as `acme/repo@foo` for updates).
+- Lock entries record the _resolved_ source (so `acme/repo@foo` stays as `acme/repo@foo` for updates).
 - Skills installed from local paths use a `local:/abs/path` source — moving the source folder breaks `update`.
 - Multi-skill repos: choose carefully. Picking nothing in the prompt aborts the install for that source.
 - The `--skill/-s` flag was removed in favor of the `owner/repo@name` syntax.

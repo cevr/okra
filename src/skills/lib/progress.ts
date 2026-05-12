@@ -1,4 +1,4 @@
-import { Effect, Fiber, Ref, Schedule } from "effect";
+import { Config, ConfigProvider, Effect, Fiber, Option, Ref, Schedule } from "effect";
 
 export type SkillStatus =
   | "pending"
@@ -18,7 +18,12 @@ interface State {
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
-const defaultIsTTY = !!process.stderr.isTTY && !process.env["NO_COLOR"];
+const readNoColor = Config.option(Config.string("NO_COLOR"))
+  .parse(ConfigProvider.fromEnv())
+  .pipe(
+    Effect.map(Option.isSome),
+    Effect.catch(() => Effect.succeed(false)),
+  );
 
 const defaultWrite = (text: string) =>
   Effect.sync(() => {
@@ -126,6 +131,9 @@ export const make = (
 ): Effect.Effect<Progress, never, never> =>
   Effect.gen(function* () {
     const runningVerb = options.runningVerb ?? "updating";
+    const noColor = yield* readNoColor;
+    const isTty: boolean = process.stderr.isTTY ?? false;
+    const defaultIsTTY = isTty && !noColor;
     const tty = options.tty ?? defaultIsTTY;
     const write = options.write ?? defaultWrite;
     const color = tty;

@@ -16,6 +16,22 @@ import { BrainError, ConfigError } from "../errors/index.js";
 
 const decodeUnknownJson = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown));
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const HookCommand = Schema.Struct({ command: Schema.optional(Schema.String) });
+const SessionStartEntry = Schema.Struct({
+  matcher: Schema.optional(Schema.String),
+  hooks: Schema.optional(Schema.Array(HookCommand)),
+});
+const PostToolUseEntry = Schema.Struct({
+  hooks: Schema.optional(Schema.Array(HookCommand)),
+});
+const SessionStartArray = Schema.Array(SessionStartEntry);
+const PostToolUseArray = Schema.Array(PostToolUseEntry);
+const decodeSessionStart = Schema.decodeUnknownOption(SessionStartArray);
+const decodePostToolUse = Schema.decodeUnknownOption(PostToolUseArray);
+
 const InitOutput = Schema.Struct({
   vault: Schema.String,
   config: Schema.String,
@@ -73,7 +89,9 @@ export const init = Command.make("init", {
           code: "UNSUPPORTED_PROVIDER",
         });
       }
-      const requestedProvider = Option.map(provider, (value) => value as Provider);
+      const requestedProvider: Option.Option<Provider> = Option.flatMap(provider, (value) =>
+        isAgentProviderId(value) ? Option.some(value) : Option.none(),
+      );
 
       let vaultPath: string;
 
@@ -127,11 +145,14 @@ export const init = Command.make("init", {
         daemon?: { provider?: Provider };
       } = yield* config.loadConfigFile().pipe(Effect.catch(() => Effect.succeed({})));
 
-      const providerIds: Array<Provider> = Option.isSome(requestedProvider)
-        ? [requestedProvider.value]
-        : allProviders
-          ? (["claude", "codex"] as Array<Provider>)
-          : [yield* platform.resolveInteractiveProvider(Option.none())];
+      let providerIds: Array<Provider>;
+      if (Option.isSome(requestedProvider)) {
+        providerIds = [requestedProvider.value];
+      } else if (allProviders) {
+        providerIds = ["claude", "codex"];
+      } else {
+        providerIds = [yield* platform.resolveInteractiveProvider(Option.none())];
+      }
 
       const nextDefaultProvider = Option.getOrElse(
         requestedProvider,
@@ -169,53 +190,77 @@ export const init = Command.make("init", {
         });
       }
 
-      if (json) {
-        yield* Console.log(
-          encodeInitOutput({
-            vault: vaultPath,
-            config: cfgPath,
-            files: created,
-            providers: integrations.map((integration) => ({
-              provider: integration.provider,
-              hooks: Option.getOrNull(integration.hooks),
-              hooksChanged: integration.hooksChanged,
-              hooksSkipped: integration.hooksSkipped,
-            })),
-          }),
-        );
-      } else {
-        if (created.length > 0) {
-          yield* Console.error(`Created vault at ${vaultPath}`);
-          for (const f of created) {
-            yield* Console.error(`  ${f}`);
-          }
-        }
-        if (!cfgExists) {
-          yield* Console.error(`Wrote config to ${cfgPath}`);
-        }
-        for (const integration of integrations) {
-          if (integration.hooksChanged && Option.isSome(integration.hooks)) {
-            yield* Console.error(
-              `Wired ${integration.provider} hooks into ${integration.hooks.value}`,
-            );
-          }
-          if (integration.hooksSkipped) {
-            yield* Console.error(`Skipped ${integration.provider} hooks — unsupported`);
-          }
-        }
-        const somethingChanged =
-          created.length > 0 ||
-          !cfgExists ||
-          integrations.some((integration) => integration.hooksChanged);
-        if (somethingChanged) {
-          yield* Console.error(`\nDone — vault ready at ${vaultPath}`);
-        } else {
-          yield* Console.error(`Already initialized — vault at ${vaultPath}`);
-        }
-      }
+      yield* renderInitOutput({
+        json,
+        vaultPath,
+        cfgPath,
+        cfgExists,
+        created,
+        integrations,
+      });
     }),
   ),
 );
+
+interface InitIntegration {
+  readonly provider: string;
+  readonly hooks: Option.Option<string>;
+  readonly hooksChanged: boolean;
+  readonly hooksSkipped: boolean;
+}
+
+const renderInitOutput = Effect.fn("brain.init.renderOutput")(function* (args: {
+  readonly json: boolean;
+  readonly vaultPath: string;
+  readonly cfgPath: string;
+  readonly cfgExists: boolean;
+  readonly created: ReadonlyArray<string>;
+  readonly integrations: ReadonlyArray<InitIntegration>;
+}) {
+  const { json, vaultPath, cfgPath, cfgExists, created, integrations } = args;
+  if (json) {
+    yield* Console.log(
+      encodeInitOutput({
+        vault: vaultPath,
+        config: cfgPath,
+        files: created,
+        providers: integrations.map((integration) => ({
+          provider: integration.provider,
+          hooks: Option.getOrNull(integration.hooks),
+          hooksChanged: integration.hooksChanged,
+          hooksSkipped: integration.hooksSkipped,
+        })),
+      }),
+    );
+    return;
+  }
+  if (created.length > 0) {
+    yield* Console.error(`Created vault at ${vaultPath}`);
+    for (const f of created) {
+      yield* Console.error(`  ${f}`);
+    }
+  }
+  if (!cfgExists) {
+    yield* Console.error(`Wrote config to ${cfgPath}`);
+  }
+  for (const integration of integrations) {
+    if (integration.hooksChanged && Option.isSome(integration.hooks)) {
+      yield* Console.error(`Wired ${integration.provider} hooks into ${integration.hooks.value}`);
+    }
+    if (integration.hooksSkipped) {
+      yield* Console.error(`Skipped ${integration.provider} hooks — unsupported`);
+    }
+  }
+  const somethingChanged =
+    created.length > 0 ||
+    !cfgExists ||
+    integrations.some((integration) => integration.hooksChanged);
+  if (somethingChanged) {
+    yield* Console.error(`\nDone — vault ready at ${vaultPath}`);
+  } else {
+    yield* Console.error(`Already initialized — vault at ${vaultPath}`);
+  }
+});
 
 /** @internal */
 export const wireHooks = Effect.fn("wireHooks")(function* (settingsPath: string) {
@@ -246,30 +291,25 @@ export const wireHooks = Effect.fn("wireHooks")(function* (settingsPath: string)
     ),
   );
 
-  const parsed = yield* Effect.try({
-    try: () => decodeUnknownJson(existing) as Record<string, unknown>,
+  const parsedRaw = yield* Effect.try({
+    try: () => decodeUnknownJson(existing),
     catch: () => new ConfigError({ message: "Cannot parse settings.json", code: "PARSE_FAILED" }),
   });
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+  if (!isRecord(parsedRaw)) {
     return yield* new ConfigError({
       message: "settings.json is not a JSON object",
       code: "PARSE_FAILED",
     });
   }
+  const parsed = parsedRaw;
 
   // Validate hooks is a plain object before using it
   const rawHooks = parsed["hooks"];
-  if (
-    rawHooks !== undefined &&
-    (typeof rawHooks !== "object" || rawHooks === null || Array.isArray(rawHooks))
-  ) {
+  if (rawHooks !== undefined && !isRecord(rawHooks)) {
     yield* Console.error("Warning: settings.json hooks is not an object — skipping hook wiring");
     return false;
   }
-  const hooks: Record<string, unknown> =
-    typeof rawHooks === "object" && rawHooks !== null && !Array.isArray(rawHooks)
-      ? (rawHooks as Record<string, unknown>)
-      : {};
+  const hooks: Record<string, unknown> = isRecord(rawHooks) ? rawHooks : {};
 
   const getHookArray = (key: string): unknown[] => {
     const val = hooks[key];
@@ -288,28 +328,27 @@ export const wireHooks = Effect.fn("wireHooks")(function* (settingsPath: string)
     hooks: [{ type: "command", command: "okra brain reindex" }],
   };
 
-  const sessionStart = getHookArray("SessionStart") as Array<{
-    matcher?: string;
-    hooks?: Array<{ command?: string }>;
-  }>;
+  const sessionStartRaw = getHookArray("SessionStart");
+  const sessionStart = Array.from(Option.getOrElse(decodeSessionStart(sessionStartRaw), () => []));
   const brainInjectIdx = sessionStart.findIndex(
-    (h) => h?.hooks?.some((hh) => hh.command === "okra brain inject") ?? false,
+    (h) => h.hooks?.some((hh) => hh.command === "okra brain inject") ?? false,
   );
   if (brainInjectIdx === -1) {
     hooks["SessionStart"] = [...sessionStart, sessionStartHook];
     changed = true;
-  } else if (sessionStart[brainInjectIdx]?.matcher !== "startup|resume") {
-    // Update matcher on existing hook
-    sessionStart[brainInjectIdx] = { ...sessionStart[brainInjectIdx], matcher: "startup|resume" };
-    hooks["SessionStart"] = sessionStart;
-    changed = true;
+  } else {
+    const existingEntry = sessionStart[brainInjectIdx];
+    if (existingEntry !== undefined && existingEntry.matcher !== "startup|resume") {
+      sessionStart[brainInjectIdx] = { ...existingEntry, matcher: "startup|resume" };
+      hooks["SessionStart"] = sessionStart;
+      changed = true;
+    }
   }
 
-  const postToolUse = getHookArray("PostToolUse") as Array<{
-    hooks?: Array<{ command?: string }>;
-  }>;
+  const postToolUseRaw = getHookArray("PostToolUse");
+  const postToolUse = Array.from(Option.getOrElse(decodePostToolUse(postToolUseRaw), () => []));
   const hasBrainReindex = postToolUse.some(
-    (h) => h?.hooks?.some((hh) => hh.command === "okra brain reindex") ?? false,
+    (h) => h.hooks?.some((hh) => hh.command === "okra brain reindex") ?? false,
   );
   if (!hasBrainReindex) {
     hooks["PostToolUse"] = [...postToolUse, postToolUseHook];

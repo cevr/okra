@@ -1,9 +1,25 @@
-import { Effect, Schema } from "effect";
+import { Config, Effect, Option, Schema } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
 import { BrainError } from "../../errors/index.js";
 import type { Provider } from "../../../shared/provider.js";
+
+const readEnv = (key: string): Effect.Effect<Option.Option<string>, BrainError> =>
+  Config.option(Config.string(key))
+    .asEffect()
+    .pipe(
+      Effect.mapError(
+        () => new BrainError({ message: `Cannot read ${key} config`, code: "READ_FAILED" }),
+      ),
+    );
+
+const readHome = Effect.gen(function* () {
+  const homeOpt = yield* readEnv("HOME");
+  if (Option.isSome(homeOpt)) return homeOpt.value;
+  const userProfileOpt = yield* readEnv("USERPROFILE");
+  return Option.getOrElse(userProfileOpt, () => "");
+});
 
 export type ProviderMap<T> = Partial<Record<Provider, T>>;
 
@@ -290,7 +306,7 @@ export const releaseLock = Effect.fn("releaseLock")(function* (brainDir: string,
 // --- Utilities ---
 
 export const requireHome = Effect.fn("requireHome")(function* () {
-  const home = process.env["HOME"] ?? process.env["USERPROFILE"] ?? "";
+  const home = yield* readHome;
   if (home.length > 0) return home;
   return yield* new BrainError({
     message: "HOME not set — run with HOME defined",
@@ -306,7 +322,8 @@ export const requireDarwin = Effect.fn("requireDarwin")(function* () {
   });
 });
 
-export const isSettled = (mtime: Date): boolean => Date.now() - mtime.getTime() > SETTLE_MS;
+export const isSettled = (mtime: Date, nowMs: number): boolean =>
+  nowMs - mtime.getTime() > SETTLE_MS;
 
 const TCC_DIRS = new Set([
   "Desktop",
@@ -319,8 +336,7 @@ const TCC_DIRS = new Set([
   "Public",
 ]);
 
-const isTccProtected = (candidate: string): boolean => {
-  const home = process.env["HOME"] ?? "";
+const isTccProtected = (candidate: string, home: string): boolean => {
   if (home.length === 0 || !candidate.startsWith(home + "/")) return false;
   const rel = candidate.slice(home.length + 1);
   const topDir = rel.split("/")[0] ?? "";
@@ -332,10 +348,11 @@ export const deriveProjectName = Effect.fn("deriveProjectName")(function* (dirNa
 
   const fs = yield* FileSystem;
   const p = yield* Path;
+  const home = yield* readHome;
 
   const decoded = dirName.replaceAll("--", "/.").replaceAll("-", "/");
 
-  if (!isTccProtected(decoded)) {
+  if (!isTccProtected(decoded, home)) {
     const fullExists = yield* fs.exists(decoded).pipe(Effect.catch(() => Effect.succeed(false)));
     if (fullExists) return p.basename(decoded);
   }
@@ -348,12 +365,11 @@ export const deriveProjectName = Effect.fn("deriveProjectName")(function* (dirNa
   for (const idx of dashes) {
     const prefix = dirName.slice(0, idx);
     const candidate = prefix.replaceAll("--", "/.").replaceAll("-", "/");
-    if (isTccProtected(candidate)) continue;
+    if (isTccProtected(candidate, home)) continue;
     const exists = yield* fs.exists(candidate).pipe(Effect.catch(() => Effect.succeed(false)));
     if (exists) return dirName.slice(idx + 1);
   }
 
-  const home = process.env["HOME"] ?? "";
   const homeDash = home.replaceAll("/.", "--").replaceAll("/", "-");
   if (homeDash.length > 0 && dirName.startsWith(`${homeDash}-`)) {
     return dirName.slice(homeDash.length + 1);

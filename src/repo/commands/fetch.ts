@@ -1,5 +1,5 @@
 import { Argument, Command, Flag } from "effect/unstable/cli";
-import { Clock, Console, Effect, Option, Path, Schema } from "effect";
+import { Console, DateTime, Effect, Option, Path, Schema } from "effect";
 import { formatBytes, specToString } from "../types.js";
 import { CacheService } from "../services/cache.js";
 import { MetadataService } from "../services/metadata.js";
@@ -76,8 +76,7 @@ export const fetch = Command.make(
             .getCurrentRef(existing.path)
             .pipe(Effect.orElseSucceed(() => "unknown"));
 
-          const nowMs = yield* Clock.currentTimeMillis;
-          const now = new Date(nowMs).toISOString();
+          const now = (yield* DateTime.now).pipe(DateTime.formatIso);
           yield* metadata.add({
             spec: parsedSpec,
             fetchedAt: existing.fetchedAt,
@@ -140,8 +139,7 @@ export const fetch = Command.make(
         yield* Console.error(`Ref: ${currentRef}`);
       }
 
-      const freshNowMs = yield* Clock.currentTimeMillis;
-      const freshNow = new Date(freshNowMs).toISOString();
+      const freshNow = (yield* DateTime.now).pipe(DateTime.formatIso);
       yield* metadata.add({
         spec: parsedSpec,
         fetchedAt: freshNow,

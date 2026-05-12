@@ -33,8 +33,10 @@ export const buildExperimentPrompt = (
   if (recentTrials.length > 0) {
     lines.push(`## Recent Trials (last ${recentTrials.length})`);
     for (const trial of recentTrials) {
-      const status =
-        trial.status === "kept" ? "KEPT" : trial.status === "failed" ? "FAILED" : "DISCARDED";
+      let status: string;
+      if (trial.status === "kept") status = "KEPT";
+      else if (trial.status === "failed") status = "FAILED";
+      else status = "DISCARDED";
       const value = trial.value !== undefined ? `${trial.value} ${session.unit}` : "N/A";
       lines.push(`- [${status}] iter ${trial.iteration}: ${value} — ${trial.summary}`);
     }
@@ -109,9 +111,14 @@ export const buildSetupPrompt = (
   return lines.join("\n");
 };
 
+const resultStatusLabel = (status: ResultEvent["status"]): string => {
+  if (status === "kept") return "KEPT";
+  if (status === "failed") return "FAILED";
+  return "DISCARDED";
+};
+
 export const formatResultForLog = (result: ResultEvent, session: Session): string => {
-  const status =
-    result.status === "kept" ? "KEPT" : result.status === "failed" ? "FAILED" : "DISCARDED";
+  const status = resultStatusLabel(result.status);
   const value = result.value !== undefined ? `${result.value} ${session.unit}` : "N/A";
   return `[${status}] iter ${result.iteration} (${result.kind}): ${value} — ${result.summary}`;
 };

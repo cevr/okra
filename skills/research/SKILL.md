@@ -20,17 +20,17 @@ What do you need?
 
 ## Quick Reference
 
-| Command | What it does |
-| ------- | ------------ |
-| `okra research start --direction min --benchmark "bun run bench.ts" --objective "Optimize sort"` | Start experiment |
-| `okra research start` | Resume existing session |
-| `okra research stop` | Stop daemon |
-| `okra research status` | Show progress |
-| `okra research status --json` | Machine-readable status |
-| `okra research logs -f` | Tail daemon log |
-| `okra research steer "Try a different algorithm"` | Queue guidance |
-| `okra research results` | Show all results |
-| `okra research results --last 5` | Show last N results |
+| Command                                                                                          | What it does            |
+| ------------------------------------------------------------------------------------------------ | ----------------------- |
+| `okra research start --direction min --benchmark "bun run bench.ts" --objective "Optimize sort"` | Start experiment        |
+| `okra research start`                                                                            | Resume existing session |
+| `okra research stop`                                                                             | Stop daemon             |
+| `okra research status`                                                                           | Show progress           |
+| `okra research status --json`                                                                    | Machine-readable status |
+| `okra research logs -f`                                                                          | Tail daemon log         |
+| `okra research steer "Try a different algorithm"`                                                | Queue guidance          |
+| `okra research results`                                                                          | Show all results        |
+| `okra research results --last 5`                                                                 | Show last N results     |
 
 ## Quick Start
 
@@ -58,13 +58,13 @@ RESULT 42.5
 
 ### Budget Controls
 
-| Flag | Default | Effect |
-| ---- | ------- | ------ |
-| `--max-iterations` | 50 | Hard iteration cap |
-| `--max-failures` | 5 | Consecutive failure cap |
-| `--max-minutes` | none | Wall-clock deadline |
-| `--until` | none | Absolute deadline (ISO date) |
-| `--provider` | claude | Agent to use |
+| Flag               | Default | Effect                       |
+| ------------------ | ------- | ---------------------------- |
+| `--max-iterations` | 50      | Hard iteration cap           |
+| `--max-failures`   | 5       | Consecutive failure cap      |
+| `--max-minutes`    | none    | Wall-clock deadline          |
+| `--until`          | none    | Absolute deadline (ISO date) |
+| `--provider`       | claude  | Agent to use                 |
 
 `--max-minutes` and `--until` are mutually exclusive; both normalize to absolute `deadline`.
 
@@ -115,17 +115,17 @@ src/research/
 
 ### Data Layout (`.xp/`)
 
-| File | Purpose |
-| ---- | ------- |
-| `session.json` | Session config |
-| `experiments.jsonl` | Event source of truth |
-| `experiment.md` | Auto-generated summary |
-| `setup.json` | Worktree setup manifest |
-| `benchmark.digest` | SHA256 of benchmark files |
-| `daemon.pid` | Running daemon PID |
-| `daemon.log` | Daemon stdout/stderr |
-| `steer/` | Pending user guidance |
-| `worktree/` | Git worktree |
+| File                | Purpose                   |
+| ------------------- | ------------------------- |
+| `session.json`      | Session config            |
+| `experiments.jsonl` | Event source of truth     |
+| `experiment.md`     | Auto-generated summary    |
+| `setup.json`        | Worktree setup manifest   |
+| `benchmark.digest`  | SHA256 of benchmark files |
+| `daemon.pid`        | Running daemon PID        |
+| `daemon.log`        | Daemon stdout/stderr      |
+| `steer/`            | Pending user guidance     |
+| `worktree/`         | Git worktree              |
 
 ## Gotchas
 

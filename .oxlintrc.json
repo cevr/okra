@@ -1,46 +1,50 @@
 {
   "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
+  "options": {
+    "typeAware": true
+  },
   "categories": {
     "correctness": "error",
     "suspicious": "error",
     "perf": "error"
   },
-  "plugins": ["typescript", "import"],
+  "plugins": ["typescript", "import", "node"],
   "rules": {
-    "no-underscore-dangle": "off",
     "typescript/no-explicit-any": "error",
+    "typescript/no-unsafe-type-assertion": "error",
     "typescript/no-non-null-assertion": "error",
     "typescript/no-extra-non-null-assertion": "error",
     "typescript/no-non-null-asserted-optional-chain": "error",
     "typescript/consistent-type-imports": [
       "error",
-      {
-        "prefer": "type-imports",
-        "fixStyle": "separate-type-imports"
-      }
+      { "prefer": "type-imports", "fixStyle": "separate-type-imports" }
     ],
     "import/no-duplicates": "error",
-    "no-unused-vars": [
-      "error",
-      {
-        "argsIgnorePattern": "^_",
-        "varsIgnorePattern": "^_"
-      }
-    ]
+    "node/no-process-env": "error",
+    "no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    "no-nested-ternary": "error",
+    "complexity": ["error", 20],
+    "no-underscore-dangle": "off",
+    "consistent-return": "off",
+    "typescript/no-unnecessary-type-assertion": "off",
+    "typescript/no-base-to-string": "off",
+    "typescript/no-unnecessary-type-arguments": "off"
   },
   "ignorePatterns": [
-    "**/bin/**",
     "**/dist/**",
     "**/node_modules/**",
-    "**/scripts/**",
-    "**/*.d.ts"
+    "**/*.d.ts",
+    "**/bin/**",
+    "**/fixture/**",
+    "**/scripts/**"
   ],
   "overrides": [
     {
       "files": ["**/*.test.ts", "**/tests/**"],
       "rules": {
         "typescript/no-explicit-any": "off",
-        "typescript/no-non-null-assertion": "off"
+        "typescript/no-non-null-assertion": "off",
+        "typescript/no-unsafe-type-assertion": "off"
       }
     }
   ]

@@ -1,4 +1,4 @@
-import { Console, Effect } from "effect";
+import { Clock, Console, Effect } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
@@ -25,7 +25,8 @@ export const steerCommand = Command.make(
         });
 
       yield* fs.makeDirectory(paths.steerDir, { recursive: true }).pipe(Effect.mapError(wrap));
-      const filename = `${Date.now()}.txt`;
+      const nowMs = yield* Clock.currentTimeMillis;
+      const filename = `${String(nowMs)}.txt`;
       yield* fs
         .writeFileString(path.join(paths.steerDir, filename), guidance)
         .pipe(Effect.mapError(wrap));

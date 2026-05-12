@@ -65,24 +65,25 @@ export class WorkspaceService extends Context.Service<
 
         if (manifest.commands !== undefined) {
           for (const cmd of manifest.commands) {
-            yield* Effect.tryPromise({
-              try: async () => {
-                const proc = Bun.spawn(["sh", "-c", cmd], {
-                  cwd: worktreePath,
-                  stdout: "inherit",
-                  stderr: "inherit",
-                });
-                const code = await proc.exited;
-                if (code !== 0) {
-                  throw new Error(`Command failed (exit ${code}): ${cmd}`);
-                }
-              },
+            const proc = Bun.spawn(["sh", "-c", cmd], {
+              cwd: worktreePath,
+              stdout: "inherit",
+              stderr: "inherit",
+            });
+            const code = yield* Effect.tryPromise({
+              try: () => proc.exited,
               catch: (e) =>
                 new ResearchError({
                   message: `Setup command failed: ${e instanceof Error ? e.message : String(e)}`,
                   code: ErrorCode.WORKTREE_FAILED,
                 }),
             });
+            if (code !== 0) {
+              return yield* new ResearchError({
+                message: `Setup command failed (exit ${String(code)}): ${cmd}`,
+                code: ErrorCode.WORKTREE_FAILED,
+              });
+            }
           }
         }
       });

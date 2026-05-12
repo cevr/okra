@@ -14,14 +14,14 @@ bun run build         # compile binary to bin/okra
 
 Six orthogonal domains under `src/`, each with own errors, services, commands:
 
-| Domain | Subcommand | Error tag | Data dir |
-| ------ | ---------- | --------- | -------- |
-| `schedule/` | `okra schedule` | `ScheduleError` | `~/.okra/schedule/` |
-| `counsel/` | `okra counsel` | `CounselError` | `/tmp/counsel/` |
-| `research/` | `okra research` | `ResearchError` | `.xp/` (project-local) |
-| `brain/` | `okra brain` | `BrainError`/`VaultError`/`ConfigError` | `~/.brain/` |
-| `repo/` | `okra repo` | `RepoError` | `~/.cache/repo/` |
-| `skills/` | `okra skills` | `SkillsError` | `$SKILLS_DIR` or `~/Developer/personal/dotfiles/skills` |
+| Domain      | Subcommand      | Error tag                               | Data dir                                                |
+| ----------- | --------------- | --------------------------------------- | ------------------------------------------------------- |
+| `schedule/` | `okra schedule` | `ScheduleError`                         | `~/.okra/schedule/`                                     |
+| `counsel/`  | `okra counsel`  | `CounselError`                          | `/tmp/counsel/`                                         |
+| `research/` | `okra research` | `ResearchError`                         | `.xp/` (project-local)                                  |
+| `brain/`    | `okra brain`    | `BrainError`/`VaultError`/`ConfigError` | `~/.brain/`                                             |
+| `repo/`     | `okra repo`     | `RepoError`                             | `~/.cache/repo/`                                        |
+| `skills/`   | `okra skills`   | `SkillsError`                           | `$SKILLS_DIR` or `~/Developer/personal/dotfiles/skills` |
 
 Shared utilities in `src/shared/`: `Provider` schema, `resolveExecutable`, `isColorEnabled`.
 
@@ -53,11 +53,11 @@ Shared utilities in `src/shared/`: `Provider` schema, `resolveExecutable`, `isCo
 
 ## Skills
 
-| Subcommand | Skill |
-| ---------- | ----- |
+| Subcommand      | Skill                      |
+| --------------- | -------------------------- |
 | `okra schedule` | `skills/schedule/SKILL.md` |
-| `okra counsel` | `skills/counsel/SKILL.md` |
+| `okra counsel`  | `skills/counsel/SKILL.md`  |
 | `okra research` | `skills/research/SKILL.md` |
-| `okra brain` | `skills/brain/SKILL.md` |
-| `okra repo` | `skills/repo/SKILL.md` |
-| `okra skills` | `skills/skills/SKILL.md` |
+| `okra brain`    | `skills/brain/SKILL.md`    |
+| `okra repo`     | `skills/repo/SKILL.md`     |
+| `okra skills`   | `skills/skills/SKILL.md`   |
