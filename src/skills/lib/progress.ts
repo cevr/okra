@@ -5,6 +5,7 @@ export type SkillStatus =
   | "running"
   | "updated"
   | "installed"
+  | "moved"
   | "unchanged"
   | "removed"
   | "failed";
@@ -41,6 +42,8 @@ const symbol = (status: SkillStatus, frame: number): string => {
     case "updated":
     case "installed":
       return "✓";
+    case "moved":
+      return "→";
     case "unchanged":
       return "·";
     case "removed":
@@ -60,6 +63,8 @@ const verb = (status: SkillStatus, runningVerb: string): string => {
       return "updated";
     case "installed":
       return "installed";
+    case "moved":
+      return "moved";
     case "unchanged":
       return "unchanged";
     case "removed":
@@ -82,6 +87,7 @@ const colorize = (status: SkillStatus, text: string, color: boolean): string => 
       return cyan(text, color);
     case "updated":
     case "installed":
+    case "moved":
     case "removed":
       return green(text, color);
     case "unchanged":
@@ -124,19 +130,25 @@ export const make = (
     const write = options.write ?? defaultWrite;
     const color = tty;
 
+    const isVisible = (status: SkillStatus): boolean => status !== "unchanged";
+
     const drawTty = (state: State): Effect.Effect<void> => {
       const moveUp = ansi.up(state.drawn);
-      const lines = state.entries
+      const visible = state.entries.filter((e) => isVisible(e.status));
+      const lines = visible
         .map(
           (e) =>
             `${ansi.clearLine}${ansi.cr}${renderLine(e.name, e.status, state.frame, runningVerb, color)}\n`,
         )
         .join("");
-      return write(`${moveUp}${lines}`);
+      // Clear any rows the previous draw used that we no longer need
+      const shrink = Math.max(0, state.drawn - visible.length);
+      const blanks = `${ansi.clearLine}${ansi.cr}\n`.repeat(shrink);
+      return write(`${moveUp}${lines}${blanks}${ansi.up(shrink)}`);
     };
 
     const printPlain = (name: string, status: SkillStatus): Effect.Effect<void> => {
-      if (status === "running" || status === "pending") return Effect.void;
+      if (status === "running" || status === "pending" || !isVisible(status)) return Effect.void;
       return write(`${renderLine(name, status, 0, runningVerb, color)}\n`);
     };
 
@@ -147,17 +159,24 @@ export const make = (
     };
     const ref = yield* Ref.make<State>(initial);
 
+    const repaint = Effect.gen(function* () {
+      const s = yield* Ref.get(ref);
+      yield* drawTty(s);
+      yield* Ref.update(ref, (cur) => ({
+        ...cur,
+        drawn: cur.entries.filter((e) => isVisible(e.status)).length,
+      }));
+    });
+
     if (tty) {
       yield* write(ansi.hideCursor);
-      // Initial paint
-      yield* Ref.update(ref, (s) => ({ ...s, drawn: s.entries.length }));
-      yield* Ref.get(ref).pipe(Effect.flatMap(drawTty));
+      yield* repaint;
     }
 
     const ticker = tty
       ? yield* Effect.gen(function* () {
           yield* Ref.update(ref, (s) => ({ ...s, frame: s.frame + 1 }));
-          yield* Ref.get(ref).pipe(Effect.flatMap(drawTty));
+          yield* repaint;
         }).pipe(
           Effect.repeat(Schedule.spaced("80 millis")),
           Effect.ignore,
@@ -172,7 +191,7 @@ export const make = (
           entries: s.entries.map((e) => (e.name === name ? { ...e, status } : e)),
         }));
         if (tty) {
-          yield* Ref.get(ref).pipe(Effect.flatMap(drawTty));
+          yield* repaint;
         } else {
           yield* printPlain(name, status);
         }
@@ -181,10 +200,8 @@ export const make = (
     const finish = Effect.gen(function* () {
       if (ticker !== null) yield* Fiber.interrupt(ticker);
       if (tty) {
-        // Final paint with frame=0 so spinner glyph isn't left behind for
-        // anything still marked "running" (shouldn't happen, but be safe)
         yield* Ref.update(ref, (s) => ({ ...s, frame: 0 }));
-        yield* Ref.get(ref).pipe(Effect.flatMap(drawTty));
+        yield* repaint;
         yield* write(ansi.showCursor);
       }
     });

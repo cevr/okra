@@ -86,6 +86,116 @@ describe("runUpdate", () => {
     }).pipe(Effect.provide(makeTestLayer(dir, github)));
   });
 
+  it.live("falls back to discoverSkills + updates skillPath when source moved within repo", () => {
+    const dir = makeTempDir();
+
+    const newDir = "skills/productivity/handoff";
+    const newSkillPath = `${newDir}/SKILL.md`;
+    const oldDir = "skills/in-progress/handoff";
+
+    const fetchSkillDir: GitHubShape["fetchSkillDir"] = (_owner, _repo, dirPath) => {
+      if (dirPath === oldDir) {
+        return Effect.fail(
+          new SkillsError({
+            message: `Failed to fetch: github:mattpocock/skills/${oldDir} (404)`,
+            code: "FETCH_FAILED",
+          }),
+        );
+      }
+      if (dirPath === newDir) {
+        return Effect.succeed([
+          { path: "SKILL.md", content: "---\nname: handoff\ndescription: moved\n---\nNew\n" },
+        ]);
+      }
+      return Effect.die(`unexpected dir: ${dirPath}`);
+    };
+
+    const discoverSkills: GitHubShape["discoverSkills"] = () =>
+      Effect.succeed([
+        { dirName: "handoff", skillMdPath: newSkillPath, skillDir: newDir },
+        {
+          dirName: "prototype",
+          skillMdPath: "skills/engineering/prototype/SKILL.md",
+          skillDir: "skills/engineering/prototype",
+        },
+      ]);
+
+    const github: GitHubShape = {
+      listContents: notImplemented as GitHubShape["listContents"],
+      fetchRaw: notImplemented as GitHubShape["fetchRaw"],
+      listTree: notImplemented as GitHubShape["listTree"],
+      discoverSkills,
+      fetchSkillDir,
+    };
+
+    return Effect.gen(function* () {
+      const store = yield* SkillStore;
+      const lock = yield* SkillLock;
+
+      yield* store.installDir("handoff", [
+        { path: "SKILL.md", content: "---\nname: handoff\ndescription: old\n---\nOld\n" },
+      ]);
+      yield* lock.add("handoff", "mattpocock/skills", `${oldDir}/SKILL.md`);
+
+      yield* runUpdate();
+
+      const entry = yield* lock.get("handoff");
+      expect(Option.isSome(entry)).toBe(true);
+      if (Option.isSome(entry)) {
+        expect(entry.value.skillPath).toBe(newSkillPath);
+      }
+      expect(readFileSync(join(dir, "handoff", "SKILL.md"), "utf8")).toContain("New");
+    }).pipe(Effect.provide(makeTestLayer(dir, github)));
+  });
+
+  it.live("keeps the failure when 404'd skill name has no match in repo", () => {
+    const dir = makeTempDir();
+
+    const fetchSkillDir: GitHubShape["fetchSkillDir"] = (_owner, _repo, _dirPath) =>
+      Effect.fail(
+        new SkillsError({
+          message: `Failed to fetch: github:mattpocock/skills/skills/in-progress/handoff (404)`,
+          code: "FETCH_FAILED",
+        }),
+      );
+
+    const discoverSkills: GitHubShape["discoverSkills"] = () =>
+      Effect.succeed([
+        {
+          dirName: "something-else",
+          skillMdPath: "skills/x/something-else/SKILL.md",
+          skillDir: "skills/x/something-else",
+        },
+      ]);
+
+    const github: GitHubShape = {
+      listContents: notImplemented as GitHubShape["listContents"],
+      fetchRaw: notImplemented as GitHubShape["fetchRaw"],
+      listTree: notImplemented as GitHubShape["listTree"],
+      discoverSkills,
+      fetchSkillDir,
+    };
+
+    return Effect.gen(function* () {
+      const store = yield* SkillStore;
+      const lock = yield* SkillLock;
+
+      yield* store.installDir("handoff", [
+        { path: "SKILL.md", content: "---\nname: handoff\ndescription: old\n---\n" },
+      ]);
+      yield* lock.add("handoff", "mattpocock/skills", "skills/in-progress/handoff/SKILL.md");
+
+      yield* runUpdate();
+
+      // Lock entry unchanged (still pointing at old path), files unchanged
+      const entry = yield* lock.get("handoff");
+      expect(Option.isSome(entry)).toBe(true);
+      if (Option.isSome(entry)) {
+        expect(entry.value.skillPath).toBe("skills/in-progress/handoff/SKILL.md");
+      }
+    }).pipe(Effect.provide(makeTestLayer(dir, github)));
+  });
+
   it.live("updates multi-file skills installed from owner/repo@skill sources", () => {
     const dir = makeTempDir();
 

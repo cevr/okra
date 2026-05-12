@@ -34,7 +34,9 @@ export class SkillLock extends Context.Service<
     ) => Effect.Effect<void, SkillsError>;
     readonly remove: (name: string) => Effect.Effect<void, SkillsError>;
     readonly update: (name: string) => Effect.Effect<void, SkillsError>;
-    readonly updateMany: (names: ReadonlyArray<string>) => Effect.Effect<void, SkillsError>;
+    readonly updateMany: (
+      entries: ReadonlyArray<{ name: string; skillPath?: string }>,
+    ) => Effect.Effect<void, SkillsError>;
   }
 >()("@cvr/okra/skills/services/SkillLock") {}
 
@@ -151,15 +153,21 @@ export const SkillLockLive = Layer.effect(
         yield* writeLock(updated);
       }).pipe(Effect.withSpan("SkillLock.update", { attributes: { name } }));
 
-    const updateMany = Effect.fn("SkillLock.updateMany")(function* (names: ReadonlyArray<string>) {
-      if (names.length === 0) return;
+    const updateMany = Effect.fn("SkillLock.updateMany")(function* (
+      entries: ReadonlyArray<{ name: string; skillPath?: string }>,
+    ) {
+      if (entries.length === 0) return;
       const lock = yield* readLock;
       const now = new Date().toISOString();
       const newSkills = { ...lock.skills };
-      for (const name of names) {
+      for (const { name, skillPath } of entries) {
         const entry = newSkills[name];
         if (entry) {
-          newSkills[name] = new LockEntry({ ...entry, updatedAt: now });
+          newSkills[name] = new LockEntry({
+            ...entry,
+            ...(skillPath ? { skillPath } : {}),
+            updatedAt: now,
+          });
         }
       }
       yield* writeLock(new LockFile({ version: 1, skills: newSkills }));
