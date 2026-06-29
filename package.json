@@ -21,21 +21,22 @@
     "release": "changeset publish"
   },
   "dependencies": {
-    "@effect/platform-bun": "4.0.0-beta.60",
-    "effect": "4.0.0-beta.60"
+    "@effect/ai-openai": "4.0.0-beta.92",
+    "@effect/platform-bun": "4.0.0-beta.92",
+    "effect": "4.0.0-beta.92"
   },
   "devDependencies": {
-    "@changesets/changelog-github": "^0.6.0",
+    "@changesets/changelog-github": "^0.7.0",
     "@changesets/cli": "^2.31.0",
-    "@effect/tsgo": "^0.6.0",
-    "@types/bun": "^1.3.13",
-    "@typescript/native-preview": "^7.0.0-dev.20260511.1",
-    "concurrently": "^9.2.1",
+    "@effect/tsgo": "^0.15.0",
+    "@types/bun": "^1.3.14",
+    "@typescript/native-preview": "^7.0.0-dev.20260629.1",
+    "concurrently": "^10.0.3",
     "effect-bun-test": "^0.3.0",
-    "lefthook": "^2.1.6",
-    "oxfmt": "^0.47.0",
-    "oxlint": "^1.62.0",
-    "oxlint-tsgolint": "^0.22.1",
+    "lefthook": "^2.1.9",
+    "oxfmt": "^0.56.0",
+    "oxlint": "^1.71.0",
+    "oxlint-tsgolint": "^0.23.0",
     "typescript": "^6.0.3"
   }
 }
