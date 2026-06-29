@@ -17,6 +17,7 @@ import { skillsCommand } from "./skills/index.js";
 import { isSkillsError } from "./skills/errors.js";
 import { imageCommand } from "./image/index.js";
 import { isImageError } from "./image/errors.js";
+import { keysCommand, isKeysError } from "./keys/index.js";
 
 const VERSION = typeof __VERSION__ !== "undefined" ? __VERSION__ : "0.0.0-dev";
 
@@ -38,6 +39,7 @@ const root = Command.make("okra", {}, () => Effect.void).pipe(
     repoCommand,
     skillsCommand,
     imageCommand,
+    keysCommand,
   ]),
 );
 
@@ -69,6 +71,8 @@ const program = cli.pipe(
         } else if (isSkillsError(err)) {
           yield* Console.error(`[${err.code}] ${err.message}`);
         } else if (isImageError(err)) {
+          yield* Console.error(`[${err.code}] ${err.message}`);
+        } else if (isKeysError(err)) {
           yield* Console.error(`[${err.code}] ${err.message}`);
         }
       }
