@@ -15,6 +15,8 @@ import { repoCommand } from "./repo/index.js";
 import { isRepoError } from "./repo/errors.js";
 import { skillsCommand } from "./skills/index.js";
 import { isSkillsError } from "./skills/errors.js";
+import { imageCommand } from "./image/index.js";
+import { isImageError } from "./image/errors.js";
 
 const VERSION = typeof __VERSION__ !== "undefined" ? __VERSION__ : "0.0.0-dev";
 
@@ -35,6 +37,7 @@ const root = Command.make("okra", {}, () => Effect.void).pipe(
     brainCommand,
     repoCommand,
     skillsCommand,
+    imageCommand,
   ]),
 );
 
@@ -64,6 +67,8 @@ const program = cli.pipe(
         } else if (isRepoError(err)) {
           yield* Console.error(`[${err.code}] ${err.message}`);
         } else if (isSkillsError(err)) {
+          yield* Console.error(`[${err.code}] ${err.message}`);
+        } else if (isImageError(err)) {
           yield* Console.error(`[${err.code}] ${err.message}`);
         }
       }
