@@ -71,6 +71,6 @@ export const parseFrontmatter = Effect.fn("parseFrontmatter")(function* (content
 export const tryParseFrontmatter = Effect.fn("tryParseFrontmatter")(function* (content: string) {
   return yield* parseFrontmatter(content).pipe(
     Effect.map(Option.some),
-    Effect.catch(() => Effect.succeed(Option.none())),
+    Effect.orElseSucceed(() => Option.none()),
   );
 });

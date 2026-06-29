@@ -47,11 +47,11 @@ export class DaemonService extends Context.Service<
             // Check for stale pid
             const pidExists = yield* fs
               .exists(paths.daemonPid)
-              .pipe(Effect.catch(() => Effect.succeed(false)));
+              .pipe(Effect.orElseSucceed(() => false));
             if (pidExists) {
               const pidContent = yield* fs
                 .readFileString(paths.daemonPid)
-                .pipe(Effect.catch(() => Effect.succeed("")));
+                .pipe(Effect.orElseSucceed(() => ""));
               const existingPid = Number(pidContent.trim());
               if (isProcessRunning(existingPid)) {
                 return yield* new ResearchError({
@@ -94,7 +94,7 @@ export class DaemonService extends Context.Service<
             const paths = buildXpPaths(path, projectRoot);
             const pidExists = yield* fs
               .exists(paths.daemonPid)
-              .pipe(Effect.catch(() => Effect.succeed(false)));
+              .pipe(Effect.orElseSucceed(() => false));
             if (!pidExists) {
               return yield* new ResearchError({
                 message: "No daemon running (no pid file)",
@@ -104,7 +104,7 @@ export class DaemonService extends Context.Service<
 
             const pidContent = yield* fs
               .readFileString(paths.daemonPid)
-              .pipe(Effect.catch(() => Effect.succeed("")));
+              .pipe(Effect.orElseSucceed(() => ""));
             const pid = Number(pidContent.trim());
             if (!isProcessRunning(pid)) {
               yield* fs.remove(paths.daemonPid).pipe(Effect.catch(() => Effect.void));
@@ -135,7 +135,7 @@ export class DaemonService extends Context.Service<
             // Now safe to remove pid file
             const stillExists = yield* fs
               .exists(paths.daemonPid)
-              .pipe(Effect.catch(() => Effect.succeed(false)));
+              .pipe(Effect.orElseSucceed(() => false));
             if (stillExists) {
               yield* fs.remove(paths.daemonPid).pipe(Effect.catch(() => Effect.void));
             }
@@ -146,11 +146,11 @@ export class DaemonService extends Context.Service<
             const paths = buildXpPaths(path, projectRoot);
             const pidExists = yield* fs
               .exists(paths.daemonPid)
-              .pipe(Effect.catch(() => Effect.succeed(false)));
+              .pipe(Effect.orElseSucceed(() => false));
             if (!pidExists) return { running: false };
             const pidContent = yield* fs
               .readFileString(paths.daemonPid)
-              .pipe(Effect.catch(() => Effect.succeed("")));
+              .pipe(Effect.orElseSucceed(() => ""));
             const pid = Number(pidContent.trim());
             if (!isProcessRunning(pid)) return { running: false };
             return { running: true, pid };
@@ -161,11 +161,11 @@ export class DaemonService extends Context.Service<
             const paths = buildXpPaths(path, projectRoot);
             const pidExists = yield* fs
               .exists(paths.daemonPid)
-              .pipe(Effect.catch(() => Effect.succeed(false)));
+              .pipe(Effect.orElseSucceed(() => false));
             if (!pidExists) return false;
             const pidContent = yield* fs
               .readFileString(paths.daemonPid)
-              .pipe(Effect.catch(() => Effect.succeed("")));
+              .pipe(Effect.orElseSucceed(() => ""));
             const pid = Number(pidContent.trim());
             return isProcessRunning(pid);
           }),
@@ -180,7 +180,7 @@ export class DaemonService extends Context.Service<
             const paths = buildXpPaths(path, projectRoot);
             const pidExists = yield* fs
               .exists(paths.daemonPid)
-              .pipe(Effect.catch(() => Effect.succeed(false)));
+              .pipe(Effect.orElseSucceed(() => false));
             if (pidExists) {
               yield* fs.remove(paths.daemonPid).pipe(Effect.catch(() => Effect.void));
             }

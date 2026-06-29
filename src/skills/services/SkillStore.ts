@@ -60,7 +60,7 @@ export const SkillStoreLive = Layer.effect(
         (entry) =>
           Effect.gen(function* () {
             const entryPath = pathService.join(dir, entry);
-            const stat = yield* fs.stat(entryPath).pipe(Effect.catch(() => Effect.succeed(null)));
+            const stat = yield* fs.stat(entryPath).pipe(Effect.orElseSucceed(() => null));
             if (!stat || stat.type !== "Directory") return null;
 
             const skillMdPath = pathService.join(entryPath, "SKILL.md");

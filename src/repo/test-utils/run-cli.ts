@@ -55,8 +55,8 @@ function runWithLayer(args: string[], layerOptions: CreateTestLayerOptions) {
 export interface CliTestRunner {
   expectSequence(expected: ExpectedCall[]): Effect.Effect<void>;
   expectError(errorTag: string): Effect.Effect<void>;
-  expectSuccess(): Effect.Effect<void>;
-  getSequence(): Effect.Effect<RecordedCall[]>;
+  expectSuccess: Effect.Effect<void>;
+  getSequence: Effect.Effect<RecordedCall[]>;
 }
 
 function createCliTestRunner(args: string[], layerOptions: CreateTestLayerOptions): CliTestRunner {
@@ -84,18 +84,16 @@ function createCliTestRunner(args: string[], layerOptions: CreateTestLayerOption
         }
       }),
 
-    expectSuccess: () =>
-      Effect.gen(function* () {
-        const { run } = runWithLayer(args, layerOptions);
-        yield* run;
-      }),
+    expectSuccess: Effect.gen(function* () {
+      const { run } = runWithLayer(args, layerOptions);
+      yield* run;
+    }),
 
-    getSequence: () =>
-      Effect.gen(function* () {
-        const { run, sequenceRef } = runWithLayer(args, layerOptions);
-        yield* run;
-        return yield* Ref.get(sequenceRef);
-      }),
+    getSequence: Effect.gen(function* () {
+      const { run, sequenceRef } = runWithLayer(args, layerOptions);
+      yield* run;
+      return yield* Ref.get(sequenceRef);
+    }),
   };
 }
 

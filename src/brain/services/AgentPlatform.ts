@@ -22,8 +22,8 @@ export interface AgentProvider {
   readonly integration: AgentProviderIntegration;
   readonly reflectRoot: string;
   readonly extractRoot: string;
-  readonly detectSource: () => Effect.Effect<boolean, BrainError>;
-  readonly isExecutable: () => Effect.Effect<boolean, BrainError>;
+  readonly detectSource: Effect.Effect<boolean, BrainError>;
+  readonly isExecutable: Effect.Effect<boolean, BrainError>;
   readonly invoke: (
     prompt: string,
     profile: AgentTaskProfile,
@@ -40,8 +40,8 @@ export class AgentPlatformService extends Context.Service<
   AgentPlatformService,
   {
     readonly getProvider: (id: Provider) => Effect.Effect<AgentProvider, BrainError>;
-    readonly listDetectedSourceProviders: () => Effect.Effect<ReadonlyArray<Provider>, BrainError>;
-    readonly listExecutableProviders: () => Effect.Effect<ReadonlyArray<Provider>, BrainError>;
+    readonly listDetectedSourceProviders: Effect.Effect<ReadonlyArray<Provider>, BrainError>;
+    readonly listExecutableProviders: Effect.Effect<ReadonlyArray<Provider>, BrainError>;
     readonly resolveInteractiveProvider: (
       requested?: Option.Option<Provider>,
     ) => Effect.Effect<Provider, BrainError>;
@@ -89,15 +89,13 @@ export class AgentPlatformService extends Context.Service<
             },
             reflectRoot: path.join(home, ".claude", "projects"),
             extractRoot: path.join(home, ".claude", "projects"),
-            detectSource: () =>
-              fs.exists(path.join(home, ".claude")).pipe(Effect.catch(() => Effect.succeed(false))),
-            isExecutable: () =>
-              Effect.all([
-                fs
-                  .exists(path.join(home, ".claude"))
-                  .pipe(Effect.catch(() => Effect.succeed(false))),
-                whichExists("claude"),
-              ]).pipe(Effect.map(([exists, which]) => exists && which)),
+            detectSource: fs
+              .exists(path.join(home, ".claude"))
+              .pipe(Effect.orElseSucceed(() => false)),
+            isExecutable: Effect.all([
+              fs.exists(path.join(home, ".claude")).pipe(Effect.orElseSucceed(() => false)),
+              whichExists("claude"),
+            ]).pipe(Effect.map(([exists, which]) => exists && which)),
             invoke: Effect.fn("AgentPlatform.claude.invoke")(function* (prompt, profile) {
               const effort = profile === "deep" ? "max" : "medium";
               const proc = Bun.spawn(
@@ -140,15 +138,13 @@ export class AgentPlatformService extends Context.Service<
             },
             reflectRoot: path.join(home, ".codex", "sessions"),
             extractRoot: path.join(home, ".codex", "sessions"),
-            detectSource: () =>
-              fs.exists(path.join(home, ".codex")).pipe(Effect.catch(() => Effect.succeed(false))),
-            isExecutable: () =>
-              Effect.all([
-                fs
-                  .exists(path.join(home, ".codex"))
-                  .pipe(Effect.catch(() => Effect.succeed(false))),
-                whichExists("codex"),
-              ]).pipe(Effect.map(([exists, which]) => exists && which)),
+            detectSource: fs
+              .exists(path.join(home, ".codex"))
+              .pipe(Effect.orElseSucceed(() => false)),
+            isExecutable: Effect.all([
+              fs.exists(path.join(home, ".codex")).pipe(Effect.orElseSucceed(() => false)),
+              whichExists("codex"),
+            ]).pipe(Effect.map(([exists, which]) => exists && which)),
             invoke: Effect.fn("AgentPlatform.codex.invoke")(function* (prompt, profile, cwd) {
               const args = [
                 "codex",
@@ -201,19 +197,17 @@ export class AgentPlatformService extends Context.Service<
             ),
           );
 
-        const listDetectedSourceProviders = () =>
-          Effect.forEach(allProviderIds, (id) =>
-            providers[id]
-              .detectSource()
-              .pipe(Effect.map((detected) => (detected ? Option.some(id) : Option.none()))),
-          ).pipe(Effect.map((ids) => ids.filter(Option.isSome).map((id) => id.value)));
+        const listDetectedSourceProviders = Effect.forEach(allProviderIds, (id) =>
+          providers[id].detectSource.pipe(
+            Effect.map((detected) => (detected ? Option.some(id) : Option.none())),
+          ),
+        ).pipe(Effect.map((ids) => ids.filter(Option.isSome).map((id) => id.value)));
 
-        const listExecutableProviders = () =>
-          Effect.forEach(allProviderIds, (id) =>
-            providers[id]
-              .isExecutable()
-              .pipe(Effect.map((detected) => (detected ? Option.some(id) : Option.none()))),
-          ).pipe(Effect.map((ids) => ids.filter(Option.isSome).map((id) => id.value)));
+        const listExecutableProviders = Effect.forEach(allProviderIds, (id) =>
+          providers[id].isExecutable.pipe(
+            Effect.map((detected) => (detected ? Option.some(id) : Option.none())),
+          ),
+        ).pipe(Effect.map((ids) => ids.filter(Option.isSome).map((id) => id.value)));
 
         const resolveRequested = (
           requested: Option.Option<Provider> | undefined,
@@ -235,7 +229,7 @@ export class AgentPlatformService extends Context.Service<
             const claudeProjectDir = yield* readEnv("CLAUDE_PROJECT_DIR");
             if (Option.isSome(claudeProjectDir)) return "claude";
 
-            const cfg = yield* config.loadConfigFile().pipe(
+            const cfg = yield* config.loadConfigFile.pipe(
               Effect.mapError(
                 (e) =>
                   new BrainError({
@@ -246,7 +240,7 @@ export class AgentPlatformService extends Context.Service<
             );
             if (cfg.defaultProvider !== undefined) return cfg.defaultProvider;
 
-            const detected = yield* listDetectedSourceProviders();
+            const detected = yield* listDetectedSourceProviders;
             if (detected.length === 1) {
               const provider = detected[0];
               if (provider !== undefined) return provider;
@@ -265,7 +259,7 @@ export class AgentPlatformService extends Context.Service<
             const requestedId = resolveRequested(requested);
             if (Option.isSome(requestedId)) return requestedId.value;
 
-            const cfg = yield* config.loadConfigFile().pipe(
+            const cfg = yield* config.loadConfigFile.pipe(
               Effect.mapError(
                 (e) =>
                   new BrainError({
@@ -278,7 +272,7 @@ export class AgentPlatformService extends Context.Service<
             if (cfg.daemon?.provider !== undefined) return cfg.daemon.provider;
             if (cfg.defaultProvider !== undefined) return cfg.defaultProvider;
 
-            const executable = yield* listExecutableProviders();
+            const executable = yield* listExecutableProviders;
             if (executable.length === 1) {
               const provider = executable[0];
               if (provider !== undefined) return provider;

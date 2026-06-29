@@ -15,7 +15,7 @@ export const pruneByAge = Effect.fn("pruneByAge")(function* (days: number) {
   const cache = yield* CacheService;
   const metadata = yield* MetadataService;
 
-  const repos = yield* metadata.all();
+  const repos = yield* metadata.all;
   if (repos.length === 0) return [] as readonly PackageSpec[];
 
   const nowMs = yield* Clock.currentTimeMillis;
@@ -98,7 +98,7 @@ export const clean = Command.make(
         });
       }
 
-      const repos = yield* metadata.all();
+      const repos = yield* metadata.all;
       if (repos.length === 0) {
         yield* Console.error("Cache is already empty.");
         return;
@@ -115,7 +115,7 @@ export const clean = Command.make(
           return;
         }
 
-        yield* cache.removeAll();
+        yield* cache.removeAll;
         yield* metadata.save({ version: 1, repos: [] });
 
         yield* Console.error(`Removed ${repos.length} repositories.`);

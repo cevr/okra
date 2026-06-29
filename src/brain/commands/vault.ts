@@ -31,9 +31,9 @@ export const vault = Command.make("vault", {
       const config = yield* ConfigService;
 
       if (json) {
-        const globalPath = yield* config.globalVaultPath();
-        const projectPath = yield* config.projectVaultPath();
-        const active = yield* config.activeVaultPath();
+        const globalPath = yield* config.globalVaultPath;
+        const projectPath = yield* config.projectVaultPath;
+        const active = yield* config.activeVaultPath;
         yield* Console.log(
           encodeVaultOutput({
             global: globalPath,
@@ -45,9 +45,9 @@ export const vault = Command.make("vault", {
       }
 
       if (global) {
-        yield* Console.log(yield* config.globalVaultPath());
+        yield* Console.log(yield* config.globalVaultPath);
       } else if (project) {
-        const p = yield* config.projectVaultPath();
+        const p = yield* config.projectVaultPath;
         if (Option.isSome(p)) {
           yield* Console.log(p.value);
         } else {
@@ -57,7 +57,7 @@ export const vault = Command.make("vault", {
           });
         }
       } else {
-        yield* Console.log(yield* config.activeVaultPath());
+        yield* Console.log(yield* config.activeVaultPath);
       }
     }),
   ),

@@ -26,13 +26,13 @@ const encodeConfigFile = Schema.encodeEffect(ConfigFileJson);
 export class ConfigService extends Context.Service<
   ConfigService,
   {
-    readonly globalVaultPath: () => Effect.Effect<string, ConfigError>;
-    readonly projectVaultPath: () => Effect.Effect<Option.Option<string>, ConfigError>;
-    readonly activeVaultPath: () => Effect.Effect<string, ConfigError>;
-    readonly currentProjectName: () => Effect.Effect<Option.Option<string>, ConfigError>;
-    readonly configFilePath: () => Effect.Effect<string, ConfigError>;
-    readonly defaultProvider: () => Effect.Effect<Option.Option<Provider>, ConfigError>;
-    readonly loadConfigFile: () => Effect.Effect<ConfigFile, ConfigError>;
+    readonly globalVaultPath: Effect.Effect<string, ConfigError>;
+    readonly projectVaultPath: Effect.Effect<Option.Option<string>, ConfigError>;
+    readonly activeVaultPath: Effect.Effect<string, ConfigError>;
+    readonly currentProjectName: Effect.Effect<Option.Option<string>, ConfigError>;
+    readonly configFilePath: Effect.Effect<string, ConfigError>;
+    readonly defaultProvider: Effect.Effect<Option.Option<Provider>, ConfigError>;
+    readonly loadConfigFile: Effect.Effect<ConfigFile, ConfigError>;
     readonly saveConfigFile: (config: ConfigFile) => Effect.Effect<void, ConfigError>;
   }
 >()("@cvr/okra/brain/services/Config/ConfigService") {
@@ -43,13 +43,11 @@ export class ConfigService extends Context.Service<
       const path = yield* Path;
 
       const readEnv = (key: string): Effect.Effect<Option.Option<string>, ConfigError> =>
-        Config.option(Config.string(key))
-          .asEffect()
-          .pipe(
-            Effect.mapError(
-              () => new ConfigError({ message: `Cannot read ${key} config`, code: "READ_FAILED" }),
-            ),
-          );
+        Config.option(Config.string(key)).pipe(
+          Effect.mapError(
+            () => new ConfigError({ message: `Cannot read ${key} config`, code: "READ_FAILED" }),
+          ),
+        );
 
       const resolveHome = Effect.fn("ConfigService.resolveHome")(function* () {
         const homeOpt = yield* readEnv("HOME");
@@ -69,13 +67,13 @@ export class ConfigService extends Context.Service<
         return path.join(home, ".config");
       });
 
-      const resolveConfigFilePath = Effect.fn("ConfigService.configFilePath")(function* () {
+      const resolveConfigFilePath = Effect.gen(function* () {
         const xdgConfig = yield* resolveXdgConfig();
         return path.join(xdgConfig, "brain", "config.json");
       });
 
-      const loadConfigFile = Effect.fn("ConfigService.loadConfigFile")(function* () {
-        const cfgPath = yield* resolveConfigFilePath();
+      const loadConfigFile = Effect.gen(function* () {
+        const cfgPath = yield* resolveConfigFilePath;
         const exists = yield* fs.exists(cfgPath).pipe(
           Effect.mapError(
             (e: PlatformError) =>
@@ -104,18 +102,18 @@ export class ConfigService extends Context.Service<
         );
       });
 
-      const globalVaultPath = Effect.fn("ConfigService.globalVaultPath")(function* () {
+      const globalVaultPath = Effect.gen(function* () {
         const envDir = yield* readEnv("BRAIN_DIR");
         if (Option.isSome(envDir)) return envDir.value;
 
-        const cfg = yield* loadConfigFile();
+        const cfg = yield* loadConfigFile;
         if (cfg.globalVault !== undefined) return cfg.globalVault;
 
         const home = yield* resolveHome();
         return path.join(home, ".brain");
       });
 
-      const projectVaultPath = Effect.fn("ConfigService.projectVaultPath")(function* () {
+      const projectVaultPath = Effect.gen(function* () {
         const checkIndex = (dir: string) =>
           fs.exists(path.join(dir, "index.md")).pipe(
             Effect.mapError(
@@ -146,14 +144,14 @@ export class ConfigService extends Context.Service<
         return exists ? Option.some(cwdBrain) : Option.none<string>();
       });
 
-      const activeVaultPath = Effect.fn("ConfigService.activeVaultPath")(function* () {
-        const project = yield* projectVaultPath();
+      const activeVaultPath = Effect.gen(function* () {
+        const project = yield* projectVaultPath;
         if (Option.isSome(project)) return project.value;
-        return yield* globalVaultPath();
+        return yield* globalVaultPath;
       });
 
-      const defaultProvider = Effect.fn("ConfigService.defaultProvider")(function* () {
-        const cfg = yield* loadConfigFile();
+      const defaultProvider = Effect.gen(function* () {
+        const cfg = yield* loadConfigFile;
         return cfg.defaultProvider !== undefined
           ? Option.some(cfg.defaultProvider)
           : Option.none<Provider>();
@@ -162,7 +160,7 @@ export class ConfigService extends Context.Service<
       const saveConfigFile = Effect.fn("ConfigService.saveConfigFile")(function* (
         config: ConfigFile,
       ) {
-        const cfgPath = yield* resolveConfigFilePath();
+        const cfgPath = yield* resolveConfigFilePath;
         const dir = path.dirname(cfgPath);
         yield* fs.makeDirectory(dir, { recursive: true }).pipe(
           Effect.mapError(
@@ -189,7 +187,7 @@ export class ConfigService extends Context.Service<
         );
       });
 
-      const currentProjectName = Effect.fn("ConfigService.currentProjectName")(function* () {
+      const currentProjectName = Effect.gen(function* () {
         // 1. Env override
         const envProject = yield* readEnv("BRAIN_PROJECT");
         if (Option.isSome(envProject) && envProject.value.trim() !== "") {
@@ -207,7 +205,7 @@ export class ConfigService extends Context.Service<
             return trimmed.length > 0 ? Option.some(trimmed) : Option.none<string>();
           },
           catch: () => new ConfigError({ message: "git detection failed", code: "READ_FAILED" }),
-        }).pipe(Effect.catch(() => Effect.succeed(Option.none<string>())));
+        }).pipe(Effect.orElseSucceed(() => Option.none<string>()));
 
         if (Option.isSome(gitRoot)) {
           const name = path.basename(gitRoot.value);

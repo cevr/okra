@@ -12,14 +12,13 @@ const makeTestConfig = (
   projectName: Option.Option<string> = Option.none(),
 ) =>
   Layer.succeed(ConfigService, {
-    globalVaultPath: () => Effect.succeed(globalVault),
-    projectVaultPath: () => Effect.succeed(projectVault),
-    activeVaultPath: () =>
-      Effect.succeed(Option.isSome(projectVault) ? projectVault.value : globalVault),
-    currentProjectName: () => Effect.succeed(projectName),
-    configFilePath: () => Effect.succeed("/tmp/config.json"),
-    defaultProvider: () => Effect.succeed(Option.none()),
-    loadConfigFile: () => Effect.succeed({}),
+    globalVaultPath: Effect.succeed(globalVault),
+    projectVaultPath: Effect.succeed(projectVault),
+    activeVaultPath: Effect.succeed(Option.isSome(projectVault) ? projectVault.value : globalVault),
+    currentProjectName: Effect.succeed(projectName),
+    configFilePath: Effect.succeed("/tmp/config.json"),
+    defaultProvider: Effect.succeed(Option.none()),
+    loadConfigFile: Effect.succeed({}),
     saveConfigFile: () => Effect.void,
   });
 
@@ -32,8 +31,8 @@ const runInject = (opts: { json: boolean }) =>
     const path = yield* Path;
 
     const [globalPath, projectPath] = yield* Effect.all([
-      config.globalVaultPath(),
-      config.projectVaultPath(),
+      config.globalVaultPath,
+      config.projectVaultPath,
     ]);
 
     const readIndexSafe = (p: string) =>
@@ -53,18 +52,16 @@ const runInject = (opts: { json: boolean }) =>
     if (globalIndex.length === 0 && projectIndex.length === 0) return null;
 
     // Detect project-specific notes
-    const projectName = yield* config.currentProjectName();
+    const projectName = yield* config.currentProjectName;
     let projectNotes = "";
     let detectedProject: string | null = null;
     if (Option.isSome(projectName)) {
       const projectDir = path.join(globalPath, "projects", projectName.value);
-      const dirExists = yield* fs
-        .exists(projectDir)
-        .pipe(Effect.catch(() => Effect.succeed(false)));
+      const dirExists = yield* fs.exists(projectDir).pipe(Effect.orElseSucceed(() => false));
       if (dirExists) {
         const files = yield* vault
           .listFiles(projectDir)
-          .pipe(Effect.catch(() => Effect.succeed([] as string[])));
+          .pipe(Effect.orElseSucceed(() => [] as string[]));
         if (files.length > 0) {
           detectedProject = projectName.value;
           projectNotes = files.map((f) => `- [[projects/${projectName.value}/${f}]]`).join("\n");

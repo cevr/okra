@@ -13,19 +13,19 @@ const encodeNoSessionOutput = Schema.encodeSync(Schema.fromJsonString(NoSessionO
 
 const StatusInfo = Schema.Struct({
   running: Schema.Boolean,
-  pid: Schema.optional(Schema.Number),
+  pid: Schema.optional(Schema.Finite),
   name: Schema.String,
   unit: Schema.String,
   direction: Direction,
   provider: Provider,
-  iteration: Schema.Number,
-  maxIterations: Schema.Number,
+  iteration: Schema.Finite,
+  maxIterations: Schema.Finite,
   deadline: Schema.optional(Schema.String),
-  bestValue: Schema.optional(Schema.Number),
-  baselineValue: Schema.optional(Schema.Number),
-  totalTrials: Schema.Number,
-  keptTrials: Schema.Number,
-  failedTrials: Schema.Number,
+  bestValue: Schema.optional(Schema.Finite),
+  baselineValue: Schema.optional(Schema.Finite),
+  totalTrials: Schema.Finite,
+  keptTrials: Schema.Finite,
+  failedTrials: Schema.Finite,
 });
 const encodeStatusInfo = Schema.encodeSync(Schema.fromJsonString(StatusInfo));
 

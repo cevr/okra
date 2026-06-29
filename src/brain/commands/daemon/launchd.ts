@@ -215,22 +215,20 @@ export const rotateLogs = Effect.fn("rotateLogs")(function* () {
   const home = yield* requireHome();
   const dir = logDir(home, path);
 
-  const exists = yield* fs.exists(dir).pipe(Effect.catch(() => Effect.succeed(false)));
+  const exists = yield* fs.exists(dir).pipe(Effect.orElseSucceed(() => false));
   if (!exists) return;
 
-  const files = yield* fs
-    .readDirectory(dir)
-    .pipe(Effect.catch(() => Effect.succeed([] as string[])));
+  const files = yield* fs.readDirectory(dir).pipe(Effect.orElseSucceed(() => [] as string[]));
 
   for (const file of files) {
     if (!file.endsWith(".log") || (!file.startsWith("daemon-") && file !== "daemon.log")) continue;
     const filePath = path.join(dir, file);
-    const stat = yield* fs.stat(filePath).pipe(Effect.catch(() => Effect.succeed(null)));
+    const stat = yield* fs.stat(filePath).pipe(Effect.orElseSucceed(() => null));
     if (stat === null) continue;
     if ((stat.size ?? 0) <= MAX_LOG_SIZE) continue;
 
     // Truncate to last KEEP_LINES lines
-    const content = yield* fs.readFileString(filePath).pipe(Effect.catch(() => Effect.succeed("")));
+    const content = yield* fs.readFileString(filePath).pipe(Effect.orElseSucceed(() => ""));
     if (content.length === 0) continue;
 
     const lines = content.split("\n");

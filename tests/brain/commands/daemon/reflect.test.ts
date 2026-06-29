@@ -83,13 +83,13 @@ const bigMessages = [
 
 const makeConfigLayer = (dir: string, brainDir: string) =>
   Layer.succeed(ConfigService, {
-    globalVaultPath: () => Effect.succeed(brainDir),
-    projectVaultPath: () => Effect.succeed(Option.none()),
-    activeVaultPath: () => Effect.succeed(brainDir),
-    currentProjectName: () => Effect.succeed(Option.none()),
-    configFilePath: () => Effect.succeed(`${dir}/config.json`),
-    defaultProvider: () => Effect.succeed(Option.some("claude")),
-    loadConfigFile: () => Effect.succeed({}),
+    globalVaultPath: Effect.succeed(brainDir),
+    projectVaultPath: Effect.succeed(Option.none()),
+    activeVaultPath: Effect.succeed(brainDir),
+    currentProjectName: Effect.succeed(Option.none()),
+    configFilePath: Effect.succeed(`${dir}/config.json`),
+    defaultProvider: Effect.succeed(Option.some("claude" as const)),
+    loadConfigFile: Effect.succeed({}),
     saveConfigFile: () => Effect.void,
   });
 
@@ -115,15 +115,15 @@ const makePlatformLayer = (
         },
         reflectRoot: "/tmp/.claude/projects",
         extractRoot: "/tmp/.claude/projects",
-        detectSource: () => Effect.succeed(true),
-        isExecutable: () => Effect.succeed(true),
+        detectSource: Effect.succeed(true),
+        isExecutable: Effect.succeed(true),
         invoke:
           invokeImpl ??
           ((prompt, profile, cwd) =>
             Ref.update(invocations, (arr) => [...arr, { prompt, profile, cwd }])),
       }),
-    listDetectedSourceProviders: () => Effect.succeed(["claude", "codex"] as const),
-    listExecutableProviders: () => Effect.succeed(["claude"] as const),
+    listDetectedSourceProviders: Effect.succeed(["claude", "codex"] as const),
+    listExecutableProviders: Effect.succeed(["claude"] as const),
     resolveInteractiveProvider: () => Effect.succeed("claude" as const),
     resolveDaemonExecutor: () => Effect.succeed("claude" as const),
   });
@@ -411,9 +411,7 @@ describe("daemon reflect", () => {
 
         // Lock should be released
         const lockPath = `${brainDir}/.daemon-reflect.lock`;
-        const lockExists = yield* fs
-          .exists(lockPath)
-          .pipe(Effect.catch(() => Effect.succeed(false)));
+        const lockExists = yield* fs.exists(lockPath).pipe(Effect.orElseSucceed(() => false));
         expect(lockExists).toBe(false);
       }).pipe(Effect.provide(BunServices.layer)),
     );

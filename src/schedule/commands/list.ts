@@ -16,7 +16,7 @@ export const list = Command.make(
   (config) =>
     Effect.gen(function* () {
       const store = yield* StoreService;
-      const tasks = yield* store.list();
+      const tasks = yield* store.list;
 
       if (config.json) {
         yield* Console.log(encodeTasksJson(tasks));

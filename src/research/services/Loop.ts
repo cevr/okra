@@ -41,7 +41,7 @@ const hashFiles = (fs: FileSystem, files: ReadonlyArray<string>) =>
   Effect.gen(function* () {
     const hash = createHash("sha256");
     for (const file of files) {
-      const exists = yield* fs.exists(file).pipe(Effect.catch(() => Effect.succeed(false)));
+      const exists = yield* fs.exists(file).pipe(Effect.orElseSucceed(() => false));
       if (exists) {
         const buf = yield* fs
           .readFile(file)
@@ -58,7 +58,7 @@ const parseBenchmarkFiles = (fs: FileSystem, path: Path, cmd: string, cwd: strin
     const files: Array<string> = [];
     for (const part of parts) {
       const resolved = path.join(cwd, part);
-      const exists = yield* fs.exists(resolved).pipe(Effect.catch(() => Effect.succeed(false)));
+      const exists = yield* fs.exists(resolved).pipe(Effect.orElseSucceed(() => false));
       if (exists) {
         files.push(resolved);
       }
@@ -120,7 +120,7 @@ export class LoopService extends Context.Service<
             // Setup discovery if new session with no setup.json
             const setupExists = yield* fs
               .exists(paths.setupJson)
-              .pipe(Effect.catch(() => Effect.succeed(false)));
+              .pipe(Effect.orElseSucceed(() => false));
             if (!setupExists && state.iteration === 0) {
               yield* appendLifecycle(log, projectRoot, "setup_discover");
               const setupPrompt = buildSetupPrompt(projectRoot, worktreePath, session.benchmarkCmd);
@@ -543,7 +543,7 @@ const consumeSteers = (
   iteration: number,
 ) =>
   Effect.gen(function* () {
-    const exists = yield* fs.exists(steerDir).pipe(Effect.catch(() => Effect.succeed(false)));
+    const exists = yield* fs.exists(steerDir).pipe(Effect.orElseSucceed(() => false));
     if (!exists) return [] as ReadonlyArray<SteerEvent>;
     const allFiles = yield* fs
       .readDirectory(steerDir)
@@ -586,9 +586,7 @@ const reconcile = (
     const paths = buildXpPaths(path, projectRoot);
     const worktreePath = paths.worktree;
 
-    const worktreeExists = yield* fs
-      .exists(worktreePath)
-      .pipe(Effect.catch(() => Effect.succeed(false)));
+    const worktreeExists = yield* fs.exists(worktreePath).pipe(Effect.orElseSucceed(() => false));
     if (!worktreeExists) {
       yield* appendLifecycle(
         log,

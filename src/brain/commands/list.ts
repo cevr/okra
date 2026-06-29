@@ -18,7 +18,7 @@ export const list = Command.make("list", { json: jsonFlag }).pipe(
       const config = yield* ConfigService;
       const vault = yield* VaultService;
 
-      const vaultPath = yield* config.activeVaultPath();
+      const vaultPath = yield* config.activeVaultPath;
       const files = yield* vault.listFiles(vaultPath);
 
       if (json) {

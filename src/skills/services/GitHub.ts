@@ -82,11 +82,11 @@ export interface GitHubShape {
 
 interface GitHubCliShape extends GitHubShape {
   readonly run: (args: ReadonlyArray<string>) => Effect.Effect<string, SkillsError>;
-  readonly isAvailable: () => Effect.Effect<boolean, never>;
+  readonly isAvailable: Effect.Effect<boolean, never>;
 }
 
 interface GitHubHttpShape extends GitHubShape {
-  readonly hasExplicitToken: () => Effect.Effect<boolean, never>;
+  readonly hasExplicitToken: Effect.Effect<boolean, never>;
 }
 
 const fetchError = (url: string, cause?: unknown) =>
@@ -376,7 +376,7 @@ export class GitHubCli extends Context.Service<GitHubCli, GitHubCliShape>()(
       return stdout;
     });
 
-    const isAvailable = Effect.fn("GitHubCli.isAvailable")(function* () {
+    const isAvailable = Effect.gen(function* () {
       if (!Bun.which("gh")) return false;
 
       return yield* run(["auth", "status"]).pipe(
@@ -521,7 +521,7 @@ export class GitHubHttp extends Context.Service<GitHubHttp, GitHubHttpShape>()(
       });
 
       // E5: Token already resolved eagerly
-      const hasExplicitToken = () => Effect.succeed(Option.isSome(token));
+      const hasExplicitToken = Effect.succeed(Option.isSome(token));
 
       const discoverSkills = makeDiscoverSkills(listContents, listTree);
       const fetchSkillDirImpl = makeFetchSkillDir(listContents, fetchRaw);
@@ -549,8 +549,8 @@ export class GitHub extends Context.Service<GitHub, GitHubShape>()(
 
       const resolveTransport = yield* Effect.cached(
         Effect.gen(function* () {
-          const hasExplicitToken = yield* http.hasExplicitToken();
-          const ghAvailable = yield* cli.isAvailable();
+          const hasExplicitToken = yield* http.hasExplicitToken;
+          const ghAvailable = yield* cli.isAvailable;
           return {
             transport: (!hasExplicitToken && ghAvailable ? cli : http) as GitHubShape,
             label: !hasExplicitToken && ghAvailable ? "gh" : "http",

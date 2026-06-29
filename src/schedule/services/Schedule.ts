@@ -1,7 +1,7 @@
 import { DateTime, Effect, Option, Schema } from "effect";
 import { ScheduleError } from "../errors.js";
 
-const NumOrStar = Schema.Union([Schema.Number, Schema.Literal("*")]);
+const NumOrStar = Schema.Union([Schema.Finite, Schema.Literal("*")]);
 
 export const ScheduleSchema = Schema.TaggedUnion({
   Cron: {
@@ -9,7 +9,7 @@ export const ScheduleSchema = Schema.TaggedUnion({
     hour: NumOrStar,
     dayOfMonth: NumOrStar,
     month: NumOrStar,
-    dayOfWeek: Schema.Union([Schema.Number, Schema.String]),
+    dayOfWeek: Schema.Union([Schema.Finite, Schema.String]),
     raw: Schema.String,
   },
   Oneshot: {

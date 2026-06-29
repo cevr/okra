@@ -40,7 +40,7 @@ describe("ConfigService", () => {
     it.effect("returns BRAIN_DIR env when set", () =>
       Effect.gen(function* () {
         const config = yield* ConfigService;
-        const result = yield* config.globalVaultPath();
+        const result = yield* config.globalVaultPath;
         expect(result).toBe("/custom/brain");
       }).pipe(Effect.provide(makeTestLayer({ BRAIN_DIR: "/custom/brain" }))),
     );
@@ -48,7 +48,7 @@ describe("ConfigService", () => {
     it.effect("falls back to ~/.brain when no env or config", () =>
       Effect.gen(function* () {
         const config = yield* ConfigService;
-        const result = yield* config.globalVaultPath();
+        const result = yield* config.globalVaultPath;
         expect(result).toBe("/test-home/.brain");
       }).pipe(Effect.provide(makeTestLayer({ HOME: "/test-home" }))),
     );
@@ -58,7 +58,7 @@ describe("ConfigService", () => {
     it.effect("returns {} when no config exists", () =>
       Effect.gen(function* () {
         const config = yield* ConfigService;
-        const result = yield* config.loadConfigFile();
+        const result = yield* config.loadConfigFile;
         expect(result).toEqual({});
       }).pipe(Effect.provide(makeTestLayer({ HOME: "/test-home" }))),
     );
@@ -66,7 +66,7 @@ describe("ConfigService", () => {
     it.effect("parses config file when it exists", () =>
       Effect.gen(function* () {
         const config = yield* ConfigService;
-        const result = yield* config.loadConfigFile();
+        const result = yield* config.loadConfigFile;
         expect(result).toEqual({ globalVault: "/my/vault" });
       }).pipe(
         Effect.provide(
@@ -88,7 +88,7 @@ describe("ConfigService", () => {
     it.effect("uses XDG_CONFIG_HOME when set", () =>
       Effect.gen(function* () {
         const config = yield* ConfigService;
-        const result = yield* config.configFilePath();
+        const result = yield* config.configFilePath;
         expect(result).toBe("/custom/config/brain/config.json");
       }).pipe(Effect.provide(makeTestLayer({ XDG_CONFIG_HOME: "/custom/config" }))),
     );
@@ -98,7 +98,7 @@ describe("ConfigService", () => {
     it.effect("returns None when provider is unset", () =>
       Effect.gen(function* () {
         const config = yield* ConfigService;
-        const result = yield* config.defaultProvider();
+        const result = yield* config.defaultProvider;
         expect(Option.isNone(result)).toBe(true);
       }).pipe(Effect.provide(makeTestLayer({ HOME: "/test-home" }))),
     );
@@ -106,7 +106,7 @@ describe("ConfigService", () => {
     it.effect("returns config defaultProvider when set", () =>
       Effect.gen(function* () {
         const config = yield* ConfigService;
-        const result = yield* config.defaultProvider();
+        const result = yield* config.defaultProvider;
         expect(Option.isSome(result)).toBe(true);
         if (Option.isSome(result)) {
           expect(result.value).toBe("codex");
@@ -131,7 +131,7 @@ describe("ConfigService", () => {
     it.effect("returns Some when CLAUDE_PROJECT_DIR has brain/index.md", () =>
       Effect.gen(function* () {
         const config = yield* ConfigService;
-        const result = yield* config.projectVaultPath();
+        const result = yield* config.projectVaultPath;
         expect(Option.isSome(result)).toBe(true);
         if (Option.isSome(result)) {
           expect(result.value).toBe("/projects/myapp/brain");
@@ -157,7 +157,7 @@ describe("ConfigService", () => {
     it.effect("returns None when CLAUDE_PROJECT_DIR brain/ has no index.md", () =>
       Effect.gen(function* () {
         const config = yield* ConfigService;
-        const result = yield* config.projectVaultPath();
+        const result = yield* config.projectVaultPath;
         expect(Option.isNone(result)).toBe(true);
       }).pipe(
         Effect.provide(
@@ -179,7 +179,7 @@ describe("ConfigService", () => {
     it.effect("returns BRAIN_PROJECT env when set", () =>
       Effect.gen(function* () {
         const config = yield* ConfigService;
-        const result = yield* config.currentProjectName();
+        const result = yield* config.currentProjectName;
         expect(Option.isSome(result)).toBe(true);
         if (Option.isSome(result)) {
           expect(result.value).toBe("myapp");
@@ -190,7 +190,7 @@ describe("ConfigService", () => {
     it.live("falls back to git root basename", () =>
       Effect.gen(function* () {
         const config = yield* ConfigService;
-        const result = yield* config.currentProjectName();
+        const result = yield* config.currentProjectName;
         // We're running inside the okra repo, so git root basename should be "okra"
         expect(Option.isSome(result)).toBe(true);
         if (Option.isSome(result)) {

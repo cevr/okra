@@ -6,13 +6,11 @@ import { BrainError } from "../../errors/index.js";
 import type { Provider } from "../../../shared/provider.js";
 
 const readEnv = (key: string): Effect.Effect<Option.Option<string>, BrainError> =>
-  Config.option(Config.string(key))
-    .asEffect()
-    .pipe(
-      Effect.mapError(
-        () => new BrainError({ message: `Cannot read ${key} config`, code: "READ_FAILED" }),
-      ),
-    );
+  Config.option(Config.string(key)).pipe(
+    Effect.mapError(
+      () => new BrainError({ message: `Cannot read ${key} config`, code: "READ_FAILED" }),
+    ),
+  );
 
 const readHome = Effect.gen(function* () {
   const homeOpt = yield* readEnv("HOME");
@@ -158,7 +156,7 @@ export const readState = Effect.fn("readState")(function* (brainDir: string) {
   const path = yield* Path;
   const filePath = path.join(brainDir, STATE_FILE);
 
-  const exists = yield* fs.exists(filePath).pipe(Effect.catch(() => Effect.succeed(false)));
+  const exists = yield* fs.exists(filePath).pipe(Effect.orElseSucceed(() => false));
   if (!exists) return EMPTY_STATE;
 
   const text = yield* fs.readFileString(filePath).pipe(
@@ -174,7 +172,7 @@ export const readState = Effect.fn("readState")(function* (brainDir: string) {
   return yield* Effect.try({
     try: () => normalizeDaemonState(decodeUnknownJson(text)),
     catch: () => new BrainError({ message: "Cannot parse daemon state", code: "READ_FAILED" }),
-  }).pipe(Effect.catch(() => Effect.succeed(EMPTY_STATE)));
+  }).pipe(Effect.orElseSucceed(() => EMPTY_STATE));
 });
 
 /** Atomic write of daemon state */
@@ -258,12 +256,12 @@ export const acquireLock = Effect.fn("acquireLock")(function* (brainDir: string,
 
   const created = yield* fs.writeFileString(lock, pid, { flag: "wx" }).pipe(
     Effect.as(true as const),
-    Effect.catch(() => Effect.succeed(false as const)),
+    Effect.orElseSucceed(() => false as const),
   );
 
   if (created) return;
 
-  const content = yield* fs.readFileString(lock).pipe(Effect.catch(() => Effect.succeed("")));
+  const content = yield* fs.readFileString(lock).pipe(Effect.orElseSucceed(() => ""));
   const holderPid = parseInt(content.trim(), 10);
 
   if (!Number.isNaN(holderPid) && isProcessAlive(holderPid)) {
@@ -291,7 +289,7 @@ export const lockExists = Effect.fn("lockExists")(function* (brainDir: string, j
   const fs = yield* FileSystem;
   const path = yield* Path;
   const lock = lockPath(brainDir, job, path);
-  return yield* fs.exists(lock).pipe(Effect.catch(() => Effect.succeed(false)));
+  return yield* fs.exists(lock).pipe(Effect.orElseSucceed(() => false));
 });
 
 /** Release lock for a daemon job */
@@ -353,7 +351,7 @@ export const deriveProjectName = Effect.fn("deriveProjectName")(function* (dirNa
   const decoded = dirName.replaceAll("--", "/.").replaceAll("-", "/");
 
   if (!isTccProtected(decoded, home)) {
-    const fullExists = yield* fs.exists(decoded).pipe(Effect.catch(() => Effect.succeed(false)));
+    const fullExists = yield* fs.exists(decoded).pipe(Effect.orElseSucceed(() => false));
     if (fullExists) return p.basename(decoded);
   }
 
@@ -366,7 +364,7 @@ export const deriveProjectName = Effect.fn("deriveProjectName")(function* (dirNa
     const prefix = dirName.slice(0, idx);
     const candidate = prefix.replaceAll("--", "/.").replaceAll("-", "/");
     if (isTccProtected(candidate, home)) continue;
-    const exists = yield* fs.exists(candidate).pipe(Effect.catch(() => Effect.succeed(false)));
+    const exists = yield* fs.exists(candidate).pipe(Effect.orElseSucceed(() => false));
     if (exists) return dirName.slice(idx + 1);
   }
 

@@ -16,14 +16,14 @@ export const RepoMetadata = Schema.Struct({
   spec: PackageSpec,
   fetchedAt: Schema.String,
   lastAccessedAt: Schema.String,
-  sizeBytes: Schema.Number,
+  sizeBytes: Schema.Finite,
   path: Schema.String,
 });
 export type RepoMetadata = typeof RepoMetadata.Type;
 
 // Global metadata index
 export const MetadataIndex = Schema.Struct({
-  version: Schema.Number,
+  version: Schema.Finite,
   repos: Schema.Array(RepoMetadata),
 });
 export type MetadataIndex = typeof MetadataIndex.Type;

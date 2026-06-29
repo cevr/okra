@@ -229,7 +229,7 @@ export class ExperimentLogService extends Context.Service<
           const paths = buildXpPaths(path, projectRoot);
           const exists = yield* fs
             .exists(paths.experimentsJsonl)
-            .pipe(Effect.catch(() => Effect.succeed(false)));
+            .pipe(Effect.orElseSucceed(() => false));
           if (!exists) return [] as ReadonlyArray<ExperimentEvent>;
           const raw = yield* fs
             .readFileString(paths.experimentsJsonl)
@@ -252,7 +252,7 @@ export class ExperimentLogService extends Context.Service<
           const paths = buildXpPaths(path, projectRoot);
           const exists = yield* fs
             .exists(paths.experimentsJsonl)
-            .pipe(Effect.catch(() => Effect.succeed(false)));
+            .pipe(Effect.orElseSucceed(() => false));
           if (!exists) {
             return {
               segment: 0,
@@ -295,7 +295,7 @@ export class ExperimentLogService extends Context.Service<
             const paths = buildXpPaths(path, projectRoot);
             const exists = yield* fs
               .exists(paths.experimentsJsonl)
-              .pipe(Effect.catch(() => Effect.succeed(false)));
+              .pipe(Effect.orElseSucceed(() => false));
             if (!exists) return;
             const raw = yield* fs
               .readFileString(paths.experimentsJsonl)

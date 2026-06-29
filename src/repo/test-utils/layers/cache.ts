@@ -77,11 +77,10 @@ export function createMockCacheService(options: CreateMockCacheServiceOptions = 
         });
       }),
 
-    removeAll: () =>
-      Effect.gen(function* () {
-        yield* record("removeAll", {});
-        yield* Ref.update(stateRef, (s) => ({ ...s, store: new Map() }));
-      }),
+    removeAll: Effect.gen(function* () {
+      yield* record("removeAll", {});
+      yield* Ref.update(stateRef, (s) => ({ ...s, store: new Map() }));
+    }),
 
     getSize: (path) =>
       Effect.gen(function* () {

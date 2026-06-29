@@ -130,7 +130,7 @@ describe("list flow", () => {
           });
         }
 
-        const all = yield* metadata.all();
+        const all = yield* metadata.all;
         expect(all.length).toBe(3);
 
         const registries = all.map((r) => r.spec.registry);
@@ -205,15 +205,15 @@ describe("clean flow", () => {
           });
         }
 
-        const before = yield* metadata.all();
+        const before = yield* metadata.all;
         expect(before.length).toBe(3);
 
-        yield* cache.removeAll();
+        yield* cache.removeAll;
         for (const spec of specs) {
           yield* metadata.remove(spec);
         }
 
-        const after = yield* metadata.all();
+        const after = yield* metadata.all;
         expect(after.length).toBe(0);
       }).pipe(Effect.provide(layer));
     }),
@@ -251,7 +251,7 @@ describe("clean flow", () => {
           path: yield* cache.getPath(newSpec),
         });
 
-        const all = yield* metadata.all();
+        const all = yield* metadata.all;
         const nowMs = yield* Clock.currentTimeMillis;
         const cutoff = nowMs - 30 * DAY_MS;
         const oldRepos = all.filter((r) => Date.parse(r.lastAccessedAt) < cutoff);
@@ -263,7 +263,7 @@ describe("clean flow", () => {
           yield* metadata.remove(repo.spec);
         }
 
-        const remaining = yield* metadata.all();
+        const remaining = yield* metadata.all;
         expect(remaining.length).toBe(1);
         expect(remaining[0]?.spec.name).toBe("new/repo");
       }).pipe(Effect.provide(layer));
@@ -297,7 +297,7 @@ describe("clean flow", () => {
           path: yield* cache.getPath(smallSpec),
         });
 
-        const all = yield* metadata.all();
+        const all = yield* metadata.all;
         const largeRepos = all.filter((r) => r.sizeBytes > 50_000_000);
         expect(largeRepos.length).toBe(1);
         expect(largeRepos[0]?.spec.name).toBe("large/repo");
@@ -548,7 +548,7 @@ describe("integration flow", () => {
           Date.parse(beforeUpdate),
         );
 
-        const all = yield* metadata.all();
+        const all = yield* metadata.all;
         expect(all.length).toBe(1);
         expect(all[0]?.spec.name).toBe("vercel/next.js");
       }).pipe(Effect.provide(layer));

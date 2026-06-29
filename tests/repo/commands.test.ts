@@ -67,7 +67,7 @@ describe("fetch command", () => {
               ],
             },
           },
-        }).getSequence();
+        }).getSequence;
 
         expect(sequence.some((c) => c.service === "metadata" && c.method === "find")).toBe(true);
         expect(sequence.some((c) => c.service === "git" && c.method === "isGitRepo")).toBe(true);
@@ -100,7 +100,7 @@ describe("fetch command", () => {
               ],
             },
           },
-        }).getSequence();
+        }).getSequence;
 
         expect(sequence.some((c) => c.service === "cache" && c.method === "remove")).toBe(true);
         expect(sequence.some((c) => c.service === "metadata" && c.method === "remove")).toBe(true);
@@ -144,7 +144,7 @@ describe("remove command", () => {
             ],
           },
         },
-      }).getSequence();
+      }).getSequence;
 
       expect(sequence.some((c) => c.service === "registry" && c.method === "parseSpec")).toBe(true);
       expect(sequence.some((c) => c.service === "metadata" && c.method === "find")).toBe(true);
@@ -178,7 +178,7 @@ describe("clean command", () => {
             ],
           },
         },
-      }).getSequence();
+      }).getSequence;
 
       expect(sequence.some((c) => c.service === "metadata" && c.method === "all")).toBe(true);
       expect(sequence.some((c) => c.service === "cache" && c.method === "removeAll")).toBe(true);
@@ -230,7 +230,7 @@ describe("clean command", () => {
             ],
           },
         },
-      }).getSequence();
+      }).getSequence;
 
       expect(sequence.some((c) => c.service === "metadata" && c.method === "all")).toBe(true);
       // Should remove old repo but not new
@@ -264,7 +264,7 @@ describe("path command", () => {
             ],
           },
         },
-      }).getSequence();
+      }).getSequence;
 
       expect(sequence.some((c) => c.service === "registry" && c.method === "parseSpec")).toBe(true);
       expect(sequence.some((c) => c.service === "metadata" && c.method === "find")).toBe(true);
@@ -289,7 +289,7 @@ describe("sequence verification", () => {
 
   it.effect("can inspect full sequence for custom assertions", () =>
     Effect.gen(function* () {
-      const sequence = yield* runCli("list", {}).getSequence();
+      const sequence = yield* runCli("list", {}).getSequence;
 
       expect(sequence.length).toBeGreaterThan(0);
       expect(sequence[0]?.service).toBe("metadata");

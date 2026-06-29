@@ -41,12 +41,11 @@ export function createMockMetadataService(options: CreateMockMetadataServiceOpti
       : Effect.void;
 
   const layer = Layer.succeed(MetadataService, {
-    load: () =>
-      Effect.gen(function* () {
-        const s = yield* Ref.get(stateRef);
-        yield* record("load", {}, s.index);
-        return s.index;
-      }),
+    load: Effect.gen(function* () {
+      const s = yield* Ref.get(stateRef);
+      yield* record("load", {}, s.index);
+      return s.index;
+    }),
 
     save: (newIndex) =>
       Effect.gen(function* () {
@@ -106,12 +105,11 @@ export function createMockMetadataService(options: CreateMockMetadataServiceOpti
         }));
       }),
 
-    all: () =>
-      Effect.gen(function* () {
-        const s = yield* Ref.get(stateRef);
-        yield* record("all", {}, s.index.repos);
-        return s.index.repos;
-      }),
+    all: Effect.gen(function* () {
+      const s = yield* Ref.get(stateRef);
+      yield* record("all", {}, s.index.repos);
+      return s.index.repos;
+    }),
   });
 
   return {

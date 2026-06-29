@@ -75,7 +75,7 @@ describe("StoreService", () => {
           },
           cwd: "/tmp",
         });
-        const tasks = yield* store.list();
+        const tasks = yield* store.list;
         expect(tasks).toHaveLength(2);
       }).pipe(Effect.provide(testStoreLayer(dir)));
     }).pipe(Effect.provide(BunServices.layer)),
@@ -131,7 +131,7 @@ describe("StoreService", () => {
           cwd: "/tmp",
         });
         yield* store.remove("del");
-        const tasks = yield* store.list();
+        const tasks = yield* store.list;
         expect(tasks).toHaveLength(0);
       }).pipe(Effect.provide(testStoreLayer(dir)));
     }).pipe(Effect.provide(BunServices.layer)),

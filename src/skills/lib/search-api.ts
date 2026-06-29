@@ -6,14 +6,14 @@ export class SearchSkill extends Schema.Class<SearchSkill>("SearchSkill")({
   id: Schema.String,
   skillId: Schema.String,
   name: Schema.String,
-  installs: Schema.Number,
+  installs: Schema.Finite,
   source: Schema.String,
 }) {}
 
 export class SearchResponse extends Schema.Class<SearchResponse>("SearchResponse")({
   query: Schema.String,
   skills: Schema.Array(SearchSkill),
-  count: Schema.Number,
+  count: Schema.Finite,
 }) {}
 
 const SEARCH_URL = "https://skills.sh/api/search";

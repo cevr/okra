@@ -8,7 +8,7 @@ import { isAgentProviderId } from "../services/AgentPlatform.js";
 import type { Provider } from "../../shared/provider.js";
 
 const ExtractOutput = Schema.Struct({
-  conversations: Schema.Number,
+  conversations: Schema.Finite,
   batches: Schema.Array(Schema.String),
   output: Schema.String,
 });

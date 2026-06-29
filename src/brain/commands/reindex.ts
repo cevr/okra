@@ -6,8 +6,8 @@ import { VaultError } from "../errors/index.js";
 
 const ReindexOutput = Schema.Struct({
   vault: Schema.String,
-  files: Schema.Number,
-  sections: Schema.Record(Schema.String, Schema.Number),
+  files: Schema.Finite,
+  sections: Schema.Record(Schema.String, Schema.Finite),
   changed: Schema.Boolean,
 });
 const encodeReindexOutput = Schema.encodeSync(Schema.fromJsonString(ReindexOutput));
@@ -36,14 +36,14 @@ export const reindex = Command.make("reindex", {
       const vaults: string[] = [];
 
       if (all) {
-        const globalPath = yield* config.globalVaultPath();
+        const globalPath = yield* config.globalVaultPath;
         vaults.push(globalPath);
-        const projectPath = yield* config.projectVaultPath();
+        const projectPath = yield* config.projectVaultPath;
         if (Option.isSome(projectPath)) {
           vaults.push(projectPath.value);
         }
       } else {
-        vaults.push(yield* config.activeVaultPath());
+        vaults.push(yield* config.activeVaultPath);
       }
 
       for (const vaultPath of vaults) {

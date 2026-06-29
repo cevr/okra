@@ -10,7 +10,7 @@ import type { Provider } from "../../shared/provider.js";
 export type { Provider };
 
 const OptionalString = Schema.optional(Schema.String);
-const OptionalNumber = Schema.optional(Schema.Number);
+const OptionalNumber = Schema.optional(Schema.Finite);
 
 export const TaskContext = Schema.Struct({
   gitBranch: OptionalString,
@@ -26,7 +26,7 @@ export const TaskContext = Schema.Struct({
 export type TaskContext = typeof TaskContext.Type;
 
 export const StopCondition = Schema.TaggedUnion({
-  MaxRuns: { count: Schema.Number },
+  MaxRuns: { count: Schema.Finite },
   AfterDate: { date: Schema.String },
 });
 
@@ -47,7 +47,7 @@ export class Task extends Schema.Class<Task>("@cvr/okra/schedule/Task")({
   createdAt: Schema.String,
   status: Schema.Literals(["active", "completed", "failed"]),
   lastRun: Schema.optional(Schema.String),
-  runCount: Schema.Number,
+  runCount: Schema.Finite,
   context: Schema.optional(TaskContext),
   stopConditions: Schema.optional(Schema.Array(StopCondition)),
   conditionalStop: Schema.optional(ConditionalStop),
@@ -85,7 +85,7 @@ class StoreService extends Context.Service<
   {
     readonly add: (input: TaskInput) => Effect.Effect<Task, ScheduleError>;
     readonly get: (id: string) => Effect.Effect<Task, ScheduleError>;
-    readonly list: () => Effect.Effect<ReadonlyArray<Task>, ScheduleError>;
+    readonly list: Effect.Effect<ReadonlyArray<Task>, ScheduleError>;
     readonly update: (
       id: string,
       patch: Partial<Pick<Task, "status" | "lastRun" | "runCount">>,
@@ -157,7 +157,7 @@ class StoreService extends Context.Service<
         );
       });
 
-      const list = Effect.fn("StoreService.list")(function* () {
+      const list = Effect.gen(function* () {
         const files = yield* fs.readDirectory(tasksDir).pipe(
           Effect.mapError(
             (e: PlatformError) =>

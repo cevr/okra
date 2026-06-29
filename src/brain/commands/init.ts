@@ -97,7 +97,7 @@ export const init = Command.make("init", {
 
       if (project) {
         if (global) {
-          const globalPath = yield* config.globalVaultPath();
+          const globalPath = yield* config.globalVaultPath;
           const cwd = process.cwd();
           const projectName = path.basename(cwd);
           vaultPath = path.join(globalPath, "projects", projectName);
@@ -118,7 +118,7 @@ export const init = Command.make("init", {
           vaultPath = path.join(cwd, "brain");
         }
       } else {
-        vaultPath = yield* config.globalVaultPath();
+        vaultPath = yield* config.globalVaultPath;
       }
 
       const isProjectSubVault = project && global;
@@ -129,7 +129,7 @@ export const init = Command.make("init", {
         yield* copyStarterPrinciples(vaultPath);
       }
 
-      const cfgPath = yield* config.configFilePath();
+      const cfgPath = yield* config.configFilePath;
       const cfgExists = yield* fs.exists(cfgPath).pipe(
         Effect.mapError(
           (e: PlatformError) =>
@@ -143,7 +143,7 @@ export const init = Command.make("init", {
         globalVault?: string;
         defaultProvider?: Provider;
         daemon?: { provider?: Provider };
-      } = yield* config.loadConfigFile().pipe(Effect.catch(() => Effect.succeed({})));
+      } = yield* config.loadConfigFile.pipe(Effect.orElseSucceed(() => ({})));
 
       let providerIds: Array<Provider>;
       if (Option.isSome(requestedProvider)) {

@@ -33,13 +33,13 @@ export class Session extends Schema.Class<Session>("Session")(
     provider: Provider,
     objective: Schema.String,
     benchmarkCmd: Schema.String,
-    maxIterations: Schema.Number,
-    maxFailures: Schema.Number,
+    maxIterations: Schema.Finite,
+    maxFailures: Schema.Finite,
     deadline: Schema.optional(Schema.String),
     projectRoot: Schema.String,
-    segment: Schema.Number,
-    currentIteration: Schema.Number,
-    bestValue: Schema.optional(Schema.Number),
+    segment: Schema.Finite,
+    currentIteration: Schema.Finite,
+    bestValue: Schema.optional(Schema.Finite),
     bestCommit: Schema.optional(Schema.String),
     createdAt: Schema.String,
   }),
@@ -54,7 +54,7 @@ export const encodeSession = Schema.encodeSync(SessionJson);
 export class ConfigEvent extends Schema.Class<ConfigEvent>("ConfigEvent")(
   Schema.TaggedStruct("config", {
     timestamp: Schema.String,
-    segment: Schema.Number,
+    segment: Schema.Finite,
     name: Schema.String,
     unit: Schema.String,
     direction: Direction,
@@ -68,7 +68,7 @@ export class ConfigEvent extends Schema.Class<ConfigEvent>("ConfigEvent")(
 
 export class BenchmarkFailure extends Schema.Class<BenchmarkFailure>("BenchmarkFailure")(
   Schema.Struct({
-    exitCode: Schema.Number,
+    exitCode: Schema.Finite,
     output: Schema.String,
   }),
 ) {}
@@ -76,12 +76,12 @@ export class BenchmarkFailure extends Schema.Class<BenchmarkFailure>("BenchmarkF
 export class ResultEvent extends Schema.Class<ResultEvent>("ResultEvent")(
   Schema.TaggedStruct("result", {
     timestamp: Schema.String,
-    segment: Schema.Number,
-    iteration: Schema.Number,
+    segment: Schema.Finite,
+    iteration: Schema.Finite,
     kind: ResultKind,
     status: ResultStatus,
-    value: Schema.optional(Schema.Number),
-    durationMs: Schema.Number,
+    value: Schema.optional(Schema.Finite),
+    durationMs: Schema.Finite,
     summary: Schema.String,
     provider: Schema.optional(Provider),
     commit: Schema.optional(Schema.String),
@@ -93,18 +93,18 @@ export class ResultEvent extends Schema.Class<ResultEvent>("ResultEvent")(
 export class DecisionEvent extends Schema.Class<DecisionEvent>("DecisionEvent")(
   Schema.TaggedStruct("decision", {
     timestamp: Schema.String,
-    segment: Schema.Number,
-    iteration: Schema.Number,
+    segment: Schema.Finite,
+    iteration: Schema.Finite,
     status: Schema.Literals(["kept", "discarded", "failed"]),
-    value: Schema.optional(Schema.Number),
+    value: Schema.optional(Schema.Finite),
   }),
 ) {}
 
 export class SteerEvent extends Schema.Class<SteerEvent>("SteerEvent")(
   Schema.TaggedStruct("steer", {
     timestamp: Schema.String,
-    segment: Schema.Number,
-    iteration: Schema.Number,
+    segment: Schema.Finite,
+    iteration: Schema.Finite,
     guidance: Schema.String,
   }),
 ) {}
@@ -112,8 +112,8 @@ export class SteerEvent extends Schema.Class<SteerEvent>("SteerEvent")(
 export class CommittedEvent extends Schema.Class<CommittedEvent>("CommittedEvent")(
   Schema.TaggedStruct("committed", {
     timestamp: Schema.String,
-    segment: Schema.Number,
-    iteration: Schema.Number,
+    segment: Schema.Finite,
+    iteration: Schema.Finite,
     commit: Schema.String,
   }),
 ) {}
@@ -146,9 +146,9 @@ export class BenchmarkResult extends Schema.Class<BenchmarkResult>("BenchmarkRes
   Schema.Struct({
     stdout: Schema.String,
     stderr: Schema.String,
-    exitCode: Schema.Number,
-    durationMs: Schema.Number,
-    value: Schema.optional(Schema.Number),
+    exitCode: Schema.Finite,
+    durationMs: Schema.Finite,
+    value: Schema.optional(Schema.Finite),
   }),
 ) {}
 
@@ -156,10 +156,10 @@ export class BenchmarkResult extends Schema.Class<BenchmarkResult>("BenchmarkRes
 
 export class AgentResult extends Schema.Class<AgentResult>("AgentResult")(
   Schema.Struct({
-    exitCode: Schema.Number,
+    exitCode: Schema.Finite,
     output: Schema.String,
     stderr: Schema.String,
-    durationMs: Schema.Number,
+    durationMs: Schema.Finite,
   }),
 ) {}
 

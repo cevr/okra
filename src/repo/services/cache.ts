@@ -8,7 +8,7 @@ export class CacheService extends Context.Service<
     readonly cacheDir: string;
     readonly getPath: (spec: PackageSpec) => Effect.Effect<string>;
     readonly remove: (path: string) => Effect.Effect<void>;
-    readonly removeAll: () => Effect.Effect<void>;
+    readonly removeAll: Effect.Effect<void>;
     readonly getSize: (path: string) => Effect.Effect<number>;
     readonly ensureDir: (path: string) => Effect.Effect<void>;
   }
@@ -87,18 +87,17 @@ export class CacheService extends Context.Service<
           ),
         );
 
-      const removeAll = () =>
-        Effect.gen(function* () {
-          const pathExists = yield* fs.exists(cacheDir);
-          if (pathExists) {
-            yield* fs.remove(cacheDir, { recursive: true });
-            yield* fs.makeDirectory(cacheDir, { recursive: true });
-          }
-        }).pipe(
-          Effect.catchTag("PlatformError", (e) =>
-            Effect.logWarning(`Failed to clean cache: ${e.message}`),
-          ),
-        );
+      const removeAll = Effect.gen(function* () {
+        const pathExists = yield* fs.exists(cacheDir);
+        if (pathExists) {
+          yield* fs.remove(cacheDir, { recursive: true });
+          yield* fs.makeDirectory(cacheDir, { recursive: true });
+        }
+      }).pipe(
+        Effect.catchTag("PlatformError", (e) =>
+          Effect.logWarning(`Failed to clean cache: ${e.message}`),
+        ),
+      );
 
       const getSize = (path: string): Effect.Effect<number> =>
         Effect.gen(function* () {
@@ -117,10 +116,10 @@ export class CacheService extends Context.Service<
                 return sizes.reduce((a, b) => a + b, 0);
               }
               return Number(stat.size);
-            }).pipe(Effect.catch(() => Effect.succeed(0)));
+            }).pipe(Effect.orElseSucceed(() => 0));
 
           return yield* calculateSize(path);
-        }).pipe(Effect.catch(() => Effect.succeed(0)));
+        }).pipe(Effect.orElseSucceed(() => 0));
 
       const ensureDir = (path: string) =>
         fs

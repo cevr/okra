@@ -21,9 +21,7 @@ export const logsCommand = Command.make(
       const projectRoot = process.cwd();
       const paths = buildXpPaths(path, projectRoot);
 
-      const exists = yield* fs
-        .exists(paths.daemonLog)
-        .pipe(Effect.catch(() => Effect.succeed(false)));
+      const exists = yield* fs.exists(paths.daemonLog).pipe(Effect.orElseSucceed(() => false));
       if (!exists) {
         return yield* new ResearchError({
           message: "No daemon log found. Start an experiment first.",

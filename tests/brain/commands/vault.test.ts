@@ -11,9 +11,9 @@ const runVault = (opts: { project: boolean; global: boolean; json: boolean }) =>
     const config = yield* ConfigService;
 
     if (opts.json) {
-      const globalPath = yield* config.globalVaultPath();
-      const projectPath = yield* config.projectVaultPath();
-      const active = yield* config.activeVaultPath();
+      const globalPath = yield* config.globalVaultPath;
+      const projectPath = yield* config.projectVaultPath;
+      const active = yield* config.activeVaultPath;
       return {
         global: globalPath,
         project: Option.getOrNull(projectPath),
@@ -22,9 +22,9 @@ const runVault = (opts: { project: boolean; global: boolean; json: boolean }) =>
     }
 
     if (opts.global) {
-      return yield* config.globalVaultPath();
+      return yield* config.globalVaultPath;
     } else if (opts.project) {
-      const p = yield* config.projectVaultPath();
+      const p = yield* config.projectVaultPath;
       if (Option.isSome(p)) {
         return p.value;
       }
@@ -33,20 +33,19 @@ const runVault = (opts: { project: boolean; global: boolean; json: boolean }) =>
         code: "NOT_INITIALIZED",
       });
     } else {
-      return yield* config.activeVaultPath();
+      return yield* config.activeVaultPath;
     }
   });
 
 const makeTestConfig = (globalVault: string, projectVault: Option.Option<string> = Option.none()) =>
   Layer.succeed(ConfigService, {
-    globalVaultPath: () => Effect.succeed(globalVault),
-    projectVaultPath: () => Effect.succeed(projectVault),
-    activeVaultPath: () =>
-      Effect.succeed(Option.isSome(projectVault) ? projectVault.value : globalVault),
-    currentProjectName: () => Effect.succeed(Option.none()),
-    configFilePath: () => Effect.succeed("/tmp/config.json"),
-    defaultProvider: () => Effect.succeed(Option.none()),
-    loadConfigFile: () => Effect.succeed({}),
+    globalVaultPath: Effect.succeed(globalVault),
+    projectVaultPath: Effect.succeed(projectVault),
+    activeVaultPath: Effect.succeed(Option.isSome(projectVault) ? projectVault.value : globalVault),
+    currentProjectName: Effect.succeed(Option.none()),
+    configFilePath: Effect.succeed("/tmp/config.json"),
+    defaultProvider: Effect.succeed(Option.none()),
+    loadConfigFile: Effect.succeed({}),
     saveConfigFile: () => Effect.void,
   });
 

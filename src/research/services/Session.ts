@@ -32,7 +32,7 @@ export class SessionService extends Context.Service<
           const paths = buildXpPaths(path, session.projectRoot);
           const exists = yield* fs
             .exists(paths.sessionJson)
-            .pipe(Effect.catch(() => Effect.succeed(false)));
+            .pipe(Effect.orElseSucceed(() => false));
           if (exists) {
             return yield* new ResearchError({
               message: `Session already exists at ${paths.sessionJson}`,
@@ -53,7 +53,7 @@ export class SessionService extends Context.Service<
           const paths = buildXpPaths(path, projectRoot);
           const exists = yield* fs
             .exists(paths.sessionJson)
-            .pipe(Effect.catch(() => Effect.succeed(false)));
+            .pipe(Effect.orElseSucceed(() => false));
           if (!exists) {
             return yield* new ResearchError({
               message: `No session found at ${paths.sessionJson}`,
@@ -75,7 +75,7 @@ export class SessionService extends Context.Service<
           const paths = buildXpPaths(path, projectRoot);
           const exists = yield* fs
             .exists(paths.sessionJson)
-            .pipe(Effect.catch(() => Effect.succeed(false)));
+            .pipe(Effect.orElseSucceed(() => false));
           if (!exists) {
             return yield* new ResearchError({
               message: `No session found at ${paths.sessionJson}`,
@@ -112,9 +112,7 @@ export class SessionService extends Context.Service<
 
         exists: Effect.fn("Session.exists")(function* (projectRoot: string) {
           const paths = buildXpPaths(path, projectRoot);
-          return yield* fs
-            .exists(paths.sessionJson)
-            .pipe(Effect.catch(() => Effect.succeed(false)));
+          return yield* fs.exists(paths.sessionJson).pipe(Effect.orElseSucceed(() => false));
         }),
       };
     }),

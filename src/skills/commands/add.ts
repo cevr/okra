@@ -108,7 +108,7 @@ const discoverLocalCandidates = Effect.fn("command.add.discoverLocalCandidates")
 
   const homeOpt = yield* Config.option(Config.string("HOME"))
     .parse(ConfigProvider.fromEnv())
-    .pipe(Effect.catch(() => Effect.succeed(Option.none<string>())));
+    .pipe(Effect.orElseSucceed(() => Option.none<string>()));
   const inputPath = source.path.startsWith("~")
     ? pathService.join(
         Option.getOrElse(homeOpt, () => ""),
@@ -149,7 +149,7 @@ const discoverLocalCandidates = Effect.fn("command.add.discoverLocalCandidates")
     for (const entry of entries) {
       if (entry.startsWith(".")) continue;
       const entryPath = pathService.join(searchDir, entry);
-      const stat = yield* fs.stat(entryPath).pipe(Effect.catch(() => Effect.succeed(null)));
+      const stat = yield* fs.stat(entryPath).pipe(Effect.orElseSucceed(() => null));
       if (!stat || stat.type !== "Directory") continue;
 
       const skillMdPath = pathService.join(entryPath, "SKILL.md");

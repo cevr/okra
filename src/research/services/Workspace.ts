@@ -51,7 +51,7 @@ export class WorkspaceService extends Context.Service<
           for (const link of manifest.symlinks) {
             const linkExists = yield* fs
               .exists(link.destination)
-              .pipe(Effect.catch(() => Effect.succeed(false)));
+              .pipe(Effect.orElseSucceed(() => false));
             if (!linkExists) {
               yield* fs
                 .makeDirectory(path.dirname(link.destination), { recursive: true })
@@ -106,7 +106,7 @@ export class WorkspaceService extends Context.Service<
             // Create worktree if it doesn't exist
             const worktreeExists = yield* fs
               .exists(paths.worktree)
-              .pipe(Effect.catch(() => Effect.succeed(false)));
+              .pipe(Effect.orElseSucceed(() => false));
             if (!worktreeExists) {
               yield* git.addWorktree(paths.worktree, branchName);
             }
@@ -119,7 +119,7 @@ export class WorkspaceService extends Context.Service<
             // Replay setup manifest if it exists
             const setupExists = yield* fs
               .exists(paths.setupJson)
-              .pipe(Effect.catch(() => Effect.succeed(false)));
+              .pipe(Effect.orElseSucceed(() => false));
             if (setupExists) {
               yield* replaySetup(paths.setupJson, paths.worktree);
             }
@@ -132,7 +132,7 @@ export class WorkspaceService extends Context.Service<
             const paths = buildXpPaths(path, projectRoot);
             const worktreeExists = yield* fs
               .exists(paths.worktree)
-              .pipe(Effect.catch(() => Effect.succeed(false)));
+              .pipe(Effect.orElseSucceed(() => false));
             if (worktreeExists) {
               yield* git.removeWorktree(paths.worktree);
             }
@@ -141,7 +141,7 @@ export class WorkspaceService extends Context.Service<
         exists: (projectRoot) =>
           fs
             .exists(buildXpPaths(path, projectRoot).worktree)
-            .pipe(Effect.catch(() => Effect.succeed(false))),
+            .pipe(Effect.orElseSucceed(() => false)),
 
         path: (projectRoot) => Effect.succeed(buildXpPaths(path, projectRoot).worktree),
       };

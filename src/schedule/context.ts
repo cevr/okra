@@ -2,7 +2,7 @@ import { Effect, Option, Schema } from "effect";
 import type { TaskContext } from "./services/Store.js";
 
 const PrJson = Schema.Struct({
-  number: Schema.optional(Schema.Number),
+  number: Schema.optional(Schema.Finite),
   url: Schema.optional(Schema.String),
 });
 const decodePrJson = Schema.decodeUnknownEffect(Schema.fromJsonString(PrJson));
@@ -22,7 +22,7 @@ const exec = Effect.fn("captureContext.exec")(
     const out = text.trim();
     return out.length > 0 ? Option.some(out) : Option.none<string>();
   },
-  Effect.catch(() => Effect.succeed(Option.none<string>())),
+  Effect.orElseSucceed(() => Option.none<string>()),
 );
 
 const parseRepoName = (remoteUrl: string): string | undefined => {

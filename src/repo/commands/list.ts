@@ -28,7 +28,7 @@ export const list = Command.make(
   ({ registry, json, sort }) =>
     Effect.gen(function* () {
       const metadata = yield* MetadataService;
-      let repos = yield* metadata.all();
+      let repos = yield* metadata.all;
 
       // Filter by registry if specified
       if (Option.isSome(registry)) {

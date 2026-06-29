@@ -7,14 +7,11 @@ export const PathEnv = Config.withDefault(
   "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
 );
 
-const Home = Config.string("HOME")
-  .asEffect()
-  .pipe(
-    Effect.mapError(
-      () =>
-        new ScheduleError({ message: "HOME environment variable not set", code: "CONFIG_ERROR" }),
-    ),
-  );
+const Home = Config.string("HOME").pipe(
+  Effect.mapError(
+    () => new ScheduleError({ message: "HOME environment variable not set", code: "CONFIG_ERROR" }),
+  ),
+);
 
 export const resolvePaths = Effect.gen(function* () {
   const path = yield* Path;

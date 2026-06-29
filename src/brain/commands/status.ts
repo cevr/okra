@@ -8,8 +8,8 @@ const jsonFlag = Flag.boolean("json").pipe(Flag.withDescription("Output as JSON"
 
 const StatusOutput = Schema.Struct({
   vault: Schema.String,
-  files: Schema.Number,
-  sections: Schema.Record(Schema.String, Schema.Number),
+  files: Schema.Finite,
+  sections: Schema.Record(Schema.String, Schema.Finite),
   orphans: Schema.Array(Schema.String),
 });
 const encodeStatusOutput = Schema.encodeSync(Schema.fromJsonString(StatusOutput));
@@ -21,7 +21,7 @@ export const status = Command.make("status", { json: jsonFlag }).pipe(
       const config = yield* ConfigService;
       const vault = yield* VaultService;
 
-      const vaultPath = yield* config.activeVaultPath().pipe(
+      const vaultPath = yield* config.activeVaultPath.pipe(
         Effect.catchTag("@cvr/okra/brain/ConfigError", () =>
           Effect.fail(
             new VaultError({

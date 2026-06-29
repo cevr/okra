@@ -21,7 +21,7 @@ const buildMeditatePrompt = (brainDir: string): string =>
 export const runMeditate = Effect.fn("runMeditate")(function* (opts: RunMeditateOptions = {}) {
   const config = yield* ConfigService;
   const platform = yield* AgentPlatformService;
-  const brainDir = yield* config.globalVaultPath();
+  const brainDir = yield* config.globalVaultPath;
   const executorId = yield* platform.resolveDaemonExecutor(
     opts.executorProvider === undefined ? undefined : Option.some(opts.executorProvider),
   );

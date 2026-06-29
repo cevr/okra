@@ -43,7 +43,7 @@ const StatusOutput = Schema.Struct({
       locked: Schema.Boolean,
     }),
   ),
-  processedSessions: Schema.Number,
+  processedSessions: Schema.Finite,
 });
 const encodeStatusOutput = Schema.encodeSync(Schema.fromJsonString(StatusOutput));
 
@@ -178,7 +178,7 @@ const status = Command.make("status", { json: jsonFlag }).pipe(
   Command.withHandler(({ json }) =>
     Effect.gen(function* () {
       const config = yield* ConfigService;
-      const brainDir = yield* config.globalVaultPath();
+      const brainDir = yield* config.globalVaultPath;
       const state = yield* readState(brainDir);
       const loaded = yield* isUnifiedLoaded();
       const processedCount = getProcessedCount(state);
@@ -346,7 +346,7 @@ const logs = Command.make("logs", { job: logsJobArg, tail: tailFlag }).pipe(
       const home = yield* requireHome();
       const logsDir = path.join(home, ".brain", "logs");
 
-      const exists = yield* fs.exists(logsDir).pipe(Effect.catch(() => Effect.succeed(false)));
+      const exists = yield* fs.exists(logsDir).pipe(Effect.orElseSucceed(() => false));
       if (!exists) {
         yield* Console.error("No daemon logs found. Run 'okra brain daemon start' first");
         return;
@@ -354,7 +354,7 @@ const logs = Command.make("logs", { job: logsJobArg, tail: tailFlag }).pipe(
 
       const files = yield* fs
         .readDirectory(logsDir)
-        .pipe(Effect.catch(() => Effect.succeed([] as string[])));
+        .pipe(Effect.orElseSucceed(() => [] as string[]));
       const jobName = Option.getOrUndefined(job);
       const logFiles = files
         .filter((f) => (f === "daemon.log" || f.startsWith("daemon-")) && f.endsWith(".log"))
@@ -383,9 +383,7 @@ const logs = Command.make("logs", { job: logsJobArg, tail: tailFlag }).pipe(
       } else {
         for (const file of logFiles) {
           const filePath = path.join(logsDir, file);
-          const content = yield* fs
-            .readFileString(filePath)
-            .pipe(Effect.catch(() => Effect.succeed("")));
+          const content = yield* fs.readFileString(filePath).pipe(Effect.orElseSucceed(() => ""));
           if (content.length > 0) {
             yield* Console.error(`--- ${file} ---`);
             yield* Console.log(content);

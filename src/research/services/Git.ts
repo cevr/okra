@@ -4,7 +4,7 @@ import { ResearchError, ErrorCode } from "../errors.js";
 export class GitService extends Context.Service<
   GitService,
   {
-    readonly currentBranch: () => Effect.Effect<string, ResearchError>;
+    readonly currentBranch: Effect.Effect<string, ResearchError>;
     readonly headSha: (cwd?: string) => Effect.Effect<string, ResearchError>;
     readonly isClean: (cwd?: string) => Effect.Effect<boolean, ResearchError>;
     readonly createBranch: (name: string, from?: string) => Effect.Effect<void, ResearchError>;
@@ -74,17 +74,16 @@ export class GitService extends Context.Service<
     });
 
     return {
-      currentBranch: () =>
-        run(["rev-parse", "--abbrev-ref", "HEAD"]).pipe(
-          Effect.filterOrFail(
-            (branch) => branch !== "HEAD",
-            () =>
-              new ResearchError({
-                message: "HEAD is detached",
-                code: ErrorCode.GIT_FAILED,
-              }),
-          ),
+      currentBranch: run(["rev-parse", "--abbrev-ref", "HEAD"]).pipe(
+        Effect.filterOrFail(
+          (branch) => branch !== "HEAD",
+          () =>
+            new ResearchError({
+              message: "HEAD is detached",
+              code: ErrorCode.GIT_FAILED,
+            }),
         ),
+      ),
 
       headSha: (cwd) => run(["rev-parse", "HEAD"], cwd),
 
@@ -125,7 +124,7 @@ export class GitService extends Context.Service<
 
   static layerTest = (impl: Partial<Context.Service.Shape<typeof GitService>> = {}) =>
     Layer.succeed(GitService, {
-      currentBranch: () => Effect.succeed("main"),
+      currentBranch: Effect.succeed("main"),
       headSha: () => Effect.succeed("abc123"),
       isClean: () => Effect.succeed(true),
       createBranch: () => Effect.void,

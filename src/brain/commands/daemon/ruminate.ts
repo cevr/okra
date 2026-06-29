@@ -24,12 +24,12 @@ const buildRuminatePrompt = (brainDir: string, sourceProviders: ReadonlyArray<Pr
 export const runRuminate = Effect.fn("runRuminate")(function* (opts: RunRuminateOptions = {}) {
   const config = yield* ConfigService;
   const platform = yield* AgentPlatformService;
-  const brainDir = yield* config.globalVaultPath();
+  const brainDir = yield* config.globalVaultPath;
   const executorId = yield* platform.resolveDaemonExecutor(
     opts.executorProvider === undefined ? undefined : Option.some(opts.executorProvider),
   );
   const executor = yield* platform.getProvider(executorId);
-  const sourceProviders = opts.sourceProviders ?? (yield* platform.listDetectedSourceProviders());
+  const sourceProviders = opts.sourceProviders ?? (yield* platform.listDetectedSourceProviders);
 
   yield* acquireLock(brainDir, "ruminate");
 

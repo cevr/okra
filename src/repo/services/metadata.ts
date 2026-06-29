@@ -26,13 +26,13 @@ const MetadataIndexJson = Schema.fromJsonString(MetadataIndex);
 export class MetadataService extends Context.Service<
   MetadataService,
   {
-    readonly load: () => Effect.Effect<MetadataIndex>;
+    readonly load: Effect.Effect<MetadataIndex>;
     readonly save: (index: MetadataIndex) => Effect.Effect<void>;
     readonly add: (metadata: RepoMetadata) => Effect.Effect<void>;
     readonly remove: (spec: PackageSpec) => Effect.Effect<boolean>;
     readonly find: (spec: PackageSpec) => Effect.Effect<Option.Option<RepoMetadata>>;
     readonly updateAccessTime: (spec: PackageSpec) => Effect.Effect<void>;
-    readonly all: () => Effect.Effect<readonly RepoMetadata[]>;
+    readonly all: Effect.Effect<readonly RepoMetadata[]>;
   }
 >()("@cvr/okra/repo/services/metadata/MetadataService") {
   // Live layer using real filesystem with in-memory caching
@@ -55,18 +55,17 @@ export class MetadataService extends Context.Service<
           }
           const content = yield* fs.readFileString(metadataPath);
           return yield* Schema.decodeUnknownEffect(MetadataIndexJson)(content);
-        }).pipe(Effect.catch(() => Effect.succeed({ version: 1, repos: [] })));
+        }).pipe(Effect.orElseSucceed(() => ({ version: 1, repos: [] })));
 
-      const load = (): Effect.Effect<MetadataIndex> =>
-        Effect.gen(function* () {
-          const cache = yield* Ref.get(cacheRef);
-          if (Option.isSome(cache.index)) {
-            return cache.index.value;
-          }
-          const index = yield* loadFromDisk();
-          yield* Ref.set(cacheRef, { index: Option.some(index), dirty: false });
-          return index;
-        });
+      const load: Effect.Effect<MetadataIndex> = Effect.gen(function* () {
+        const cache = yield* Ref.get(cacheRef);
+        if (Option.isSome(cache.index)) {
+          return cache.index.value;
+        }
+        const index = yield* loadFromDisk();
+        yield* Ref.set(cacheRef, { index: Option.some(index), dirty: false });
+        return index;
+      });
 
       const saveToDisk = (index: MetadataIndex): Effect.Effect<void> =>
         Effect.gen(function* () {
@@ -94,7 +93,7 @@ export class MetadataService extends Context.Service<
 
       const add = (metadata: RepoMetadata): Effect.Effect<void> =>
         Effect.gen(function* () {
-          const index = yield* load();
+          const index = yield* load;
           const filtered = index.repos.filter((r) => !specMatches(r.spec, metadata.spec));
           const newIndex: MetadataIndex = {
             ...index,
@@ -105,7 +104,7 @@ export class MetadataService extends Context.Service<
 
       const remove = (spec: PackageSpec): Effect.Effect<boolean> =>
         Effect.gen(function* () {
-          const index = yield* load();
+          const index = yield* load;
           const originalLength = index.repos.length;
           const filtered = index.repos.filter((r) => !specMatches(r.spec, spec));
           if (filtered.length === originalLength) {
@@ -116,7 +115,7 @@ export class MetadataService extends Context.Service<
         });
 
       const find = (spec: PackageSpec): Effect.Effect<Option.Option<RepoMetadata>> =>
-        load().pipe(
+        load.pipe(
           Effect.map((index) =>
             Option.fromNullishOr(index.repos.find((r) => specMatches(r.spec, spec))),
           ),
@@ -124,7 +123,7 @@ export class MetadataService extends Context.Service<
 
       const updateAccessTime = (spec: PackageSpec): Effect.Effect<void> =>
         Effect.gen(function* () {
-          const index = yield* load();
+          const index = yield* load;
           const nowStr = (yield* DateTime.now).pipe(DateTime.formatIso);
           const updated = index.repos.map((r) => {
             if (specMatches(r.spec, spec)) {
@@ -135,8 +134,9 @@ export class MetadataService extends Context.Service<
           yield* save({ ...index, repos: updated });
         });
 
-      const all = (): Effect.Effect<readonly RepoMetadata[]> =>
-        load().pipe(Effect.map((index) => index.repos));
+      const all: Effect.Effect<readonly RepoMetadata[]> = load.pipe(
+        Effect.map((index) => index.repos),
+      );
 
       return { load, save, add, remove, find, updateAccessTime, all };
     }),

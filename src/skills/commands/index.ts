@@ -13,7 +13,7 @@ const readNoColor = Config.option(Config.string("NO_COLOR"))
   .parse(ConfigProvider.fromEnv())
   .pipe(
     Effect.map(Option.isSome),
-    Effect.catch(() => Effect.succeed(false)),
+    Effect.orElseSucceed(() => false),
   );
 
 const skillsCommand = Command.make("skills", {}, () =>

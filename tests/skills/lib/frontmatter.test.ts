@@ -28,9 +28,7 @@ name: my-skill
 
 # No description`;
 
-      const result = yield* parseFrontmatter(content).pipe(
-        Effect.catch(() => Effect.succeed(null)),
-      );
+      const result = yield* parseFrontmatter(content).pipe(Effect.orElseSucceed(() => null));
       expect(result).toBe(null);
     }),
   );
@@ -39,9 +37,7 @@ name: my-skill
     Effect.gen(function* () {
       const content = "# Just a heading\n\nSome content.";
 
-      const result = yield* parseFrontmatter(content).pipe(
-        Effect.catch(() => Effect.succeed(null)),
-      );
+      const result = yield* parseFrontmatter(content).pipe(Effect.orElseSucceed(() => null));
       expect(result).toBe(null);
     }),
   );

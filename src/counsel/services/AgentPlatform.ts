@@ -114,7 +114,7 @@ export class AgentPlatformService extends Context.Service<
       const resolveSource = (requested: Option.Option<Provider>) =>
         Option.isSome(requested)
           ? Effect.succeed(requested.value)
-          : host.getEnv().pipe(Effect.flatMap(detectSourceFromEnv));
+          : host.getEnv.pipe(Effect.flatMap(detectSourceFromEnv));
 
       const ensureExecutable = (provider: Provider) =>
         Effect.sync(() => Bun.which(commands[provider])).pipe(

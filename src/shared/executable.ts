@@ -5,7 +5,7 @@ const readHome = Config.option(Config.string("HOME"))
   .parse(ConfigProvider.fromEnv())
   .pipe(
     Effect.map((opt) => Option.getOrElse(opt, () => "")),
-    Effect.catch(() => Effect.succeed("")),
+    Effect.orElseSucceed(() => ""),
   );
 
 export const resolveExecutable = Effect.fn("resolveExecutable")(function* (name: string) {
@@ -20,7 +20,7 @@ export const resolveExecutable = Effect.fn("resolveExecutable")(function* (name:
     `${home}/.local/bin/${name}`,
   ];
   for (const candidate of candidates) {
-    const exists = yield* fs.exists(candidate).pipe(Effect.catch(() => Effect.succeed(false)));
+    const exists = yield* fs.exists(candidate).pipe(Effect.orElseSucceed(() => false));
     if (exists) return candidate;
   }
   return name;

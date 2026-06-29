@@ -53,7 +53,7 @@ const isWithinReflectLookback = (mtime: Date, nowMs: number): boolean =>
 
 const countLines = Effect.fn("countLines")(function* (filePath: string) {
   const fs = yield* FileSystem;
-  const content = yield* fs.readFileString(filePath).pipe(Effect.catch(() => Effect.succeed("")));
+  const content = yield* fs.readFileString(filePath).pipe(Effect.orElseSucceed(() => ""));
   if (content.length === 0) return 0;
   let count = 0;
   for (let i = 0; i < content.length; i++) {
@@ -65,13 +65,13 @@ const countLines = Effect.fn("countLines")(function* (filePath: string) {
 const statOption = <A, E>(effect: Effect.Effect<A, E>): Effect.Effect<Option.Option<A>, never> =>
   effect.pipe(
     Effect.map(Option.some),
-    Effect.catch(() => Effect.succeed(Option.none())),
+    Effect.orElseSucceed(() => Option.none()),
   );
 
 const readCodexSessionMeta = Effect.fn("readCodexSessionMeta")(function* (filePath: string) {
   const fs = yield* FileSystem;
   const path = yield* Path;
-  const content = yield* fs.readFileString(filePath).pipe(Effect.catch(() => Effect.succeed("")));
+  const content = yield* fs.readFileString(filePath).pipe(Effect.orElseSucceed(() => ""));
   const lines = content.split("\n");
 
   for (const line of lines) {
@@ -108,7 +108,7 @@ const scanClaudeSessions = Effect.fn("scanClaudeSessions")(function* (state: Dae
   const home = yield* requireHome();
   const projectsDir = path.join(home, ".claude", "projects");
 
-  const exists = yield* fs.exists(projectsDir).pipe(Effect.catch(() => Effect.succeed(false)));
+  const exists = yield* fs.exists(projectsDir).pipe(Effect.orElseSucceed(() => false));
   if (!exists) return [] as SessionGroup[];
 
   const projectDirs = yield* fs.readDirectory(projectsDir).pipe(
@@ -129,9 +129,7 @@ const scanClaudeSessions = Effect.fn("scanClaudeSessions")(function* (state: Dae
     const stat = yield* statOption(fs.stat(dirPath));
     if (Option.isNone(stat) || stat.value.type !== "Directory") continue;
 
-    const files = yield* fs
-      .readDirectory(dirPath)
-      .pipe(Effect.catch(() => Effect.succeed([] as string[])));
+    const files = yield* fs.readDirectory(dirPath).pipe(Effect.orElseSucceed(() => [] as string[]));
     const sessions: SessionFile[] = [];
 
     for (const file of files.filter((entry) => entry.endsWith(".jsonl"))) {
@@ -179,12 +177,10 @@ const walkCodexDirs: (dir: string) => Effect.Effect<Array<string>, never, FileSy
   Effect.fn("walkCodexDirs")(function* (dir: string) {
     const fs = yield* FileSystem;
     const path = yield* Path;
-    const exists = yield* fs.exists(dir).pipe(Effect.catch(() => Effect.succeed(false)));
+    const exists = yield* fs.exists(dir).pipe(Effect.orElseSucceed(() => false));
     if (!exists) return [] as string[];
 
-    const entries = yield* fs
-      .readDirectory(dir)
-      .pipe(Effect.catch(() => Effect.succeed([] as string[])));
+    const entries = yield* fs.readDirectory(dir).pipe(Effect.orElseSucceed(() => [] as string[]));
     const files: string[] = [];
 
     for (const entry of entries) {
@@ -327,13 +323,13 @@ export const runReflect = Effect.fn("runReflect")(function* (opts: RunReflectOpt
   const platform = yield* AgentPlatformService;
   const path = yield* Path;
 
-  const brainDir = yield* config.globalVaultPath();
+  const brainDir = yield* config.globalVaultPath;
   const executorId = yield* platform.resolveDaemonExecutor(
     opts.executorProvider === undefined ? undefined : Option.some(opts.executorProvider),
   );
   const executor = yield* platform.getProvider(executorId);
 
-  const sourceProviders = opts.sourceProviders ?? (yield* platform.listDetectedSourceProviders());
+  const sourceProviders = opts.sourceProviders ?? (yield* platform.listDetectedSourceProviders);
 
   yield* acquireLock(brainDir, "reflect");
 
