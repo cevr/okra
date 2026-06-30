@@ -207,6 +207,27 @@ describe("OpenAiImagesService.edit", () => {
       // A single source uses the `image` key and carries a File payload.
       expect(form.get("image")).toBeInstanceOf(globalThis.File);
       expect(form.get("mask")).toBeNull();
+      // Optional knobs are omitted when not supplied, so model defaults stand.
+      expect(form.get("input_fidelity")).toBeNull();
+    }).pipe(
+      Effect.provide(capturingLayer(captured, { created: 1, data: [{ b64_json: PNG_BASE64 }] })),
+    );
+  });
+
+  it.effect("sends input_fidelity when set", () => {
+    const captured: CapturedRequest = {};
+    return Effect.gen(function* () {
+      const svc = yield* OpenAiImagesService;
+      yield* svc.edit({
+        prompt: "keep the face",
+        model: "gpt-image-1.5",
+        size: "auto",
+        format: "png",
+        images: [src("image/png")],
+        inputFidelity: "high",
+      });
+      const form = captured.form as globalThis.FormData;
+      expect(form.get("input_fidelity")).toBe("high");
     }).pipe(
       Effect.provide(capturingLayer(captured, { created: 1, data: [{ b64_json: PNG_BASE64 }] })),
     );

@@ -11,10 +11,12 @@ import {
   DEFAULT_MODEL,
   DEFAULT_SIZE,
   IMAGE_BACKGROUND_CHOICES,
+  IMAGE_FIDELITY_CHOICES,
   IMAGE_QUALITY_CHOICES,
   isOpenAiImageModel,
   refMediaType,
   supportsEdits,
+  supportsInputFidelity,
 } from "../constants.js";
 import { ImageError } from "../errors.js";
 import { CodexAuthService } from "../services/CodexAuth.js";
@@ -97,6 +99,15 @@ const maskFlag = Flag.string("mask").pipe(
   ),
 );
 
+// Edits-only: how hard the model preserves the source's style/features (faces).
+// gpt-image-1 / gpt-image-1.5 only (not gpt-image-1-mini); API default is "low".
+const fidelityFlag = Flag.choice("fidelity", IMAGE_FIDELITY_CHOICES).pipe(
+  Flag.optional,
+  Flag.withDescription(
+    "Edit fidelity to the source (gpt-image-1/1.5 edits only): high or low (default low)",
+  ),
+);
+
 interface GenerateArgs {
   readonly prompt: string;
   readonly model: string;
@@ -108,6 +119,8 @@ interface GenerateArgs {
   readonly refs: ReadonlyArray<ReferenceImage>;
   /** Present → route to the OpenAI `/images/edits` endpoint with these as source + mask. */
   readonly mask: Option.Option<ImagePart>;
+  /** Edit fidelity to the source (edits endpoint only). */
+  readonly fidelity: Option.Option<"high" | "low">;
 }
 
 /** Codex backend: eager auth check, then generate through a per-invocation model layer. */
@@ -181,6 +194,7 @@ const editViaOpenAi = Effect.fn("image.editViaOpenAi")(function* (args: Generate
     quality: Option.getOrUndefined(args.quality),
     background: Option.getOrUndefined(args.background),
     n: Option.getOrUndefined(args.n),
+    inputFidelity: Option.getOrUndefined(args.fidelity),
   });
 });
 
@@ -213,6 +227,7 @@ interface RouteInput {
   readonly refCount: number;
   readonly edit: boolean;
   readonly hasMask: boolean;
+  readonly hasFidelity: boolean;
 }
 
 /** Either a resolved route or the `ImageError` describing why the flags conflict. */
@@ -229,6 +244,13 @@ const bad = (message: string): RouteResult => ({
   error: new ImageError({ message, code: "INVALID_INPUT" }),
 });
 
+/** Name the edit-intent flag that's present, for error messages. */
+const editFlagName = (input: RouteInput): string => {
+  if (input.edit) return "edit";
+  if (input.hasMask) return "mask";
+  return "fidelity";
+};
+
 /**
  * Resolve the route from the model + flags. Keeps all the edit/codex/mask
  * validation out of the command handler (which otherwise trips the complexity
@@ -237,17 +259,18 @@ const bad = (message: string): RouteResult => ({
  * - codex + `--ref` → style reference (`codex`); codex + `--edit`/`--mask` → error.
  * - OpenAI + any input image (`--ref`/`--edit`/`--mask`) → `openai-edit`.
  * - OpenAI with no input image → `openai-generate`.
+ * - `--fidelity` is valid only on `openai-edit` and only on supporting models.
  */
 const resolveRoute = (input: RouteInput): RouteResult => {
-  const { model, refCount, edit, hasMask } = input;
+  const { model, refCount, edit, hasMask, hasFidelity } = input;
   const useOpenAi = isOpenAiImageModel(model);
   const wantsEdit = edit || hasMask;
 
   if (!useOpenAi) {
     // Codex has no pixel-edit/mask primitive; point at an OpenAI image model.
-    if (wantsEdit) {
+    if (wantsEdit || hasFidelity) {
       return bad(
-        `--${edit ? "edit" : "mask"} needs an OpenAI image model — pass --model gpt-image-1.5.`,
+        `--${editFlagName(input)} needs an OpenAI image model — pass --model gpt-image-1.5.`,
       );
     }
     return ok("codex"); // --ref (if any) is a style reference on this path.
@@ -256,14 +279,23 @@ const resolveRoute = (input: RouteInput): RouteResult => {
   // OpenAI path: any input image means the edits endpoint.
   if (wantsEdit || refCount > 0) {
     if (refCount === 0) {
-      return bad(`--${edit ? "edit" : "mask"} needs a source image — pass --ref <path> to edit.`);
+      return bad(`--${editFlagName(input)} needs a source image — pass --ref <path> to edit.`);
     }
     if (!supportsEdits(model)) {
       return bad(
         `${model} cannot edit images — use a GPT image model (e.g. --model gpt-image-1.5).`,
       );
     }
+    // input_fidelity is gpt-image-1 / gpt-image-1.5 only (not -mini).
+    if (hasFidelity && !supportsInputFidelity(model)) {
+      return bad(`--fidelity is not supported by ${model} — use gpt-image-1 or gpt-image-1.5.`);
+    }
     return ok("openai-edit");
+  }
+
+  // No input image → generation, where --fidelity has no meaning.
+  if (hasFidelity) {
+    return bad("--fidelity only applies when editing — pass --ref <path> to edit.");
   }
   return ok("openai-generate");
 };
@@ -283,13 +315,15 @@ const progressLine = (
   format: ImageFormat,
   refCount: number,
   mask: Option.Option<ImagePart>,
+  fidelity: Option.Option<"high" | "low">,
 ): string => {
   const editing = route === "openai-edit";
   const noun = editing ? "source" : "ref";
   const refNote = refCount > 0 ? `, ${refCount} ${noun}${refCount > 1 ? "s" : ""}` : "";
   const maskNote = Option.isSome(mask) ? ", mask" : "";
+  const fidelityNote = Option.isSome(fidelity) ? `, ${fidelity.value} fidelity` : "";
   const verb = editing ? "Editing" : "Generating";
-  return `${verb} image (${size}, ${format}${refNote}${maskNote}) via ${backendLabel(route, model)}…`;
+  return `${verb} image (${size}, ${format}${refNote}${maskNote}${fidelityNote}) via ${backendLabel(route, model)}…`;
 };
 
 /** Dispatch a resolved route to its backend; all yield an array of image bytes. */
@@ -314,8 +348,9 @@ const generateCommand = Command.make(
     ref: refFlag,
     edit: editFlag,
     mask: maskFlag,
+    fidelity: fidelityFlag,
   },
-  ({ prompt, out, size, format, model, quality, background, n, ref, edit, mask }) =>
+  ({ prompt, out, size, format, model, quality, background, n, ref, edit, mask, fidelity }) =>
     Effect.gen(function* () {
       const fs = yield* FileSystem;
       const path = yield* Path;
@@ -338,6 +373,7 @@ const generateCommand = Command.make(
         refCount: ref.length,
         edit,
         hasMask: Option.isSome(mask),
+        hasFidelity: Option.isSome(fidelity),
       });
       if (!resolved.ok) return yield* resolved.error;
       const route = resolved.route;
@@ -359,7 +395,9 @@ const generateCommand = Command.make(
       }
 
       // Progress goes to stderr; stdout is reserved for the saved path(s) only.
-      yield* Console.error(progressLine(route, model, size, format, refs.length, maskPart));
+      yield* Console.error(
+        progressLine(route, model, size, format, refs.length, maskPart, fidelity),
+      );
 
       const args: GenerateArgs = {
         prompt: promptText,
@@ -371,6 +409,7 @@ const generateCommand = Command.make(
         n,
         refs,
         mask: maskPart,
+        fidelity,
       };
       const images = yield* runRoute(route, args);
 

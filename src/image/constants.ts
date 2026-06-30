@@ -73,6 +73,16 @@ export const DEFAULT_OPENAI_EDIT_MODEL = DEFAULT_OPENAI_IMAGE_MODEL;
 /** True when the model is a GPT image model that supports the edits endpoint (not DALL·E 3+). */
 export const supportsEdits = (model: string): boolean => model.startsWith("gpt-image");
 
+/** `--input-fidelity` values accepted by the edits endpoint. "low" is the API default. */
+export const IMAGE_FIDELITY_CHOICES = ["high", "low"] as const;
+
+/**
+ * True when the model supports `input_fidelity` on edits. Per the OpenAI schema it's
+ * `gpt-image-1` / `gpt-image-1.5` (and later) only — explicitly NOT `gpt-image-1-mini`.
+ */
+export const supportsInputFidelity = (model: string): boolean =>
+  supportsEdits(model) && !model.startsWith("gpt-image-1-mini");
+
 /** Identifier the codex backend expects; mirrors the codex CLI. */
 export const ORIGINATOR = "codex_cli_rs";
 

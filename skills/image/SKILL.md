@@ -58,6 +58,7 @@ open "$(okra image 'a friendly robot mascot, flat vector')"
 | `--ref`        | none                     | Reference image (repeatable). Codex: style ref. OpenAI: source to edit |
 | `--edit`       | off                      | GPT image models only: edit the `--ref` source image(s) in place       |
 | `--mask`       | none                     | GPT image models only: PNG mask; transparent areas mark where to edit  |
+| `--fidelity`   | `low` (API default)      | Edit only, `gpt-image-1`/`1.5`: `high` preserves source detail/faces   |
 
 `--quality` / `--background` / `--n` apply only to OpenAI image models; the codex backend prints a note and ignores them. With `--n > 1` the output files are suffixed `-1`, `-2`, … before the extension (e.g. `out.png` → `out-1.png`); a single image keeps the bare path.
 
@@ -66,7 +67,7 @@ open "$(okra image 'a friendly robot mascot, flat vector')"
 `--ref <path>` means different things per backend, because the two backends condition on an input image differently:
 
 - **Codex** (default): `--ref` is a **style/composition reference** — generate a _new_ image guided by the reference's style, palette, and composition (it does **not** edit the reference). Repeatable. Codex has no pixel-edit primitive, so `--edit`/`--mask` error here.
-- **OpenAI image models** (`gpt-image-*`): `--ref` is the **source image to edit** — it routes to the `/images/edits` endpoint and returns an edited version of the source. `--edit` is an explicit (optional) opt-in to the same behavior; `--mask` restricts where the edit applies.
+- **OpenAI image models** (`gpt-image-*`): `--ref` is the **source image to edit** — it routes to the `/images/edits` endpoint and returns an edited version of the source. `--edit` is an explicit (optional) opt-in to the same behavior; `--mask` restricts where the edit applies; `--fidelity high` makes the model preserve the source's detail and features (notably faces).
 
 Supported reference/source/mask types: `png`, `jpg`, `jpeg`, `webp`, `gif` (mask should be a PNG with an alpha channel).
 
@@ -78,6 +79,10 @@ okra image "a hero illustration" --ref palette.png --ref layout.jpg -o hero.png 
 # OpenAI: edit the source image (--ref alone routes to /images/edits)
 okra image "give the cat a wizard hat" --model gpt-image-1.5 --ref cat.png -o wizard-cat.png
 
+# OpenAI: high-fidelity edit — keep the source's shape/lighting, change only what's asked
+okra image "paint a blue floral pattern on the mug" \
+  --model gpt-image-1.5 --ref mug.png --fidelity high -o mug-floral.png
+
 # OpenAI: masked edit — only the transparent areas of mask.png change
 okra image "replace the sky with a sunset" --model gpt-image-1.5 \
   --ref photo.png --mask sky-mask.png -o sunset.png
@@ -85,8 +90,10 @@ okra image "replace the sky with a sunset" --model gpt-image-1.5 \
 
 Errors you'll see:
 
-- `--edit`/`--mask` on the codex default → `INVALID_INPUT` ("needs an OpenAI image model — pass `--model gpt-image-1.5`").
+- `--edit`/`--mask`/`--fidelity` on the codex default → `INVALID_INPUT` ("needs an OpenAI image model — pass `--model gpt-image-1.5`").
 - `--edit`/`--mask` without `--ref` → `INVALID_INPUT` ("needs a source image — pass `--ref <path>`").
+- `--fidelity` without `--ref` → `INVALID_INPUT` ("only applies when editing").
+- `--fidelity` with `gpt-image-1-mini` → `INVALID_INPUT` (use `gpt-image-1` or `gpt-image-1.5`).
 - `--ref` with `dall-e-*` → `INVALID_INPUT` (DALL·E isn't edit-capable; use a `gpt-image-*` model).
 
 ## Auth

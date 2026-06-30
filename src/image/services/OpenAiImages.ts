@@ -38,6 +38,11 @@ export interface OpenAiEditInput {
   readonly quality?: ImageQuality;
   readonly background?: "transparent" | "opaque" | "auto";
   readonly n?: number;
+  /**
+   * How hard the model works to preserve the source's style/features (notably
+   * faces). `gpt-image-1`/`gpt-image-1.5` only. Omitted → API default (`low`).
+   */
+  readonly inputFidelity?: "high" | "low";
 }
 
 const decodeImagesResponse = HttpClientResponse.schemaBodyJson(Generated.ImagesResponse);
@@ -181,6 +186,7 @@ export class OpenAiImagesService extends Context.Service<
           if (input.quality !== undefined) form.append("quality", input.quality);
           if (input.background !== undefined) form.append("background", input.background);
           if (input.n !== undefined) form.append("n", String(input.n));
+          if (input.inputFidelity !== undefined) form.append("input_fidelity", input.inputFidelity);
           // Multiple sources repeat the `image[]` key; a single source uses `image`.
           const imageKey = input.images.length > 1 ? "image[]" : "image";
           input.images.forEach((img, i) => form.append(imageKey, toBlob(img, `image-${i}`)));
