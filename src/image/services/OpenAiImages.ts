@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Redacted } from "effect";
+import { Context, Effect, Layer, Option, Redacted, Schema } from "effect";
 import { HttpBody, HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http";
 import { Generated } from "@effect/ai-openai";
 import { KeyStoreService } from "../../shared/keystore.js";
@@ -101,21 +101,39 @@ export class OpenAiImagesService extends Context.Service<
           model: string,
           verb: string,
         ) {
-          const response = yield* httpClient.execute(request).pipe(
-            // Turn non-2xx into a StatusCodeError BEFORE attempting to decode a
-            // success body, so an error JSON isn't misread as a schema mismatch.
-            Effect.flatMap(HttpClientResponse.filterStatusOk),
-            Effect.flatMap(decodeImagesResponse),
-            Effect.mapError((cause) =>
-              statusOf(cause) === 401 || statusOf(cause) === 403
-                ? new ImageError({
-                    message: `OpenAI API key was rejected (invalid or lacks access to ${model}). Set ${OPENAI_API_KEY_ENV} or run \`okra keys set openai\`.`,
-                    code: "AUTH_EXPIRED",
-                  })
-                : new ImageError({
-                    message: `Image ${verb} failed (${model}): ${describeError(cause)}`,
-                    code: "GENERATION_FAILED",
-                  }),
+          const httpResponse = yield* httpClient.execute(request).pipe(
+            Effect.mapError(
+              (cause) =>
+                new ImageError({
+                  message: `Image ${verb} failed (${model}): ${describeError(cause)}`,
+                  code: "GENERATION_FAILED",
+                }),
+            ),
+          );
+
+          // Non-2xx: read the API error body so the real reason (e.g. "Billing hard
+          // limit has been reached") reaches the user instead of a bare status code.
+          if (httpResponse.status < 200 || httpResponse.status >= 300) {
+            const detail = yield* readApiError(httpResponse);
+            if (httpResponse.status === 401 || httpResponse.status === 403) {
+              return yield* new ImageError({
+                message: `OpenAI API key was rejected (${detail}). Set ${OPENAI_API_KEY_ENV} or run \`okra keys set openai\`.`,
+                code: "AUTH_EXPIRED",
+              });
+            }
+            return yield* new ImageError({
+              message: `Image ${verb} failed (${model}, HTTP ${httpResponse.status}): ${detail}`,
+              code: "GENERATION_FAILED",
+            });
+          }
+
+          const response = yield* decodeImagesResponse(httpResponse).pipe(
+            Effect.mapError(
+              (cause) =>
+                new ImageError({
+                  message: `OpenAI returned an unexpected response (${model}): ${describeError(cause)}`,
+                  code: "GENERATION_FAILED",
+                }),
             ),
           );
 
@@ -197,13 +215,22 @@ const describeError = (cause: unknown): string => {
   return String(cause);
 };
 
+/** The OpenAI error envelope: `{ "error": { "message": "..." } }`. */
+const ApiErrorBody = Schema.Struct({
+  error: Schema.Struct({ message: Schema.String }),
+});
+const decodeApiErrorBody = Schema.decodeUnknownEffect(Schema.fromJsonString(ApiErrorBody));
+
 /**
- * HTTP status of a failed request, if available. A non-2xx response surfaces as
- * an `HttpClientError` whose `reason` is a `StatusCodeError` carrying the
- * response (and thus its `.status`).
+ * Best-effort human-readable detail from a non-2xx response body. OpenAI returns
+ * `{ "error": { "message": "Billing hard limit has been reached." } }`; we surface
+ * that message. Falls back to the raw body, then a status note, if it can't decode.
  */
-const statusOf = (cause: unknown): number | undefined => {
-  if (typeof cause !== "object" || cause === null) return undefined;
-  const reason = (cause as { reason?: { response?: { status?: number } } }).reason;
-  return reason?.response?.status;
-};
+const readApiError = Effect.fn("OpenAiImages.readApiError")(function* (
+  response: HttpClientResponse.HttpClientResponse,
+) {
+  const body = yield* response.text.pipe(Effect.orElseSucceed(() => ""));
+  const decoded = yield* decodeApiErrorBody(body).pipe(Effect.option);
+  if (Option.isSome(decoded)) return decoded.value.error.message;
+  return body.length > 0 ? body.slice(0, 300) : "no error detail in response";
+});

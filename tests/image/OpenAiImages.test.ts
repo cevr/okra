@@ -109,6 +109,26 @@ describe("OpenAiImagesService.generate", () => {
     }).pipe(Effect.provide(makeLayer(400, { error: { message: "bad prompt" } }))),
   );
 
+  it.effect("surfaces the API error message in the failure (not just the status)", () =>
+    Effect.gen(function* () {
+      const svc = yield* OpenAiImagesService;
+      const err = yield* Effect.flip(svc.generate(input));
+      expect(err.code).toBe("GENERATION_FAILED");
+      // The real reason from the JSON body must reach the user.
+      expect(err.message).toContain("Billing hard limit has been reached.");
+      expect(err.message).toContain("HTTP 400");
+    }).pipe(
+      Effect.provide(
+        makeLayer(400, {
+          error: {
+            message: "Billing hard limit has been reached.",
+            code: "billing_hard_limit_reached",
+          },
+        }),
+      ),
+    ),
+  );
+
   it.effect("fails NO_IMAGE when the response has no image data", () =>
     Effect.gen(function* () {
       const svc = yield* OpenAiImagesService;
