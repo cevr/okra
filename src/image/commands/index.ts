@@ -14,6 +14,7 @@ import {
   IMAGE_QUALITY_CHOICES,
   isOpenAiImageModel,
   refMediaType,
+  supportsEdits,
 } from "../constants.js";
 import { ImageError } from "../errors.js";
 import { CodexAuthService } from "../services/CodexAuth.js";
@@ -24,7 +25,7 @@ import {
   type ImageQuality,
   type ReferenceImage,
 } from "../services/ImageGen.js";
-import { OpenAiImagesService } from "../services/OpenAiImages.js";
+import { type ImagePart, OpenAiImagesService } from "../services/OpenAiImages.js";
 
 const promptArgument = Argument.string("prompt").pipe(
   Argument.withDescription("Text description of the image to generate"),
@@ -71,12 +72,28 @@ const countFlag = Flag.integer("n").pipe(
   Flag.withDescription("Number of images to request (OpenAI image models); default 1"),
 );
 
-// Repeatable: each --ref is a style/composition reference image. Routed as input
-// images to the codex backend (OpenAI image models have no input-image support).
+// Repeatable: each --ref is a reference image. On codex it's a style/composition
+// reference (Responses input_image); on an OpenAI image model it's the source
+// image to edit (the /images/edits endpoint).
 const refFlag = Flag.string("ref").pipe(
   Flag.atLeast(0),
   Flag.withDescription(
-    "Path to a reference image for style/composition (repeatable; codex backend only)",
+    "Path to a reference image. Codex: style/composition reference. " +
+      "OpenAI image models: the source image to edit (repeatable).",
+  ),
+);
+
+// Explicit opt-in to edit semantics. Requires an OpenAI image model + at least one
+// --ref (the source). On OpenAI, --ref already routes to edits, so --edit is just a
+// clarity flag; on codex it errors (codex has no pixel-edit primitive).
+const editFlag = Flag.boolean("edit").pipe(
+  Flag.withDescription("Edit the --ref image(s) in place (OpenAI image models only)"),
+);
+
+const maskFlag = Flag.string("mask").pipe(
+  Flag.optional,
+  Flag.withDescription(
+    "Path to a PNG mask; its transparent areas mark where to edit (OpenAI image models only)",
   ),
 );
 
@@ -89,6 +106,8 @@ interface GenerateArgs {
   readonly background: Option.Option<"auto" | "transparent" | "opaque">;
   readonly n: Option.Option<number>;
   readonly refs: ReadonlyArray<ReferenceImage>;
+  /** Present → route to the OpenAI `/images/edits` endpoint with these as source + mask. */
+  readonly mask: Option.Option<ImagePart>;
 }
 
 /** Codex backend: eager auth check, then generate through a per-invocation model layer. */
@@ -103,28 +122,33 @@ const generateViaCodex = Effect.fn("image.generateViaCodex")(function* (args: Ge
     .pipe(Effect.provide(codexModelLayer(args.model)));
 });
 
+/** Read a single image file into bytes + media type, mapping read/type errors to INVALID_INPUT. */
+const readImageFile = Effect.fn("image.readImageFile")(function* (filePath: string, flag: string) {
+  const fs = yield* FileSystem;
+  const mediaType = refMediaType(filePath);
+  if (mediaType === undefined) {
+    return yield* new ImageError({
+      message: `Unsupported ${flag} image type: ${filePath} (use png/jpg/jpeg/webp/gif).`,
+      code: "INVALID_INPUT",
+    });
+  }
+  const data = yield* fs.readFile(filePath).pipe(
+    Effect.mapError(
+      (e) =>
+        new ImageError({
+          message: `Cannot read ${flag} ${filePath}: ${e.message}`,
+          code: "INVALID_INPUT",
+        }),
+    ),
+  );
+  return { data, mediaType } satisfies ImagePart;
+});
+
 /** Read each `--ref` path into bytes + sniff its media type from the extension. */
 const readRefs = Effect.fn("image.readRefs")(function* (paths: ReadonlyArray<string>) {
-  const fs = yield* FileSystem;
   const refs: ReferenceImage[] = [];
   for (const refPath of paths) {
-    const mediaType = refMediaType(refPath);
-    if (mediaType === undefined) {
-      return yield* new ImageError({
-        message: `Unsupported reference image type: ${refPath} (use png/jpg/jpeg/webp/gif).`,
-        code: "INVALID_INPUT",
-      });
-    }
-    const data = yield* fs.readFile(refPath).pipe(
-      Effect.mapError(
-        (e) =>
-          new ImageError({
-            message: `Cannot read --ref ${refPath}: ${e.message}`,
-            code: "INVALID_INPUT",
-          }),
-      ),
-    );
-    refs.push({ data, mediaType });
+    refs.push(yield* readImageFile(refPath, "--ref"));
   }
   return refs;
 });
@@ -137,6 +161,23 @@ const generateViaOpenAi = Effect.fn("image.generateViaOpenAi")(function* (args: 
     model: args.model,
     size: args.size,
     format: args.format,
+    quality: Option.getOrUndefined(args.quality),
+    background: Option.getOrUndefined(args.background),
+    n: Option.getOrUndefined(args.n),
+  });
+});
+
+/** OpenAI `/images/edits` path: edit the --ref source image(s), optionally masked. */
+const editViaOpenAi = Effect.fn("image.editViaOpenAi")(function* (args: GenerateArgs) {
+  const svc = yield* OpenAiImagesService;
+  return yield* svc.edit({
+    prompt: args.prompt,
+    model: args.model,
+    size: args.size,
+    format: args.format,
+    // ReferenceImage and ImagePart are the same shape (data + mediaType).
+    images: args.refs,
+    mask: Option.getOrUndefined(args.mask),
     quality: Option.getOrUndefined(args.quality),
     background: Option.getOrUndefined(args.background),
     n: Option.getOrUndefined(args.n),
@@ -164,6 +205,101 @@ const slugify = (prompt: string): string => {
   return slug.length > 0 ? slug : "image";
 };
 
+/** Which backend/endpoint a request resolves to once flags are reconciled. */
+type Route = "codex" | "openai-generate" | "openai-edit";
+
+interface RouteInput {
+  readonly model: string;
+  readonly refCount: number;
+  readonly edit: boolean;
+  readonly hasMask: boolean;
+}
+
+/** Either a resolved route or the `ImageError` describing why the flags conflict. */
+type RouteResult =
+  | { readonly ok: true; readonly route: Route }
+  | {
+      readonly ok: false;
+      readonly error: ImageError;
+    };
+
+const ok = (route: Route): RouteResult => ({ ok: true, route });
+const bad = (message: string): RouteResult => ({
+  ok: false,
+  error: new ImageError({ message, code: "INVALID_INPUT" }),
+});
+
+/**
+ * Resolve the route from the model + flags. Keeps all the edit/codex/mask
+ * validation out of the command handler (which otherwise trips the complexity
+ * ceiling).
+ *
+ * - codex + `--ref` → style reference (`codex`); codex + `--edit`/`--mask` → error.
+ * - OpenAI + any input image (`--ref`/`--edit`/`--mask`) → `openai-edit`.
+ * - OpenAI with no input image → `openai-generate`.
+ */
+const resolveRoute = (input: RouteInput): RouteResult => {
+  const { model, refCount, edit, hasMask } = input;
+  const useOpenAi = isOpenAiImageModel(model);
+  const wantsEdit = edit || hasMask;
+
+  if (!useOpenAi) {
+    // Codex has no pixel-edit/mask primitive; point at an OpenAI image model.
+    if (wantsEdit) {
+      return bad(
+        `--${edit ? "edit" : "mask"} needs an OpenAI image model — pass --model gpt-image-1.5.`,
+      );
+    }
+    return ok("codex"); // --ref (if any) is a style reference on this path.
+  }
+
+  // OpenAI path: any input image means the edits endpoint.
+  if (wantsEdit || refCount > 0) {
+    if (refCount === 0) {
+      return bad(`--${edit ? "edit" : "mask"} needs a source image — pass --ref <path> to edit.`);
+    }
+    if (!supportsEdits(model)) {
+      return bad(
+        `${model} cannot edit images — use a GPT image model (e.g. --model gpt-image-1.5).`,
+      );
+    }
+    return ok("openai-edit");
+  }
+  return ok("openai-generate");
+};
+
+/** Human label for the resolved backend, e.g. "OpenAI edit (gpt-image-1.5)". */
+const backendLabel = (route: Route, model: string): string => {
+  if (route === "openai-edit") return `OpenAI edit (${model})`;
+  if (route === "openai-generate") return `OpenAI (${model})`;
+  return "codex";
+};
+
+/** Build the stderr progress line for a resolved request. */
+const progressLine = (
+  route: Route,
+  model: string,
+  size: string,
+  format: ImageFormat,
+  refCount: number,
+  mask: Option.Option<ImagePart>,
+): string => {
+  const editing = route === "openai-edit";
+  const noun = editing ? "source" : "ref";
+  const refNote = refCount > 0 ? `, ${refCount} ${noun}${refCount > 1 ? "s" : ""}` : "";
+  const maskNote = Option.isSome(mask) ? ", mask" : "";
+  const verb = editing ? "Editing" : "Generating";
+  return `${verb} image (${size}, ${format}${refNote}${maskNote}) via ${backendLabel(route, model)}…`;
+};
+
+/** Dispatch a resolved route to its backend; all yield an array of image bytes. */
+const runRoute = Effect.fn("image.runRoute")(function* (route: Route, args: GenerateArgs) {
+  if (route === "openai-edit") return yield* editViaOpenAi(args);
+  if (route === "openai-generate") return yield* generateViaOpenAi(args);
+  // Codex always produces exactly one image.
+  return [yield* generateViaCodex(args)];
+});
+
 const generateCommand = Command.make(
   "image",
   {
@@ -176,8 +312,10 @@ const generateCommand = Command.make(
     background: backgroundFlag,
     n: countFlag,
     ref: refFlag,
+    edit: editFlag,
+    mask: maskFlag,
   },
-  ({ prompt, out, size, format, model, quality, background, n, ref }) =>
+  ({ prompt, out, size, format, model, quality, background, n, ref, edit, mask }) =>
     Effect.gen(function* () {
       const fs = yield* FileSystem;
       const path = yield* Path;
@@ -194,33 +332,34 @@ const generateCommand = Command.make(
         path.join(process.cwd(), `${slugify(promptText)}.${format}`),
       );
 
-      // The model id selects the backend: GPT-image / DALL·E models go to the
-      // metered OpenAI Images API; everything else goes through the codex backend.
-      const useOpenAi = isOpenAiImageModel(model);
-      const backend = useOpenAi ? `OpenAI (${model})` : "codex";
+      // Reconcile model + flags into a single route (or a validation error).
+      const resolved = resolveRoute({
+        model,
+        refCount: ref.length,
+        edit,
+        hasMask: Option.isSome(mask),
+      });
+      if (!resolved.ok) return yield* resolved.error;
+      const route = resolved.route;
 
-      // A reference image is a style/composition input. Only the codex backend
-      // (Responses API input_image) supports it; the OpenAI Images generations
-      // endpoint has no input-image field, so fail rather than drop the intent.
-      if (useOpenAi && ref.length > 0) {
-        return yield* new ImageError({
-          message: `--ref (style reference) is not supported by OpenAI image models — use the codex backend (drop --model ${model}).`,
-          code: "INVALID_INPUT",
-        });
-      }
       const refs = yield* readRefs(ref);
+      const maskPart = Option.isSome(mask)
+        ? Option.some(yield* readImageFile(mask.value, "--mask"))
+        : Option.none<ImagePart>();
 
       // --quality/--background/--n only affect the OpenAI Images API; warn if set
       // for the codex backend rather than silently dropping them.
-      if (!useOpenAi && (Option.isSome(quality) || Option.isSome(background) || Option.isSome(n))) {
+      if (
+        route === "codex" &&
+        (Option.isSome(quality) || Option.isSome(background) || Option.isSome(n))
+      ) {
         yield* Console.error(
           "Note: --quality/--background/--n apply only to OpenAI image models; ignored for codex.",
         );
       }
 
       // Progress goes to stderr; stdout is reserved for the saved path(s) only.
-      const refNote = refs.length > 0 ? `, ${refs.length} ref${refs.length > 1 ? "s" : ""}` : "";
-      yield* Console.error(`Generating image (${size}, ${format}${refNote}) via ${backend}…`);
+      yield* Console.error(progressLine(route, model, size, format, refs.length, maskPart));
 
       const args: GenerateArgs = {
         prompt: promptText,
@@ -231,9 +370,9 @@ const generateCommand = Command.make(
         background,
         n,
         refs,
+        mask: maskPart,
       };
-      // Both backends yield an array; codex always produces exactly one image.
-      const images = useOpenAi ? yield* generateViaOpenAi(args) : [yield* generateViaCodex(args)];
+      const images = yield* runRoute(route, args);
 
       const dir = path.dirname(outPath);
       yield* fs.makeDirectory(dir, { recursive: true }).pipe(

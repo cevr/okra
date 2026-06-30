@@ -21,7 +21,9 @@ Generate images from a text prompt. The `--model` flag picks the backend:
 | `okra image "<prompt>" --format webp`                                                 | Output `png` (default), `webp`, or `jpeg`                         |
 | `okra image "<prompt>" --model gpt-image-1.5 --quality high --background transparent` | OpenAI-only render controls                                       |
 | `okra image "<prompt>" --model gpt-image-1.5 --n 3 -o out.png`                        | 3 images → `out-1.png`, `out-2.png`, `out-3.png`                  |
-| `okra image "<prompt>" --ref style.png`                                               | Generate in the style of a reference image (codex only)           |
+| `okra image "<prompt>" --ref style.png`                                               | Codex: generate in the style of a reference image                 |
+| `okra image "<prompt>" --model gpt-image-1.5 --ref in.png`                            | OpenAI: edit the source image (`/images/edits`)                   |
+| `okra image "<prompt>" --model gpt-image-1.5 --ref in.png --mask m.png`               | OpenAI: masked edit (only transparent areas change)               |
 | `okra keys set openai <key>`                                                          | Store the OpenAI API key (see the **keys** skill)                 |
 
 stdout = the saved file path(s), one per line. Progress/errors go to stderr — so `$(okra image ...)` captures just the path(s).
@@ -44,32 +46,48 @@ open "$(okra image 'a friendly robot mascot, flat vector')"
 
 ## Flags
 
-| Flag           | Default                  | Notes                                                                    |
-| -------------- | ------------------------ | ------------------------------------------------------------------------ |
-| `-o`, `--out`  | `<slug>.<format>` in cwd | Output file path; parent dirs are created                                |
-| `--size`       | `auto`                   | `auto` lets the model pick, or `WIDTHxHEIGHT`                            |
-| `--format`     | `png`                    | One of `png`, `webp`, `jpeg`                                             |
-| `--model`      | `gpt-5.5`                | Codex model, OR a `gpt-image-*` / `dall-e-*` id → OpenAI API             |
-| `--quality`    | model default            | OpenAI models only: `auto`, `low`, `medium`, `high`                      |
-| `--background` | model default            | OpenAI models only: `auto`, `transparent`, `opaque`                      |
-| `--n`          | `1`                      | OpenAI models only: number of images to request                          |
-| `--ref`        | none                     | **Codex only.** Path to a style/composition reference image (repeatable) |
+| Flag           | Default                  | Notes                                                                  |
+| -------------- | ------------------------ | ---------------------------------------------------------------------- |
+| `-o`, `--out`  | `<slug>.<format>` in cwd | Output file path; parent dirs are created                              |
+| `--size`       | `auto`                   | `auto` lets the model pick, or `WIDTHxHEIGHT`                          |
+| `--format`     | `png`                    | One of `png`, `webp`, `jpeg`                                           |
+| `--model`      | `gpt-5.5`                | Codex model, OR a `gpt-image-*` / `dall-e-*` id → OpenAI API           |
+| `--quality`    | model default            | OpenAI models only: `auto`, `low`, `medium`, `high`                    |
+| `--background` | model default            | OpenAI models only: `auto`, `transparent`, `opaque`                    |
+| `--n`          | `1`                      | OpenAI models only: number of images to request                        |
+| `--ref`        | none                     | Reference image (repeatable). Codex: style ref. OpenAI: source to edit |
+| `--edit`       | off                      | GPT image models only: edit the `--ref` source image(s) in place       |
+| `--mask`       | none                     | GPT image models only: PNG mask; transparent areas mark where to edit  |
 
 `--quality` / `--background` / `--n` apply only to OpenAI image models; the codex backend prints a note and ignores them. With `--n > 1` the output files are suffixed `-1`, `-2`, … before the extension (e.g. `out.png` → `out-1.png`); a single image keeps the bare path.
 
-### Style references (`--ref`)
+### References & editing (`--ref`, `--edit`, `--mask`)
 
-`--ref <path>` attaches a reference image so the model generates a **new** image guided by the reference's style, palette, and composition — it does **not** edit the reference. Repeat `--ref` for several references. Supported types: `png`, `jpg`, `jpeg`, `webp`, `gif`.
+`--ref <path>` means different things per backend, because the two backends condition on an input image differently:
+
+- **Codex** (default): `--ref` is a **style/composition reference** — generate a _new_ image guided by the reference's style, palette, and composition (it does **not** edit the reference). Repeatable. Codex has no pixel-edit primitive, so `--edit`/`--mask` error here.
+- **OpenAI image models** (`gpt-image-*`): `--ref` is the **source image to edit** — it routes to the `/images/edits` endpoint and returns an edited version of the source. `--edit` is an explicit (optional) opt-in to the same behavior; `--mask` restricts where the edit applies.
+
+Supported reference/source/mask types: `png`, `jpg`, `jpeg`, `webp`, `gif` (mask should be a PNG with an alpha channel).
 
 ```bash
-# Generate a new logo in the style/palette of an existing one
+# Codex: a new logo in the style/palette of an existing one (no edit)
 okra image "a coffee cup logo in this flat geometric style" --ref brand-mark.png -o cup.png
+okra image "a hero illustration" --ref palette.png --ref layout.jpg -o hero.png   # multiple refs
 
-# Multiple references
-okra image "a hero illustration" --ref palette.png --ref layout.jpg -o hero.png
+# OpenAI: edit the source image (--ref alone routes to /images/edits)
+okra image "give the cat a wizard hat" --model gpt-image-1.5 --ref cat.png -o wizard-cat.png
+
+# OpenAI: masked edit — only the transparent areas of mask.png change
+okra image "replace the sky with a sunset" --model gpt-image-1.5 \
+  --ref photo.png --mask sky-mask.png -o sunset.png
 ```
 
-Only the **codex** backend supports references (via the Responses API's `input_image`). Passing `--ref` with an OpenAI image model (`gpt-image-*`/`dall-e-*`) fails with `INVALID_INPUT` — drop `--model` to use codex. (Pixel-level editing of the reference is a separate, future `--edit` mode.)
+Errors you'll see:
+
+- `--edit`/`--mask` on the codex default → `INVALID_INPUT` ("needs an OpenAI image model — pass `--model gpt-image-1.5`").
+- `--edit`/`--mask` without `--ref` → `INVALID_INPUT` ("needs a source image — pass `--ref <path>`").
+- `--ref` with `dall-e-*` → `INVALID_INPUT` (DALL·E isn't edit-capable; use a `gpt-image-*` model).
 
 ## Auth
 

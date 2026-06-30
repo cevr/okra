@@ -3,7 +3,7 @@ import { HttpClient, HttpClientResponse } from "effect/unstable/http";
 import { describe, expect, it } from "effect-bun-test";
 import { isOpenAiImageModel } from "../../src/image/constants.js";
 import { isImageError } from "../../src/image/errors.js";
-import { OpenAiImagesService } from "../../src/image/services/OpenAiImages.js";
+import { type ImagePart, OpenAiImagesService } from "../../src/image/services/OpenAiImages.js";
 import { KeyStoreService } from "../../src/shared/keystore.js";
 
 // 1x1 transparent PNG, base64.
@@ -123,5 +123,111 @@ describe("OpenAiImagesService.generate", () => {
       const err = yield* Effect.flip(svc.generate(input));
       expect(err.code).toBe("DECODE_FAILED");
     }).pipe(Effect.provide(makeLayer(200, { created: 1, data: [{ b64_json: "!!!nope!!!" }] }))),
+  );
+});
+
+/** What the capturing mock records about the outgoing request. */
+interface CapturedRequest {
+  url?: string;
+  method?: string;
+  form?: globalThis.FormData;
+}
+
+/** Mock HttpClient that records the request (incl. FormData body) and returns a fixed 200. */
+const capturingHttp = (sink: CapturedRequest, body: unknown) =>
+  HttpClient.make((request) => {
+    sink.url = request.url;
+    sink.method = request.method;
+    const b = request.body as { _tag?: string; formData?: globalThis.FormData };
+    if (b._tag === "FormData") sink.form = b.formData;
+    return Effect.succeed(
+      HttpClientResponse.fromWeb(
+        request,
+        new Response(JSON.stringify(body), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+  });
+
+const capturingLayer = (sink: CapturedRequest, body: unknown) =>
+  OpenAiImagesService.layer.pipe(
+    Layer.provide(
+      Layer.mergeAll(
+        Layer.succeed(HttpClient.HttpClient, capturingHttp(sink, body)),
+        KeyStoreService.layerTest({ openai: "sk-test" }),
+      ),
+    ),
+  );
+
+const src = (mediaType: string): ImagePart => ({ data: new Uint8Array([1, 2, 3]), mediaType });
+
+describe("OpenAiImagesService.edit", () => {
+  it.effect("POSTs multipart to /images/edits with image, prompt, and scalar fields", () => {
+    const captured: CapturedRequest = {};
+    return Effect.gen(function* () {
+      const svc = yield* OpenAiImagesService;
+      const images = yield* svc.edit({
+        prompt: "add a hat",
+        model: "gpt-image-1.5",
+        size: "1024x1024",
+        format: "png",
+        images: [src("image/png")],
+      });
+
+      expect(images.length).toBe(1);
+      expect(captured.method).toBe("POST");
+      expect(captured.url?.endsWith("/images/edits")).toBe(true);
+      const form = captured.form as globalThis.FormData;
+      expect(form.get("prompt")).toBe("add a hat");
+      expect(form.get("model")).toBe("gpt-image-1.5");
+      expect(form.get("size")).toBe("1024x1024");
+      expect(form.get("output_format")).toBe("png");
+      // A single source uses the `image` key and carries a File payload.
+      expect(form.get("image")).toBeInstanceOf(globalThis.File);
+      expect(form.get("mask")).toBeNull();
+    }).pipe(
+      Effect.provide(capturingLayer(captured, { created: 1, data: [{ b64_json: PNG_BASE64 }] })),
+    );
+  });
+
+  it.effect("uses image[] for multiple sources and attaches the mask", () => {
+    const captured: CapturedRequest = {};
+    return Effect.gen(function* () {
+      const svc = yield* OpenAiImagesService;
+      yield* svc.edit({
+        prompt: "merge",
+        model: "gpt-image-1.5",
+        size: "auto",
+        format: "png",
+        images: [src("image/png"), src("image/jpeg")],
+        mask: src("image/png"),
+      });
+
+      const form = captured.form as globalThis.FormData;
+      // Two sources repeat under image[]; the single-key `image` is unused.
+      expect(form.getAll("image[]").length).toBe(2);
+      expect(form.get("image")).toBeNull();
+      expect(form.get("mask")).toBeInstanceOf(globalThis.File);
+    }).pipe(
+      Effect.provide(capturingLayer(captured, { created: 1, data: [{ b64_json: PNG_BASE64 }] })),
+    );
+  });
+
+  it.effect("maps a 401 from the edits endpoint to AUTH_EXPIRED", () =>
+    Effect.gen(function* () {
+      const svc = yield* OpenAiImagesService;
+      const err = yield* Effect.flip(
+        svc.edit({
+          prompt: "x",
+          model: "gpt-image-1.5",
+          size: "auto",
+          format: "png",
+          images: [src("image/png")],
+        }),
+      );
+      expect(err.code).toBe("AUTH_EXPIRED");
+    }).pipe(Effect.provide(makeLayer(401, { error: { message: "Missing key" } }))),
   );
 });
