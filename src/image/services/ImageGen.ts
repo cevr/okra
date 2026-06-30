@@ -9,10 +9,19 @@ export type ImageFormat = "png" | "webp" | "jpeg";
 /** Rendering quality accepted by the OpenAI Images API (codex path ignores it). */
 export type ImageQuality = "auto" | "low" | "medium" | "high";
 
+/** A reference image to condition generation on (style/composition), not edit. */
+export interface ReferenceImage {
+  readonly data: Uint8Array;
+  /** MIME type, e.g. "image/png" — the codex backend supports PNG/JPEG/WebP. */
+  readonly mediaType: string;
+}
+
 export interface GenerateImageInput {
   readonly prompt: string;
   readonly size: string;
   readonly format: ImageFormat;
+  /** Optional style/composition references attached as input images (codex only). */
+  readonly refs?: ReadonlyArray<ReferenceImage>;
 }
 
 /** The custom name the OpenAI adapter assigns the image_generation provider tool. */
@@ -40,10 +49,33 @@ export class ImageGenService extends Context.Service<
         OpenAiTool.ImageGeneration({ size: input.size, output_format: input.format }),
       );
 
+      const text = `${IMAGE_INSTRUCTION}\n\n${input.prompt}`;
+      // With reference images, send a structured user message carrying the text
+      // plus each ref as an input image (a `file` part with an image media type,
+      // which the OpenAI Responses adapter forwards as `input_image`). Without
+      // refs, keep the plain-string prompt so the common path is unchanged.
+      const refs = input.refs ?? [];
+      const prompt =
+        refs.length === 0
+          ? text
+          : ([
+              {
+                role: "user",
+                content: [
+                  { type: "text", text },
+                  ...refs.map((ref) => ({
+                    type: "file" as const,
+                    mediaType: ref.mediaType,
+                    data: ref.data,
+                  })),
+                ],
+              },
+            ] as const);
+
       // The codex backend mandates streaming (stream: true), so collect the
       // stream parts and pull the image from the tool-result part.
       const parts = yield* LanguageModel.streamText({
-        prompt: `${IMAGE_INSTRUCTION}\n\n${input.prompt}`,
+        prompt,
         toolkit,
         // Force the image tool to fire; otherwise the model may reply with text only.
         toolChoice: { tool: IMAGE_TOOL_NAME },

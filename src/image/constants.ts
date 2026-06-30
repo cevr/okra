@@ -51,6 +51,22 @@ export const IMAGE_QUALITY_CHOICES = ["auto", "low", "medium", "high"] as const;
 /** Background values accepted by the OpenAI Images API (`--background`). */
 export const IMAGE_BACKGROUND_CHOICES = ["auto", "transparent", "opaque"] as const;
 
+/** Image MIME types the codex backend accepts as reference (`--ref`) input. */
+const REF_MEDIA_TYPES: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+};
+
+/** Map a reference file's extension to its MIME type, or `undefined` if unsupported. */
+export const refMediaType = (filePath: string): string | undefined => {
+  const dot = filePath.lastIndexOf(".");
+  if (dot < 0) return undefined;
+  return REF_MEDIA_TYPES[filePath.slice(dot).toLowerCase()];
+};
+
 /** Identifier the codex backend expects; mirrors the codex CLI. */
 export const ORIGINATOR = "codex_cli_rs";
 

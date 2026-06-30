@@ -21,6 +21,7 @@ Generate images from a text prompt. The `--model` flag picks the backend:
 | `okra image "<prompt>" --format webp`                                                 | Output `png` (default), `webp`, or `jpeg`                         |
 | `okra image "<prompt>" --model gpt-image-1.5 --quality high --background transparent` | OpenAI-only render controls                                       |
 | `okra image "<prompt>" --model gpt-image-1.5 --n 3 -o out.png`                        | 3 images → `out-1.png`, `out-2.png`, `out-3.png`                  |
+| `okra image "<prompt>" --ref style.png`                                               | Generate in the style of a reference image (codex only)           |
 | `okra keys set openai <key>`                                                          | Store the OpenAI API key (see the **keys** skill)                 |
 
 stdout = the saved file path(s), one per line. Progress/errors go to stderr — so `$(okra image ...)` captures just the path(s).
@@ -43,17 +44,32 @@ open "$(okra image 'a friendly robot mascot, flat vector')"
 
 ## Flags
 
-| Flag           | Default                  | Notes                                                        |
-| -------------- | ------------------------ | ------------------------------------------------------------ |
-| `-o`, `--out`  | `<slug>.<format>` in cwd | Output file path; parent dirs are created                    |
-| `--size`       | `auto`                   | `auto` lets the model pick, or `WIDTHxHEIGHT`                |
-| `--format`     | `png`                    | One of `png`, `webp`, `jpeg`                                 |
-| `--model`      | `gpt-5.5`                | Codex model, OR a `gpt-image-*` / `dall-e-*` id → OpenAI API |
-| `--quality`    | model default            | OpenAI models only: `auto`, `low`, `medium`, `high`          |
-| `--background` | model default            | OpenAI models only: `auto`, `transparent`, `opaque`          |
-| `--n`          | `1`                      | OpenAI models only: number of images to request              |
+| Flag           | Default                  | Notes                                                                    |
+| -------------- | ------------------------ | ------------------------------------------------------------------------ |
+| `-o`, `--out`  | `<slug>.<format>` in cwd | Output file path; parent dirs are created                                |
+| `--size`       | `auto`                   | `auto` lets the model pick, or `WIDTHxHEIGHT`                            |
+| `--format`     | `png`                    | One of `png`, `webp`, `jpeg`                                             |
+| `--model`      | `gpt-5.5`                | Codex model, OR a `gpt-image-*` / `dall-e-*` id → OpenAI API             |
+| `--quality`    | model default            | OpenAI models only: `auto`, `low`, `medium`, `high`                      |
+| `--background` | model default            | OpenAI models only: `auto`, `transparent`, `opaque`                      |
+| `--n`          | `1`                      | OpenAI models only: number of images to request                          |
+| `--ref`        | none                     | **Codex only.** Path to a style/composition reference image (repeatable) |
 
 `--quality` / `--background` / `--n` apply only to OpenAI image models; the codex backend prints a note and ignores them. With `--n > 1` the output files are suffixed `-1`, `-2`, … before the extension (e.g. `out.png` → `out-1.png`); a single image keeps the bare path.
+
+### Style references (`--ref`)
+
+`--ref <path>` attaches a reference image so the model generates a **new** image guided by the reference's style, palette, and composition — it does **not** edit the reference. Repeat `--ref` for several references. Supported types: `png`, `jpg`, `jpeg`, `webp`, `gif`.
+
+```bash
+# Generate a new logo in the style/palette of an existing one
+okra image "a coffee cup logo in this flat geometric style" --ref brand-mark.png -o cup.png
+
+# Multiple references
+okra image "a hero illustration" --ref palette.png --ref layout.jpg -o hero.png
+```
+
+Only the **codex** backend supports references (via the Responses API's `input_image`). Passing `--ref` with an OpenAI image model (`gpt-image-*`/`dall-e-*`) fails with `INVALID_INPUT` — drop `--model` to use codex. (Pixel-level editing of the reference is a separate, future `--edit` mode.)
 
 ## Auth
 

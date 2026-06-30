@@ -20,6 +20,27 @@ const mockModelLayer = (parts: ReadonlyArray<unknown>): Layer.Layer<LanguageMode
     }),
   );
 
+/** A holder the capturing mock writes the streamText prompt into. */
+interface PromptSink {
+  value: unknown;
+}
+
+/** Like `mockModelLayer`, but records the `prompt` passed to streamText for assertions. */
+const capturingModelLayer = (
+  parts: ReadonlyArray<unknown>,
+  sink: PromptSink,
+): Layer.Layer<LanguageModel.LanguageModel> =>
+  Layer.effect(
+    LanguageModel.LanguageModel,
+    LanguageModel.make({
+      generateText: () => Effect.succeed(parts as never),
+      streamText: (options: { readonly prompt: unknown }) => {
+        sink.value = options.prompt;
+        return Stream.fromIterable(parts as never);
+      },
+    }),
+  );
+
 const imageToolResult = (result: unknown): unknown => ({
   type: "tool-result",
   id: "ig_test",
@@ -63,4 +84,52 @@ describe("ImageGenService.generate", () => {
       expect(result.code).toBe("DECODE_FAILED");
     }).pipe((self) => run(self, mockModelLayer([imageToolResult({ result: "!!!not base64!!!" })]))),
   );
+
+  it.effect("sends a plain-string prompt when no refs are given", () => {
+    const sink: PromptSink = { value: undefined };
+    return Effect.gen(function* () {
+      const images = yield* ImageGenService;
+      yield* images.generate({ prompt: "a red dot", size: "auto", format: "png" });
+      // Normalized to a single user message with one text part — no file parts.
+      const parts = promptParts(sink.value);
+      expect(parts.some((p) => p.type === "file")).toBe(false);
+      expect(parts.some((p) => p.type === "text")).toBe(true);
+    }).pipe((self) =>
+      run(self, capturingModelLayer([imageToolResult({ result: PNG_BASE64 })], sink)),
+    );
+  });
+
+  it.effect("attaches each ref as an image file part in the prompt", () => {
+    const sink: PromptSink = { value: undefined };
+    return Effect.gen(function* () {
+      const images = yield* ImageGenService;
+      yield* images.generate({
+        prompt: "in this style",
+        size: "auto",
+        format: "png",
+        refs: [
+          { data: new Uint8Array([1, 2, 3, 4]), mediaType: "image/png" },
+          { data: new Uint8Array([5, 6]), mediaType: "image/jpeg" },
+        ],
+      });
+      const parts = promptParts(sink.value);
+      const fileParts = parts.filter((p) => p.type === "file");
+      expect(fileParts.length).toBe(2);
+      expect(fileParts.map((p) => p.mediaType)).toEqual(["image/png", "image/jpeg"]);
+      // The text part is still present alongside the references.
+      expect(parts.some((p) => p.type === "text")).toBe(true);
+    }).pipe((self) =>
+      run(self, capturingModelLayer([imageToolResult({ result: PNG_BASE64 })], sink)),
+    );
+  });
 });
+
+/** Extract the content parts of the first message in a captured normalized prompt. */
+const promptParts = (captured: unknown): ReadonlyArray<{ type: string; mediaType?: string }> => {
+  const content = (
+    captured as {
+      content: ReadonlyArray<{ content: ReadonlyArray<{ type: string; mediaType?: string }> }>;
+    }
+  ).content;
+  return content[0]?.content ?? [];
+};

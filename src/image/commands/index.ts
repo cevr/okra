@@ -13,11 +13,17 @@ import {
   IMAGE_BACKGROUND_CHOICES,
   IMAGE_QUALITY_CHOICES,
   isOpenAiImageModel,
+  refMediaType,
 } from "../constants.js";
 import { ImageError } from "../errors.js";
 import { CodexAuthService } from "../services/CodexAuth.js";
 import { codexModelLayer } from "../services/CodexModel.js";
-import { type ImageFormat, ImageGenService, type ImageQuality } from "../services/ImageGen.js";
+import {
+  type ImageFormat,
+  ImageGenService,
+  type ImageQuality,
+  type ReferenceImage,
+} from "../services/ImageGen.js";
 import { OpenAiImagesService } from "../services/OpenAiImages.js";
 
 const promptArgument = Argument.string("prompt").pipe(
@@ -65,6 +71,15 @@ const countFlag = Flag.integer("n").pipe(
   Flag.withDescription("Number of images to request (OpenAI image models); default 1"),
 );
 
+// Repeatable: each --ref is a style/composition reference image. Routed as input
+// images to the codex backend (OpenAI image models have no input-image support).
+const refFlag = Flag.string("ref").pipe(
+  Flag.atLeast(0),
+  Flag.withDescription(
+    "Path to a reference image for style/composition (repeatable; codex backend only)",
+  ),
+);
+
 interface GenerateArgs {
   readonly prompt: string;
   readonly model: string;
@@ -73,6 +88,7 @@ interface GenerateArgs {
   readonly quality: Option.Option<ImageQuality>;
   readonly background: Option.Option<"auto" | "transparent" | "opaque">;
   readonly n: Option.Option<number>;
+  readonly refs: ReadonlyArray<ReferenceImage>;
 }
 
 /** Codex backend: eager auth check, then generate through a per-invocation model layer. */
@@ -83,8 +99,34 @@ const generateViaCodex = Effect.fn("image.generateViaCodex")(function* (args: Ge
   // AUTH_MISSING error before the HTTP layer can box it into a transport error.
   yield* auth.load;
   return yield* images
-    .generate({ prompt: args.prompt, size: args.size, format: args.format })
+    .generate({ prompt: args.prompt, size: args.size, format: args.format, refs: args.refs })
     .pipe(Effect.provide(codexModelLayer(args.model)));
+});
+
+/** Read each `--ref` path into bytes + sniff its media type from the extension. */
+const readRefs = Effect.fn("image.readRefs")(function* (paths: ReadonlyArray<string>) {
+  const fs = yield* FileSystem;
+  const refs: ReferenceImage[] = [];
+  for (const refPath of paths) {
+    const mediaType = refMediaType(refPath);
+    if (mediaType === undefined) {
+      return yield* new ImageError({
+        message: `Unsupported reference image type: ${refPath} (use png/jpg/jpeg/webp/gif).`,
+        code: "INVALID_INPUT",
+      });
+    }
+    const data = yield* fs.readFile(refPath).pipe(
+      Effect.mapError(
+        (e) =>
+          new ImageError({
+            message: `Cannot read --ref ${refPath}: ${e.message}`,
+            code: "INVALID_INPUT",
+          }),
+      ),
+    );
+    refs.push({ data, mediaType });
+  }
+  return refs;
 });
 
 /** Metered OpenAI Images API path (GPT-image / DALL·E models). */
@@ -133,8 +175,9 @@ const generateCommand = Command.make(
     quality: qualityFlag,
     background: backgroundFlag,
     n: countFlag,
+    ref: refFlag,
   },
-  ({ prompt, out, size, format, model, quality, background, n }) =>
+  ({ prompt, out, size, format, model, quality, background, n, ref }) =>
     Effect.gen(function* () {
       const fs = yield* FileSystem;
       const path = yield* Path;
@@ -156,6 +199,17 @@ const generateCommand = Command.make(
       const useOpenAi = isOpenAiImageModel(model);
       const backend = useOpenAi ? `OpenAI (${model})` : "codex";
 
+      // A reference image is a style/composition input. Only the codex backend
+      // (Responses API input_image) supports it; the OpenAI Images generations
+      // endpoint has no input-image field, so fail rather than drop the intent.
+      if (useOpenAi && ref.length > 0) {
+        return yield* new ImageError({
+          message: `--ref (style reference) is not supported by OpenAI image models — use the codex backend (drop --model ${model}).`,
+          code: "INVALID_INPUT",
+        });
+      }
+      const refs = yield* readRefs(ref);
+
       // --quality/--background/--n only affect the OpenAI Images API; warn if set
       // for the codex backend rather than silently dropping them.
       if (!useOpenAi && (Option.isSome(quality) || Option.isSome(background) || Option.isSome(n))) {
@@ -165,7 +219,8 @@ const generateCommand = Command.make(
       }
 
       // Progress goes to stderr; stdout is reserved for the saved path(s) only.
-      yield* Console.error(`Generating image (${size}, ${format}) via ${backend}…`);
+      const refNote = refs.length > 0 ? `, ${refs.length} ref${refs.length > 1 ? "s" : ""}` : "";
+      yield* Console.error(`Generating image (${size}, ${format}${refNote}) via ${backend}…`);
 
       const args: GenerateArgs = {
         prompt: promptText,
@@ -175,6 +230,7 @@ const generateCommand = Command.make(
         quality,
         background,
         n,
+        refs,
       };
       // Both backends yield an array; codex always produces exactly one image.
       const images = useOpenAi ? yield* generateViaOpenAi(args) : [yield* generateViaCodex(args)];
