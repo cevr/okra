@@ -188,6 +188,24 @@ describe("discoverFromTree", () => {
     ]);
   });
 
+  syncIt("collapses provider-specific copies of the same skill", () => {
+    const result = discoverFromTree(
+      makeTree([
+        ".agents/skills/impeccable/SKILL.md",
+        ".claude/skills/impeccable/SKILL.md",
+        ".cursor/skills/impeccable/SKILL.md",
+        "plugin/skills/impeccable/SKILL.md",
+      ]),
+    );
+    expect(result).toEqual([
+      {
+        dirName: "impeccable",
+        skillMdPath: ".agents/skills/impeccable/SKILL.md",
+        skillDir: ".agents/skills/impeccable",
+      },
+    ]);
+  });
+
   syncIt("skills within skills/ — only immediate children matched", () => {
     // skills/foo/nested/SKILL.md should match with dirName "nested"
     const result = discoverFromTree(makeTree(["skills/foo/nested/SKILL.md"]));

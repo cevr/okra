@@ -103,6 +103,36 @@ const contentsEndpoint = (owner: string, repo: string, path: string, ref?: strin
 const treeEndpoint = (owner: string, repo: string, ref: string) =>
   `repos/${owner}/${repo}/git/trees/${encodeURIComponent(ref)}?recursive=1`;
 
+const skillEntryRank = (entry: SkillEntry): number => {
+  const segments = entry.skillDir.split("/");
+  const first = segments[0] ?? "";
+  const second = segments[1] ?? "";
+  if (first === "skills" || first === "skill") return 0;
+  if (first === ".agents" && (second === "skills" || second === "skill")) return 1;
+  return 2;
+};
+
+const isPreferredSkillEntry = (candidate: SkillEntry, current: SkillEntry): boolean => {
+  const rankDifference = skillEntryRank(candidate) - skillEntryRank(current);
+  if (rankDifference !== 0) return rankDifference < 0;
+
+  const depthDifference = candidate.skillDir.split("/").length - current.skillDir.split("/").length;
+  if (depthDifference !== 0) return depthDifference < 0;
+
+  return candidate.skillDir < current.skillDir;
+};
+
+const dedupeSkillEntries = (entries: ReadonlyArray<SkillEntry>): ReadonlyArray<SkillEntry> => {
+  const byName = new Map<string, SkillEntry>();
+  for (const entry of entries) {
+    const current = byName.get(entry.dirName);
+    if (!current || isPreferredSkillEntry(entry, current)) {
+      byName.set(entry.dirName, entry);
+    }
+  }
+  return [...byName.values()];
+};
+
 // P3: Tree-based discovery — find all SKILL.md blobs, prefer those under skills/ or skill/ ancestors
 /** @internal exported for testing */
 export const discoverFromTree = (
@@ -133,15 +163,17 @@ export const discoverFromTree = (
       const dirName = skillDir.split("/").at(-1) ?? "unknown";
       prefixed.push({ dirName, skillMdPath: entry.path, skillDir });
     }
-    if (prefixed.length > 0) return prefixed;
+    if (prefixed.length > 0) return dedupeSkillEntries(prefixed);
   }
 
   // No known prefix — return all discovered SKILL.md locations
-  return skillMdBlobs.map((entry) => {
-    const skillDir = entry.path.slice(0, -"/SKILL.md".length);
-    const dirName = skillDir.split("/").at(-1) ?? "unknown";
-    return { dirName, skillMdPath: entry.path, skillDir };
-  });
+  return dedupeSkillEntries(
+    skillMdBlobs.map((entry) => {
+      const skillDir = entry.path.slice(0, -"/SKILL.md".length);
+      const dirName = skillDir.split("/").at(-1) ?? "unknown";
+      return { dirName, skillMdPath: entry.path, skillDir };
+    }),
+  );
 };
 
 // Check if a directory listing contains skill subdirectories (dirs with SKILL.md)
