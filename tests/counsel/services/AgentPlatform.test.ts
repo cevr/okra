@@ -8,6 +8,11 @@ import {
   oppositeProvider,
 } from "../../../src/counsel/services/AgentPlatform.js";
 
+const flagValue = (args: ReadonlyArray<string>, flag: string): string | undefined => {
+  const index = args.indexOf(flag);
+  return index === -1 ? undefined : args[index + 1];
+};
+
 describe("AgentPlatform helpers", () => {
   it.effect("detects Claude from CLAUDECODE", () =>
     detectSourceFromEnv({ CLAUDECODE: "1" }).pipe(
@@ -49,24 +54,35 @@ describe("AgentPlatform helpers", () => {
     }),
   );
 
-  it.effect("builds the Claude invocation", () =>
+  it.effect("builds the standard Claude invocation with Opus 4.8", () =>
     Effect.sync(() => {
-      const invocation = buildClaudeInvocation("claude", "/tmp/prompt.md", "deep", "/tmp/project");
+      const invocation = buildClaudeInvocation(
+        "claude",
+        "/tmp/prompt.md",
+        "standard",
+        "/tmp/project",
+      );
       expect(invocation.cmd).toBe("claude");
       expect(invocation.args).toContain("--output-format");
       expect(invocation.args).toContain("stream-json");
       expect(invocation.args).toContain("--verbose");
-      expect(invocation.args).toContain("--model");
-      expect(invocation.args).toContain("opus");
-      expect(invocation.args).toContain("--effort");
-      expect(invocation.args).toContain("max");
+      expect(flagValue(invocation.args, "--model")).toBe("opus");
+      expect(flagValue(invocation.args, "--effort")).toBe("medium");
       expect(invocation.args).toContain("--allowedTools");
       expect(invocation.args).toContain("--no-session-persistence");
       expect(invocation.args[invocation.args.length - 1]).toContain("/tmp/prompt.md");
     }),
   );
 
-  it.effect("builds the Codex invocation", () =>
+  it.effect("builds the deep Claude invocation with Fable", () =>
+    Effect.sync(() => {
+      const invocation = buildClaudeInvocation("claude", "/tmp/prompt.md", "deep", "/tmp/project");
+      expect(flagValue(invocation.args, "--model")).toBe("fable");
+      expect(flagValue(invocation.args, "--effort")).toBe("max");
+    }),
+  );
+
+  it.effect("builds the standard Codex invocation with GPT-5.6 SOL at medium effort", () =>
     Effect.sync(() => {
       const invocation = buildCodexInvocation(
         "codex",
@@ -79,8 +95,17 @@ describe("AgentPlatform helpers", () => {
       expect(invocation.args).toContain("--json");
       expect(invocation.args).toContain("--sandbox");
       expect(invocation.args).toContain("read-only");
+      expect(flagValue(invocation.args, "--model")).toBe("gpt-5.6-sol");
       expect(invocation.args).toContain("model_reasoning_effort=medium");
       expect(invocation.args).toContain("--skip-git-repo-check");
+    }),
+  );
+
+  it.effect("builds the deep Codex invocation with GPT-5.6 SOL at xhigh effort", () =>
+    Effect.sync(() => {
+      const invocation = buildCodexInvocation("codex", "/tmp/prompt.md", "deep", "/tmp/project");
+      expect(flagValue(invocation.args, "--model")).toBe("gpt-5.6-sol");
+      expect(invocation.args).toContain("model_reasoning_effort=xhigh");
     }),
   );
 

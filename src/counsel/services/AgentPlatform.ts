@@ -7,6 +7,8 @@ import { HostService } from "./Host.js";
 const modelReasoningEffort = (profile: Profile): string =>
   profile === "deep" ? "xhigh" : "medium";
 
+const claudeModel = (profile: Profile): string => (profile === "deep" ? "fable" : "opus");
+
 export const detectSourceFromEnv = (
   env: Record<string, string | undefined>,
 ): Effect.Effect<Provider, CounselError> => {
@@ -46,7 +48,7 @@ export const buildClaudeInvocation = (
     "stream-json",
     "--verbose",
     "--model",
-    "opus",
+    claudeModel(profile),
     "--effort",
     claudeEffort(profile),
     "--tools",
@@ -76,6 +78,8 @@ export const buildCodexInvocation = (
     "never",
     "--sandbox",
     "read-only",
+    "--model",
+    "gpt-5.6-sol",
     "-c",
     "web_search=live",
     "-c",

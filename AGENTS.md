@@ -32,12 +32,13 @@ Shared utilities in `src/shared/`: `Provider` schema, `resolveExecutable`, `isCo
 - All domains self-provide their service layers at command level — no domain layers in main.ts
 - Brain has 3 internal error classes, exposed via single `isBrainDomainError` guard
 - Repo and Skills use structural `isRepoError`/`isSkillsError` guards (same pattern as brain)
-- Effect v4 (beta.60): `Context.Service`, `Effect.fn`, `Schema.TaggedErrorClass`, `effect/unstable/cli`
+- Effect v4 (beta.98): `Context.Service`, `Effect.fn`, `Schema.TaggedErrorClass`, `effect/unstable/cli`
 
 ## Gotchas
 
 - `Schedule`, `StopEvaluator`, `Verification` are pure modules, not services
 - Counsel's `program.ts` has standalone argv handling — used for direct invocation, not the subcommand path
+- Counsel model profiles: standard uses Claude Opus 4.8 at medium effort or GPT-5.6 SOL at medium; `--deep` uses Claude Fable at max or GPT-5.6 SOL at xhigh
 - Research `_loop` command guarded by `OKRA_INTERNAL=1` env var
 - Daemon spawns `[process.execPath, "research", "_loop", "--project-root", ...]`
 - Plist labels: `com.cvr.okra.schedule-{id}`, program args include `schedule run <id>`
