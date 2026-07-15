@@ -1,5 +1,13 @@
 # @cvr/okra
 
+## 0.6.1
+
+### Patch Changes
+
+- [`f7235c3`](https://github.com/cevr/okra/commit/f7235c363a8dba33798fca9186fcb0abda1e30fe) Thanks [@cevr](https://github.com/cevr)! - Deduplicate provider-specific copies of the same skill during GitHub repository discovery.
+
+  `okra skills add owner/repo` now presents each installable skill once and prefers the portable root layout, then `.agents/skills`, when repositories publish mirrored variants for multiple agent harnesses.
+
 ## 0.6.0
 
 ### Minor Changes
