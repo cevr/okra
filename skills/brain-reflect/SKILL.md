@@ -34,11 +34,12 @@ Mine the current conversation for brain-worthy knowledge.
 5. **Route each learning**:
 
    **Brain files**: one topic per file, group in directories with index files using wikilinks, no inlined content in index files.
-   | Destination | When |
-   |-------------|------|
-   | `$(okra brain vault)/principles/` | General engineering principle |
+
+   | Destination                                    | When                                                         |
+   | ---------------------------------------------- | ------------------------------------------------------------ |
+   | `$(okra brain vault)/principles/`              | General engineering principle                                |
    | `$(okra brain vault)/projects/<project-name>/` | Project-specific knowledge (auto-detected by git root / cwd) |
-   | `$(okra brain vault)/` root | Cross-cutting knowledge |
+   | `$(okra brain vault)/` root                    | Cross-cutting knowledge                                      |
 
    **Skill improvements**: update `~/.claude/skills/<skill>/` directly if the learning is about a skill's own process.
 
