@@ -1,5 +1,12 @@
 # @cvr/okra
 
+## 0.6.2
+
+### Patch Changes
+
+- [`6a6a1fe`](https://github.com/cevr/okra/commit/6a6a1fe6a21fdf1c4046ff9b4bd50a17df8904b4) Thanks [@cevr](https://github.com/cevr)! - Show installed skills as disabled choices when adding from a collection.
+  Keep unchanged skills visible after an update check completes.
+
 ## 0.6.1
 
 ### Patch Changes
