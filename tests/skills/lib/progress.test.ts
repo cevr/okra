@@ -6,10 +6,10 @@ const captureWrites = (output: Ref.Ref<string>) => (text: string) =>
   Ref.update(output, (current) => current + text);
 
 describe("progress", () => {
-  it.effect("non-TTY: only prints terminal statuses (no pending/running)", () =>
+  it.effect("non-TTY: prints each terminal status, including unchanged", () =>
     Effect.gen(function* () {
       const out = yield* Ref.make("");
-      const progress = yield* make(["alpha", "beta"], {
+      const progress = yield* make(["alpha", "beta", "gamma"], {
         tty: false,
         write: captureWrites(out),
       });
@@ -18,6 +18,8 @@ describe("progress", () => {
       yield* progress.setStatus("alpha", "installed");
       yield* progress.setStatus("beta", "running");
       yield* progress.setStatus("beta", "failed");
+      yield* progress.setStatus("gamma", "running");
+      yield* progress.setStatus("gamma", "unchanged");
       yield* progress.finish;
 
       const text = yield* Ref.get(out);
@@ -25,11 +27,31 @@ describe("progress", () => {
       expect(text).toContain("alpha");
       expect(text).toContain("beta");
       expect(text).toContain("failed");
+      expect(text).toContain("gamma");
+      expect(text).toContain("unchanged");
       // running/pending should not be printed in non-TTY mode
       expect(text).not.toContain("installing");
       expect(text).not.toContain("pending");
       // no ANSI sequences in non-TTY mode
       expect(text).not.toContain("\x1b[");
+    }),
+  );
+
+  it.effect("TTY: keeps an unchanged skill visible after its pending state", () =>
+    Effect.gen(function* () {
+      const out = yield* Ref.make("");
+      const progress = yield* make(["stable"], {
+        tty: true,
+        write: captureWrites(out),
+      });
+
+      yield* progress.setStatus("stable", "running");
+      yield* progress.setStatus("stable", "unchanged");
+      yield* progress.finish;
+
+      const text = yield* Ref.get(out);
+      expect(text).toContain("· unchanged");
+      expect(text).toContain("stable");
     }),
   );
 

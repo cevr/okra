@@ -33,6 +33,62 @@ interface InstallPlan {
   >;
 }
 
+interface InstalledSkills {
+  readonly names: ReadonlySet<string>;
+  readonly locations: ReadonlySet<string>;
+}
+
+interface SelectCandidate<A> {
+  readonly name: string;
+  readonly value: A;
+  readonly installed: boolean;
+}
+
+interface SelectChoiceValue<A> {
+  readonly value: A;
+  readonly installed: boolean;
+}
+
+const installedLocation = (source: string, skillPath: string): string =>
+  `${source}\u0000${skillPath}`;
+
+const dimInstalled = (name: string): string => `\u001b[2m${name} (installed)\u001b[22m`;
+
+export const makeSelectChoices = <A>(
+  candidates: ReadonlyArray<SelectCandidate<A>>,
+): ReadonlyArray<{
+  readonly title: string;
+  readonly value: SelectChoiceValue<A>;
+  readonly disabled: boolean;
+}> =>
+  candidates.map((candidate) => ({
+    title: candidate.installed ? dimInstalled(candidate.name) : candidate.name,
+    value: { value: candidate.value, installed: candidate.installed },
+    disabled: candidate.installed,
+  }));
+
+const loadInstalledSkills = Effect.fn("command.add.loadInstalledSkills")(function* () {
+  const store = yield* SkillStore;
+  const lock = yield* SkillLock;
+  const pathService = yield* Path.Path;
+  const [skills, lockFile] = yield* Effect.all([store.list, lock.read]);
+
+  const names = new Set<string>();
+  for (const skill of skills) {
+    names.add(toKebab(skill.name));
+    names.add(toKebab(pathService.basename(skill.dirPath)));
+  }
+
+  const locations = new Set<string>();
+  for (const [name, entry] of Object.entries(lockFile.skills)) {
+    if (names.has(toKebab(name))) {
+      locations.add(installedLocation(entry.source, entry.skillPath));
+    }
+  }
+
+  return { names, locations } satisfies InstalledSkills;
+});
+
 const installSkillDir = Effect.fn("command.add.installSkillDir")(function* (
   owner: string,
   repo: string,
@@ -181,24 +237,38 @@ const discoverLocalCandidates = Effect.fn("command.add.discoverLocalCandidates")
 // Multi-select if >1 skill, otherwise auto-install the single one
 const selectFrom = Effect.fn("command.add.selectFrom")(function* <A>(
   message: string,
-  candidates: ReadonlyArray<{ name: string; value: A }>,
+  candidates: ReadonlyArray<SelectCandidate<A>>,
 ) {
   const single = candidates[0];
   if (candidates.length === 1 && single) {
-    return [single.value] as ReadonlyArray<A>;
+    return single.installed ? [] : ([single.value] as ReadonlyArray<A>);
   }
-  return yield* Prompt.multiSelect({
+
+  const choices = makeSelectChoices(candidates);
+  const selected = yield* Prompt.multiSelect({
     message,
-    choices: candidates.map((c) => ({ title: c.name, value: c.value })),
-    min: 1,
+    choices,
+    min: choices.some((choice) => !choice.disabled) ? 1 : 0,
   });
+
+  // Effect beta.98 can include disabled multi-select choices in the result.
+  return selected
+    .filter((choice) => !choice.installed)
+    .map((choice) => choice.value) as ReadonlyArray<A>;
 });
 
-const planFromLocal = Effect.fn("command.add.planFromLocal")(function* (source: LocalPath) {
+const planFromLocal = Effect.fn("command.add.planFromLocal")(function* (
+  source: LocalPath,
+  installed: InstalledSkills,
+) {
   const candidates = yield* discoverLocalCandidates(source);
   const selected = yield* selectFrom(
     `Select skills to install from ${source.path}`,
-    candidates.map((c) => ({ name: c.name, value: c })),
+    candidates.map((candidate) => ({
+      name: candidate.name,
+      value: candidate,
+      installed: installed.names.has(toKebab(candidate.name)),
+    })),
   );
   return selected.map(
     (candidate): InstallPlan => ({
@@ -208,7 +278,10 @@ const planFromLocal = Effect.fn("command.add.planFromLocal")(function* (source: 
   );
 });
 
-const planFromRepo = Effect.fn("command.add.planFromRepo")(function* (source: GitHubRepo) {
+const planFromRepo = Effect.fn("command.add.planFromRepo")(function* (
+  source: GitHubRepo,
+  installed: InstalledSkills,
+) {
   const { owner, repo, ref, subpath } = source;
   const gh = yield* GitHub;
   const sourceStr = `${owner}/${repo}${ref ? `#${ref}` : ""}`;
@@ -238,7 +311,13 @@ const planFromRepo = Effect.fn("command.add.planFromRepo")(function* (source: Gi
 
   const selected = yield* selectFrom(
     `Select skills to install from ${owner}/${repo}`,
-    skills.map((s) => ({ name: s.dirName, value: s })),
+    skills.map((skill) => ({
+      name: skill.dirName,
+      value: skill,
+      installed:
+        installed.names.has(toKebab(skill.dirName)) ||
+        installed.locations.has(installedLocation(sourceStr, skill.skillMdPath)),
+    })),
   );
 
   return selected.map(
@@ -357,15 +436,18 @@ const planFromSearch = Effect.fn("command.add.planFromSearch")(function* (query:
   });
 });
 
-const planFromSource = Effect.fn("command.add.planFromSource")(function* (sourceInput: string) {
+const planFromSource = Effect.fn("command.add.planFromSource")(function* (
+  sourceInput: string,
+  installed: InstalledSkills,
+) {
   const parsed = parseSource(sourceInput);
   switch (parsed._tag) {
     case "GitHubRepo":
-      return yield* planFromRepo(parsed);
+      return yield* planFromRepo(parsed, installed);
     case "GitHubRepoWithSkill":
       return yield* planFromRepoWithSkill(parsed);
     case "LocalPath":
-      return yield* planFromLocal(parsed);
+      return yield* planFromLocal(parsed, installed);
     case "SearchQuery":
       return yield* planFromSearch(parsed.query);
   }
@@ -408,13 +490,14 @@ const runOne = Effect.fn("command.add.runOne")(function* (
 
 export const runAdd = Effect.fn("command.add")(function* (sources: ReadonlyArray<string>) {
   const lock = yield* SkillLock;
+  const installedIndex = yield* loadInstalledSkills();
 
   // Phase 1: discovery + prompts (sequential — prompts can't overlap)
   const planResults: Array<{ source: string; plans: ReadonlyArray<InstallPlan> }> = [];
   const planFailures: Array<{ source: string; note: string }> = [];
 
   for (const source of sources) {
-    const result = yield* planFromSource(source).pipe(
+    const result = yield* planFromSource(source, installedIndex).pipe(
       Effect.map(Result.succeed),
       Effect.catchTag("@cvr/okra/skills/SkillsError", (error) =>
         Effect.succeed(Result.fail(error.message)),

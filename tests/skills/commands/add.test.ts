@@ -3,7 +3,7 @@ import { ConfigProvider, Effect, Layer, Option } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { FetchHttpClient } from "effect/unstable/http";
 import { BunServices } from "@effect/platform-bun";
-import { runAdd } from "../../../src/skills/commands/add.js";
+import { makeSelectChoices, runAdd } from "../../../src/skills/commands/add.js";
 import { GitHub, type GitHubShape } from "../../../src/skills/services/GitHub.js";
 import { SkillLock, SkillLockLive } from "../../../src/skills/services/SkillLock.js";
 import { SkillStoreLive } from "../../../src/skills/services/SkillStore.js";
@@ -25,6 +25,28 @@ const skillMd = (name: string, description = "test") =>
   `---\nname: ${name}\ndescription: ${description}\n---\n\nContent\n`;
 
 describe("runAdd", () => {
+  it.effect("marks installed multi-select choices as dim and disabled", () =>
+    Effect.sync(() => {
+      const choices = makeSelectChoices([
+        { name: "already-here", value: "installed", installed: true },
+        { name: "new-skill", value: "available", installed: false },
+      ]);
+
+      expect(choices).toEqual([
+        {
+          title: "\u001b[2malready-here (installed)\u001b[22m",
+          value: { value: "installed", installed: true },
+          disabled: true,
+        },
+        {
+          title: "new-skill",
+          value: { value: "available", installed: false },
+          disabled: false,
+        },
+      ]);
+    }),
+  );
+
   it.scoped("installs a single repo+skill source", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem;

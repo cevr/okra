@@ -48,7 +48,7 @@ okra skills i owner/repo@name
 okra skills install owner/repo@name
 ```
 
-When a source resolves to multiple skills, an interactive `multiSelect` prompt opens. Single-skill sources install directly without a prompt.
+When a source resolves to multiple skills, an interactive `multiSelect` prompt opens. The prompt dims installed skills and keeps them unavailable for selection. A newly discovered single skill installs directly without a prompt.
 
 ## Removing skills
 
@@ -75,6 +75,7 @@ okra skills update
 ```
 
 For sources that no longer resolve (deleted local path, deleted repo), the lock entry and skill dir are pruned.
+The progress view keeps `updated`, `unchanged`, `moved`, `removed`, and `failed` results visible.
 
 ## Gotchas
 

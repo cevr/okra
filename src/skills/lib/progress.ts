@@ -138,25 +138,19 @@ export const make = (
     const write = options.write ?? defaultWrite;
     const color = tty;
 
-    const isVisible = (status: SkillStatus): boolean => status !== "unchanged";
-
     const drawTty = (state: State): Effect.Effect<void> => {
       const moveUp = ansi.up(state.drawn);
-      const visible = state.entries.filter((e) => isVisible(e.status));
-      const lines = visible
+      const lines = state.entries
         .map(
           (e) =>
             `${ansi.clearLine}${ansi.cr}${renderLine(e.name, e.status, state.frame, runningVerb, color)}\n`,
         )
         .join("");
-      // Clear any rows the previous draw used that we no longer need
-      const shrink = Math.max(0, state.drawn - visible.length);
-      const blanks = `${ansi.clearLine}${ansi.cr}\n`.repeat(shrink);
-      return write(`${moveUp}${lines}${blanks}${ansi.up(shrink)}`);
+      return write(`${moveUp}${lines}`);
     };
 
     const printPlain = (name: string, status: SkillStatus): Effect.Effect<void> => {
-      if (status === "running" || status === "pending" || !isVisible(status)) return Effect.void;
+      if (status === "running" || status === "pending") return Effect.void;
       return write(`${renderLine(name, status, 0, runningVerb, color)}\n`);
     };
 
@@ -172,7 +166,7 @@ export const make = (
       yield* drawTty(s);
       yield* Ref.update(ref, (cur) => ({
         ...cur,
-        drawn: cur.entries.filter((e) => isVisible(e.status)).length,
+        drawn: cur.entries.length,
       }));
     });
 
