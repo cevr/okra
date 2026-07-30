@@ -53,6 +53,20 @@
         "typescript/no-non-null-assertion": "off",
         "typescript/no-unsafe-type-assertion": "off"
       }
+    },
+    {
+      // Platform adapter. The research daemon is spawned detached and outlives the
+      // parent, so its log must be a kernel-owned file descriptor. Effect's
+      // CommandOutput models stdout only as a Sink drained by the parent process,
+      // which dies as soon as `okra research start` prints the pid. Bun.spawn also
+      // replaces the environment wholesale, so the process.env spread is required to
+      // keep PATH and HOME. A file-descriptor target in CommandOutput upstream is the
+      // real fix; remove this override once that lands.
+      "files": ["src/research/services/Daemon.ts"],
+      "rules": {
+        "effect/noGlobals": "off",
+        "node/no-process-env": "off"
+      }
     }
   ]
 }
