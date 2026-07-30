@@ -2,6 +2,9 @@ import { Argument, Command, Flag } from "effect/unstable/cli";
 import { Clock, Console, DateTime, Effect, Option, Schema } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
+import type { PlatformError } from "effect/PlatformError";
+import * as ChildProcess from "effect/unstable/process/ChildProcess";
+import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner";
 import { ConfigService } from "../services/Config.js";
 import { isAgentProviderId } from "../services/AgentPlatform.js";
 import type { Provider } from "../../shared/provider.js";
@@ -112,7 +115,17 @@ const getProcessedCount = (state: DaemonState): number =>
   );
 
 const fromNullable = <A>(value: A | null | undefined): Option.Option<NonNullable<A>> =>
-  value === null || value === undefined ? Option.none() : Option.some(value as NonNullable<A>);
+  Option.fromNullishOr(value);
+
+/** Restricts scanning to a single provider when one was requested; undefined means "all". */
+const sourceProvidersFor = (
+  source: Option.Option<Provider>,
+): ReadonlyArray<Provider> | undefined => {
+  if (Option.isNone(source)) {
+    return undefined;
+  }
+  return [source.value];
+};
 
 interface JobStatus {
   readonly name: string;
@@ -123,6 +136,20 @@ interface JobStatus {
 // --- Helpers ---
 
 const UNIFIED_SCHEDULE = "9am, 1pm, 5pm, 9pm Sun-Thu";
+
+const loadedLabel = (loaded: boolean): string => {
+  if (loaded) {
+    return "loaded";
+  }
+  return "not loaded";
+};
+
+const lockLabel = (locked: boolean): string => {
+  if (locked) {
+    return " [LOCKED]";
+  }
+  return "";
+};
 
 const relativeTime = (iso: string, nowMs: number): string => {
   const diff = nowMs - Date.parse(iso);
@@ -183,14 +210,17 @@ const status = Command.make("status", { json: jsonFlag }).pipe(
       const loaded = yield* isUnifiedLoaded();
       const processedCount = getProcessedCount(state);
 
+      const lastRunFor = (job: DaemonJob): Option.Option<string> => {
+        if (job === "reflect") {
+          return fromNullable(state.reflect?.lastExecutorRun);
+        }
+        return fromNullable(state[job]?.lastRun);
+      };
+
       const jobs: Array<JobStatus> = [];
       for (const job of ALL_JOBS) {
         const locked = yield* lockExists(brainDir, job);
-        const lastRun =
-          job === "reflect"
-            ? fromNullable(state.reflect?.lastExecutorRun)
-            : fromNullable(state[job]?.lastRun);
-        jobs.push({ name: job, lastRun, locked });
+        jobs.push({ name: job, lastRun: lastRunFor(job), locked });
       }
 
       if (json) {
@@ -208,15 +238,14 @@ const status = Command.make("status", { json: jsonFlag }).pipe(
         );
       } else {
         const nowMs = yield* Clock.currentTimeMillis;
-        yield* Console.log(`Scheduler: ${loaded ? "loaded" : "not loaded"} (${UNIFIED_SCHEDULE})`);
+        yield* Console.log(`Scheduler: ${loadedLabel(loaded)} (${UNIFIED_SCHEDULE})`);
         yield* Console.log("");
         for (const j of jobs) {
           const lastRunStr = Option.match(j.lastRun, {
             onNone: () => "never",
             onSome: (iso) => relativeTime(iso, nowMs),
           });
-          const lockStr = j.locked ? " [LOCKED]" : "";
-          yield* Console.log(`  ${j.name}: last run ${lastRunStr}${lockStr}`);
+          yield* Console.log(`  ${j.name}: last run ${lastRunStr}${lockLabel(j.locked)}`);
         }
         if (processedCount > 0) {
           yield* Console.log(`\nProcessed sessions: ${String(processedCount)}`);
@@ -256,13 +285,13 @@ const run = Command.make("run", {
         case "reflect":
           yield* runReflect({
             executorProvider: Option.getOrUndefined(executor),
-            sourceProviders: Option.isSome(source) ? [source.value] : undefined,
+            sourceProviders: sourceProvidersFor(source),
           });
           break;
         case "ruminate":
           yield* runRuminate({
             executorProvider: Option.getOrUndefined(executor),
-            sourceProviders: Option.isSome(source) ? [source.value] : undefined,
+            sourceProviders: sourceProvidersFor(source),
           });
           break;
         case "meditate":
@@ -314,13 +343,13 @@ const tick = Command.make("tick", {
         case "reflect":
           yield* runReflect({
             executorProvider: Option.getOrUndefined(executor),
-            sourceProviders: Option.isSome(source) ? [source.value] : undefined,
+            sourceProviders: sourceProvidersFor(source),
           });
           break;
         case "ruminate":
           yield* runRuminate({
             executorProvider: Option.getOrUndefined(executor),
-            sourceProviders: Option.isSome(source) ? [source.value] : undefined,
+            sourceProviders: sourceProvidersFor(source),
           });
           break;
         case "meditate":
@@ -371,15 +400,25 @@ const logs = Command.make("logs", { job: logsJobArg, tail: tailFlag }).pipe(
 
       if (tail) {
         // tail -f on the log files
+        const spawner = yield* ChildProcessSpawner;
         const paths = logFiles.map((f) => path.join(logsDir, f));
-        const proc = Bun.spawn(["tail", "-f", ...paths], {
-          stdout: "inherit",
-          stderr: "inherit",
-        });
-        yield* Effect.tryPromise({
-          try: () => proc.exited,
-          catch: () => new BrainError({ message: "Cannot tail logs", code: "READ_FAILED" }),
-        });
+        yield* spawner
+          .exitCode(
+            ChildProcess.make("tail", ["-f", ...paths], {
+              stdout: "inherit",
+              stderr: "inherit",
+            }),
+          )
+          .pipe(
+            Effect.catchTag(
+              "PlatformError",
+              (e: PlatformError) =>
+                new BrainError({
+                  message: `Cannot tail logs: ${e.message}`,
+                  code: "READ_FAILED",
+                }),
+            ),
+          );
       } else {
         for (const file of logFiles) {
           const filePath = path.join(logsDir, file);

@@ -1,4 +1,6 @@
-import { Effect, Option, Schema } from "effect";
+import { Effect, Option, Schema, Stream } from "effect";
+import * as ChildProcess from "effect/unstable/process/ChildProcess";
+import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner";
 import type { TaskContext } from "./services/Store.js";
 
 const PrJson = Schema.Struct({
@@ -9,25 +11,35 @@ const decodePrJson = Schema.decodeUnknownEffect(Schema.fromJsonString(PrJson));
 
 const exec = Effect.fn("captureContext.exec")(
   function* (args: Array<string>, cwd: string) {
-    const proc = Bun.spawn(args, { cwd, stdout: "pipe", stderr: "ignore" });
-    const code = yield* Effect.tryPromise({
-      try: () => proc.exited,
-      catch: () => "exec-failed" as const,
+    const spawner = yield* ChildProcessSpawner;
+    const command = ChildProcess.make(args[0] ?? "", args.slice(1), {
+      cwd,
+      stdout: "pipe",
+      stderr: "ignore",
     });
+
+    const handle = yield* spawner.spawn(command);
+    const code = yield* handle.exitCode;
     if (code !== 0) return Option.none<string>();
-    const text = yield* Effect.tryPromise({
-      try: () => new Response(proc.stdout).text(),
-      catch: () => "read-failed" as const,
-    });
+    const text = yield* Stream.mkString(Stream.decodeText(handle.stdout));
     const out = text.trim();
-    return out.length > 0 ? Option.some(out) : Option.none<string>();
+    if (out.length === 0) return Option.none<string>();
+    return Option.some(out);
   },
+  Effect.scoped,
   Effect.orElseSucceed(() => Option.none<string>()),
 );
 
+/** Applies `f` only when the input is present, keeping `undefined` end-to-end. */
+const mapDefined = <A, B>(value: A | undefined, f: (a: A) => B | undefined): B | undefined => {
+  if (value === undefined) return undefined;
+  return f(value);
+};
+
 const parseRepoName = (remoteUrl: string): string | undefined => {
   const match = remoteUrl.match(/[:/]([^/]+?)(?:\.git)?$/);
-  return match !== null ? match[1] : undefined;
+  if (match === null) return undefined;
+  return match[1];
 };
 
 const ISSUE_BRANCH_PATTERN = /(?:^|[/-])(\d{2,})(?:[/-]|$)/;
@@ -36,7 +48,8 @@ const parseIssueNumber = (branch: string): number | undefined => {
   const match = branch.match(ISSUE_BRANCH_PATTERN);
   if (match === null || match[1] === undefined) return undefined;
   const n = parseInt(match[1], 10);
-  return n > 0 ? n : undefined;
+  if (n <= 0) return undefined;
+  return n;
 };
 
 export const captureContext = Effect.fn("captureContext")(function* (cwd: string) {
@@ -55,10 +68,10 @@ export const captureContext = Effect.fn("captureContext")(function* (cwd: string
 
   const gitBranch = Option.getOrUndefined(branchOpt);
   const gitRemoteUrl = Option.getOrUndefined(remoteOpt);
-  const gitRepo = gitRemoteUrl !== undefined ? parseRepoName(gitRemoteUrl) : undefined;
+  const gitRepo = mapDefined(gitRemoteUrl, parseRepoName);
   const gitCommit = Option.getOrUndefined(commitOpt);
   const gitDefaultBranch = Option.getOrUndefined(defaultBranchOpt);
-  const issueNumber = gitBranch !== undefined ? parseIssueNumber(gitBranch) : undefined;
+  const issueNumber = mapDefined(gitBranch, parseIssueNumber);
 
   let prNumber: number | undefined;
   let prUrl: string | undefined;
@@ -90,6 +103,12 @@ export const captureContext = Effect.fn("captureContext")(function* (cwd: string
   } satisfies TaskContext;
 });
 
+/** Renders "base (detail)" when a detail is present, or just "base" when it is not. */
+const withParenthetical = (base: string, detail: string | undefined): string => {
+  if (detail === undefined) return base;
+  return `${base} (${detail})`;
+};
+
 export const buildPromptWithContext = (
   prompt: string,
   cwd: string,
@@ -100,22 +119,14 @@ export const buildPromptWithContext = (
   const lines: Array<string> = [];
 
   if (context.gitRepo !== undefined) {
-    const repoLine =
-      context.gitRemoteUrl !== undefined
-        ? `${context.gitRepo} (${context.gitRemoteUrl})`
-        : context.gitRepo;
-    lines.push(`Repository: ${repoLine}`);
+    lines.push(`Repository: ${withParenthetical(context.gitRepo, context.gitRemoteUrl)}`);
   }
   if (context.gitBranch !== undefined) lines.push(`Branch: ${context.gitBranch}`);
   if (context.gitDefaultBranch !== undefined)
     lines.push(`Default branch: ${context.gitDefaultBranch}`);
   if (context.gitCommit !== undefined) lines.push(`HEAD: ${context.gitCommit}`);
   if (context.prNumber !== undefined) {
-    const prLine =
-      context.prUrl !== undefined
-        ? `#${String(context.prNumber)} (${context.prUrl})`
-        : `#${String(context.prNumber)}`;
-    lines.push(`PR: ${prLine}`);
+    lines.push(`PR: ${withParenthetical(`#${String(context.prNumber)}`, context.prUrl)}`);
   }
   if (context.issueNumber !== undefined) lines.push(`Issue: #${String(context.issueNumber)}`);
   lines.push(`Working directory: ${cwd}`);

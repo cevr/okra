@@ -1,7 +1,9 @@
-import { Config, ConfigProvider, Console, Effect, Option } from "effect";
+import { Config, ConfigProvider, Console, Effect, Option, Stream } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
+import * as ChildProcess from "effect/unstable/process/ChildProcess";
+import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner";
 import { BrainError } from "../../errors/index.js";
 import { requireDarwin, requireHome } from "./state.js";
 import { resolveExecutable } from "../../../shared/executable.js";
@@ -24,6 +26,67 @@ export type DaemonJob = (typeof JOBS)[number];
 export const ALL_JOBS: readonly DaemonJob[] = JOBS;
 
 const label = (job: DaemonJob) => `${LABEL_PREFIX}-${job}`;
+
+/** Unload a plist, ignoring the exit code — the caller only needs the slot freed. */
+const launchctlUnload = (
+  spawner: ChildProcessSpawner["Service"],
+  plist: string,
+  jobLabel: string,
+): Effect.Effect<void, BrainError> =>
+  spawner
+    .exitCode(
+      ChildProcess.make("launchctl", ["unload", plist], { stdout: "ignore", stderr: "ignore" }),
+    )
+    .pipe(
+      Effect.asVoid,
+      Effect.catchTag(
+        "PlatformError",
+        () => new BrainError({ message: `Cannot unload ${jobLabel}`, code: "LAUNCHD_FAILED" }),
+      ),
+    );
+
+/** Report whether a launchctl label is currently loaded. */
+const launchctlIsLoaded = (
+  spawner: ChildProcessSpawner["Service"],
+  jobLabel: string,
+): Effect.Effect<boolean, BrainError> =>
+  spawner
+    .exitCode(
+      ChildProcess.make("launchctl", ["list", jobLabel], { stdout: "ignore", stderr: "ignore" }),
+    )
+    .pipe(
+      Effect.map((code) => code === 0),
+      Effect.catchTag(
+        "PlatformError",
+        () => new BrainError({ message: "Cannot check launchctl", code: "LAUNCHD_FAILED" }),
+      ),
+    );
+
+/** Load a plist and surface launchctl's stderr when it fails. */
+const launchctlLoad = Effect.fn("launchctlLoad")(
+  function* (spawner: ChildProcessSpawner["Service"], plist: string, jobLabel: string) {
+    const command = ChildProcess.make("launchctl", ["load", plist], {
+      stdout: "ignore",
+      stderr: "pipe",
+    });
+    const handle = yield* spawner.spawn(command);
+    const exitCode = yield* handle.exitCode;
+    const stderr = yield* Stream.mkString(Stream.decodeText(handle.stderr));
+
+    if (exitCode !== 0) {
+      return yield* new BrainError({
+        message: `Cannot load ${jobLabel}: ${stderr.trim() || `exit code ${String(exitCode)}`}`,
+        code: "LAUNCHD_FAILED",
+      });
+    }
+  },
+  Effect.scoped,
+  Effect.catchTag(
+    "PlatformError",
+    (e: PlatformError) =>
+      new BrainError({ message: `Cannot load plist: ${e.message}`, code: "LAUNCHD_FAILED" }),
+  ),
+);
 
 const plistPath = (home: string, job: DaemonJob, path: Path) =>
   path.join(home, "Library", "LaunchAgents", `${label(job)}.plist`);
@@ -93,6 +156,7 @@ export const installPlist = Effect.fn("installPlist")(function* (job: DaemonJob)
   yield* requireDarwin();
   const fs = yield* FileSystem;
   const path = yield* Path;
+  const spawner = yield* ChildProcessSpawner;
   const home = yield* requireHome();
   const brainBin = yield* resolveExecutable("okra");
 
@@ -126,15 +190,7 @@ export const installPlist = Effect.fn("installPlist")(function* (job: DaemonJob)
   // Unload if already loaded
   const loaded = yield* isLoaded(job);
   if (loaded) {
-    const unloadProc = Bun.spawn(["launchctl", "unload", plist], {
-      stdout: "ignore",
-      stderr: "ignore",
-    });
-    yield* Effect.tryPromise({
-      try: () => unloadProc.exited,
-      catch: () =>
-        new BrainError({ message: `Cannot unload ${label(job)}`, code: "LAUNCHD_FAILED" }),
-    });
+    yield* launchctlUnload(spawner, plist, label(job));
   }
 
   yield* fs.writeFileString(plist, content).pipe(
@@ -147,25 +203,7 @@ export const installPlist = Effect.fn("installPlist")(function* (job: DaemonJob)
     ),
   );
 
-  const loadProc = Bun.spawn(["launchctl", "load", plist], { stdout: "ignore", stderr: "pipe" });
-  const loadCode = yield* Effect.tryPromise({
-    try: () => loadProc.exited,
-    catch: (e) =>
-      new BrainError({
-        message: `Cannot load ${label(job)}: ${e instanceof Error ? e.message : String(e)}`,
-        code: "LAUNCHD_FAILED",
-      }),
-  });
-  if (loadCode !== 0) {
-    const stderrText = yield* Effect.tryPromise({
-      try: () => new Response(loadProc.stderr).text(),
-      catch: () => new BrainError({ message: `Cannot read load stderr`, code: "LAUNCHD_FAILED" }),
-    });
-    return yield* new BrainError({
-      message: `Cannot load ${label(job)}: ${stderrText.trim() || `exit code ${String(loadCode)}`}`,
-      code: "LAUNCHD_FAILED",
-    });
-  }
+  yield* launchctlLoad(spawner, plist, label(job));
 });
 
 /** Uninstall a launchd plist for a daemon job */
@@ -173,20 +211,13 @@ export const uninstallPlist = Effect.fn("uninstallPlist")(function* (job: Daemon
   yield* requireDarwin();
   const fs = yield* FileSystem;
   const path = yield* Path;
+  const spawner = yield* ChildProcessSpawner;
   const home = yield* requireHome();
   const plist = plistPath(home, job, path);
 
   const loaded = yield* isLoaded(job);
   if (loaded) {
-    const unloadProc = Bun.spawn(["launchctl", "unload", plist], {
-      stdout: "ignore",
-      stderr: "ignore",
-    });
-    yield* Effect.tryPromise({
-      try: () => unloadProc.exited,
-      catch: () =>
-        new BrainError({ message: `Cannot unload ${label(job)}`, code: "LAUNCHD_FAILED" }),
-    });
+    yield* launchctlUnload(spawner, plist, label(job));
   }
 
   yield* fs.remove(plist).pipe(Effect.catch(() => Effect.void));
@@ -194,15 +225,8 @@ export const uninstallPlist = Effect.fn("uninstallPlist")(function* (job: Daemon
 
 /** Check if a launchd job is loaded */
 export const isLoaded = Effect.fn("isLoaded")(function* (job: DaemonJob) {
-  const proc = Bun.spawn(["launchctl", "list", label(job)], {
-    stdout: "ignore",
-    stderr: "ignore",
-  });
-  const code = yield* Effect.tryPromise({
-    try: () => proc.exited,
-    catch: () => new BrainError({ message: "Cannot check launchctl", code: "LAUNCHD_FAILED" }),
-  });
-  return code === 0;
+  const spawner = yield* ChildProcessSpawner;
+  return yield* launchctlIsLoaded(spawner, label(job));
 });
 
 const MAX_LOG_SIZE = 10 * 1024 * 1024; // 10MB
@@ -289,6 +313,7 @@ export const installUnifiedPlist = Effect.fn("installUnifiedPlist")(function* ()
   yield* requireDarwin();
   const fs = yield* FileSystem;
   const path = yield* Path;
+  const spawner = yield* ChildProcessSpawner;
   const home = yield* requireHome();
   const brainBin = yield* resolveExecutable("okra");
 
@@ -318,15 +343,7 @@ export const installUnifiedPlist = Effect.fn("installUnifiedPlist")(function* ()
 
   const loaded = yield* isUnifiedLoaded();
   if (loaded) {
-    const unloadProc = Bun.spawn(["launchctl", "unload", plist], {
-      stdout: "ignore",
-      stderr: "ignore",
-    });
-    yield* Effect.tryPromise({
-      try: () => unloadProc.exited,
-      catch: () =>
-        new BrainError({ message: `Cannot unload ${UNIFIED_LABEL}`, code: "LAUNCHD_FAILED" }),
-    });
+    yield* launchctlUnload(spawner, plist, UNIFIED_LABEL);
   }
 
   yield* fs
@@ -338,25 +355,7 @@ export const installUnifiedPlist = Effect.fn("installUnifiedPlist")(function* ()
       ),
     );
 
-  const loadProc = Bun.spawn(["launchctl", "load", plist], { stdout: "ignore", stderr: "pipe" });
-  const loadCode = yield* Effect.tryPromise({
-    try: () => loadProc.exited,
-    catch: (e) =>
-      new BrainError({
-        message: `Cannot load ${UNIFIED_LABEL}: ${e instanceof Error ? e.message : String(e)}`,
-        code: "LAUNCHD_FAILED",
-      }),
-  });
-  if (loadCode !== 0) {
-    const stderrText = yield* Effect.tryPromise({
-      try: () => new Response(loadProc.stderr).text(),
-      catch: () => new BrainError({ message: `Cannot read load stderr`, code: "LAUNCHD_FAILED" }),
-    });
-    return yield* new BrainError({
-      message: `Cannot load ${UNIFIED_LABEL}: ${stderrText.trim() || `exit code ${String(loadCode)}`}`,
-      code: "LAUNCHD_FAILED",
-    });
-  }
+  yield* launchctlLoad(spawner, plist, UNIFIED_LABEL);
 });
 
 /** Uninstall the unified scheduler plist */
@@ -364,20 +363,13 @@ export const uninstallUnifiedPlist = Effect.fn("uninstallUnifiedPlist")(function
   yield* requireDarwin();
   const fs = yield* FileSystem;
   const path = yield* Path;
+  const spawner = yield* ChildProcessSpawner;
   const home = yield* requireHome();
   const plist = unifiedPlistPath(home, path);
 
   const loaded = yield* isUnifiedLoaded();
   if (loaded) {
-    const unloadProc = Bun.spawn(["launchctl", "unload", plist], {
-      stdout: "ignore",
-      stderr: "ignore",
-    });
-    yield* Effect.tryPromise({
-      try: () => unloadProc.exited,
-      catch: () =>
-        new BrainError({ message: `Cannot unload ${UNIFIED_LABEL}`, code: "LAUNCHD_FAILED" }),
-    });
+    yield* launchctlUnload(spawner, plist, UNIFIED_LABEL);
   }
 
   yield* fs.remove(plist).pipe(Effect.catch(() => Effect.void));
@@ -385,15 +377,8 @@ export const uninstallUnifiedPlist = Effect.fn("uninstallUnifiedPlist")(function
 
 /** Check if the unified scheduler is loaded */
 export const isUnifiedLoaded = Effect.fn("isUnifiedLoaded")(function* () {
-  const proc = Bun.spawn(["launchctl", "list", UNIFIED_LABEL], {
-    stdout: "ignore",
-    stderr: "ignore",
-  });
-  const code = yield* Effect.tryPromise({
-    try: () => proc.exited,
-    catch: () => new BrainError({ message: "Cannot check launchctl", code: "LAUNCHD_FAILED" }),
-  });
-  return code === 0;
+  const spawner = yield* ChildProcessSpawner;
+  return yield* launchctlIsLoaded(spawner, UNIFIED_LABEL);
 });
 
 /** Remove legacy per-job plists (migration from 3-plist to unified) */

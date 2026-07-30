@@ -1,5 +1,9 @@
-import { Effect, Layer, Context } from "effect";
+import { Effect, Layer, Context, Stream } from "effect";
 import type { FileSystem } from "effect/FileSystem";
+import type { PlatformError } from "effect/PlatformError";
+import { Stdio } from "effect/Stdio";
+import * as ChildProcess from "effect/unstable/process/ChildProcess";
+import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner";
 import { ScheduleError } from "../errors.js";
 import { resolveExecutable } from "../../shared/executable.js";
 import type { Provider } from "./Store.js";
@@ -44,68 +48,80 @@ class AgentPlatformService extends Context.Service<
     ) => Effect.Effect<string, ScheduleError>;
   }
 >()("@cvr/okra/schedule/services/AgentPlatform/AgentPlatformService") {
-  static layer: Layer.Layer<AgentPlatformService, never, FileSystem> = Layer.effect(
-    AgentPlatformService,
-    Effect.gen(function* () {
-      const claudeBin = yield* resolveExecutable("claude");
-      const codexBin = yield* resolveExecutable("codex");
-      const buildArgs = (provider: Provider, prompt: string, cwd: string): Array<string> =>
-        provider === "claude" ? claudeArgs(claudeBin, prompt) : codexArgs(codexBin, prompt, cwd);
+  static layer: Layer.Layer<AgentPlatformService, never, FileSystem | ChildProcessSpawner | Stdio> =
+    Layer.effect(
+      AgentPlatformService,
+      Effect.gen(function* () {
+        const spawner = yield* ChildProcessSpawner;
+        const stdio = yield* Stdio;
+        const claudeBin = yield* resolveExecutable("claude");
+        const codexBin = yield* resolveExecutable("codex");
+        const buildArgs = (provider: Provider, prompt: string, cwd: string): Array<string> => {
+          if (provider === "claude") return claudeArgs(claudeBin, prompt);
+          return codexArgs(codexBin, prompt, cwd);
+        };
 
-      const invokeFailure = (provider: Provider, e: unknown, op: string) =>
-        new ScheduleError({
-          message: `${provider} ${op} failed: ${e instanceof Error ? e.message : String(e)}`,
-          code: "SPAWN_FAILED",
-        });
+        const invokeFailure = (provider: Provider, e: PlatformError, op: string) =>
+          new ScheduleError({
+            message: `${provider} ${op} failed: ${e.message}`,
+            code: "SPAWN_FAILED",
+          });
 
-      return {
-        invoke: Effect.fn("schedule.AgentPlatform.invoke")(function* (
+        const buildCommand = (
           provider: Provider,
           prompt: string,
           cwd: string,
-        ) {
-          const args = buildArgs(provider, prompt, cwd);
-          const proc = Bun.spawn(args, { stdout: "pipe", stderr: "inherit", cwd });
-          const [tee1, tee2] = proc.stdout.tee();
-          const outputPromise = new Response(tee1).text();
-          const writePromise = tee2.pipeTo(
-            new WritableStream({
-              write(chunk) {
-                process.stdout.write(chunk);
-              },
-            }),
-          );
-          const [exitCode, output] = yield* Effect.tryPromise({
-            try: () => Promise.all([proc.exited, outputPromise]),
-            catch: (e) => invokeFailure(provider, e, "invocation"),
-          });
-          yield* Effect.tryPromise({
-            try: () => writePromise,
-            catch: (e) => invokeFailure(provider, e, "invocation"),
-          });
-          return { exitCode, output };
-        }),
+          stderr: "inherit" | "pipe",
+        ) => {
+          const [bin, ...args] = buildArgs(provider, prompt, cwd);
+          return ChildProcess.make(bin ?? "", args, { cwd, stdout: "pipe", stderr });
+        };
 
-        invokeCapture: Effect.fn("schedule.AgentPlatform.invokeCapture")(function* (
-          provider: Provider,
-          prompt: string,
-          cwd: string,
-        ) {
-          const args = buildArgs(provider, prompt, cwd);
-          const proc = Bun.spawn(args, { stdout: "pipe", stderr: "pipe", cwd });
-          const output = yield* Effect.tryPromise({
-            try: () => new Response(proc.stdout).text(),
-            catch: (e) => invokeFailure(provider, e, "capture"),
-          });
-          yield* Effect.tryPromise({
-            try: () => proc.exited,
-            catch: (e) => invokeFailure(provider, e, "capture"),
-          });
-          return output;
-        }),
-      };
-    }),
-  );
+        return {
+          invoke: Effect.fn("schedule.AgentPlatform.invoke")(
+            function* (provider: Provider, prompt: string, cwd: string) {
+              const handle = yield* spawner.spawn(buildCommand(provider, prompt, cwd, "inherit"));
+
+              // Mirror the agent's output to our stdout while capturing it.
+              const output = yield* Stream.mkString(
+                handle.stdout.pipe(
+                  Stream.tapSink<Uint8Array, PlatformError, never>(
+                    stdio.stdout({ endOnDone: false }),
+                  ),
+                  Stream.decodeText,
+                ),
+              );
+              const exitCode = yield* handle.exitCode;
+
+              return { exitCode, output };
+            },
+            Effect.scoped,
+            (effect, provider) =>
+              effect.pipe(
+                Effect.catchTag("PlatformError", (e: PlatformError) =>
+                  invokeFailure(provider, e, "invocation"),
+                ),
+              ),
+          ),
+
+          invokeCapture: Effect.fn("schedule.AgentPlatform.invokeCapture")(
+            function* (provider: Provider, prompt: string, cwd: string) {
+              const handle = yield* spawner.spawn(buildCommand(provider, prompt, cwd, "pipe"));
+              const output = yield* Stream.mkString(Stream.decodeText(handle.stdout));
+              yield* handle.exitCode;
+              return output;
+            },
+            Effect.scoped,
+            (effect, provider) =>
+              effect.pipe(
+                Effect.catchTag("PlatformError", (e: PlatformError) =>
+                  invokeFailure(provider, e, "capture"),
+                ),
+              ),
+          ),
+        };
+      }),
+    );
 }
 
 export { AgentPlatformService };

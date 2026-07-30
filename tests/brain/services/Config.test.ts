@@ -4,6 +4,8 @@ import type { FileSystem } from "effect/FileSystem";
 import { layerNoop } from "effect/FileSystem";
 import { PlatformError, SystemError } from "effect/PlatformError";
 import * as BunPath from "@effect/platform-bun/BunPath";
+import * as BunFileSystem from "@effect/platform-bun/BunFileSystem";
+import * as BunChildProcessSpawner from "@effect/platform-bun/BunChildProcessSpawner";
 import { ConfigService } from "../../../src/brain/services/Config.js";
 
 const notFound = () =>
@@ -27,10 +29,18 @@ const noopFs = layerNoop({
 const envLayer = (env: Record<string, string>) =>
   ConfigProvider.layer(ConfigProvider.fromEnv({ env }));
 
+// The spawner shells out for real (git rev-parse), so it gets the real FileSystem.
+// ConfigService itself still sees the noop FS, which keeps the tests hermetic.
+const spawnerLayer = BunChildProcessSpawner.layer.pipe(
+  Layer.provide(Layer.mergeAll(BunFileSystem.layer, BunPath.layer)),
+);
+
 const makeTestLayer = (env: Record<string, string>, fsOverrides?: Partial<FileSystem>) =>
   Layer.mergeAll(
     ConfigService.layer.pipe(
-      Layer.provide(Layer.mergeAll(fsOverrides ? layerNoop(fsOverrides) : noopFs, BunPath.layer)),
+      Layer.provide(
+        Layer.mergeAll(fsOverrides ? layerNoop(fsOverrides) : noopFs, BunPath.layer, spawnerLayer),
+      ),
     ),
     envLayer(env),
   );

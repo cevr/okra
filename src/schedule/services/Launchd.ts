@@ -1,7 +1,9 @@
-import { Effect, Layer, Context } from "effect";
+import { Effect, Layer, Context, Stream } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
+import * as ChildProcess from "effect/unstable/process/ChildProcess";
+import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner";
 import { ScheduleError } from "../errors.js";
 import { PathEnv, resolvePaths } from "../paths.js";
 import { resolveExecutable } from "../../shared/executable.js";
@@ -89,6 +91,7 @@ class LaunchdService extends Context.Service<
     Effect.gen(function* () {
       const fs = yield* FileSystem;
       const path = yield* Path;
+      const spawner = yield* ChildProcessSpawner;
       const paths = yield* resolvePaths;
       const { logsDir, agentsDir, home } = paths;
       const pathEnv: string = yield* PathEnv;
@@ -108,38 +111,41 @@ class LaunchdService extends Context.Service<
       const plistPath = (id: string) => path.join(agentsDir, `${label(id)}.plist`);
       const logPath = (id: string) => path.join(logsDir, `${id}.log`);
 
-      const isLoaded = Effect.fn("LaunchdService.isLoaded")(function* (id: string) {
-        const proc = Bun.spawn(["launchctl", "list", label(id)], {
-          stdout: "ignore",
-          stderr: "ignore",
-        });
-        const code = yield* Effect.tryPromise({
-          try: () => proc.exited,
-          catch: () =>
-            new ScheduleError({ message: "Cannot check launchctl", code: "LAUNCHD_FAILED" }),
-        });
-        return code === 0;
-      });
+      const isLoaded = Effect.fn("LaunchdService.isLoaded")(
+        function* (id: string) {
+          const code = yield* spawner.exitCode(
+            ChildProcess.make("launchctl", ["list", label(id)], {
+              stdout: "ignore",
+              stderr: "ignore",
+            }),
+          );
+          return code === 0;
+        },
+        Effect.catchTag(
+          "PlatformError",
+          () => new ScheduleError({ message: "Cannot check launchctl", code: "LAUNCHD_FAILED" }),
+        ),
+      );
 
-      const launchctlUnload = Effect.fn("LaunchdService.launchctlUnload")(function* (
-        plist: string,
-      ) {
-        const proc = Bun.spawn(["launchctl", "unload", plist], {
-          stdout: "ignore",
-          stderr: "pipe",
-        });
-        const code = yield* Effect.tryPromise({
-          try: () => proc.exited,
-          catch: () =>
+      const launchctlUnload = Effect.fn("LaunchdService.launchctlUnload")(
+        function* (plist: string) {
+          const handle = yield* spawner.spawn(
+            ChildProcess.make("launchctl", ["unload", plist], {
+              stdout: "ignore",
+              stderr: "pipe",
+            }),
+          );
+          const code = yield* handle.exitCode;
+          const stderr = yield* Stream.mkString(Stream.decodeText(handle.stderr));
+          return { code, stderr: stderr.trim() };
+        },
+        Effect.scoped,
+        Effect.catchTag(
+          "PlatformError",
+          () =>
             new ScheduleError({ message: "Cannot run launchctl unload", code: "LAUNCHD_FAILED" }),
-        });
-        const stderr = yield* Effect.tryPromise({
-          try: () => new Response(proc.stderr).text(),
-          catch: () =>
-            new ScheduleError({ message: "Cannot read unload stderr", code: "LAUNCHD_FAILED" }),
-        });
-        return { code, stderr: stderr.trim() };
-      });
+        ),
+      );
 
       const install = Effect.fn("LaunchdService.install")(function* (task: Task) {
         const plist = plistPath(task.id);
@@ -174,24 +180,27 @@ class LaunchdService extends Context.Service<
           ),
         );
 
-        const loadProc = Bun.spawn(["launchctl", "load", plist], {
-          stdout: "ignore",
-          stderr: "pipe",
-        });
-        const loadCode = yield* Effect.tryPromise({
-          try: () => loadProc.exited,
-          catch: (e) =>
-            new ScheduleError({
-              message: `Cannot load ${label(task.id)}: ${e instanceof Error ? e.message : String(e)}`,
-              code: "LAUNCHD_FAILED",
+        const loadResult = yield* Effect.gen(function* () {
+          const handle = yield* spawner.spawn(
+            ChildProcess.make("launchctl", ["load", plist], {
+              stdout: "ignore",
+              stderr: "pipe",
             }),
-        });
-        const loadStderr = yield* Effect.tryPromise({
-          try: () => new Response(loadProc.stderr).text(),
-          catch: () =>
-            new ScheduleError({ message: "Cannot read load stderr", code: "LAUNCHD_FAILED" }),
-        });
-        const loadResult = { code: loadCode, stderr: loadStderr.trim() };
+          );
+          const code = yield* handle.exitCode;
+          const stderr = yield* Stream.mkString(Stream.decodeText(handle.stderr));
+          return { code, stderr: stderr.trim() };
+        }).pipe(
+          Effect.scoped,
+          Effect.catchTag(
+            "PlatformError",
+            (e: PlatformError) =>
+              new ScheduleError({
+                message: `Cannot load ${label(task.id)}: ${e.message}`,
+                code: "LAUNCHD_FAILED",
+              }),
+          ),
+        );
 
         if (loadResult.code !== 0) {
           // Rollback: restore old plist and re-load it
@@ -200,15 +209,14 @@ class LaunchdService extends Context.Service<
               .writeFileString(plist, oldContent.value)
               .pipe(Effect.catch(() => Effect.void));
             yield* launchctlUnload(plist).pipe(Effect.catch(() => Effect.void));
-            const rollbackProc = Bun.spawn(["launchctl", "load", plist], {
-              stdout: "ignore",
-              stderr: "ignore",
-            });
-            yield* Effect.tryPromise({
-              try: () => rollbackProc.exited,
-              catch: () =>
-                new ScheduleError({ message: "Rollback load failed", code: "LAUNCHD_FAILED" }),
-            }).pipe(Effect.catch(() => Effect.void));
+            yield* spawner
+              .exitCode(
+                ChildProcess.make("launchctl", ["load", plist], {
+                  stdout: "ignore",
+                  stderr: "ignore",
+                }),
+              )
+              .pipe(Effect.catch(() => Effect.void));
           }
           return yield* new ScheduleError({
             message: `Cannot load ${label(task.id)}: ${loadResult.stderr || `exit code ${loadResult.code}`}`,

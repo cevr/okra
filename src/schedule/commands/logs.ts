@@ -2,6 +2,9 @@ import { Console, Effect } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
+import type { PlatformError } from "effect/PlatformError";
+import * as ChildProcess from "effect/unstable/process/ChildProcess";
+import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner";
 import { ScheduleError } from "../errors.js";
 import { resolvePaths } from "../paths.js";
 
@@ -71,20 +74,26 @@ export const logs = Command.make(
       }
 
       if (config.follow) {
-        yield* Effect.acquireUseRelease(
-          Effect.sync(() =>
-            Bun.spawn(["tail", "-f", logFile], { stdout: "inherit", stderr: "inherit" }),
-          ),
-          (proc) =>
-            Effect.tryPromise({
-              try: () => proc.exited,
-              catch: (e) =>
-                new ScheduleError({
-                  message: `Failed to tail log: ${e instanceof Error ? e.message : String(e)}`,
-                  code: "READ_FAILED",
-                }),
+        const spawner = yield* ChildProcessSpawner;
+        // Scope kills `tail -f` on interrupt; it never exits on its own.
+        yield* Effect.gen(function* () {
+          const handle = yield* spawner.spawn(
+            ChildProcess.make("tail", ["-f", logFile], {
+              stdout: "inherit",
+              stderr: "inherit",
             }),
-          (proc) => Effect.sync(() => proc.kill()),
+          );
+          yield* handle.exitCode;
+        }).pipe(
+          Effect.scoped,
+          Effect.catchTag(
+            "PlatformError",
+            (e: PlatformError) =>
+              new ScheduleError({
+                message: `Failed to tail log: ${e.message}`,
+                code: "READ_FAILED",
+              }),
+          ),
         );
       } else {
         const content = yield* fs.readFileString(logFile).pipe(

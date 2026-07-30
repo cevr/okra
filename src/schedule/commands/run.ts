@@ -1,5 +1,8 @@
 import { Clock, Console, DateTime, Effect, Option } from "effect";
+import { Crypto } from "effect/Crypto";
+import type { PlatformError } from "effect/PlatformError";
 import { Argument, Command } from "effect/unstable/cli";
+import { ScheduleError } from "../errors.js";
 import { StoreService } from "../services/Store.js";
 import { LaunchdService } from "../services/Launchd.js";
 import { AgentPlatformService } from "../services/AgentPlatform.js";
@@ -7,13 +10,24 @@ import { buildPromptWithContext } from "../context.js";
 import * as StopEvaluator from "../services/StopEvaluator.js";
 import * as Verification from "../services/Verification.js";
 
-const generateNonce = (): string => {
-  const bytes = crypto.getRandomValues(new Uint8Array(4));
-  const hex = Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  return `OKRA_STOP_${hex}`;
-};
+const generateNonce = Effect.fn("run.generateNonce")(
+  function* () {
+    const crypto = yield* Crypto;
+    const bytes = yield* crypto.randomBytes(4);
+    const hex = Array.from(bytes)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    return `OKRA_STOP_${hex}`;
+  },
+  Effect.catchTag(
+    "PlatformError",
+    (e: PlatformError) =>
+      new ScheduleError({
+        message: `Cannot generate stop nonce: ${e.message}`,
+        code: "SPAWN_FAILED",
+      }),
+  ),
+);
 
 const buildStopSignalBlock = (condition: string, nonce: string): string =>
   `\n<stop-signal>
@@ -47,7 +61,7 @@ export const run = Command.make("run", { id: Argument.string("id") }, (config) =
     let prompt = buildPromptWithContext(task.prompt, task.cwd, task.context);
 
     // Generate nonce for conditional stop
-    const nonce = task.conditionalStop !== undefined ? generateNonce() : undefined;
+    const nonce = task.conditionalStop !== undefined ? yield* generateNonce() : undefined;
 
     if (task.conditionalStop !== undefined && nonce !== undefined) {
       prompt += buildStopSignalBlock(task.conditionalStop.condition, nonce);
