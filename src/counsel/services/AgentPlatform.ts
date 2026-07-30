@@ -130,7 +130,7 @@ export class AgentPlatformService extends Context.Service<
         requested: Option.Option<Provider>,
       ): Effect.Effect<Provider, CounselError> =>
         Option.match(requested, {
-          onNone: () => host.getEnv.pipe(Effect.flatMap(detectSourceFromEnv)),
+          onNone: () => host.getAgentMarkers.pipe(Effect.flatMap(detectSourceFromEnv)),
           onSome: (provider) => Effect.succeed(provider),
         });
 

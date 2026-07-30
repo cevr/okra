@@ -42,7 +42,7 @@ export const list = Command.make(
       yield* Console.log(
         `${"ID".padEnd(10)} ${"Provider".padEnd(10)} ${"Schedule".padEnd(30)} ${"Status".padEnd(10)} Prompt`,
       );
-      if (isColorEnabled) yield* Console.log("─".repeat(90));
+      if (yield* isColorEnabled) yield* Console.log("─".repeat(90));
 
       for (const task of tasks) {
         const scheduleDesc = describe(task.schedule);
