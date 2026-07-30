@@ -66,14 +66,18 @@ export class DaemonService extends Context.Service<
               .makeDirectory(path.dirname(paths.daemonLog), { recursive: true })
               .pipe(Effect.ignore);
 
-            // Spawn detached research _loop process; Bun.file handles append-mode log target.
+            // The daemon outlives this process, so its log must be a file descriptor the
+            // kernel owns. Effect's ChildProcess only models stdout/stderr as a Sink, which
+            // the *parent* drains — and `research start` exits as soon as it prints the pid,
+            // so every line would be dropped. Bun.spawn is therefore required here.
             const selfPath = process.execPath;
             const logFile = Bun.file(paths.daemonLog);
             const proc = Bun.spawn([selfPath, "research", "_loop", "--project-root", projectRoot], {
               stdout: logFile,
               stderr: logFile,
               cwd: projectRoot,
-              // eslint-disable-next-line node/no-process-env -- inherit full env for child process
+              // Bun.spawn replaces the environment wholesale, so the spread is required
+              // for the daemon to keep PATH, HOME and the rest of the user's env.
               env: { ...process.env, OKRA_INTERNAL: "1" },
             });
 

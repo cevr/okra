@@ -102,21 +102,16 @@ const spawnAgent = Effect.fn("AgentPlatform.spawnAgent")(function* (
 ) {
   const args = buildArgs(provider, prompt, cwd);
 
-  // Strip env vars that prevent nested agent sessions.
-  // Full process.env spread is required so the child inherits the user's environment;
-  // Config only exposes individually-declared keys.
-  // eslint-disable-next-line node/no-process-env
-  const env = { ...process.env };
-  delete env["CLAUDECODE"];
-  delete env["CLAUDE_CODE_ENTRYPOINT"];
-
   return yield* spawner
     .spawn(
       ChildProcess.make(bin, args, {
         stdout: "pipe",
         stderr: "pipe",
         cwd,
-        env,
+        // Inherit the user's environment, but unset the markers that make a
+        // nested agent session refuse to start.
+        extendEnv: true,
+        env: { CLAUDECODE: undefined, CLAUDE_CODE_ENTRYPOINT: undefined },
       }),
     )
     .pipe(Effect.mapError(agentFailed));
