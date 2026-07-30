@@ -23,7 +23,7 @@ export const runMeditate = Effect.fn("runMeditate")(function* (opts: RunMeditate
   const platform = yield* AgentPlatformService;
   const brainDir = yield* config.globalVaultPath;
   const executorId = yield* platform.resolveDaemonExecutor(
-    opts.executorProvider === undefined ? undefined : Option.some(opts.executorProvider),
+    Option.fromUndefinedOr(opts.executorProvider),
   );
   const executor = yield* platform.getProvider(executorId);
 

@@ -1,4 +1,5 @@
-import { Console, Effect, Option } from "effect";
+import { Console, Effect, Option, Stream } from "effect";
+import { Stdio } from "effect/Stdio";
 import { Argument, Command, Flag } from "effect/unstable/cli";
 import { envVarForProvider, KeyStoreService } from "../../shared/keystore.js";
 import { KeysError } from "../errors.js";
@@ -35,9 +36,13 @@ const stdinFlag = Flag.boolean("stdin").pipe(
 );
 
 /** Read all of stdin as text (so the key avoids shell history). */
-const readStdin = Effect.tryPromise({
-  try: () => new Response(Bun.stdin.stream()).text(),
-  catch: () => KeysError.make({ message: "Failed to read stdin", code: "INVALID_INPUT" }),
+const readStdin = Effect.gen(function* () {
+  const stdio = yield* Stdio;
+  return yield* Stream.mkString(Stream.decodeText(stdio.stdin)).pipe(
+    Effect.mapError(() =>
+      KeysError.make({ message: "Failed to read stdin", code: "INVALID_INPUT" }),
+    ),
+  );
 });
 
 /** `okra keys set <provider> [<key>] [--stdin]` — store a key. Never echoes the value. */
@@ -49,7 +54,7 @@ const setCommand = Command.make(
       const keyStore = yield* KeyStoreService;
 
       // --stdin reads the key off the pipe; otherwise it must come from the argument.
-      const readKey = (): Effect.Effect<string, KeysError> => {
+      const readKey = (): Effect.Effect<string, KeysError, Stdio> => {
         if (stdin) return readStdin;
         return Effect.fromOption(key).pipe(
           Effect.mapError(() =>

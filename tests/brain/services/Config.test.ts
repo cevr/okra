@@ -1,5 +1,5 @@
 import { describe, it, expect } from "effect-bun-test";
-import { ConfigProvider, Effect, Layer, Option } from "effect";
+import { ConfigProvider, Effect, Layer, Option, Schema } from "effect";
 import type { FileSystem } from "effect/FileSystem";
 import { layerNoop } from "effect/FileSystem";
 import { PlatformError, SystemError } from "effect/PlatformError";
@@ -7,6 +7,17 @@ import * as BunPath from "@effect/platform-bun/BunPath";
 import * as BunFileSystem from "@effect/platform-bun/BunFileSystem";
 import * as BunChildProcessSpawner from "@effect/platform-bun/BunChildProcessSpawner";
 import { ConfigService } from "../../../src/brain/services/Config.js";
+
+const encodeConfigFileJson = Schema.encodeSync(
+  Schema.fromJsonString(
+    Schema.Struct({
+      globalVault: Schema.optional(Schema.String),
+      defaultProvider: Schema.optional(Schema.String),
+    }),
+  ),
+);
+
+const existsOnly = (target: string) => (path: string) => Effect.succeed(path === target);
 
 const notFound = () =>
   Effect.fail(
@@ -35,12 +46,16 @@ const spawnerLayer = BunChildProcessSpawner.layer.pipe(
   Layer.provide(Layer.mergeAll(BunFileSystem.layer, BunPath.layer)),
 );
 
+const fsLayerFor = (fsOverrides?: Partial<FileSystem>) =>
+  Option.match(Option.fromUndefinedOr(fsOverrides), {
+    onNone: () => noopFs,
+    onSome: (overrides) => layerNoop(overrides),
+  });
+
 const makeTestLayer = (env: Record<string, string>, fsOverrides?: Partial<FileSystem>) =>
   Layer.mergeAll(
     ConfigService.layer.pipe(
-      Layer.provide(
-        Layer.mergeAll(fsOverrides ? layerNoop(fsOverrides) : noopFs, BunPath.layer, spawnerLayer),
-      ),
+      Layer.provide(Layer.mergeAll(fsLayerFor(fsOverrides), BunPath.layer, spawnerLayer)),
     ),
     envLayer(env),
   );
@@ -84,7 +99,8 @@ describe("ConfigService", () => {
             { HOME: "/test-home" },
             {
               exists: () => Effect.succeed(true),
-              readFileString: () => Effect.succeed(JSON.stringify({ globalVault: "/my/vault" })),
+              readFileString: () =>
+                Effect.succeed(encodeConfigFileJson({ globalVault: "/my/vault" })),
               writeFileString: () => Effect.void,
               makeDirectory: () => Effect.void,
             },
@@ -127,7 +143,8 @@ describe("ConfigService", () => {
             { HOME: "/test-home" },
             {
               exists: () => Effect.succeed(true),
-              readFileString: () => Effect.succeed(JSON.stringify({ defaultProvider: "codex" })),
+              readFileString: () =>
+                Effect.succeed(encodeConfigFileJson({ defaultProvider: "codex" })),
               writeFileString: () => Effect.void,
               makeDirectory: () => Effect.void,
             },
@@ -151,10 +168,7 @@ describe("ConfigService", () => {
           makeTestLayer(
             { CLAUDE_PROJECT_DIR: "/projects/myapp" },
             {
-              exists: (path) =>
-                path === "/projects/myapp/brain/index.md"
-                  ? Effect.succeed(true)
-                  : Effect.succeed(false),
+              exists: existsOnly("/projects/myapp/brain/index.md"),
               readFileString: () => notFound(),
               writeFileString: () => Effect.void,
               makeDirectory: () => Effect.void,

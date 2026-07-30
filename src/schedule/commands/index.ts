@@ -20,10 +20,19 @@ const parseUntilDate = Effect.fn("parseUntilDate")(function* (input: string) {
       code: "INVALID_DATE",
     });
   }
-  // If date-only (no time component), set to end of day (UTC).
-  const finalMs = /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? baseMs + 86_400_000 - 1 : baseMs;
-  return DateTime.formatIso(DateTime.makeUnsafe(finalMs));
+  // A date without a time means "any moment that day", so aim at its final millisecond (UTC).
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(trimmed);
+  if (isDateOnly) {
+    return DateTime.formatIso(DateTime.makeUnsafe(baseMs + 86_400_000 - 1));
+  }
+  return DateTime.formatIso(DateTime.makeUnsafe(baseMs));
 });
+
+/** An empty stop-condition list is stored as absent rather than as `[]`. */
+const nonEmptyOrUndefined = <A>(items: ReadonlyArray<A>): ReadonlyArray<A> | undefined => {
+  if (items.length === 0) return undefined;
+  return items;
+};
 
 const root = Command.make(
   "schedule",
@@ -95,7 +104,7 @@ const root = Command.make(
         schedule,
         cwd,
         context,
-        stopConditions: stopConditions.length > 0 ? stopConditions : undefined,
+        stopConditions: nonEmptyOrUndefined(stopConditions),
         conditionalStop,
       });
       yield* launchd.install(task);

@@ -17,6 +17,9 @@ import {
 
 const TestLayer = BunServices.layer;
 
+/** modifyState takes a sync updater, so the only way it can fault is a defect. */
+const failingUpdater = (): never => Effect.runSync(Effect.die(new Error("boom")));
+
 describe("daemon state", () => {
   describe("readState / writeState", () => {
     it.scoped("returns default state when file is missing", () =>
@@ -108,13 +111,12 @@ describe("daemon state", () => {
       }).pipe(Effect.provide(TestLayer)),
     );
 
-    it.scoped("releases the state lock when the updater throws", () =>
+    it.scoped("releases the state lock when the updater fails", () =>
       Effect.gen(function* () {
         const fs = yield* FileSystem;
         const dir = yield* fs.makeTempDirectoryScoped();
-        const exit = yield* modifyState(dir, () => {
-          throw new Error("boom");
-        }).pipe(Effect.exit);
+        // modifyState takes a sync updater, so a failing updater surfaces as a defect.
+        const exit = yield* modifyState(dir, failingUpdater).pipe(Effect.exit);
 
         expect(exit._tag).toBe("Failure");
         expect(yield* lockExists(dir, "state")).toBe(false);

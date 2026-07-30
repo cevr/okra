@@ -41,7 +41,7 @@ const makeTestConfig = (globalVault: string, projectVault: Option.Option<string>
   Layer.succeed(ConfigService, {
     globalVaultPath: Effect.succeed(globalVault),
     projectVaultPath: Effect.succeed(projectVault),
-    activeVaultPath: Effect.succeed(Option.isSome(projectVault) ? projectVault.value : globalVault),
+    activeVaultPath: Effect.succeed(Option.getOrElse(projectVault, () => globalVault)),
     currentProjectName: Effect.succeed(Option.none()),
     configFilePath: Effect.succeed("/tmp/config.json"),
     defaultProvider: Effect.succeed(Option.none()),

@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Schema } from "effect";
 import { HttpClient, HttpClientResponse } from "effect/unstable/http";
 import { describe, expect, it } from "effect-bun-test";
 import { isOpenAiImageModel } from "../../src/image/constants.js";
@@ -10,13 +10,15 @@ import { KeyStoreService } from "../../src/shared/keystore.js";
 const PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
+const encodeJsonBody = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
+
 /** Mock HttpClient that returns a fixed JSON body + status for every request. */
 const mockHttp = (status: number, body: unknown) =>
   HttpClient.make((request) =>
     Effect.succeed(
       HttpClientResponse.fromWeb(
         request,
-        new Response(JSON.stringify(body), {
+        new Response(encodeJsonBody(body), {
           status,
           headers: { "content-type": "application/json" },
         }),
@@ -163,7 +165,7 @@ const capturingHttp = (sink: CapturedRequest, body: unknown) =>
     return Effect.succeed(
       HttpClientResponse.fromWeb(
         request,
-        new Response(JSON.stringify(body), {
+        new Response(encodeJsonBody(body), {
           status: 200,
           headers: { "content-type": "application/json" },
         }),

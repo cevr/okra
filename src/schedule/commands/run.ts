@@ -4,6 +4,7 @@ import type { PlatformError } from "effect/PlatformError";
 import { Argument, Command } from "effect/unstable/cli";
 import { ScheduleError } from "../errors.js";
 import { StoreService } from "../services/Store.js";
+import type { Task } from "../services/Store.js";
 import { LaunchdService } from "../services/Launchd.js";
 import { AgentPlatformService } from "../services/AgentPlatform.js";
 import { buildPromptWithContext } from "../context.js";
@@ -42,6 +43,12 @@ const complete = Effect.fn("run.complete")(function* (id: string, reason: string
   yield* Console.error(`[okra schedule] Task ${id} completed: ${reason}`);
 });
 
+/** One-shot tasks finish when they run; recurring tasks keep their current status. */
+const resolveNextStatus = (isOneshot: boolean, current: Task["status"]): Task["status"] => {
+  if (isOneshot) return "completed";
+  return current;
+};
+
 export const run = Command.make("run", { id: Argument.string("id") }, (config) =>
   Effect.gen(function* () {
     const store = yield* StoreService;
@@ -59,7 +66,10 @@ export const run = Command.make("run", { id: Argument.string("id") }, (config) =
     let prompt = buildPromptWithContext(task.prompt, task.cwd, task.context);
 
     // Generate nonce for conditional stop
-    const nonce = task.conditionalStop !== undefined ? yield* generateNonce() : undefined;
+    let nonce: string | undefined;
+    if (task.conditionalStop !== undefined) {
+      nonce = yield* generateNonce();
+    }
 
     if (task.conditionalStop !== undefined && nonce !== undefined) {
       prompt += buildStopSignalBlock(task.conditionalStop.condition, nonce);
@@ -73,6 +83,8 @@ export const run = Command.make("run", { id: Argument.string("id") }, (config) =
 
     const newRunCount = task.runCount + 1;
     const isOneshot = task.schedule._tag === "Oneshot";
+    // A one-shot task is done the moment it runs; recurring tasks keep their status.
+    const nextStatus = resolveNextStatus(isOneshot, task.status);
 
     if (runResult._tag === "Failure") {
       const lastRunFail = (yield* DateTime.now).pipe(DateTime.formatIso);
@@ -92,7 +104,7 @@ export const run = Command.make("run", { id: Argument.string("id") }, (config) =
     yield* store.update(task.id, {
       lastRun,
       runCount: newRunCount,
-      status: isOneshot ? "completed" : task.status,
+      status: nextStatus,
     });
 
     if (isOneshot) {

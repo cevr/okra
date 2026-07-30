@@ -48,6 +48,13 @@ interface RunReflectOptions {
   readonly sourceProviders?: ReadonlyArray<Provider>;
 }
 
+const describeError = (cause: unknown): string => {
+  if (cause instanceof Error) {
+    return cause.message;
+  }
+  return String(cause);
+};
+
 const isWithinReflectLookback = (mtime: Date, nowMs: number): boolean =>
   nowMs - mtime.getTime() <= REFLECT_LOOKBACK_MS;
 
@@ -59,7 +66,8 @@ const countLines = Effect.fn("countLines")(function* (filePath: string) {
   for (let i = 0; i < content.length; i++) {
     if (content[i] === "\n") count++;
   }
-  return content[content.length - 1] === "\n" ? count : count + 1;
+  if (content[content.length - 1] === "\n") return count;
+  return count + 1;
 });
 
 const statOption = <A, E>(effect: Effect.Effect<A, E>): Effect.Effect<Option.Option<A>, never> =>
@@ -79,7 +87,8 @@ const readCodexSessionMeta = Effect.fn("readCodexSessionMeta")(function* (filePa
     const parsed = yield* Effect.try({
       try: () => {
         const decoded = decodeUnknownJson(line);
-        return isRecord(decoded) ? Option.some(decoded) : Option.none<Record<string, unknown>>();
+        if (!isRecord(decoded)) return Option.none<Record<string, unknown>>();
+        return Option.some(decoded);
       },
       catch: () => Option.none<Record<string, unknown>>(),
     });
@@ -282,6 +291,14 @@ export const scanSessions = Effect.fn("scanSessions")(function* (
   return mergeGroups(groups);
 });
 
+/** 1-based line where a `lines`-long tail of a `lineCount`-long file starts. */
+const tailOffset = (lineCount: number, lines: number): number => {
+  if (lineCount > lines) {
+    return lineCount - lines + 1;
+  }
+  return 1;
+};
+
 const buildReflectPrompt = (
   projectName: string,
   sessions: readonly SessionFile[],
@@ -294,7 +311,7 @@ const buildReflectPrompt = (
   for (const session of sorted) {
     if (remaining <= 0) break;
     const lines = Math.min(session.lineCount, remaining);
-    const offset = session.lineCount > lines ? session.lineCount - lines + 1 : 1;
+    const offset = tailOffset(session.lineCount, lines);
     entries.push(
       `- [${session.provider}] ${session.path} (lines ${String(offset)}-${String(offset + lines - 1)})`,
     );
@@ -324,7 +341,7 @@ export const runReflect = Effect.fn("runReflect")(function* (opts: RunReflectOpt
 
   const brainDir = yield* config.globalVaultPath;
   const executorId = yield* platform.resolveDaemonExecutor(
-    opts.executorProvider === undefined ? undefined : Option.some(opts.executorProvider),
+    Option.fromUndefinedOr(opts.executorProvider),
   );
   const executor = yield* platform.getProvider(executorId);
 
@@ -382,9 +399,7 @@ export const runReflect = Effect.fn("runReflect")(function* (opts: RunReflectOpt
         });
       }).pipe(
         Effect.catch((e) =>
-          Console.error(
-            `  Failed to reflect on ${group.projectName}: ${e instanceof Error ? e.message : String(e)}`,
-          ),
+          Console.error(`  Failed to reflect on ${group.projectName}: ${describeError(e)}`),
         ),
       );
     }

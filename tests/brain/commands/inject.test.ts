@@ -6,6 +6,20 @@ import { BunServices } from "@effect/platform-bun";
 import { ConfigService } from "../../../src/brain/services/Config.js";
 import { VaultService } from "../../../src/brain/services/Vault.js";
 
+const nullUnless = (present: boolean, value: string): string | null => {
+  if (present) {
+    return value;
+  }
+  return null;
+};
+
+const prefixedSection = (section: string): string => {
+  if (section.length === 0) {
+    return "";
+  }
+  return "\n" + section;
+};
+
 const makeTestConfig = (
   globalVault: string,
   projectVault: Option.Option<string> = Option.none(),
@@ -14,7 +28,7 @@ const makeTestConfig = (
   Layer.succeed(ConfigService, {
     globalVaultPath: Effect.succeed(globalVault),
     projectVaultPath: Effect.succeed(projectVault),
-    activeVaultPath: Effect.succeed(Option.isSome(projectVault) ? projectVault.value : globalVault),
+    activeVaultPath: Effect.succeed(Option.getOrElse(projectVault, () => globalVault)),
     currentProjectName: Effect.succeed(projectName),
     configFilePath: Effect.succeed("/tmp/config.json"),
     defaultProvider: Effect.succeed(Option.none()),
@@ -45,9 +59,13 @@ const runInject = (opts: { json: boolean }) =>
         }),
       );
 
-    const [globalIndex, projectIndex] = Option.isSome(projectPath)
-      ? yield* Effect.all([readIndexSafe(globalPath), readIndexSafe(projectPath.value)])
-      : [yield* readIndexSafe(globalPath), ""];
+    const readIndexes = Effect.fn("test.inject.readIndexes")(function* () {
+      if (Option.isSome(projectPath)) {
+        return yield* Effect.all([readIndexSafe(globalPath), readIndexSafe(projectPath.value)]);
+      }
+      return [yield* readIndexSafe(globalPath), ""] as const;
+    });
+    const [globalIndex, projectIndex] = yield* readIndexes();
 
     if (globalIndex.length === 0 && projectIndex.length === 0) return null;
 
@@ -72,13 +90,10 @@ const runInject = (opts: { json: boolean }) =>
     if (opts.json) {
       return {
         global: globalIndex,
-        project: Option.isSome(projectPath) && projectIndex.length > 0 ? projectIndex : null,
+        project: nullUnless(Option.isSome(projectPath) && projectIndex.length > 0, projectIndex),
         projectName: detectedProject,
-        projectNotes: projectNotes.length > 0 ? projectNotes : null,
-        index:
-          globalIndex +
-          (projectNotes.length > 0 ? "\n" + projectNotes : "") +
-          (projectIndex.length > 0 ? "\n" + projectIndex : ""),
+        projectNotes: nullUnless(projectNotes.length > 0, projectNotes),
+        index: globalIndex + prefixedSection(projectNotes) + prefixedSection(projectIndex),
       } as Record<string, unknown>;
     }
 

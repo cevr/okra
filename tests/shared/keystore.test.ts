@@ -24,9 +24,10 @@ const makeLayer = (initial: Record<string, string>, envOverrides: Record<string,
     const fs = layerNoop({
       exists: (path: string) => Effect.map(Ref.get(files), (f) => path in f),
       readFileString: (path: string) =>
-        Effect.flatMap(Ref.get(files), (f) =>
-          path in f ? Effect.succeed(f[path] as string) : notFound(),
-        ),
+        Effect.flatMap(Ref.get(files), (f) => {
+          if (path in f) return Effect.succeed(f[path] as string);
+          return notFound();
+        }),
       writeFileString: (path: string, content: string) =>
         Ref.update(files, (f) => ({ ...f, [path]: content })),
       makeDirectory: () => Effect.void,

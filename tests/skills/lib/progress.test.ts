@@ -1,9 +1,13 @@
 import { describe, expect, it } from "effect-bun-test";
 import { Effect, Ref } from "effect";
+import * as Stdio from "effect/Stdio";
 import { make } from "../../../src/skills/lib/progress.js";
 
 const captureWrites = (output: Ref.Ref<string>) => (text: string) =>
   Ref.update(output, (current) => current + text);
+
+// These tests inject `write`, so the Stdio default is never exercised — a drain layer suffices.
+const TestStdio = Stdio.layerTest({});
 
 describe("progress", () => {
   it.effect("non-TTY: prints each terminal status, including unchanged", () =>
@@ -34,7 +38,7 @@ describe("progress", () => {
       expect(text).not.toContain("pending");
       // no ANSI sequences in non-TTY mode
       expect(text).not.toContain("\x1b[");
-    }),
+    }).pipe(Effect.provide(TestStdio)),
   );
 
   it.effect("TTY: keeps an unchanged skill visible after its pending state", () =>
@@ -52,7 +56,7 @@ describe("progress", () => {
       const text = yield* Ref.get(out);
       expect(text).toContain("· unchanged");
       expect(text).toContain("stable");
-    }),
+    }).pipe(Effect.provide(TestStdio)),
   );
 
   it.effect("non-TTY: respects custom runningVerb but never emits it", () =>
@@ -71,7 +75,7 @@ describe("progress", () => {
       const text = yield* Ref.get(out);
       expect(text).toContain("installed");
       expect(text).not.toContain("installing");
-    }),
+    }).pipe(Effect.provide(TestStdio)),
   );
 
   it.effect("TTY: emits hide-cursor on start and show-cursor on finish", () =>
@@ -90,7 +94,7 @@ describe("progress", () => {
 
       const final = yield* Ref.get(out);
       expect(final).toContain("\x1b[?25h"); // show cursor
-    }),
+    }).pipe(Effect.provide(TestStdio)),
   );
 
   it.effect("TTY: redraws use cursor-up + clear-line ANSI", () =>
@@ -110,7 +114,7 @@ describe("progress", () => {
       expect(text).toContain("\x1b[2K"); // clear line
       expect(text).toContain("one");
       expect(text).toContain("two");
-    }),
+    }).pipe(Effect.provide(TestStdio)),
   );
 
   it.effect("TTY: applies color escapes (green for installed, red for failed)", () =>
@@ -128,7 +132,7 @@ describe("progress", () => {
       const text = yield* Ref.get(out);
       expect(text).toContain("\x1b[32m"); // green
       expect(text).toContain("\x1b[31m"); // red
-    }),
+    }).pipe(Effect.provide(TestStdio)),
   );
 
   it.effect("uses custom runningVerb for spinner phase in TTY mode", () =>
@@ -145,7 +149,7 @@ describe("progress", () => {
 
       const text = yield* Ref.get(out);
       expect(text).toContain("installing");
-    }),
+    }).pipe(Effect.provide(TestStdio)),
   );
 
   it.live("finish stops the ticker (no more writes after finish)", () =>
@@ -164,7 +168,7 @@ describe("progress", () => {
       const afterSleep = (yield* Ref.get(out)).length;
 
       expect(afterSleep).toBe(beforeSleep);
-    }),
+    }).pipe(Effect.provide(TestStdio)),
   );
 
   it.effect("renders all skill names provided at make()", () =>
@@ -180,6 +184,6 @@ describe("progress", () => {
       expect(text).toContain("alpha");
       expect(text).toContain("beta");
       expect(text).toContain("gamma");
-    }),
+    }).pipe(Effect.provide(TestStdio)),
   );
 });

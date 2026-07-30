@@ -1,4 +1,4 @@
-import { ConfigProvider, Effect, Layer, Redacted } from "effect";
+import { ConfigProvider, Effect, Layer, Redacted, Schema } from "effect";
 import { layerNoop } from "effect/FileSystem";
 import { PlatformError, SystemError } from "effect/PlatformError";
 import * as BunPath from "@effect/platform-bun/BunPath";
@@ -13,7 +13,18 @@ const notFound = () =>
     ),
   );
 
-const AUTH_JSON = JSON.stringify({
+const encodeAuthJson = Schema.encodeSync(
+  Schema.fromJsonString(
+    Schema.Struct({
+      tokens: Schema.Struct({ access_token: Schema.String, account_id: Schema.String }),
+    }),
+  ),
+);
+const encodeVersionJson = Schema.encodeSync(
+  Schema.fromJsonString(Schema.Struct({ latest_version: Schema.String })),
+);
+
+const AUTH_JSON = encodeAuthJson({
   tokens: { access_token: "tok-abc", account_id: "acct-123" },
 });
 
@@ -42,7 +53,7 @@ describe("CodexAuthService.load", () => {
       Effect.provide(
         makeLayer({
           "/home/u/.codex/auth.json": AUTH_JSON,
-          "/home/u/.codex/version.json": JSON.stringify({ latest_version: "0.150.0" }),
+          "/home/u/.codex/version.json": encodeVersionJson({ latest_version: "0.150.0" }),
         }),
       ),
     ),

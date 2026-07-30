@@ -10,7 +10,8 @@ import {
 
 const flagValue = (args: ReadonlyArray<string>, flag: string): string | undefined => {
   const index = args.indexOf(flag);
-  return index === -1 ? undefined : args[index + 1];
+  if (index === -1) return undefined;
+  return args[index + 1];
 };
 
 describe("AgentPlatform helpers", () => {

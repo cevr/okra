@@ -30,6 +30,9 @@ const assistantMsg = (content: string) => ({
   message: { content },
 });
 
+const nonEmptyDate = (date: string | undefined): Option.Option<string> =>
+  Option.fromUndefinedOr(date).pipe(Option.filter((value) => value.length > 0));
+
 // Thin wrapper around the real extractConversations
 const runExtract = (
   inputDir: string,
@@ -38,8 +41,8 @@ const runExtract = (
 ) =>
   extractConversations(inputDir, outputDir, {
     batches: opts.batches,
-    from: opts.from ? Option.some(opts.from) : Option.none(),
-    to: opts.to ? Option.some(opts.to) : Option.none(),
+    from: nonEmptyDate(opts.from),
+    to: nonEmptyDate(opts.to),
   });
 
 describe("extract", () => {

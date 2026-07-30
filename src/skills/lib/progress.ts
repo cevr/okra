@@ -1,4 +1,5 @@
-import { Config, ConfigProvider, Effect, Fiber, Option, Ref, Schedule } from "effect";
+import { Config, ConfigProvider, Effect, Fiber, Option, Ref, Schedule, Stream } from "effect";
+import { Stdio } from "effect/Stdio";
 
 export type SkillStatus =
   | "pending"
@@ -24,11 +25,6 @@ const readNoColor = Config.option(Config.string("NO_COLOR"))
     Effect.map(Option.isSome),
     Effect.orElseSucceed(() => false),
   );
-
-const defaultWrite = (text: string) =>
-  Effect.sync(() => {
-    process.stderr.write(text);
-  });
 
 const ansi = {
   hideCursor: "\x1b[?25l",
@@ -136,13 +132,18 @@ export interface MakeOptions {
 export const make = (
   names: ReadonlyArray<string>,
   options: MakeOptions = {},
-): Effect.Effect<Progress, never, never> =>
+): Effect.Effect<Progress, never, Stdio> =>
   Effect.gen(function* () {
     const runningVerb = options.runningVerb ?? "updating";
     const noColor = yield* readNoColor;
     const isTty: boolean = process.stderr.isTTY ?? false;
     const defaultIsTTY = isTty && !noColor;
     const tty = options.tty ?? defaultIsTTY;
+    const stdio = yield* Stdio;
+    // Progress output goes to stderr so it never pollutes piped stdout.
+    const stderrSink = stdio.stderr({ endOnDone: false });
+    const defaultWrite = (text: string): Effect.Effect<void> =>
+      Stream.run(Stream.succeed(text), stderrSink).pipe(Effect.ignore);
     const write = options.write ?? defaultWrite;
     const color = tty;
 

@@ -1,46 +1,25 @@
-import { Clock, Effect, Layer, Context } from "effect";
+import { Clock, Effect, Layer, Context, Stream } from "effect";
+import { FileSystem } from "effect/FileSystem";
+import type { PlatformError } from "effect/PlatformError";
+import * as ChildProcess from "effect/unstable/process/ChildProcess";
+import type { ChildProcessHandle } from "effect/unstable/process/ChildProcessSpawner";
+import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner";
 import { DEFAULT_TIMEOUT_SECONDS, KILL_GRACE_PERIOD_MS } from "../constants.js";
 import { CounselError, ErrorCode } from "../errors.js";
 import type { ExecutionResult, Invocation } from "../types.js";
 
-const spawnFailed = (error: unknown): CounselError => {
-  if (error instanceof Error) {
-    return CounselError.make({ message: error.message, code: ErrorCode.SPAWN_FAILED });
-  }
-  return CounselError.make({ message: String(error), code: ErrorCode.SPAWN_FAILED });
-};
+const spawnFailed = (error: PlatformError): CounselError =>
+  CounselError.make({ message: error.message, code: ErrorCode.SPAWN_FAILED });
 
-const spawnProcess = (invocation: Invocation, outputFile: string, stderrFile: string) =>
-  Effect.try({
-    try: () =>
-      Bun.spawn([invocation.cmd, ...invocation.args], {
-        cwd: invocation.cwd,
-        stdin: "ignore",
-        stdout: Bun.file(outputFile),
-        stderr: Bun.file(stderrFile),
-      }),
-    catch: spawnFailed,
-  });
+/** SIGTERM, then SIGKILL after the grace period. Forked so callers do not block on it. */
+const terminate = (proc: ChildProcessHandle) =>
+  proc.kill({ killSignal: "SIGTERM", forceKillAfter: KILL_GRACE_PERIOD_MS }).pipe(Effect.ignore);
 
-/**
- * Terminate process: SIGTERM, wait grace period, then SIGKILL.
- * Fork-and-forget so callers don't block on the grace period.
- */
-const terminate = (proc: Bun.Subprocess) =>
-  Effect.gen(function* () {
-    proc.kill("SIGTERM");
-    yield* Effect.sleep(KILL_GRACE_PERIOD_MS);
-    proc.kill("SIGKILL");
-  });
-
-const awaitExit = (proc: Bun.Subprocess): Effect.Effect<number, CounselError> =>
-  Effect.tryPromise({
-    try: () => proc.exited,
-    catch: spawnFailed,
-  });
+const awaitExit = (proc: ChildProcessHandle): Effect.Effect<number, CounselError> =>
+  proc.exitCode.pipe(Effect.mapError(spawnFailed));
 
 const waitForExit = Effect.fn("InvocationRunner.waitForExit")(function* (
-  proc: Bun.Subprocess,
+  proc: ChildProcessHandle,
   timeoutSeconds: number,
 ) {
   // Race process exit against timeout.
@@ -71,20 +50,48 @@ export class InvocationRunnerService extends Context.Service<
     ) => Effect.Effect<ExecutionResult, CounselError>;
   }
 >()("@cvr/okra/counsel/services/InvocationRunner/InvocationRunnerService") {
-  static layer: Layer.Layer<InvocationRunnerService> = Layer.succeed(InvocationRunnerService, {
-    execute: (invocation, outputFile, stderrFile, timeoutSeconds = DEFAULT_TIMEOUT_SECONDS) =>
+  static layer: Layer.Layer<InvocationRunnerService, never, ChildProcessSpawner | FileSystem> =
+    Layer.effect(
+      InvocationRunnerService,
       Effect.gen(function* () {
-        const startedAt = yield* Clock.currentTimeMillis;
-        const proc = yield* spawnProcess(invocation, outputFile, stderrFile);
-        const execution = yield* waitForExit(proc, timeoutSeconds);
-        const finishedAt = yield* Clock.currentTimeMillis;
+        const spawner = yield* ChildProcessSpawner;
+        const fs = yield* FileSystem;
+
         return {
-          exitCode: execution.exitCode,
-          durationMs: finishedAt - startedAt,
-          timedOut: execution.timedOut,
+          execute: (invocation, outputFile, stderrFile, timeoutSeconds = DEFAULT_TIMEOUT_SECONDS) =>
+            Effect.gen(function* () {
+              const startedAt = yield* Clock.currentTimeMillis;
+              const proc = yield* spawner
+                .spawn(
+                  ChildProcess.make(invocation.cmd, [...invocation.args], {
+                    cwd: invocation.cwd,
+                    stdin: "ignore",
+                    stdout: "pipe",
+                    stderr: "pipe",
+                  }),
+                )
+                .pipe(Effect.mapError(spawnFailed));
+
+              // Drain both streams to their log files concurrently with the wait,
+              // otherwise the child blocks once the pipe buffers fill.
+              yield* Effect.forkScoped(
+                Stream.run(proc.stdout, fs.sink(outputFile)).pipe(Effect.ignore),
+              );
+              yield* Effect.forkScoped(
+                Stream.run(proc.stderr, fs.sink(stderrFile)).pipe(Effect.ignore),
+              );
+
+              const execution = yield* waitForExit(proc, timeoutSeconds);
+              const finishedAt = yield* Clock.currentTimeMillis;
+              return {
+                exitCode: execution.exitCode,
+                durationMs: finishedAt - startedAt,
+                timedOut: execution.timedOut,
+              };
+            }).pipe(Effect.scoped),
         };
       }),
-  });
+    );
 
   static layerTest = (
     impl: Partial<Context.Service.Shape<typeof InvocationRunnerService>> = {},
