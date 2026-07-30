@@ -40,7 +40,7 @@ const logProgress = (fs: FileSystem, daemonLog: string, message: string) =>
     const stamp = yield* nowIso;
     yield* fs
       .writeFileString(daemonLog, `[${stamp}] ${message}\n`, { flag: "a" })
-      .pipe(Effect.catch(() => Effect.void));
+      .pipe(Effect.ignore);
   });
 
 const hashFiles = (fs: FileSystem, files: ReadonlyArray<string>) =>
@@ -570,7 +570,7 @@ const consumeSteers = (
           }),
         );
       }
-      yield* fs.remove(filePath).pipe(Effect.catch(() => Effect.void));
+      yield* fs.remove(filePath).pipe(Effect.ignore);
     }
     return steers as ReadonlyArray<SteerEvent>;
   });

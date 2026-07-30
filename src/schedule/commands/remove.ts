@@ -16,7 +16,7 @@ export const remove = Command.make("remove", { id: Argument.string("id") }, (con
 
     yield* launchd.uninstall(config.id);
     yield* store.remove(config.id);
-    yield* fs.remove(path.join(logsDir, `${config.id}.log`)).pipe(Effect.catch(() => Effect.void));
+    yield* fs.remove(path.join(logsDir, `${config.id}.log`)).pipe(Effect.ignore);
     yield* Console.error(`Removed task ${config.id}`);
   }),
 ).pipe(Command.withDescription("Remove a scheduled task"));

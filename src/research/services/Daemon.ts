@@ -58,13 +58,13 @@ export class DaemonService extends Context.Service<
                 });
               }
               // Stale pid file — clean up
-              yield* fs.remove(paths.daemonPid).pipe(Effect.catch(() => Effect.void));
+              yield* fs.remove(paths.daemonPid).pipe(Effect.ignore);
             }
 
             // Ensure log file's parent exists
             yield* fs
               .makeDirectory(path.dirname(paths.daemonLog), { recursive: true })
-              .pipe(Effect.catch(() => Effect.void));
+              .pipe(Effect.ignore);
 
             // Spawn detached research _loop process; Bun.file handles append-mode log target.
             const selfPath = process.execPath;
@@ -105,7 +105,7 @@ export class DaemonService extends Context.Service<
               .pipe(Effect.orElseSucceed(() => ""));
             const pid = Number(pidContent.trim());
             if (!(yield* isProcessRunning(pid))) {
-              yield* fs.remove(paths.daemonPid).pipe(Effect.catch(() => Effect.void));
+              yield* fs.remove(paths.daemonPid).pipe(Effect.ignore);
               return yield* ResearchError.make({
                 message: `Daemon not running (stale pid ${pid})`,
                 code: ErrorCode.DAEMON_NOT_RUNNING,
@@ -135,7 +135,7 @@ export class DaemonService extends Context.Service<
               .exists(paths.daemonPid)
               .pipe(Effect.orElseSucceed(() => false));
             if (stillExists) {
-              yield* fs.remove(paths.daemonPid).pipe(Effect.catch(() => Effect.void));
+              yield* fs.remove(paths.daemonPid).pipe(Effect.ignore);
             }
           }),
 
@@ -180,7 +180,7 @@ export class DaemonService extends Context.Service<
               .exists(paths.daemonPid)
               .pipe(Effect.orElseSucceed(() => false));
             if (pidExists) {
-              yield* fs.remove(paths.daemonPid).pipe(Effect.catch(() => Effect.void));
+              yield* fs.remove(paths.daemonPid).pipe(Effect.ignore);
             }
           }),
       };

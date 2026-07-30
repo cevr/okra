@@ -267,14 +267,15 @@ export const acquireLock = Effect.fn("acquireLock")(function* (brainDir: string,
   const content = yield* fs.readFileString(lock).pipe(Effect.orElseSucceed(() => ""));
   const holderPid = parseInt(content.trim(), 10);
 
-  if (!Number.isNaN(holderPid) && isProcessAlive(holderPid)) {
+  const holderAlive = !Number.isNaN(holderPid) && (yield* isProcessAlive(holderPid));
+  if (holderAlive) {
     return yield* BrainError.make({
       message: `Daemon job "${job}" is already running (PID ${holderPid}). If stale, remove ${lock}`,
       code: "LOCKED",
     });
   }
 
-  yield* fs.remove(lock).pipe(Effect.catch(() => Effect.void));
+  yield* fs.remove(lock).pipe(Effect.ignore);
 
   yield* fs.writeFileString(lock, pid, { flag: "wx" }).pipe(
     Effect.mapError(() =>
@@ -300,7 +301,7 @@ export const releaseLock = Effect.fn("releaseLock")(function* (brainDir: string,
   const path = yield* Path;
   const lock = lockPath(brainDir, job, path);
 
-  yield* fs.remove(lock).pipe(Effect.catch(() => Effect.void));
+  yield* fs.remove(lock).pipe(Effect.ignore);
 });
 
 // --- Utilities ---
@@ -378,11 +379,9 @@ export const deriveProjectName = Effect.fn("deriveProjectName")(function* (dirNa
   return dirName.split("-").at(-1) ?? dirName;
 });
 
-const isProcessAlive = (pid: number): boolean => {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-};
+/** Signal 0 probes liveness without delivering a signal; ESRCH/EPERM means the PID is gone. */
+const isProcessAlive = (pid: number): Effect.Effect<boolean> =>
+  Effect.try(() => process.kill(pid, 0)).pipe(
+    Effect.as(true),
+    Effect.orElseSucceed(() => false),
+  );

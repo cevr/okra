@@ -213,7 +213,7 @@ export const uninstallPlist = Effect.fn("uninstallPlist")(function* (job: Daemon
     yield* launchctlUnload(spawner, plist, label(job));
   }
 
-  yield* fs.remove(plist).pipe(Effect.catch(() => Effect.void));
+  yield* fs.remove(plist).pipe(Effect.ignore);
 });
 
 /** Check if a launchd job is loaded */
@@ -250,7 +250,7 @@ export const rotateLogs = Effect.fn("rotateLogs")(function* () {
 
     const lines = content.split("\n");
     const kept = lines.slice(-KEEP_LINES).join("\n");
-    yield* fs.writeFileString(filePath, kept).pipe(Effect.catch(() => Effect.void));
+    yield* fs.writeFileString(filePath, kept).pipe(Effect.ignore);
     yield* Console.error(`  Rotated ${file} (truncated to ${String(KEEP_LINES)} lines)`);
   }
 });
@@ -362,7 +362,7 @@ export const uninstallUnifiedPlist = Effect.fn("uninstallUnifiedPlist")(function
     yield* launchctlUnload(spawner, plist, UNIFIED_LABEL);
   }
 
-  yield* fs.remove(plist).pipe(Effect.catch(() => Effect.void));
+  yield* fs.remove(plist).pipe(Effect.ignore);
 });
 
 /** Check if the unified scheduler is loaded */
@@ -374,6 +374,6 @@ export const isUnifiedLoaded = Effect.fn("isUnifiedLoaded")(function* () {
 /** Remove legacy per-job plists (migration from 3-plist to unified) */
 export const uninstallLegacyPlists = Effect.fn("uninstallLegacyPlists")(function* () {
   for (const job of ALL_JOBS) {
-    yield* uninstallPlist(job).pipe(Effect.catch(() => Effect.void));
+    yield* uninstallPlist(job).pipe(Effect.ignore);
   }
 });

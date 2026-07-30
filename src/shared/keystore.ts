@@ -143,7 +143,7 @@ export class KeyStoreService extends Context.Service<
           ),
         );
         // Restrict to the owner — the file holds secrets.
-        yield* fs.chmod(file, 0o600).pipe(Effect.catch(() => Effect.void));
+        yield* fs.chmod(file, 0o600).pipe(Effect.ignore);
         return file;
       });
 

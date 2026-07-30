@@ -348,7 +348,7 @@ export const runReflect = Effect.fn("runReflect")(function* (opts: RunReflectOpt
         );
 
         const projectDir = path.join(brainDir, "projects", group.projectName);
-        yield* vault.init(projectDir, { minimal: true }).pipe(Effect.catch(() => Effect.void));
+        yield* vault.init(projectDir, { minimal: true }).pipe(Effect.ignore);
 
         const prompt = buildReflectPrompt(group.projectName, group.sessions, brainDir);
         yield* executor.invoke(prompt, "standard", brainDir);

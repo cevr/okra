@@ -162,7 +162,7 @@ class LaunchdService extends Context.Service<
         const loaded = yield* isLoaded(task.id);
         if (loaded) {
           // Best-effort unload — job may already be unloaded
-          yield* launchctlUnload(plist).pipe(Effect.catch(() => Effect.void));
+          yield* launchctlUnload(plist).pipe(Effect.ignore);
         }
 
         yield* fs.writeFileString(plist, content).pipe(
@@ -197,10 +197,8 @@ class LaunchdService extends Context.Service<
         if (loadResult.code !== 0) {
           // Rollback: restore old plist and re-load it
           if (oldContent._tag === "Some") {
-            yield* fs
-              .writeFileString(plist, oldContent.value)
-              .pipe(Effect.catch(() => Effect.void));
-            yield* launchctlUnload(plist).pipe(Effect.catch(() => Effect.void));
+            yield* fs.writeFileString(plist, oldContent.value).pipe(Effect.ignore);
+            yield* launchctlUnload(plist).pipe(Effect.ignore);
             yield* spawner
               .exitCode(
                 ChildProcess.make("launchctl", ["load", plist], {
@@ -208,7 +206,7 @@ class LaunchdService extends Context.Service<
                   stderr: "ignore",
                 }),
               )
-              .pipe(Effect.catch(() => Effect.void));
+              .pipe(Effect.ignore);
           }
           return yield* ScheduleError.make({
             message: `Cannot load ${label(task.id)}: ${loadResult.stderr || `exit code ${loadResult.code}`}`,
@@ -233,7 +231,7 @@ class LaunchdService extends Context.Service<
             }
           }
         }
-        yield* fs.remove(plist).pipe(Effect.catch(() => Effect.void));
+        yield* fs.remove(plist).pipe(Effect.ignore);
       });
 
       return { install, uninstall, isLoaded };
