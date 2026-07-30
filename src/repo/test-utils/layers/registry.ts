@@ -1,4 +1,4 @@
-import { Effect, Layer, Ref } from "effect";
+import { Effect, Layer, Option, Ref } from "effect";
 import { RegistryService } from "../../services/registry.js";
 import type { PackageSpec } from "../../types.js";
 import { parseSpec } from "../../parsing.js";
@@ -33,9 +33,10 @@ export function createMockRegistryService(options: CreateMockRegistryServiceOpti
   const stateRef = Ref.makeUnsafe(state);
 
   const record = (method: string, args: unknown, result?: unknown): Effect.Effect<void> =>
-    sequenceRef !== undefined
-      ? recordCall(sequenceRef, { service: "registry", method, args, result })
-      : Effect.void;
+    Option.match(Option.fromUndefinedOr(sequenceRef), {
+      onNone: () => Effect.void,
+      onSome: (ref) => recordCall(ref, { service: "registry", method, args, result }),
+    });
 
   const layer = Layer.succeed(RegistryService, {
     parseSpec: (input) =>

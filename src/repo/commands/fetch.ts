@@ -161,11 +161,11 @@ export const fetch = Command.make(
 );
 
 const autoPrune = pruneByAge(AUTO_PRUNE_DAYS).pipe(
-  Effect.andThen((pruned) =>
-    pruned.length > 0
-      ? Console.error(
-          `Pruned ${pruned.length} stale repo${pruned.length === 1 ? "" : "s"} (>${AUTO_PRUNE_DAYS}d)`,
-        )
-      : Effect.void,
-  ),
+  Effect.andThen((pruned) => {
+    if (pruned.length === 0) return Effect.void;
+    if (pruned.length === 1) {
+      return Console.error(`Pruned 1 stale repo (>${AUTO_PRUNE_DAYS}d)`);
+    }
+    return Console.error(`Pruned ${pruned.length} stale repos (>${AUTO_PRUNE_DAYS}d)`);
+  }),
 );

@@ -47,7 +47,12 @@ export const SkillStoreLive = Layer.effect(
     const pathService = yield* Path.Path;
 
     const configDir = yield* skillsDirConfig;
-    const dir = Option.isSome(configDir) ? configDir.value : yield* defaultSkillsDir;
+    let dir: string;
+    if (Option.isSome(configDir)) {
+      dir = configDir.value;
+    } else {
+      dir = yield* defaultSkillsDir;
+    }
 
     const list: Effect.Effect<ReadonlyArray<InstalledSkill>> = Effect.gen(function* () {
       const exists = yield* fs.exists(dir);

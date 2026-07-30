@@ -3,11 +3,12 @@ import { DEFAULT_TIMEOUT_SECONDS, KILL_GRACE_PERIOD_MS } from "../constants.js";
 import { CounselError, ErrorCode } from "../errors.js";
 import type { ExecutionResult, Invocation } from "../types.js";
 
-const spawnFailed = (error: unknown): CounselError =>
-  new CounselError({
-    message: error instanceof Error ? error.message : String(error),
-    code: ErrorCode.SPAWN_FAILED,
-  });
+const spawnFailed = (error: unknown): CounselError => {
+  if (error instanceof Error) {
+    return new CounselError({ message: error.message, code: ErrorCode.SPAWN_FAILED });
+  }
+  return new CounselError({ message: String(error), code: ErrorCode.SPAWN_FAILED });
+};
 
 const spawnProcess = (invocation: Invocation, outputFile: string, stderrFile: string) =>
   Effect.try({

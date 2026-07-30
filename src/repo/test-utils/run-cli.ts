@@ -11,6 +11,13 @@ import type { ExpectedCall, RecordedCall } from "./sequence.js";
 
 export type { ExpectedCall } from "./sequence.js";
 
+const readTag = (failure: unknown): unknown => {
+  if (typeof failure === "object" && failure !== null && "_tag" in failure) {
+    return (failure as { _tag: unknown })._tag;
+  }
+  return undefined;
+};
+
 function assertSequenceContains(actual: RecordedCall[], expected: ExpectedCall[]): void {
   let actualIndex = 0;
 
@@ -75,11 +82,7 @@ function createCliTestRunner(args: string[], layerOptions: CreateTestLayerOption
         const result = yield* run;
         expect(Result.isFailure(result)).toBe(true);
         if (Result.isFailure(result)) {
-          const failure: unknown = result.failure;
-          const tag =
-            typeof failure === "object" && failure !== null && "_tag" in failure
-              ? (failure as { _tag: unknown })._tag
-              : undefined;
+          const tag = readTag(result.failure);
           expect(tag).toBe(errorTag);
         }
       }),

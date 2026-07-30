@@ -48,7 +48,10 @@ function filterMdFiles(entries: string[]): string[] {
 
 function dirPrefix(f: string): string {
   const slash = f.indexOf("/");
-  return slash === -1 ? "" : f.slice(0, slash);
+  if (slash === -1) {
+    return "";
+  }
+  return f.slice(0, slash);
 }
 
 function extractSections(files: string[]): Record<string, number> {
@@ -132,9 +135,14 @@ export class VaultService extends Context.Service<
           }
         }
 
-        const filesToCreate = minimal
-          ? { "index.md": VAULT_FILES["index.md"] ?? "# Brain\n" }
-          : VAULT_FILES;
+        function selectFilesToCreate(): Record<string, string> {
+          if (minimal) {
+            return { "index.md": VAULT_FILES["index.md"] ?? "# Brain\n" };
+          }
+          return VAULT_FILES;
+        }
+
+        const filesToCreate = selectFilesToCreate();
 
         for (const [filePath, content] of Object.entries(filesToCreate)) {
           const fullPath = path.join(vaultPath, filePath);

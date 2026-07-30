@@ -201,9 +201,12 @@ export class KeyStoreService extends Context.Service<
     Layer.succeed(KeyStoreService, {
       resolve: (name, envVar) => {
         const value = env[envVar] ?? keys[name];
-        return value === undefined
-          ? Effect.fail(new KeyStoreError({ message: `No key for "${name}".`, code: "MISSING" }))
-          : Effect.succeed(Redacted.make(value));
+        if (value === undefined) {
+          return Effect.fail(
+            new KeyStoreError({ message: `No key for "${name}".`, code: "MISSING" }),
+          );
+        }
+        return Effect.succeed(Redacted.make(value));
       },
       store: () => Effect.succeed("/test/.okra/keys.json"),
       list: Effect.succeed(Object.keys(keys).sort()),
@@ -214,11 +217,10 @@ export class KeyStoreService extends Context.Service<
           return Effect.succeed({ source: "env", masked: Option.some(maskSecret(fromEnv)) });
         }
         const stored = keys[name];
-        return Effect.succeed(
-          stored !== undefined && stored.length > 0
-            ? { source: "stored", masked: Option.some(maskSecret(stored)) }
-            : { source: "missing", masked: Option.none() },
-        );
+        if (stored !== undefined && stored.length > 0) {
+          return Effect.succeed({ source: "stored", masked: Option.some(maskSecret(stored)) });
+        }
+        return Effect.succeed({ source: "missing", masked: Option.none() });
       },
     });
 }

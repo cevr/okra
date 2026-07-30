@@ -38,8 +38,13 @@ export const formatBytes = (bytes: number): string => {
 
 // Utility to format relative time. Caller supplies `nowMs` so we stay
 // off the global clock — pass `yield* Clock.currentTimeMillis` from inside Effect.
+const toEpochMs = (isoOrMs: string | number): number => {
+  if (typeof isoOrMs === "number") return isoOrMs;
+  return Date.parse(isoOrMs);
+};
+
 export const formatRelativeTime = (isoOrMs: string | number, nowMs: number): string => {
-  const targetMs = typeof isoOrMs === "number" ? isoOrMs : Date.parse(isoOrMs);
+  const targetMs = toEpochMs(isoOrMs);
   const diffMs = nowMs - targetMs;
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
@@ -51,9 +56,21 @@ export const formatRelativeTime = (isoOrMs: string | number, nowMs: number): str
   return `${String(Math.floor(diffDays / 365))} years ago`;
 };
 
+// GitHub is the default registry, so its specs carry no prefix.
+const registryPrefix = (registry: Registry): string => {
+  if (registry === "github") return "";
+  return `${registry}:`;
+};
+
+// GitHub repo names are case-insensitive; every other registry is case-sensitive.
+const normalizeName = (spec: PackageSpec): string => {
+  if (spec.registry === "github") return spec.name.toLowerCase();
+  return spec.name;
+};
+
 // Spec display helper
 export const specToString = (spec: PackageSpec): string => {
-  const prefix = spec.registry === "github" ? "" : `${spec.registry}:`;
+  const prefix = registryPrefix(spec.registry);
   const version = Option.match(spec.version, {
     onNone: () => "",
     onSome: (v) => `@${v}`,
@@ -64,8 +81,8 @@ export const specToString = (spec: PackageSpec): string => {
 // Shared spec matching logic — case-insensitive for GitHub
 export const specMatches = (a: PackageSpec, b: PackageSpec): boolean => {
   if (a.registry !== b.registry) return false;
-  const aName = a.registry === "github" ? a.name.toLowerCase() : a.name;
-  const bName = b.registry === "github" ? b.name.toLowerCase() : b.name;
+  const aName = normalizeName(a);
+  const bName = normalizeName(b);
   if (aName !== bName) return false;
   const aVersion = Option.getOrElse(a.version, () => "");
   const bVersion = Option.getOrElse(b.version, () => "");

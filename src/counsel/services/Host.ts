@@ -20,13 +20,15 @@ export class HostService extends Context.Service<
       }
       const text = yield* Effect.tryPromise({
         try: () => new Response(Bun.stdin.stream()).text(),
-        catch: (error) =>
-          new CounselError({
-            message: error instanceof Error ? error.message : String(error),
-            code: ErrorCode.READ_FAILED,
-          }),
+        catch: (error) => {
+          if (error instanceof Error) {
+            return new CounselError({ message: error.message, code: ErrorCode.READ_FAILED });
+          }
+          return new CounselError({ message: String(error), code: ErrorCode.READ_FAILED });
+        },
       });
-      return text.length > 0 ? text : undefined;
+      if (text.length > 0) return text;
+      return undefined;
     }),
     setExitCode: (code) =>
       Effect.sync(() => {

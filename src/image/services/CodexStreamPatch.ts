@@ -39,9 +39,11 @@ export const makeCodexStatusTransform = (): TransformStream<Uint8Array, Uint8Arr
   const encoder = new TextEncoder();
   let buffer = "";
 
-  const rewrite = (event: string): string =>
+  const rewrite = (event: string): string => {
     // Fast path: skip the regex unless the literal substring is present.
-    event.includes(`"generating"`) ? event.replace(GENERATING_RE, IN_PROGRESS) : event;
+    if (event.includes(`"generating"`)) return event.replace(GENERATING_RE, IN_PROGRESS);
+    return event;
+  };
 
   return new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, controller) {

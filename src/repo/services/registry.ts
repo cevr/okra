@@ -56,6 +56,12 @@ const registryError = (registry: string, operation: string, cause: unknown) =>
 const networkError = (url: string, cause: unknown) =>
   new RepoError({ message: `Network request failed: ${url}: ${String(cause)}`, code: "NETWORK" });
 
+// Registry tags are usually prefixed with "v"; only add it when it is absent.
+const toGitRef = (version: string): string => {
+  if (version.startsWith("v")) return version;
+  return `v${version}`;
+};
+
 // Service interface
 export class RegistryService extends Context.Service<
   RegistryService,
@@ -73,10 +79,12 @@ export class RegistryService extends Context.Service<
       const fsService = yield* FileSystem.FileSystem;
       const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
 
-      const httpGet = (url: string, headers?: Record<string, string>) =>
-        client
-          .get(url, headers !== undefined ? { headers } : undefined)
-          .pipe(Effect.mapError((cause) => networkError(url, cause)));
+      const httpGet = (url: string, headers?: Record<string, string>) => {
+        const options = Option.getOrUndefined(
+          Option.fromUndefinedOr(headers).pipe(Option.map((h) => ({ headers: h }))),
+        );
+        return client.get(url, options).pipe(Effect.mapError((cause) => networkError(url, cause)));
+      };
 
       const cloneFromRepoInfo = (
         info: RepoInfo,
@@ -183,13 +191,10 @@ export class RegistryService extends Context.Service<
           const repoInfo = extractRepoInfo(data.repository);
 
           if (Option.isSome(repoInfo)) {
-            const gitRef = resolvedVersion.startsWith("v")
-              ? resolvedVersion
-              : `v${resolvedVersion}`;
             const cloneResult = yield* cloneFromRepoInfo(
               repoInfo.value,
               destPath,
-              gitRef,
+              toGitRef(resolvedVersion),
               depth,
             ).pipe(Effect.result);
 
@@ -208,11 +213,10 @@ export class RegistryService extends Context.Service<
 
       const fetchPypi = (spec: PackageSpec, destPath: string, depth?: number) =>
         Effect.gen(function* () {
-          const version = Option.getOrUndefined(spec.version);
-          const url =
-            version !== undefined
-              ? `https://pypi.org/pypi/${spec.name}/${version}/json`
-              : `https://pypi.org/pypi/${spec.name}/json`;
+          const url = Option.match(spec.version, {
+            onNone: () => `https://pypi.org/pypi/${spec.name}/json`,
+            onSome: (version) => `https://pypi.org/pypi/${spec.name}/${version}/json`,
+          });
 
           const response = yield* httpGet(url);
 
@@ -230,14 +234,10 @@ export class RegistryService extends Context.Service<
           const repoInfo = extractRepoInfoFromPypi(data.info);
 
           if (Option.isSome(repoInfo)) {
-            const resolvedVersion = data.info.version;
-            const gitRef = resolvedVersion.startsWith("v")
-              ? resolvedVersion
-              : `v${resolvedVersion}`;
             const cloneResult = yield* cloneFromRepoInfo(
               repoInfo.value,
               destPath,
-              gitRef,
+              toGitRef(data.info.version),
               depth,
             ).pipe(Effect.result);
 
@@ -277,8 +277,10 @@ export class RegistryService extends Context.Service<
           );
 
           const version = Option.getOrUndefined(spec.version);
-          const versionInfo =
-            version !== undefined ? data.versions.find((v) => v.num === version) : data.versions[0];
+          const versionInfo = Option.match(spec.version, {
+            onNone: () => data.versions[0],
+            onSome: (v) => data.versions.find((entry) => entry.num === v),
+          });
 
           if (versionInfo === undefined) {
             return yield* registryError(
@@ -288,20 +290,15 @@ export class RegistryService extends Context.Service<
             );
           }
 
-          const repoInfoA = extractRepoInfo(data.crate.repository);
-          const repoInfo = Option.isSome(repoInfoA)
-            ? repoInfoA
-            : extractRepoInfo(data.crate.homepage);
+          const repoInfo = extractRepoInfo(data.crate.repository).pipe(
+            Option.orElse(() => extractRepoInfo(data.crate.homepage)),
+          );
 
           if (Option.isSome(repoInfo)) {
-            const resolvedVersion = versionInfo.num;
-            const gitRef = resolvedVersion.startsWith("v")
-              ? resolvedVersion
-              : `v${resolvedVersion}`;
             const cloneResult = yield* cloneFromRepoInfo(
               repoInfo.value,
               destPath,
-              gitRef,
+              toGitRef(versionInfo.num),
               depth,
             ).pipe(Effect.result);
 
@@ -351,12 +348,20 @@ interface RepoInfo {
   repo: string;
 }
 
+// npm allows `repository` as either a bare URL string or an object.
+const repositoryUrl = (
+  repository: { type?: string; url?: string } | string,
+): string | undefined => {
+  if (typeof repository === "string") return repository;
+  return repository.url;
+};
+
 function extractRepoInfo(
   repository: { type?: string; url?: string } | string | undefined,
 ): Option.Option<RepoInfo> {
   if (repository === undefined) return Option.none();
 
-  const url = typeof repository === "string" ? repository : repository.url;
+  const url = repositoryUrl(repository);
   if (url === undefined) return Option.none();
 
   const hostPatterns: Array<{ host: GitHost; pattern: RegExp }> = [

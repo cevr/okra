@@ -7,6 +7,12 @@ import { toKebab } from "../lib/util.js";
 import { SkillStore } from "../services/SkillStore.js";
 import { SkillLock } from "../services/SkillLock.js";
 
+// "." means the skills live directly under the input path, not in a subdirectory.
+const resolveSearchDir = (pathService: Path.Path, absPath: string, prefix: string): string => {
+  if (prefix === ".") return absPath;
+  return pathService.join(absPath, prefix);
+};
+
 const removeByName = Effect.fn("command.remove.byName")(function* (name: string) {
   const store = yield* SkillStore;
   const lock = yield* SkillLock;
@@ -31,13 +37,14 @@ const discoverLocalSkillNames = Effect.fn("command.remove.discoverLocal")(functi
   const homeOpt = yield* Config.option(Config.string("HOME"))
     .parse(ConfigProvider.fromEnv())
     .pipe(Effect.orElseSucceed(() => Option.none<string>()));
-  const resolved = inputPath.startsWith("~")
-    ? pathService.join(
-        Option.getOrElse(homeOpt, () => ""),
-        inputPath.slice(1),
-      )
-    : inputPath;
-  const absPath = pathService.resolve(resolved);
+  const expandHome = (): string => {
+    if (!inputPath.startsWith("~")) return inputPath;
+    return pathService.join(
+      Option.getOrElse(homeOpt, () => ""),
+      inputPath.slice(1),
+    );
+  };
+  const absPath = pathService.resolve(expandHome());
 
   const exists = yield* fs.exists(absPath).pipe(Effect.orDie);
   if (!exists) {
@@ -63,7 +70,7 @@ const discoverLocalSkillNames = Effect.fn("command.remove.discoverLocal")(functi
   }
 
   for (const prefix of [...SKILL_DIR_PREFIXES, "."]) {
-    const searchDir = prefix === "." ? absPath : pathService.join(absPath, prefix);
+    const searchDir = resolveSearchDir(pathService, absPath, prefix);
     const searchExists = yield* fs.exists(searchDir).pipe(Effect.orDie);
     if (!searchExists) continue;
 

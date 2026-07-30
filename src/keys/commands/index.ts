@@ -8,11 +8,18 @@ const resolveEnvVar = (provider: string): string =>
   envVarForProvider(provider) ?? `OKRA_KEY_${provider.toUpperCase()}`;
 
 /** Map a KeyStoreError into this domain's error (its codes don't overlap 1:1). */
-const toKeysError = (e: { code: string; message: string }): KeysError =>
-  new KeysError({
-    message: e.message,
-    code: e.code === "INVALID_INPUT" ? "INVALID_INPUT" : "STORE_FAILED",
-  });
+const toKeysError = (e: { code: string; message: string }): KeysError => {
+  if (e.code === "INVALID_INPUT") {
+    return new KeysError({ message: e.message, code: "INVALID_INPUT" });
+  }
+  return new KeysError({ message: e.message, code: "STORE_FAILED" });
+};
+
+/** Human label for where a resolved key came from. */
+const describeOrigin = (source: "env" | "stored", provider: string): string => {
+  if (source === "env") return `env ${resolveEnvVar(provider)}`;
+  return "stored";
+};
 
 const providerArgument = Argument.string("provider").pipe(
   Argument.withDescription("Provider name, e.g. openai"),
@@ -41,17 +48,20 @@ const setCommand = Command.make(
     Effect.gen(function* () {
       const keyStore = yield* KeyStoreService;
 
-      const raw = stdin
-        ? yield* readStdin
-        : yield* Effect.fromOption(key).pipe(
-            Effect.mapError(
-              () =>
-                new KeysError({
-                  message: "No key provided. Pass it as an argument or pipe it with --stdin.",
-                  code: "INVALID_INPUT",
-                }),
-            ),
-          );
+      // --stdin reads the key off the pipe; otherwise it must come from the argument.
+      const readKey = (): Effect.Effect<string, KeysError> => {
+        if (stdin) return readStdin;
+        return Effect.fromOption(key).pipe(
+          Effect.mapError(
+            () =>
+              new KeysError({
+                message: "No key provided. Pass it as an argument or pipe it with --stdin.",
+                code: "INVALID_INPUT",
+              }),
+          ),
+        );
+      };
+      const raw = yield* readKey();
 
       const file = yield* keyStore.store(provider, raw).pipe(Effect.mapError(toKeysError));
       // Never echo the key; only confirm where it was written.
@@ -92,7 +102,7 @@ const getCommand = Command.make("get", { provider: providerArgument }, ({ provid
     }
 
     const masked = Option.getOrElse(status.masked, () => "");
-    const origin = status.source === "env" ? `env ${resolveEnvVar(provider)}` : "stored";
+    const origin = describeOrigin(status.source, provider);
     // Masked preview + origin on stdout — capturable, reveals nothing.
     yield* Console.log(`${masked} (${origin})`);
   }),

@@ -54,6 +54,24 @@ const extForMedia = (mediaType: string): string => {
   return "png";
 };
 
+/**
+ * Drop the entries whose value is `undefined` so spreading the result never sets
+ * an explicit `undefined` on the request body (which would override a model default).
+ */
+const omitUndefined = <T extends object>(fields: T): Partial<T> => {
+  const kept: Partial<T> = {};
+  for (const [name, value] of Object.entries(fields)) {
+    if (value !== undefined) kept[name as keyof T] = value as T[keyof T];
+  }
+  return kept;
+};
+
+/** Multiple sources repeat the `image[]` form key; a single source uses `image`. */
+const formImageKey = (imageCount: number): string => {
+  if (imageCount > 1) return "image[]";
+  return "image";
+};
+
 const toBlob = (part: ImagePart, name: string): globalThis.File => {
   // Copy into a fresh ArrayBuffer-backed view so the BlobPart type is exact
   // (a SharedArrayBuffer-backed Uint8Array is not a valid BlobPart).
@@ -163,9 +181,11 @@ export class OpenAiImagesService extends Context.Service<
             size: input.size,
             output_format: input.format,
             // Optional knobs — only sent when set, so model defaults stand otherwise.
-            ...(input.quality === undefined ? {} : { quality: input.quality }),
-            ...(input.background === undefined ? {} : { background: input.background }),
-            ...(input.n === undefined ? {} : { n: input.n }),
+            ...omitUndefined({
+              quality: input.quality,
+              background: input.background,
+              n: input.n,
+            }),
           };
           const http = HttpClientRequest.post(`${OPENAI_API_URL}/images/generations`, {
             body: HttpBody.jsonUnsafe(request),
@@ -187,8 +207,7 @@ export class OpenAiImagesService extends Context.Service<
           if (input.background !== undefined) form.append("background", input.background);
           if (input.n !== undefined) form.append("n", String(input.n));
           if (input.inputFidelity !== undefined) form.append("input_fidelity", input.inputFidelity);
-          // Multiple sources repeat the `image[]` key; a single source uses `image`.
-          const imageKey = input.images.length > 1 ? "image[]" : "image";
+          const imageKey = formImageKey(input.images.length);
           input.images.forEach((img, i) => form.append(imageKey, toBlob(img, `image-${i}`)));
           if (input.mask !== undefined) form.append("mask", toBlob(input.mask, "mask"));
 
@@ -238,5 +257,6 @@ const readApiError = Effect.fn("OpenAiImages.readApiError")(function* (
   const body = yield* response.text.pipe(Effect.orElseSucceed(() => ""));
   const decoded = yield* decodeApiErrorBody(body).pipe(Effect.option);
   if (Option.isSome(decoded)) return decoded.value.error.message;
-  return body.length > 0 ? body.slice(0, 300) : "no error detail in response";
+  if (body.length > 0) return body.slice(0, 300);
+  return "no error detail in response";
 });

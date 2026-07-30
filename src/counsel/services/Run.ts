@@ -25,7 +25,17 @@ export type RunResult =
   | { readonly _tag: "Completed"; readonly manifest: RunManifest };
 
 const trimToOption = (text: string | undefined): Option.Option<string> =>
-  text !== undefined && text.trim().length > 0 ? Option.some(text) : Option.none();
+  Option.fromUndefinedOr(text).pipe(Option.filter((value) => value.trim().length > 0));
+
+const profileForDeep = (deep: boolean): Profile => {
+  if (deep) return "deep";
+  return "standard";
+};
+
+const messageExtractorFor = (target: Provider): ((jsonl: string) => Option.Option<string>) => {
+  if (target === "codex") return extractCodexMessage;
+  return extractClaudeMessage;
+};
 
 const runStatus = (executed: {
   readonly timedOut: boolean;
@@ -147,7 +157,7 @@ export class RunService extends Context.Service<
 
         const source = yield* platform.resolveSource(input.from);
         const target = platform.resolveTarget(source);
-        const profile: Profile = input.deep ? "deep" : "standard";
+        const profile: Profile = profileForDeep(input.deep);
         const now = yield* DateTime.now;
         const suffix = yield* randomSlugSuffix;
         const slug = generateSlug(source, target, now, suffix);
@@ -209,7 +219,7 @@ export class RunService extends Context.Service<
               }),
           ),
         );
-        const extractMessage = target === "codex" ? extractCodexMessage : extractClaudeMessage;
+        const extractMessage = messageExtractorFor(target);
         const message = extractMessage(jsonl);
         yield* writeTextFile(
           outputFile,

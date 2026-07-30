@@ -19,8 +19,10 @@ const filesEqual = (a: ReadonlyArray<FileEntry>, b: ReadonlyArray<FileEntry>): b
   return true;
 };
 
-const skillDirFromPath = (skillPath: string) =>
-  skillPath === "SKILL.md" ? "" : skillPath.split("/").slice(0, -1).join("/");
+const skillDirFromPath = (skillPath: string) => {
+  if (skillPath === "SKILL.md") return "";
+  return skillPath.split("/").slice(0, -1).join("/");
+};
 
 // S1: Read ref from lock entry, not just from source string
 const resolveRepoSource = (
@@ -123,7 +125,7 @@ const findMovedSkillDir = Effect.fn("command.update.findMovedSkillDir")(function
   const match = discovered.find(
     (entry) => entry.dirName === targetDirName && entry.skillDir !== currentSkillDir,
   );
-  return match ? Option.some(match.skillDir) : Option.none<string>();
+  return Option.fromUndefinedOr(match).pipe(Option.map((m) => m.skillDir));
 });
 
 const updateSkill = Effect.fn("command.update.updateSkill")(function* (
@@ -168,21 +170,25 @@ const updateSkill = Effect.fn("command.update.updateSkill")(function* (
   }
 
   const incoming = fetched.success;
-  const newSkillPath = Option.isSome(movedTo) ? `${movedTo.value}/SKILL.md` : undefined;
 
   if (filesEqual(incoming, installed) && Option.isNone(movedTo)) {
     return Result.succeed<UpdateOk>({ status: "unchanged" });
   }
 
   yield* store.syncDir(name, incoming);
-  return Result.succeed<UpdateOk>({
-    status: Option.isSome(movedTo) ? "moved" : "updated",
-    skillPath: newSkillPath,
-  });
+  if (Option.isSome(movedTo)) {
+    return Result.succeed<UpdateOk>({
+      status: "moved",
+      skillPath: `${movedTo.value}/SKILL.md`,
+    });
+  }
+  return Result.succeed<UpdateOk>({ status: "updated", skillPath: undefined });
 });
 
-const statusFromResult = (result: Result.Result<UpdateOk, string>): SkillStatus =>
-  Result.isFailure(result) ? "failed" : result.success.status;
+const statusFromResult = (result: Result.Result<UpdateOk, string>): SkillStatus => {
+  if (Result.isFailure(result)) return "failed";
+  return result.success.status;
+};
 
 const runOne = Effect.fn("command.update.runOne")(function* (
   progress: Progress,

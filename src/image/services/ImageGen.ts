@@ -55,22 +55,23 @@ export class ImageGenService extends Context.Service<
       // which the OpenAI Responses adapter forwards as `input_image`). Without
       // refs, keep the plain-string prompt so the common path is unchanged.
       const refs = input.refs ?? [];
-      const prompt =
-        refs.length === 0
-          ? text
-          : ([
-              {
-                role: "user",
-                content: [
-                  { type: "text", text },
-                  ...refs.map((ref) => ({
-                    type: "file" as const,
-                    mediaType: ref.mediaType,
-                    data: ref.data,
-                  })),
-                ],
-              },
-            ] as const);
+      const buildPrompt = () => {
+        if (refs.length === 0) return text;
+        return [
+          {
+            role: "user",
+            content: [
+              { type: "text", text },
+              ...refs.map((ref) => ({
+                type: "file" as const,
+                mediaType: ref.mediaType,
+                data: ref.data,
+              })),
+            ],
+          },
+        ] as const;
+      };
+      const prompt = buildPrompt();
 
       // The codex backend mandates streaming (stream: true), so collect the
       // stream parts and pull the image from the tool-result part.
@@ -81,17 +82,18 @@ export class ImageGenService extends Context.Service<
         toolChoice: { tool: IMAGE_TOOL_NAME },
       }).pipe(
         Stream.runCollect,
-        Effect.mapError((cause) =>
-          isUnauthorized(cause)
-            ? new ImageError({
-                message: "Codex token rejected (expired or invalid). Run `codex login`.",
-                code: "AUTH_EXPIRED",
-              })
-            : new ImageError({
-                message: `Image generation failed: ${describeError(cause)}`,
-                code: "GENERATION_FAILED",
-              }),
-        ),
+        Effect.mapError((cause) => {
+          if (isUnauthorized(cause)) {
+            return new ImageError({
+              message: "Codex token rejected (expired or invalid). Run `codex login`.",
+              code: "AUTH_EXPIRED",
+            });
+          }
+          return new ImageError({
+            message: `Image generation failed: ${describeError(cause)}`,
+            code: "GENERATION_FAILED",
+          });
+        }),
       );
 
       const imagePart = parts.find(

@@ -22,13 +22,12 @@ export class CacheService extends Context.Service<
       const home = yield* Config.string("HOME").pipe(Config.withDefault("~"));
       const cacheDir = pathService.join(home, ".cache", "repo");
 
-      yield* fs
-        .makeDirectory(cacheDir, { recursive: true })
-        .pipe(
-          Effect.catchTag("PlatformError", (e) =>
-            e.reason._tag === "AlreadyExists" ? Effect.void : Effect.fail(e),
-          ),
-        );
+      yield* fs.makeDirectory(cacheDir, { recursive: true }).pipe(
+        Effect.catchTag("PlatformError", (e) => {
+          if (e.reason._tag === "AlreadyExists") return Effect.void;
+          return Effect.fail(e);
+        }),
+      );
 
       const getPath = (spec: PackageSpec) =>
         Effect.gen(function* () {

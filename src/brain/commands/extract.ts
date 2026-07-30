@@ -60,8 +60,20 @@ const providerFlag = Flag.string("provider").pipe(
   Flag.withDescription("Conversation provider (claude or codex)"),
 );
 
-const detectProviderFromPath = (inputDir: string): Provider =>
-  inputDir.includes("/.codex/") ? "codex" : "claude";
+const detectProviderFromPath = (inputDir: string): Provider => {
+  if (inputDir.includes("/.codex/")) {
+    return "codex";
+  }
+  return "claude";
+};
+
+/** Message content is truncated per role: user turns keep more context than assistant turns. */
+const contentLimitForRole = (role: string): number => {
+  if (role === "user") {
+    return 3000;
+  }
+  return 800;
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -103,7 +115,7 @@ const parseClaudeMessage = (parsed: Record<string, unknown>): Message[] => {
     )
     .map((text) => ({
       role: msgType,
-      content: text.slice(0, msgType === "user" ? 3000 : 800),
+      content: text.slice(0, contentLimitForRole(msgType)),
     }));
 };
 
@@ -123,23 +135,36 @@ const parseCodexMessage = (parsed: Record<string, unknown>): Message[] => {
     .flatMap((item: unknown) => {
       if (!isRecord(item)) return [];
       const text = item["text"];
-      return typeof text === "string" ? [text] : [];
+      if (typeof text !== "string") return [];
+      return [text];
     })
     .map((text: string) => text.trim())
     .filter((text: string) => text.length > 10);
 
   return texts.map((text: string) => ({
     role,
-    content: text.slice(0, role === "user" ? 3000 : 800),
+    content: text.slice(0, contentLimitForRole(role)),
   }));
 };
 
-const parseLine = (line: string): Option.Option<Record<string, unknown>> =>
-  Option.liftThrowable(() => {
-    const parsed: unknown = JSON.parse(line);
-    if (!isRecord(parsed)) throw new Error("not a record");
-    return parsed;
-  })();
+const JsonlLine = Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown));
+const decodeJsonlLine = Schema.decodeUnknownOption(JsonlLine);
+
+const parseLine = (line: string): Option.Option<Record<string, unknown>> => decodeJsonlLine(line);
+
+const stripJsonlSuffix = (file: string): string => {
+  if (file.endsWith(".jsonl")) {
+    return file.slice(0, -6);
+  }
+  return file;
+};
+
+const transcriptTagForRole = (role: string): string => {
+  if (role === "user") {
+    return "[USER]:";
+  }
+  return "[ASSISTANT]:";
+};
 
 interface DateFilter {
   readonly fromMs: Option.Option<number>;
@@ -161,11 +186,11 @@ const parseMessages = (content: string, provider: Provider): Message[] => {
     if (line.trim().length === 0) continue;
     const parsed = parseLine(line);
     if (Option.isNone(parsed)) continue;
-    messages.push(
-      ...(provider === "claude"
-        ? parseClaudeMessage(parsed.value)
-        : parseCodexMessage(parsed.value)),
-    );
+    if (provider === "claude") {
+      messages.push(...parseClaudeMessage(parsed.value));
+    } else {
+      messages.push(...parseCodexMessage(parsed.value));
+    }
   }
   return messages;
 };
@@ -208,8 +233,11 @@ const loadConversationFromFile = Effect.fn("extract.loadConversationFromFile")(f
     );
   const messages = parseMessages(content, provider);
   if (messages.length < 2) return Option.none<Conversation>();
-  const uuid = file.endsWith(".jsonl") ? file.slice(0, -6) : file;
-  return Option.some<Conversation>({ uuid, messages, modifiedAt: mtime });
+  return Option.some<Conversation>({
+    uuid: stripJsonlSuffix(file),
+    messages,
+    modifiedAt: mtime,
+  });
 });
 
 /** @internal */
@@ -287,8 +315,7 @@ export const extractConversations = Effect.fn("extractConversations")(function* 
   for (const [idx, conv] of conversations.entries()) {
     const outLines: string[] = [];
     for (const msg of conv.messages) {
-      const tag = msg.role === "user" ? "[USER]:" : "[ASSISTANT]:";
-      outLines.push(`${tag} ${msg.content}`);
+      outLines.push(`${transcriptTagForRole(msg.role)} ${msg.content}`);
     }
     const outFile = path.join(outputDir, `${String(idx).padStart(3, "0")}_${conv.uuid}.txt`);
     yield* fs.writeFileString(outFile, outLines.join("\n\n")).pipe(
@@ -359,9 +386,12 @@ export const extract = Command.make("extract", {
             code: "UNSUPPORTED_PROVIDER",
           });
         }
-        const selectedProvider: Option.Option<Provider> = Option.flatMap(provider, (value) =>
-          isAgentProviderId(value) ? Option.some(value) : Option.none(),
-        );
+        const selectedProvider: Option.Option<Provider> = Option.flatMap(provider, (value) => {
+          if (isAgentProviderId(value)) {
+            return Option.some(value);
+          }
+          return Option.none();
+        });
 
         const result = yield* extractConversations(dir, output, {
           batches,

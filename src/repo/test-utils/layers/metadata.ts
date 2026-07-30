@@ -36,9 +36,10 @@ export function createMockMetadataService(options: CreateMockMetadataServiceOpti
   const stateRef = Ref.makeUnsafe(state);
 
   const record = (method: string, args: unknown, result?: unknown): Effect.Effect<void> =>
-    sequenceRef !== undefined
-      ? recordCall(sequenceRef, { service: "metadata", method, args, result })
-      : Effect.void;
+    Option.match(Option.fromUndefinedOr(sequenceRef), {
+      onNone: () => Effect.void,
+      onSome: (ref) => recordCall(ref, { service: "metadata", method, args, result }),
+    });
 
   const layer = Layer.succeed(MetadataService, {
     load: Effect.gen(function* () {

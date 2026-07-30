@@ -3,7 +3,7 @@ import { Prompt } from "effect/unstable/cli";
 import { SkillsError } from "../errors.js";
 import { walkDir } from "../lib/fs.js";
 import { DEFAULT_REF, SKILL_DIR_PREFIXES } from "../lib/constants.js";
-import { tryParseFrontmatter } from "../lib/frontmatter.js";
+import { tryParseFrontmatter, type SkillFrontmatter } from "../lib/frontmatter.js";
 import { search } from "../lib/search-api.js";
 import {
   parseSource,
@@ -54,6 +54,45 @@ const installedLocation = (source: string, skillPath: string): string =>
 
 const dimInstalled = (name: string): string => `\u001b[2m${name} (installed)\u001b[22m`;
 
+// "." means the skills live directly under the input path, not in a subdirectory.
+const resolveSearchDir = (pathService: Path.Path, absPath: string, prefix: string): string => {
+  if (prefix === ".") return absPath;
+  return pathService.join(absPath, prefix);
+};
+
+// An empty skillDir means the skill sits at the repo root, so the repo name stands in.
+const fallbackSkillName = (skillDir: string, repo: string): string => {
+  if (!skillDir) return repo;
+  return skillDir.split("/").at(-1) ?? "unknown";
+};
+
+const skillMdPathFor = (skillDir: string): string => {
+  if (!skillDir) return "SKILL.md";
+  return `${skillDir}/SKILL.md`;
+};
+
+// A subpath may point at either the SKILL.md file or the directory holding it.
+const skillDirFromSubpath = (subpath: string): string => {
+  if (subpath.endsWith("SKILL.md")) return subpath.split("/").slice(0, -1).join("/");
+  return subpath;
+};
+
+const refSuffix = (ref?: string): string => {
+  if (ref) return `#${ref}`;
+  return "";
+};
+
+// The first plan for a display name keeps it; later ones carry their source.
+const disambiguate = (base: string, source: string, count: number): string => {
+  if (count === 0) return base;
+  return `${base} (${source})`;
+};
+
+const statusFromResult = (result: Result.Result<InstalledEntry, string>): SkillStatus => {
+  if (Result.isFailure(result)) return "failed";
+  return "installed";
+};
+
 export const makeSelectChoices = <A>(
   candidates: ReadonlyArray<SelectCandidate<A>>,
 ): ReadonlyArray<{
@@ -61,11 +100,20 @@ export const makeSelectChoices = <A>(
   readonly value: SelectChoiceValue<A>;
   readonly disabled: boolean;
 }> =>
-  candidates.map((candidate) => ({
-    title: candidate.installed ? dimInstalled(candidate.name) : candidate.name,
-    value: { value: candidate.value, installed: candidate.installed },
-    disabled: candidate.installed,
-  }));
+  candidates.map((candidate) => {
+    if (candidate.installed) {
+      return {
+        title: dimInstalled(candidate.name),
+        value: { value: candidate.value, installed: true },
+        disabled: true,
+      };
+    }
+    return {
+      title: candidate.name,
+      value: { value: candidate.value, installed: false },
+      disabled: false,
+    };
+  });
 
 const loadInstalledSkills = Effect.fn("command.add.loadInstalledSkills")(function* () {
   const store = yield* SkillStore;
@@ -103,14 +151,16 @@ const installSkillDir = Effect.fn("command.add.installSkillDir")(function* (
   const files = yield* gh.fetchSkillDir(owner, repo, skillDir, resolvedRef);
 
   const skillMd = files.find((file) => file.path === "SKILL.md");
-  const frontmatter = skillMd ? yield* tryParseFrontmatter(skillMd.content) : Option.none();
+  let frontmatter: Option.Option<SkillFrontmatter> = Option.none();
+  if (skillMd) {
+    frontmatter = yield* tryParseFrontmatter(skillMd.content);
+  }
 
-  const fallbackName = skillDir ? (skillDir.split("/").at(-1) ?? "unknown") : repo;
   const name = Option.match(frontmatter, {
-    onNone: () => fallbackName,
+    onNone: () => fallbackSkillName(skillDir, repo),
     onSome: (fm) => toKebab(fm.name),
   });
-  const skillMdPath = skillDir ? `${skillDir}/SKILL.md` : "SKILL.md";
+  const skillMdPath = skillMdPathFor(skillDir);
 
   yield* store.syncDir(name, files);
 
@@ -137,7 +187,10 @@ const installLocalSkillDir = Effect.fn("command.add.installLocalSkillDir")(funct
 
   const files = yield* walkDir(absPath);
   const skillMd = files.find((f) => f.path === "SKILL.md");
-  const frontmatter = skillMd ? yield* tryParseFrontmatter(skillMd.content) : Option.none();
+  let frontmatter: Option.Option<SkillFrontmatter> = Option.none();
+  if (skillMd) {
+    frontmatter = yield* tryParseFrontmatter(skillMd.content);
+  }
 
   const fallbackName = pathService.basename(absPath);
   const name = Option.match(frontmatter, {
@@ -165,13 +218,14 @@ const discoverLocalCandidates = Effect.fn("command.add.discoverLocalCandidates")
   const homeOpt = yield* Config.option(Config.string("HOME"))
     .parse(ConfigProvider.fromEnv())
     .pipe(Effect.orElseSucceed(() => Option.none<string>()));
-  const inputPath = source.path.startsWith("~")
-    ? pathService.join(
-        Option.getOrElse(homeOpt, () => ""),
-        source.path.slice(1),
-      )
-    : source.path;
-  const absPath = pathService.resolve(inputPath);
+  const expandHome = (): string => {
+    if (!source.path.startsWith("~")) return source.path;
+    return pathService.join(
+      Option.getOrElse(homeOpt, () => ""),
+      source.path.slice(1),
+    );
+  };
+  const absPath = pathService.resolve(expandHome());
 
   const exists = yield* fs.exists(absPath).pipe(Effect.orDie);
   if (!exists) {
@@ -197,7 +251,7 @@ const discoverLocalCandidates = Effect.fn("command.add.discoverLocalCandidates")
   const candidates: Array<LocalSkillCandidate> = [];
 
   for (const prefix of [...SKILL_DIR_PREFIXES, "."]) {
-    const searchDir = prefix === "." ? absPath : pathService.join(absPath, prefix);
+    const searchDir = resolveSearchDir(pathService, absPath, prefix);
     const searchExists = yield* fs.exists(searchDir).pipe(Effect.orDie);
     if (!searchExists) continue;
 
@@ -241,14 +295,20 @@ const selectFrom = Effect.fn("command.add.selectFrom")(function* <A>(
 ) {
   const single = candidates[0];
   if (candidates.length === 1 && single) {
-    return single.installed ? [] : ([single.value] as ReadonlyArray<A>);
+    if (single.installed) return [] as ReadonlyArray<A>;
+    return [single.value] as ReadonlyArray<A>;
   }
 
   const choices = makeSelectChoices(candidates);
+  // Require a pick only when something is actually selectable.
+  const minSelections = ((): number => {
+    if (choices.some((choice) => !choice.disabled)) return 1;
+    return 0;
+  })();
   const selected = yield* Prompt.multiSelect({
     message,
     choices,
-    min: choices.some((choice) => !choice.disabled) ? 1 : 0,
+    min: minSelections,
   });
 
   // Effect beta.98 can include disabled multi-select choices in the result.
@@ -284,13 +344,11 @@ const planFromRepo = Effect.fn("command.add.planFromRepo")(function* (
 ) {
   const { owner, repo, ref, subpath } = source;
   const gh = yield* GitHub;
-  const sourceStr = `${owner}/${repo}${ref ? `#${ref}` : ""}`;
+  const sourceStr = `${owner}/${repo}${refSuffix(ref)}`;
 
   if (subpath) {
-    const skillDir = subpath.endsWith("SKILL.md")
-      ? subpath.split("/").slice(0, -1).join("/")
-      : subpath;
-    const displayName = skillDir ? (skillDir.split("/").at(-1) ?? repo) : repo;
+    const skillDir = skillDirFromSubpath(subpath);
+    const displayName = fallbackSkillName(skillDir, repo);
     return [
       {
         displayName,
@@ -463,7 +521,7 @@ const dedupeDisplayNames = (
     for (const plan of ps) {
       const base = plan.displayName;
       const count = seen.get(base) ?? 0;
-      const key = count === 0 ? base : `${base} (${source})`;
+      const key = disambiguate(base, source, count);
       seen.set(base, count + 1);
       out.push({ source, key, plan });
     }
@@ -483,7 +541,7 @@ const runOne = Effect.fn("command.add.runOne")(function* (
       Effect.succeed(Result.fail(error.message)),
     ),
   );
-  const status: SkillStatus = Result.isFailure(result) ? "failed" : "installed";
+  const status: SkillStatus = statusFromResult(result);
   yield* progress.setStatus(key, status);
   return { key, result };
 });

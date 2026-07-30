@@ -53,8 +53,12 @@ export const counselCommandDef = Command.make(
       const run = yield* RunService;
       const host = yield* HostService;
       const path = yield* Path;
-      const stdinText =
-        Option.isNone(prompt) && Option.isNone(file) ? yield* host.readPipedStdin : undefined;
+      // Only consume stdin when no other prompt source was given.
+      const needsStdin = Option.isNone(prompt) && Option.isNone(file);
+      let stdinText: string | undefined = undefined;
+      if (needsStdin) {
+        stdinText = yield* host.readPipedStdin;
+      }
       const cwd = yield* host.getCwd;
 
       const result = yield* run.run({

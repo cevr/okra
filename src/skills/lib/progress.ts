@@ -35,7 +35,10 @@ const ansi = {
   showCursor: "\x1b[?25h",
   clearLine: "\x1b[2K",
   cr: "\r",
-  up: (n: number) => (n > 0 ? `\x1b[${n}A` : ""),
+  up: (n: number) => {
+    if (n > 0) return `\x1b[${n}A`;
+    return "";
+  },
 };
 
 const symbol = (status: SkillStatus, frame: number): string => {
@@ -79,10 +82,15 @@ const verb = (status: SkillStatus, runningVerb: string): string => {
   }
 };
 
-const dim = (s: string, color: boolean) => (color ? `\x1b[2m${s}\x1b[0m` : s);
-const green = (s: string, color: boolean) => (color ? `\x1b[32m${s}\x1b[0m` : s);
-const red = (s: string, color: boolean) => (color ? `\x1b[31m${s}\x1b[0m` : s);
-const cyan = (s: string, color: boolean) => (color ? `\x1b[36m${s}\x1b[0m` : s);
+const wrap = (code: string, s: string, color: boolean): string => {
+  if (color) return `\x1b[${code}m${s}\x1b[0m`;
+  return s;
+};
+
+const dim = (s: string, color: boolean) => wrap("2", s, color);
+const green = (s: string, color: boolean) => wrap("32", s, color);
+const red = (s: string, color: boolean) => wrap("31", s, color);
+const cyan = (s: string, color: boolean) => wrap("36", s, color);
 
 const colorize = (status: SkillStatus, text: string, color: boolean): string => {
   switch (status) {
@@ -175,22 +183,28 @@ export const make = (
       yield* repaint;
     }
 
-    const ticker = tty
-      ? yield* Effect.gen(function* () {
-          yield* Ref.update(ref, (s) => ({ ...s, frame: s.frame + 1 }));
-          yield* repaint;
-        }).pipe(
-          Effect.repeat(Schedule.spaced("80 millis")),
-          Effect.ignore,
-          Effect.forkDetach({ startImmediately: true }),
-        )
-      : null;
+    const spin = Effect.gen(function* () {
+      yield* Ref.update(ref, (s) => ({ ...s, frame: s.frame + 1 }));
+      yield* repaint;
+    }).pipe(
+      Effect.repeat(Schedule.spaced("80 millis")),
+      Effect.ignore,
+      Effect.forkDetach({ startImmediately: true }),
+    );
+
+    let ticker: Fiber.Fiber<void> | null = null;
+    if (tty) {
+      ticker = yield* spin;
+    }
 
     const setStatus = (name: string, status: SkillStatus): Effect.Effect<void> =>
       Effect.gen(function* () {
         yield* Ref.update(ref, (s) => ({
           ...s,
-          entries: s.entries.map((e) => (e.name === name ? { ...e, status } : e)),
+          entries: s.entries.map((e) => {
+            if (e.name === name) return { ...e, status };
+            return e;
+          }),
         }));
         if (tty) {
           yield* repaint;

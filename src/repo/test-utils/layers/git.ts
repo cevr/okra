@@ -1,4 +1,4 @@
-import { Effect, Layer, Ref } from "effect";
+import { Effect, Layer, Option, Ref } from "effect";
 import { GitService } from "../../services/git.js";
 import { recordCall, type SequenceRef } from "../sequence.js";
 
@@ -38,9 +38,10 @@ export function createMockGitService(options: CreateMockGitServiceOptions = {}):
   const stateRef = Ref.makeUnsafe(state);
 
   const record = (method: string, args: unknown, result?: unknown): Effect.Effect<void> =>
-    sequenceRef !== undefined
-      ? recordCall(sequenceRef, { service: "git", method, args, result })
-      : Effect.void;
+    Option.match(Option.fromUndefinedOr(sequenceRef), {
+      onNone: () => Effect.void,
+      onSome: (ref) => recordCall(ref, { service: "git", method, args, result }),
+    });
 
   const layer = Layer.succeed(GitService, {
     clone: (url, dest, cloneOpts) =>

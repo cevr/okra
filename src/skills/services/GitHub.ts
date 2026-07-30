@@ -89,16 +89,38 @@ interface GitHubHttpShape extends GitHubShape {
   readonly hasExplicitToken: Effect.Effect<boolean, never>;
 }
 
+const causeSuffix = (cause?: unknown): string => {
+  if (cause) return ` (${String(cause)})`;
+  return "";
+};
+
 const fetchError = (url: string, cause?: unknown) =>
   new SkillsError({
-    message: `Failed to fetch: ${url}${cause ? ` (${String(cause)})` : ""}`,
+    message: `Failed to fetch: ${url}${causeSuffix(cause)}`,
     code: "FETCH_FAILED",
   });
 
 const encodeRepoPath = (path: string) => path.split("/").map(encodeURIComponent).join("/");
 
+// The contents API takes the repo root when no sub-path is given.
+const pathSegment = (path: string): string => {
+  if (path) return `/${encodeRepoPath(path)}`;
+  return "";
+};
+
+const refQuery = (ref?: string): string => {
+  if (ref) return `?ref=${encodeURIComponent(ref)}`;
+  return "";
+};
+
+// An empty dirPath means the skill sits at the repo root, so paths are already relative.
+const toRelative = (dirPath: string, entryPath: string): string => {
+  if (dirPath) return entryPath.slice(dirPath.length + 1);
+  return entryPath;
+};
+
 const contentsEndpoint = (owner: string, repo: string, path: string, ref?: string) =>
-  `repos/${owner}/${repo}/contents${path ? `/${encodeRepoPath(path)}` : ""}${ref ? `?ref=${encodeURIComponent(ref)}` : ""}`;
+  `repos/${owner}/${repo}/contents${pathSegment(path)}${refQuery(ref)}`;
 
 const treeEndpoint = (owner: string, repo: string, ref: string) =>
   `repos/${owner}/${repo}/git/trees/${encodeURIComponent(ref)}?recursive=1`;
@@ -358,8 +380,7 @@ const makeFetchSkillDir = (
         const entries = yield* listContents(owner, repo, path, ref);
         for (const entry of entries) {
           if (entry.type === "file") {
-            const relativePath = dirPath ? entry.path.slice(dirPath.length + 1) : entry.path;
-            fileEntries.push({ path: entry.path, relativePath });
+            fileEntries.push({ path: entry.path, relativePath: toRelative(dirPath, entry.path) });
           } else if (entry.type === "dir") {
             yield* walk(entry.path);
           }
@@ -497,7 +518,7 @@ export class GitHubHttp extends Context.Service<GitHubHttp, GitHubHttpShape>()(
         path: string,
         ref?: string,
       ) {
-        const url = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeRepoPath(path)}${ref ? `?ref=${encodeURIComponent(ref)}` : ""}`;
+        const url = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeRepoPath(path)}${refQuery(ref)}`;
         const request = withAuth(
           HttpClientRequest.get(url).pipe(
             HttpClientRequest.setHeader("Accept", "application/vnd.github.v3+json"),
@@ -583,10 +604,11 @@ export class GitHub extends Context.Service<GitHub, GitHubShape>()(
         Effect.gen(function* () {
           const hasExplicitToken = yield* http.hasExplicitToken;
           const ghAvailable = yield* cli.isAvailable;
-          return {
-            transport: (!hasExplicitToken && ghAvailable ? cli : http) as GitHubShape,
-            label: !hasExplicitToken && ghAvailable ? "gh" : "http",
-          };
+          // An explicit token means the caller chose HTTP auth; otherwise prefer the gh CLI.
+          if (!hasExplicitToken && ghAvailable) {
+            return { transport: cli as GitHubShape, label: "gh" };
+          }
+          return { transport: http as GitHubShape, label: "http" };
         }),
       );
 

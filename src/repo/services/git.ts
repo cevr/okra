@@ -111,7 +111,8 @@ export class GitService extends Context.Service<
               .pipe(Effect.mapError((cause) => gitError("getCurrentRef", path, cause)));
 
             const trimmed = output.trim();
-            return trimmed.length > 0 ? trimmed : "unknown";
+            if (trimmed.length > 0) return trimmed;
+            return "unknown";
           }),
       };
     }),

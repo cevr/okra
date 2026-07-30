@@ -216,7 +216,8 @@ const slugify = (prompt: string): string => {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60);
-  return slug.length > 0 ? slug : "image";
+  if (slug.length > 0) return slug;
+  return "image";
 };
 
 /** Which backend/endpoint a request resolves to once flags are reconciled. */
@@ -307,6 +308,26 @@ const backendLabel = (route: Route, model: string): string => {
   return "codex";
 };
 
+/** On the edits endpoint a `--ref` is the source image; elsewhere it is a style reference. */
+const refNoun = (editing: boolean): string => {
+  if (editing) return "source";
+  return "ref";
+};
+
+/** The verb heading the progress line. */
+const progressVerb = (editing: boolean): string => {
+  if (editing) return "Editing";
+  return "Generating";
+};
+
+/** The `, 2 sources` fragment of the progress line; empty when there are no input images. */
+const describeRefCount = (refCount: number, editing: boolean): string => {
+  if (refCount === 0) return "";
+  const singular = refNoun(editing);
+  if (refCount > 1) return `, ${refCount} ${singular}s`;
+  return `, ${refCount} ${singular}`;
+};
+
 /** Build the stderr progress line for a resolved request. */
 const progressLine = (
   route: Route,
@@ -318,11 +339,13 @@ const progressLine = (
   fidelity: Option.Option<"high" | "low">,
 ): string => {
   const editing = route === "openai-edit";
-  const noun = editing ? "source" : "ref";
-  const refNote = refCount > 0 ? `, ${refCount} ${noun}${refCount > 1 ? "s" : ""}` : "";
-  const maskNote = Option.isSome(mask) ? ", mask" : "";
-  const fidelityNote = Option.isSome(fidelity) ? `, ${fidelity.value} fidelity` : "";
-  const verb = editing ? "Editing" : "Generating";
+  const refNote = describeRefCount(refCount, editing);
+  const maskNote = Option.match(mask, { onNone: () => "", onSome: () => ", mask" });
+  const fidelityNote = Option.match(fidelity, {
+    onNone: () => "",
+    onSome: (value) => `, ${value} fidelity`,
+  });
+  const verb = progressVerb(editing);
   return `${verb} image (${size}, ${format}${refNote}${maskNote}${fidelityNote}) via ${backendLabel(route, model)}…`;
 };
 
@@ -379,9 +402,11 @@ const generateCommand = Command.make(
       const route = resolved.route;
 
       const refs = yield* readRefs(ref);
-      const maskPart = Option.isSome(mask)
-        ? Option.some(yield* readImageFile(mask.value, "--mask"))
-        : Option.none<ImagePart>();
+      // Read the mask file only when --mask was passed.
+      let maskPart = Option.none<ImagePart>();
+      if (Option.isSome(mask)) {
+        maskPart = Option.some(yield* readImageFile(mask.value, "--mask"));
+      }
 
       // --quality/--background/--n only affect the OpenAI Images API; warn if set
       // for the codex backend rather than silently dropping them.
@@ -428,10 +453,10 @@ const generateCommand = Command.make(
       // image keeps the bare path so the common case is unchanged. Pair each
       // image with its path so the writer never indexes into a parallel array.
       const single = images.length === 1;
-      const outputs = images.map((bytes, i) => ({
-        bytes,
-        filePath: single ? outPath : suffixPath(outPath, i + 1),
-      }));
+      const outputs = images.map((bytes, i) => {
+        if (single) return { bytes, filePath: outPath };
+        return { bytes, filePath: suffixPath(outPath, i + 1) };
+      });
 
       yield* Effect.forEach(outputs, ({ bytes, filePath }) =>
         fs.writeFile(filePath, bytes).pipe(

@@ -22,6 +22,11 @@ interface CacheState {
 
 const MetadataIndexJson = Schema.fromJsonString(MetadataIndex);
 
+const describeError = (e: unknown): string => {
+  if (e instanceof Error) return e.message;
+  return String(e);
+};
+
 // Service interface
 export class MetadataService extends Context.Service<
   MetadataService,
@@ -78,11 +83,7 @@ export class MetadataService extends Context.Service<
           yield* fs.writeFileString(tempPath, jsonStr);
           yield* fs.rename(tempPath, metadataPath);
         }).pipe(
-          Effect.catch((e) =>
-            Effect.logWarning(
-              `Failed to save metadata: ${e instanceof Error ? e.message : String(e)}`,
-            ),
-          ),
+          Effect.catch((e) => Effect.logWarning(`Failed to save metadata: ${describeError(e)}`)),
         );
 
       const save = (index: MetadataIndex): Effect.Effect<void> =>

@@ -8,6 +8,17 @@ import { isColorEnabled } from "../../shared/env.js";
 const TasksJson = Schema.fromJsonString(Schema.Array(Task));
 const encodeTasksJson = Schema.encodeSync(TasksJson);
 
+/** Clips to `max` characters, spending the last 3 on an ellipsis so the width still holds. */
+const truncate = (text: string, max: number): string => {
+  if (text.length <= max) return text;
+  return `${text.slice(0, max - 3)}...`;
+};
+
+const formatStopSuffix = (parts: ReadonlyArray<string>): string => {
+  if (parts.length === 0) return "";
+  return ` (${parts.join(", ")})`;
+};
+
 export const list = Command.make(
   "list",
   {
@@ -40,11 +51,10 @@ export const list = Command.make(
           stopParts.push(StopEvaluator.describe(task.stopConditions, task));
         }
         if (task.conditionalStop !== undefined) {
-          const cond = task.conditionalStop.condition;
-          stopParts.push(`when: ${cond.length > 20 ? `${cond.slice(0, 17)}...` : cond}`);
+          stopParts.push(`when: ${truncate(task.conditionalStop.condition, 20)}`);
         }
-        const stopDesc = stopParts.length > 0 ? ` (${stopParts.join(", ")})` : "";
-        const prompt = task.prompt.length > 40 ? `${task.prompt.slice(0, 37)}...` : task.prompt;
+        const stopDesc = formatStopSuffix(stopParts);
+        const prompt = truncate(task.prompt, 40);
         yield* Console.log(
           `${task.id.padEnd(10)} ${task.provider.padEnd(10)} ${(scheduleDesc + stopDesc).padEnd(30)} ${task.status.padEnd(10)} ${prompt}`,
         );

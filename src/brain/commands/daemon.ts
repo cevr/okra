@@ -137,6 +137,14 @@ interface JobStatus {
 
 const UNIFIED_SCHEDULE = "9am, 1pm, 5pm, 9pm Sun-Thu";
 
+/** DateTime.toParts reports weekDay as 1=Mon..7=Sun; resolveJob expects JS-style 0=Sun..6=Sat. */
+const toJsWeekDay = (weekDay: number): number => {
+  if (weekDay === 7) {
+    return 0;
+  }
+  return weekDay;
+};
+
 const loadedLabel = (loaded: boolean): string => {
   if (loaded) {
     return "loaded";
@@ -318,8 +326,7 @@ const tick = Command.make("tick", {
     Effect.gen(function* () {
       const local = yield* DateTime.nowInCurrentZone.pipe(DateTime.withCurrentZoneLocal);
       const parts = DateTime.toParts(local);
-      // toParts returns weekDay as 1=Mon..7=Sun; resolveJob expects JS-style 0=Sun..6=Sat
-      const day = parts.weekDay === 7 ? 0 : parts.weekDay;
+      const day = toJsWeekDay(parts.weekDay);
       const input: TickInput = { day, hour: parts.hour };
       const job = resolveJob(input);
 

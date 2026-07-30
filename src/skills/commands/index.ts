@@ -7,7 +7,15 @@ import { runAdd } from "./add.js";
 import { runRemove } from "./remove.js";
 import { runUpdate } from "./update.js";
 
-const truncate = (s: string, max: number) => (s.length > max ? s.slice(0, max - 1) + "…" : s);
+const truncate = (s: string, max: number) => {
+  if (s.length > max) return s.slice(0, max - 1) + "…";
+  return s;
+};
+
+const wrap = (code: string, s: string, color: boolean): string => {
+  if (color) return `\x1b[${code}m${s}\x1b[0m`;
+  return s;
+};
 
 const readNoColor = Config.option(Config.string("NO_COLOR"))
   .parse(ConfigProvider.fromEnv())
@@ -21,8 +29,8 @@ const skillsCommand = Command.make("skills", {}, () =>
     const noColor = yield* readNoColor;
     const isTty: boolean = process.stdout.isTTY ?? false;
     const color = isTty && !noColor;
-    const dim = (s: string) => (color ? `\x1b[2m${s}\x1b[0m` : s);
-    const bold = (s: string) => (color ? `\x1b[1m${s}\x1b[0m` : s);
+    const dim = (s: string) => wrap("2", s, color);
+    const bold = (s: string) => wrap("1", s, color);
 
     const store = yield* SkillStore;
     const lock = yield* SkillLock;
@@ -89,14 +97,16 @@ const makeAdd = (name: string, description: string, alias?: string) => {
   const cmd = Command.make(name, { sources: sourcesArg }, ({ sources }) => runAdd(sources)).pipe(
     Command.withDescription(description),
   );
-  return alias === undefined ? cmd : cmd.pipe(Command.withAlias(alias));
+  if (alias === undefined) return cmd;
+  return cmd.pipe(Command.withAlias(alias));
 };
 
 const makeRemove = (name: string, description: string, alias?: string) => {
   const cmd = Command.make(name, { names: namesArg }, ({ names }) => runRemove(names)).pipe(
     Command.withDescription(description),
   );
-  return alias === undefined ? cmd : cmd.pipe(Command.withAlias(alias));
+  if (alias === undefined) return cmd;
+  return cmd.pipe(Command.withAlias(alias));
 };
 
 const addCommand = makeAdd("add", ADD_DESCRIPTION, "i");

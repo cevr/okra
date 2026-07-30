@@ -35,9 +35,10 @@ export function createMockCacheService(options: CreateMockCacheServiceOptions = 
   const stateRef = Ref.makeUnsafe(state);
 
   const record = (method: string, args: unknown, result?: unknown): Effect.Effect<void> =>
-    sequenceRef !== undefined
-      ? recordCall(sequenceRef, { service: "cache", method, args, result })
-      : Effect.void;
+    Option.match(Option.fromUndefinedOr(sequenceRef), {
+      onNone: () => Effect.void,
+      onSome: (ref) => recordCall(ref, { service: "cache", method, args, result }),
+    });
 
   const getPath = (spec: PackageSpec) =>
     Effect.gen(function* () {

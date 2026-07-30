@@ -3,7 +3,12 @@ export const DEFAULT_TIMEOUT_SECONDS = 3600;
 export const KILL_GRACE_PERIOD_MS = 15_000;
 export const CLAUDE_READ_ONLY_TOOLS = "Read,Glob,Grep,WebFetch,WebSearch";
 
-export const VERSION = typeof __VERSION__ !== "undefined" ? __VERSION__ : "0.0.0-dev";
+const resolveVersion = (): string => {
+  if (typeof __VERSION__ !== "undefined") return __VERSION__;
+  return "0.0.0-dev";
+};
+
+export const VERSION = resolveVersion();
 
 export const cwdBucket = (cwd: string): string => {
   const normalized = cwd.replace(/\\/g, "/").replace(/\/+$/, "");
@@ -18,7 +23,8 @@ export const cwdBucket = (cwd: string): string => {
     )
     .filter((s) => s.length > 0);
   const hash = new Bun.CryptoHasher("sha256").update(normalized).digest("hex").slice(0, 8);
-  return tail.length > 0 ? `${tail.join("-")}-${hash}` : hash;
+  if (tail.length > 0) return `${tail.join("-")}-${hash}`;
+  return hash;
 };
 
 export const sanitizePath = (path: string): string =>

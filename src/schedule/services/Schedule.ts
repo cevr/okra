@@ -47,13 +47,33 @@ const EVERY_NAMED_DAY_PATTERN =
 const TOMORROW_AT_PATTERN = /^tomorrow\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i;
 const CRON_PATTERN = /^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)$/;
 
+type NumOrStar = number | "*";
+
+const parseMinuteOrZero = (minuteStr: string | undefined): number => {
+  if (minuteStr === undefined) return 0;
+  return parseInt(minuteStr, 10);
+};
+
+/** A wildcard minute renders as :00 — the hour's first tick. */
+const resolveMinute = (minute: NumOrStar): number => {
+  if (minute === "*") return 0;
+  return minute;
+};
+
+/** Renders a cron hour/minute pair as "HH:MM", or "every hour" when the hour is a wildcard. */
+const formatTimeOfDay = (hour: NumOrStar, minute: NumOrStar): string => {
+  if (hour === "*") return "every hour";
+  const minuteValue = resolveMinute(minute);
+  return `${String(hour).padStart(2, "0")}:${String(minuteValue).padStart(2, "0")}`;
+};
+
 const parseTime = (
   hourStr: string,
   minuteStr: string | undefined,
   ampm: string | undefined,
 ): { hour: number; minute: number } => {
   let hour = parseInt(hourStr, 10);
-  const minute = minuteStr !== undefined ? parseInt(minuteStr, 10) : 0;
+  const minute = parseMinuteOrZero(minuteStr);
   if (ampm !== undefined) {
     const lower = ampm.toLowerCase();
     if (lower === "pm" && hour !== 12) hour += 12;
@@ -235,10 +255,7 @@ export const describe = (schedule: Schedule): string => {
     return `once at ${DateTime.formatIso(dt)}`;
   }
   const { minute, hour, dayOfWeek } = schedule;
-  const timeStr =
-    hour === "*"
-      ? "every hour"
-      : `${String(hour).padStart(2, "0")}:${String(minute === "*" ? 0 : minute).padStart(2, "0")}`;
+  const timeStr = formatTimeOfDay(hour, minute);
   if (dayOfWeek === "1-5") return `weekdays at ${timeStr}`;
   if (dayOfWeek === "*") return `daily at ${timeStr}`;
   if (typeof dayOfWeek === "number") {

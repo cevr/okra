@@ -4,10 +4,15 @@ import { CounselError, ErrorCode } from "../errors.js";
 import type { Invocation, Profile, Provider } from "../types.js";
 import { HostService } from "./Host.js";
 
-const modelReasoningEffort = (profile: Profile): string =>
-  profile === "deep" ? "xhigh" : "medium";
+const modelReasoningEffort = (profile: Profile): string => {
+  if (profile === "deep") return "xhigh";
+  return "medium";
+};
 
-const claudeModel = (profile: Profile): string => (profile === "deep" ? "fable" : "opus");
+const claudeModel = (profile: Profile): string => {
+  if (profile === "deep") return "fable";
+  return "opus";
+};
 
 export const detectSourceFromEnv = (
   env: Record<string, string | undefined>,
@@ -24,16 +29,22 @@ export const detectSourceFromEnv = (
     );
   }
 
-  return Effect.succeed(inClaude ? "claude" : "codex");
+  if (inClaude) return Effect.succeed("claude");
+  return Effect.succeed("codex");
 };
 
-export const oppositeProvider = (source: Provider): Provider =>
-  source === "claude" ? "codex" : "claude";
+export const oppositeProvider = (source: Provider): Provider => {
+  if (source === "claude") return "codex";
+  return "claude";
+};
 
 export const buildPromptInstruction = (promptFilePath: string): string =>
   `Read the file at ${sanitizePath(promptFilePath)} and follow the instructions within it.`;
 
-const claudeEffort = (profile: Profile): string => (profile === "deep" ? "max" : "medium");
+const claudeEffort = (profile: Profile): string => {
+  if (profile === "deep") return "max";
+  return "medium";
+};
 
 export const buildClaudeInvocation = (
   command: string,
@@ -115,24 +126,28 @@ export class AgentPlatformService extends Context.Service<
         codex: "codex",
       };
 
-      const resolveSource = (requested: Option.Option<Provider>) =>
-        Option.isSome(requested)
-          ? Effect.succeed(requested.value)
-          : host.getEnv.pipe(Effect.flatMap(detectSourceFromEnv));
+      const resolveSource = (
+        requested: Option.Option<Provider>,
+      ): Effect.Effect<Provider, CounselError> =>
+        Option.match(requested, {
+          onNone: () => host.getEnv.pipe(Effect.flatMap(detectSourceFromEnv)),
+          onSome: (provider) => Effect.succeed(provider),
+        });
 
       const ensureExecutable = (provider: Provider) =>
         Effect.sync(() => Bun.which(commands[provider])).pipe(
-          Effect.flatMap((command) =>
-            command === null
-              ? Effect.fail(
-                  new CounselError({
-                    message: `Target provider "${provider}" is not installed or not on PATH.`,
-                    code: ErrorCode.TARGET_NOT_INSTALLED,
-                    command: commands[provider],
-                  }),
-                )
-              : Effect.succeed(command),
-          ),
+          Effect.flatMap((command) => {
+            if (command === null) {
+              return Effect.fail(
+                new CounselError({
+                  message: `Target provider "${provider}" is not installed or not on PATH.`,
+                  code: ErrorCode.TARGET_NOT_INSTALLED,
+                  command: commands[provider],
+                }),
+              );
+            }
+            return Effect.succeed(command);
+          }),
         );
 
       const buildInvocation = (
@@ -142,11 +157,12 @@ export class AgentPlatformService extends Context.Service<
         cwd: string,
       ) =>
         ensureExecutable(provider).pipe(
-          Effect.map((command) =>
-            provider === "claude"
-              ? buildClaudeInvocation(command, promptFilePath, profile, cwd)
-              : buildCodexInvocation(command, promptFilePath, profile, cwd),
-          ),
+          Effect.map((command) => {
+            if (provider === "claude") {
+              return buildClaudeInvocation(command, promptFilePath, profile, cwd);
+            }
+            return buildCodexInvocation(command, promptFilePath, profile, cwd);
+          }),
         );
 
       return {
@@ -163,13 +179,18 @@ export class AgentPlatformService extends Context.Service<
   ): Layer.Layer<AgentPlatformService> =>
     Layer.succeed(AgentPlatformService, {
       resolveSource: (requested) =>
-        Option.isSome(requested) ? Effect.succeed(requested.value) : Effect.succeed("claude"),
+        Option.match(requested, {
+          onNone: () => Effect.succeed<Provider>("claude"),
+          onSome: (provider) => Effect.succeed(provider),
+        }),
       resolveTarget: oppositeProvider,
       ensureExecutable: (provider) => Effect.succeed(provider),
-      buildInvocation: (provider, promptFilePath, profile, cwd) =>
-        provider === "claude"
-          ? Effect.succeed(buildClaudeInvocation("claude", promptFilePath, profile, cwd))
-          : Effect.succeed(buildCodexInvocation("codex", promptFilePath, profile, cwd)),
+      buildInvocation: (provider, promptFilePath, profile, cwd) => {
+        if (provider === "claude") {
+          return Effect.succeed(buildClaudeInvocation("claude", promptFilePath, profile, cwd));
+        }
+        return Effect.succeed(buildCodexInvocation("codex", promptFilePath, profile, cwd));
+      },
       ...impl,
     });
 }

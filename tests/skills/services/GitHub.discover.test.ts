@@ -11,11 +11,17 @@ import { SkillsError } from "../../../src/skills/errors.js";
 
 // Helper: build a tree from path strings (all blobs unless ending with /)
 const makeTree = (paths: Array<string>) =>
-  paths.map((p) => ({
-    path: p.endsWith("/") ? p.slice(0, -1) : p,
-    type: (p.endsWith("/") ? "tree" : "blob") as "blob" | "tree",
-    sha: "abc",
-  }));
+  paths.map((p) => {
+    if (p.endsWith("/")) {
+      return { path: p.slice(0, -1), type: "tree" as const, sha: "abc" };
+    }
+    return { path: p, type: "blob" as const, sha: "abc" };
+  });
+
+const joinPath = (parent: string, name: string): string => {
+  if (parent.length === 0) return name;
+  return `${parent}/${name}`;
+};
 
 // Helper: run discoverSkills via listing API (truncated tree forces fallback)
 const discoverViaListing = (
@@ -28,7 +34,7 @@ const discoverViaListing = (
     return Effect.succeed(
       entries.map((e) => ({
         name: e.name,
-        path: path ? `${path}/${e.name}` : e.name,
+        path: joinPath(path, e.name),
         type: e.type as "file" | "dir" | "symlink" | "submodule",
       })),
     );

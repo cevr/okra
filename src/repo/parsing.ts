@@ -42,7 +42,7 @@ export function parseNpmSpec(input: string): ParseResult {
     return {
       registry: "npm" as Registry,
       name,
-      version: version !== undefined ? Option.some(version) : Option.none(),
+      version: Option.fromUndefinedOr(version),
     };
   }
 
@@ -59,7 +59,7 @@ export function parseNpmSpec(input: string): ParseResult {
   return {
     registry: "npm" as Registry,
     name,
-    version: version !== undefined ? Option.some(version) : Option.none(),
+    version: Option.fromUndefinedOr(version),
   };
 }
 
@@ -77,7 +77,7 @@ export function parsePypiSpec(input: string): ParseResult {
   return {
     registry: "pypi" as Registry,
     name: name.trim(),
-    version: version !== undefined ? Option.some(version.trim()) : Option.none(),
+    version: Option.fromUndefinedOr(version).pipe(Option.map((v) => v.trim())),
   };
 }
 
@@ -95,7 +95,7 @@ export function parseCratesSpec(input: string): ParseResult {
   return {
     registry: "crates" as Registry,
     name: name.trim(),
-    version: version !== undefined ? Option.some(version.trim()) : Option.none(),
+    version: Option.fromUndefinedOr(version).pipe(Option.map((v) => v.trim())),
   };
 }
 
@@ -110,9 +110,11 @@ export function parseSpecSync(input: string): ParseResult {
   if (trimmed.startsWith("npm:")) {
     return parseNpmSpec(trimmed.slice(4));
   }
-  if (trimmed.startsWith("pypi:") || trimmed.startsWith("pip:")) {
-    const prefix = trimmed.startsWith("pypi:") ? "pypi:" : "pip:";
-    return parsePypiSpec(trimmed.slice(prefix.length));
+  if (trimmed.startsWith("pypi:")) {
+    return parsePypiSpec(trimmed.slice("pypi:".length));
+  }
+  if (trimmed.startsWith("pip:")) {
+    return parsePypiSpec(trimmed.slice("pip:".length));
   }
   if (
     trimmed.startsWith("crates:") ||

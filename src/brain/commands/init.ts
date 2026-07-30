@@ -19,6 +19,38 @@ const decodeUnknownJson = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
+const isNotFound = (e: unknown): boolean =>
+  e instanceof PlatformError && (e.reason._tag === "NotFound" || e.reason._tag === "BadArgument");
+
+const asRecordOrEmpty = (value: unknown): Record<string, unknown> => {
+  if (isRecord(value)) {
+    return value;
+  }
+  return {};
+};
+
+const describeError = (e: unknown): string => {
+  if (e instanceof PlatformError) {
+    return e.message;
+  }
+  return String(e);
+};
+
+/** Absent paths read as `fallback`; every other platform failure becomes a ConfigError. */
+const orFallbackWhenMissing =
+  <A>(fallback: A, message: (detail: string) => string) =>
+  (e: unknown): Effect.Effect<A, ConfigError> => {
+    if (isNotFound(e)) {
+      return Effect.succeed(fallback);
+    }
+    return Effect.fail(
+      new ConfigError({
+        message: message(describeError(e)),
+        code: "READ_FAILED",
+      }),
+    );
+  };
+
 const HookCommand = Schema.Struct({ command: Schema.optional(Schema.String) });
 const SessionStartEntry = Schema.Struct({
   matcher: Schema.optional(Schema.String),
@@ -89,9 +121,12 @@ export const init = Command.make("init", {
           code: "UNSUPPORTED_PROVIDER",
         });
       }
-      const requestedProvider: Option.Option<Provider> = Option.flatMap(provider, (value) =>
-        isAgentProviderId(value) ? Option.some(value) : Option.none(),
-      );
+      const requestedProvider: Option.Option<Provider> = Option.flatMap(provider, (value) => {
+        if (isAgentProviderId(value)) {
+          return Option.some(value);
+        }
+        return Option.none();
+      });
 
       let vaultPath: string;
 
@@ -175,18 +210,20 @@ export const init = Command.make("init", {
 
       for (const providerId of providerIds) {
         const agent = yield* platform.getProvider(providerId);
-        const hooksChanged = agent.integration.supportsHooks
-          ? yield* wireHooks(agent.integration.settingsPath)
-          : false;
-        const hooksSkipped = !agent.integration.supportsHooks;
+        const supportsHooks = agent.integration.supportsHooks;
+
+        let hooksChanged = false;
+        let hooks = Option.none<string>();
+        if (supportsHooks) {
+          hooksChanged = yield* wireHooks(agent.integration.settingsPath);
+          hooks = Option.some(agent.integration.settingsPath);
+        }
 
         integrations.push({
           provider: providerId,
-          hooks: agent.integration.supportsHooks
-            ? Option.some(agent.integration.settingsPath)
-            : Option.none(),
+          hooks,
           hooksChanged,
-          hooksSkipped,
+          hooksSkipped: !supportsHooks,
         });
       }
 
@@ -277,19 +314,9 @@ export const wireHooks = Effect.fn("wireHooks")(function* (settingsPath: string)
     ),
   );
 
-  const existing = yield* fs.readFileString(settingsPath).pipe(
-    Effect.catch((e) =>
-      e instanceof PlatformError &&
-      (e.reason._tag === "NotFound" || e.reason._tag === "BadArgument")
-        ? Effect.succeed("{}")
-        : Effect.fail(
-            new ConfigError({
-              message: `Cannot read settings: ${(e as PlatformError).message}`,
-              code: "READ_FAILED",
-            }),
-          ),
-    ),
-  );
+  const existing = yield* fs
+    .readFileString(settingsPath)
+    .pipe(Effect.catch(orFallbackWhenMissing("{}", (detail) => `Cannot read settings: ${detail}`)));
 
   const parsedRaw = yield* Effect.try({
     try: () => decodeUnknownJson(existing),
@@ -309,11 +336,14 @@ export const wireHooks = Effect.fn("wireHooks")(function* (settingsPath: string)
     yield* Console.error("Warning: settings.json hooks is not an object — skipping hook wiring");
     return false;
   }
-  const hooks: Record<string, unknown> = isRecord(rawHooks) ? rawHooks : {};
+  const hooks: Record<string, unknown> = asRecordOrEmpty(rawHooks);
 
   const getHookArray = (key: string): unknown[] => {
     const val = hooks[key];
-    return Array.isArray(val) ? val : [];
+    if (!Array.isArray(val)) {
+      return [];
+    }
+    return val;
   };
 
   let changed = false;
@@ -382,52 +412,32 @@ export const copyStarterPrinciples = Effect.fn("copyStarterPrinciples")(function
   const principlesDir = path.join(vaultPath, "principles");
   const starterDir = path.join(root, "starter", "principles");
 
-  const isNotFound = (e: unknown): boolean =>
-    e instanceof PlatformError && (e.reason._tag === "NotFound" || e.reason._tag === "BadArgument");
-
   // Check if starter dir exists in the build
-  const starterExists = yield* fs.exists(starterDir).pipe(
-    Effect.catch((e) =>
-      isNotFound(e)
-        ? Effect.succeed(false)
-        : Effect.fail(
-            new ConfigError({
-              message: `Cannot check starter dir: ${(e as PlatformError).message}`,
-              code: "READ_FAILED",
-            }),
-          ),
-    ),
-  );
+  const starterExists = yield* fs
+    .exists(starterDir)
+    .pipe(
+      Effect.catch(orFallbackWhenMissing(false, (detail) => `Cannot check starter dir: ${detail}`)),
+    );
   if (!starterExists) return;
 
   // Check if vault principles dir is empty
-  const entries = yield* fs.readDirectory(principlesDir).pipe(
-    Effect.catch((e) =>
-      isNotFound(e)
-        ? Effect.succeed([] as string[])
-        : Effect.fail(
-            new ConfigError({
-              message: `Cannot read principles dir: ${(e as PlatformError).message}`,
-              code: "READ_FAILED",
-            }),
-          ),
-    ),
-  );
+  const entries = yield* fs
+    .readDirectory(principlesDir)
+    .pipe(
+      Effect.catch(
+        orFallbackWhenMissing([] as string[], (detail) => `Cannot read principles dir: ${detail}`),
+      ),
+    );
   if (entries.length > 0) return;
 
   // Copy starter principles
-  const starterFiles = yield* fs.readDirectory(starterDir).pipe(
-    Effect.catch((e) =>
-      isNotFound(e)
-        ? Effect.succeed([] as string[])
-        : Effect.fail(
-            new ConfigError({
-              message: `Cannot read starter dir: ${(e as PlatformError).message}`,
-              code: "READ_FAILED",
-            }),
-          ),
-    ),
-  );
+  const starterFiles = yield* fs
+    .readDirectory(starterDir)
+    .pipe(
+      Effect.catch(
+        orFallbackWhenMissing([] as string[], (detail) => `Cannot read starter dir: ${detail}`),
+      ),
+    );
 
   for (const file of starterFiles) {
     const content = yield* fs.readFile(path.join(starterDir, file)).pipe(
@@ -454,18 +464,13 @@ export const copyStarterPrinciples = Effect.fn("copyStarterPrinciples")(function
 
   // Copy principles.md index
   const indexSrc = path.join(root, "starter", "principles.md");
-  const indexSrcExists = yield* fs.exists(indexSrc).pipe(
-    Effect.catch((e) =>
-      isNotFound(e)
-        ? Effect.succeed(false)
-        : Effect.fail(
-            new ConfigError({
-              message: `Cannot check starter principles.md: ${(e as PlatformError).message}`,
-              code: "READ_FAILED",
-            }),
-          ),
-    ),
-  );
+  const indexSrcExists = yield* fs
+    .exists(indexSrc)
+    .pipe(
+      Effect.catch(
+        orFallbackWhenMissing(false, (detail) => `Cannot check starter principles.md: ${detail}`),
+      ),
+    );
   if (indexSrcExists) {
     const indexContent = yield* fs.readFile(indexSrc).pipe(
       Effect.mapError(
