@@ -11,7 +11,7 @@ import type { Session } from "../types.js";
 import { GitService } from "./Git.js";
 
 const wrapIO = (e: PlatformError, code: ErrorCode = ErrorCode.WORKTREE_FAILED) =>
-  new ResearchError({ message: e.message, code });
+  ResearchError.make({ message: e.message, code });
 
 export class WorkspaceService extends Context.Service<
   WorkspaceService,
@@ -81,17 +81,15 @@ export class WorkspaceService extends Context.Service<
                 }),
               )
               .pipe(
-                Effect.catchTag(
-                  "PlatformError",
-                  (e: PlatformError) =>
-                    new ResearchError({
-                      message: `Setup command failed: ${e.message}`,
-                      code: ErrorCode.WORKTREE_FAILED,
-                    }),
+                Effect.catchTag("PlatformError", (e: PlatformError) =>
+                  ResearchError.make({
+                    message: `Setup command failed: ${e.message}`,
+                    code: ErrorCode.WORKTREE_FAILED,
+                  }),
                 ),
               );
             if (code !== 0) {
-              return yield* new ResearchError({
+              return yield* ResearchError.make({
                 message: `Setup command failed (exit ${String(code)}): ${cmd}`,
                 code: ErrorCode.WORKTREE_FAILED,
               });

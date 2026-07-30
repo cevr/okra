@@ -109,12 +109,11 @@ export class OpenAiImagesService extends Context.Service<
         // env OPENAI_API_KEY > stored ~/.okra/keys.json; map the store's error
         // into this domain's AUTH_MISSING so callers see a single error type.
         const apiKey = keyStore.resolve(OPENAI_KEY_NAME, OPENAI_API_KEY_ENV).pipe(
-          Effect.mapError(
-            () =>
-              new ImageError({
-                message: `No OpenAI API key. Set ${OPENAI_API_KEY_ENV} or run \`okra keys set openai\`.`,
-                code: "AUTH_MISSING",
-              }),
+          Effect.mapError(() =>
+            ImageError.make({
+              message: `No OpenAI API key. Set ${OPENAI_API_KEY_ENV} or run \`okra keys set openai\`.`,
+              code: "AUTH_MISSING",
+            }),
           ),
         );
 
@@ -125,12 +124,11 @@ export class OpenAiImagesService extends Context.Service<
           verb: string,
         ) {
           const httpResponse = yield* httpClient.execute(request).pipe(
-            Effect.mapError(
-              (cause) =>
-                new ImageError({
-                  message: `Image ${verb} failed (${model}): ${describeError(cause)}`,
-                  code: "GENERATION_FAILED",
-                }),
+            Effect.mapError((cause) =>
+              ImageError.make({
+                message: `Image ${verb} failed (${model}): ${describeError(cause)}`,
+                code: "GENERATION_FAILED",
+              }),
             ),
           );
 
@@ -139,24 +137,23 @@ export class OpenAiImagesService extends Context.Service<
           if (httpResponse.status < 200 || httpResponse.status >= 300) {
             const detail = yield* readApiError(httpResponse);
             if (httpResponse.status === 401 || httpResponse.status === 403) {
-              return yield* new ImageError({
+              return yield* ImageError.make({
                 message: `OpenAI API key was rejected (${detail}). Set ${OPENAI_API_KEY_ENV} or run \`okra keys set openai\`.`,
                 code: "AUTH_EXPIRED",
               });
             }
-            return yield* new ImageError({
+            return yield* ImageError.make({
               message: `Image ${verb} failed (${model}, HTTP ${httpResponse.status}): ${detail}`,
               code: "GENERATION_FAILED",
             });
           }
 
           const response = yield* decodeImagesResponse(httpResponse).pipe(
-            Effect.mapError(
-              (cause) =>
-                new ImageError({
-                  message: `OpenAI returned an unexpected response (${model}): ${describeError(cause)}`,
-                  code: "GENERATION_FAILED",
-                }),
+            Effect.mapError((cause) =>
+              ImageError.make({
+                message: `OpenAI returned an unexpected response (${model}): ${describeError(cause)}`,
+                code: "GENERATION_FAILED",
+              }),
             ),
           );
 
@@ -165,7 +162,7 @@ export class OpenAiImagesService extends Context.Service<
             .map((item) => item.b64_json)
             .filter((b64): b64 is string => b64 !== undefined);
           if (encoded.length === 0) {
-            return yield* new ImageError({
+            return yield* ImageError.make({
               message: "OpenAI returned no image data. Try rephrasing the prompt.",
               code: "NO_IMAGE",
             });
@@ -226,7 +223,7 @@ const decodeBase64 = (base64: string): Effect.Effect<Uint8Array, ImageError> =>
   Effect.try({
     try: () => Uint8Array.fromBase64(base64),
     catch: () =>
-      new ImageError({
+      ImageError.make({
         message: "OpenAI returned invalid base64 image data",
         code: "DECODE_FAILED",
       }),

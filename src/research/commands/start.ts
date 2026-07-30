@@ -86,12 +86,11 @@ export const startCommand = Command.make(
 
       // Ensure .xp directory exists
       yield* fs.makeDirectory(paths.xpDir, { recursive: true }).pipe(
-        Effect.mapError(
-          (e: PlatformError) =>
-            new ResearchError({
-              message: `Failed to create ${paths.xpDir}: ${e.message}`,
-              code: ErrorCode.WRITE_FAILED,
-            }),
+        Effect.mapError((e: PlatformError) =>
+          ResearchError.make({
+            message: `Failed to create ${paths.xpDir}: ${e.message}`,
+            code: ErrorCode.WRITE_FAILED,
+          }),
         ),
       );
 
@@ -124,7 +123,7 @@ export const startCommand = Command.make(
       const hasUntil = untilOpt._tag === "Some";
 
       if (hasMaxMinutes && hasUntil) {
-        return yield* new ResearchError({
+        return yield* ResearchError.make({
           message: "--max-minutes and --until are mutually exclusive",
           code: ErrorCode.INVALID_INPUT,
         });
@@ -137,19 +136,18 @@ export const startCommand = Command.make(
         deadline = DateTime.formatIso(DateTime.makeUnsafe(nowMs + maxMinutes.value * 60_000));
       } else if (hasUntil) {
         const parsedMs = yield* Effect.fromOption(parseUntilMs(untilOpt.value)).pipe(
-          Effect.mapError(
-            () =>
-              new ResearchError({
-                message: `Invalid --until value: Invalid date: ${untilOpt.value}`,
-                code: ErrorCode.INVALID_INPUT,
-              }),
+          Effect.mapError(() =>
+            ResearchError.make({
+              message: `Invalid --until value: Invalid date: ${untilOpt.value}`,
+              code: ErrorCode.INVALID_INPUT,
+            }),
           ),
         );
         deadline = DateTime.formatIso(DateTime.makeUnsafe(parsedMs));
       }
 
       const createdAt = (yield* DateTime.now).pipe(DateTime.formatIso);
-      const session = new Session({
+      const session = Session.make({
         name,
         unit,
         direction: direction as "min" | "max",

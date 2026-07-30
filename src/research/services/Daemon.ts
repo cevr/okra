@@ -18,7 +18,7 @@ const isProcessRunning = (pid: number): Effect.Effect<boolean> =>
   );
 
 const wrapIO = (e: PlatformError, code: ErrorCode = ErrorCode.WRITE_FAILED) =>
-  new ResearchError({ message: e.message, code });
+  ResearchError.make({ message: e.message, code });
 
 export class DaemonService extends Context.Service<
   DaemonService,
@@ -52,7 +52,7 @@ export class DaemonService extends Context.Service<
                 .pipe(Effect.orElseSucceed(() => ""));
               const existingPid = Number(pidContent.trim());
               if (yield* isProcessRunning(existingPid)) {
-                return yield* new ResearchError({
+                return yield* ResearchError.make({
                   message: `Daemon already running (pid ${existingPid})`,
                   code: ErrorCode.DAEMON_ALREADY_RUNNING,
                 });
@@ -94,7 +94,7 @@ export class DaemonService extends Context.Service<
               .exists(paths.daemonPid)
               .pipe(Effect.orElseSucceed(() => false));
             if (!pidExists) {
-              return yield* new ResearchError({
+              return yield* ResearchError.make({
                 message: "No daemon running (no pid file)",
                 code: ErrorCode.DAEMON_NOT_RUNNING,
               });
@@ -106,7 +106,7 @@ export class DaemonService extends Context.Service<
             const pid = Number(pidContent.trim());
             if (!(yield* isProcessRunning(pid))) {
               yield* fs.remove(paths.daemonPid).pipe(Effect.catch(() => Effect.void));
-              return yield* new ResearchError({
+              return yield* ResearchError.make({
                 message: `Daemon not running (stale pid ${pid})`,
                 code: ErrorCode.DAEMON_NOT_RUNNING,
               });

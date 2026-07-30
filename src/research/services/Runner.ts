@@ -6,7 +6,7 @@ import { ResearchError, ErrorCode } from "../errors.js";
 import { BenchmarkResult } from "../types.js";
 
 const benchmarkFailed = (e: PlatformError) =>
-  new ResearchError({
+  ResearchError.make({
     message: `Benchmark execution failed: ${e.message}`,
     code: ErrorCode.BENCHMARK_FAILED,
   });
@@ -72,7 +72,7 @@ export class RunnerService extends Context.Service<
             const durationMs = end - start;
             const parsed = parseResult(stdout);
 
-            return new BenchmarkResult({
+            return BenchmarkResult.make({
               stdout,
               stderr,
               exitCode,
@@ -86,7 +86,7 @@ export class RunnerService extends Context.Service<
               Effect.timeout(`${timeoutMs} millis`),
               Effect.catchTag("TimeoutError", () =>
                 Effect.fail(
-                  new ResearchError({
+                  ResearchError.make({
                     message: `Benchmark timed out after ${timeoutMs}ms`,
                     code: ErrorCode.BENCHMARK_TIMEOUT,
                   }),

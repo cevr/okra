@@ -10,7 +10,7 @@ import { formatResultForLog } from "../prompt.js";
 import { describeDirection, shouldKeep } from "../scoring.js";
 
 const wrapIO = (e: PlatformError, code: ErrorCode = ErrorCode.WRITE_FAILED) =>
-  new ResearchError({ message: e.message, code });
+  ResearchError.make({ message: e.message, code });
 
 const isBetterBest = (
   candidate: ResultEvent,
@@ -69,7 +69,7 @@ const applyDecisionEvent = (
   if (idx === -1) return;
   const r = s.results[idx];
   if (r === undefined) return;
-  const updated = new ResultEvent({
+  const updated = ResultEvent.make({
     timestamp: r.timestamp,
     segment: r.segment,
     iteration: r.iteration,
@@ -240,7 +240,7 @@ export class ExperimentLogService extends Context.Service<
                 .filter((line) => line.trim().length > 0)
                 .map((line) => decodeExperimentEvent(line)),
             catch: (e) =>
-              new ResearchError({
+              ResearchError.make({
                 message: `Failed to decode experiment log: ${String(e)}`,
                 code: ErrorCode.READ_FAILED,
               }),

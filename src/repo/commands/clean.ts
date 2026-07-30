@@ -92,7 +92,7 @@ export const clean = Command.make(
       const hasFilter = Option.isSome(days) || Option.isSome(maxSize);
 
       if (!all && !hasFilter) {
-        return yield* new RepoError({
+        return yield* RepoError.make({
           message: "Specify --days, --max-size, or --all",
           code: "MISSING_FLAGS",
         });

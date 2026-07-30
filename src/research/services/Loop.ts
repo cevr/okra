@@ -31,7 +31,7 @@ const computeBenchmarkTimeoutMs = (baseline: ResultEvent | undefined): number | 
 };
 
 const wrapIO = (e: PlatformError, code: ErrorCode = ErrorCode.WRITE_FAILED) =>
-  new ResearchError({ message: e.message, code });
+  ResearchError.make({ message: e.message, code });
 
 const nowIso = DateTime.now.pipe(Effect.map(DateTime.formatIso));
 
@@ -155,14 +155,14 @@ export class LoopService extends Context.Service<
               const sourceCommit = yield* git.headSha(worktreePath);
 
               if (baselineResult.exitCode !== 0) {
-                return yield* new ResearchError({
+                return yield* ResearchError.make({
                   message: `Baseline benchmark failed (exit ${baselineResult.exitCode}): ${baselineResult.stderr}`,
                   code: ErrorCode.BENCHMARK_FAILED,
                 });
               }
 
               if (baselineResult.value === undefined) {
-                return yield* new ResearchError({
+                return yield* ResearchError.make({
                   message: "Baseline benchmark did not emit a RESULT line",
                   code: ErrorCode.RESULT_PARSE_FAILED,
                 });
@@ -172,7 +172,7 @@ export class LoopService extends Context.Service<
 
               yield* log.append(
                 projectRoot,
-                new ConfigEvent({
+                ConfigEvent.make({
                   _tag: "config",
                   timestamp: yield* nowIso,
                   segment: session.segment,
@@ -188,7 +188,7 @@ export class LoopService extends Context.Service<
 
               yield* log.append(
                 projectRoot,
-                new ResultEvent({
+                ResultEvent.make({
                   _tag: "result",
                   timestamp: yield* nowIso,
                   segment: session.segment,
@@ -249,7 +249,7 @@ export class LoopService extends Context.Service<
                 .readFileString(paths.benchmarkDigest)
                 .pipe(Effect.mapError((e) => wrapIO(e, ErrorCode.READ_FAILED)));
               if (currentDigest !== storedDigest) {
-                return yield* new ResearchError({
+                return yield* ResearchError.make({
                   message: "Benchmark files were tampered with",
                   code: ErrorCode.BENCHMARK_TAMPERED,
                 });
@@ -291,7 +291,7 @@ export class LoopService extends Context.Service<
                 yield* git.revertWorktree(worktreePath);
                 yield* log.append(
                   projectRoot,
-                  new ResultEvent({
+                  ResultEvent.make({
                     _tag: "result",
                     timestamp: yield* nowIso,
                     segment: session.segment,
@@ -319,7 +319,7 @@ export class LoopService extends Context.Service<
                 );
                 yield* log.append(
                   projectRoot,
-                  new ResultEvent({
+                  ResultEvent.make({
                     _tag: "result",
                     timestamp: yield* nowIso,
                     segment: session.segment,
@@ -342,7 +342,7 @@ export class LoopService extends Context.Service<
               // Write pending result
               yield* log.append(
                 projectRoot,
-                new ResultEvent({
+                ResultEvent.make({
                   _tag: "result",
                   timestamp: yield* nowIso,
                   segment: session.segment,
@@ -442,7 +442,7 @@ const decideBenchmarkOutcome = (args: DecideArgs) =>
       yield* git.revertWorktree(worktreePath);
       yield* log.append(
         projectRoot,
-        new DecisionEvent({
+        DecisionEvent.make({
           _tag: "decision",
           timestamp: yield* nowIso,
           segment: session.segment,
@@ -467,7 +467,7 @@ const decideBenchmarkOutcome = (args: DecideArgs) =>
       );
       yield* log.append(
         projectRoot,
-        new CommittedEvent({
+        CommittedEvent.make({
           _tag: "committed",
           timestamp: yield* nowIso,
           segment: session.segment,
@@ -477,7 +477,7 @@ const decideBenchmarkOutcome = (args: DecideArgs) =>
       );
       yield* log.append(
         projectRoot,
-        new DecisionEvent({
+        DecisionEvent.make({
           _tag: "decision",
           timestamp: yield* nowIso,
           segment: session.segment,
@@ -502,7 +502,7 @@ const decideBenchmarkOutcome = (args: DecideArgs) =>
     yield* git.revertWorktree(worktreePath);
     yield* log.append(
       projectRoot,
-      new DecisionEvent({
+      DecisionEvent.make({
         _tag: "decision",
         timestamp: yield* nowIso,
         segment: session.segment,
@@ -529,7 +529,7 @@ const appendLifecycle = Effect.fn("appendLifecycle")(function* (
 ) {
   yield* log.append(
     projectRoot,
-    new LifecycleEventEntry({
+    LifecycleEventEntry.make({
       _tag: "lifecycle",
       timestamp: yield* nowIso,
       event,
@@ -561,7 +561,7 @@ const consumeSteers = (
       const trimmed = content.trim();
       if (trimmed !== "") {
         steers.push(
-          new SteerEvent({
+          SteerEvent.make({
             _tag: "steer",
             timestamp: yield* nowIso,
             segment,
@@ -607,7 +607,7 @@ const reconcile = (
       if (headSha === pendingCommit) {
         yield* log.append(
           projectRoot,
-          new DecisionEvent({
+          DecisionEvent.make({
             _tag: "decision",
             timestamp: yield* nowIso,
             segment: state.segment,
@@ -619,7 +619,7 @@ const reconcile = (
         yield* git.revertWorktree(worktreePath);
         yield* log.append(
           projectRoot,
-          new DecisionEvent({
+          DecisionEvent.make({
             _tag: "decision",
             timestamp: yield* nowIso,
             segment: state.segment,
@@ -632,7 +632,7 @@ const reconcile = (
       yield* git.revertWorktree(worktreePath);
       yield* log.append(
         projectRoot,
-        new DecisionEvent({
+        DecisionEvent.make({
           _tag: "decision",
           timestamp: yield* nowIso,
           segment: state.segment,

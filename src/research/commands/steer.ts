@@ -19,7 +19,7 @@ export const steerCommand = Command.make(
       const paths = buildXpPaths(path, projectRoot);
 
       const wrap = (e: PlatformError) =>
-        new ResearchError({
+        ResearchError.make({
           message: `Failed to write steer file: ${e.message}`,
           code: ErrorCode.WRITE_FAILED,
         });

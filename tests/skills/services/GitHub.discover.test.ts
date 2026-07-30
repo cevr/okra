@@ -30,7 +30,7 @@ const discoverViaListing = (
   const listContents: GitHubShape["listContents"] = (_owner, _repo, path) => {
     const entries = fileTree[path];
     if (!entries)
-      return Effect.fail(new SkillsError({ message: `not-found:${path}`, code: "FETCH_FAILED" }));
+      return Effect.fail(SkillsError.make({ message: `not-found:${path}`, code: "FETCH_FAILED" }));
     return Effect.succeed(
       entries.map((e) => ({
         name: e.name,

@@ -26,8 +26,8 @@ export const search = Effect.fn("searchSkills")(function* (query: string) {
     .execute(HttpClientRequest.get(`${SEARCH_URL}?q=${encodeURIComponent(query)}`))
     .pipe(
       Effect.flatMap(decodeResponse),
-      Effect.mapError(
-        () => new SkillsError({ message: `Search failed for: ${query}`, code: "SEARCH_FAILED" }),
+      Effect.mapError(() =>
+        SkillsError.make({ message: `Search failed for: ${query}`, code: "SEARCH_FAILED" }),
       ),
       Effect.withSpan("searchSkills", { attributes: { query } }),
     );

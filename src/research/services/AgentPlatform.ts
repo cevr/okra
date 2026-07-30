@@ -10,7 +10,7 @@ import { AgentResult } from "../types.js";
 import type { Provider } from "../types.js";
 
 const agentFailed = (e: PlatformError) =>
-  new ResearchError({
+  ResearchError.make({
     message: `Agent invocation failed: ${e.message}`,
     code: ErrorCode.AGENT_FAILED,
   });
@@ -27,12 +27,11 @@ const collectAndTee = (
 
     if (filePath !== undefined) {
       yield* Stream.run(collecting, fs.sink(filePath, { flag: "a" })).pipe(
-        Effect.mapError(
-          (e: PlatformError) =>
-            new ResearchError({
-              message: `Cannot write log sink: ${e.message}`,
-              code: ErrorCode.WRITE_FAILED,
-            }),
+        Effect.mapError((e: PlatformError) =>
+          ResearchError.make({
+            message: `Cannot write log sink: ${e.message}`,
+            code: ErrorCode.WRITE_FAILED,
+          }),
         ),
       );
       return Buffer.concat(chunks).toString("utf-8");
@@ -171,7 +170,7 @@ export class AgentPlatformService extends Context.Service<
             const end = yield* Clock.currentTimeMillis;
             const durationMs = end - start;
             const agentOutput = extractAgentOutput(provider, output);
-            return new AgentResult({ exitCode, output: agentOutput, stderr, durationMs });
+            return AgentResult.make({ exitCode, output: agentOutput, stderr, durationMs });
           }, Effect.scoped),
 
           ensureExecutable: Effect.fn("AgentPlatform.ensureExecutable")(function* (
@@ -181,7 +180,7 @@ export class AgentPlatformService extends Context.Service<
             const name = providerBinaryName(provider);
             // resolveExecutable falls back to the bare name when nothing was found on disk.
             if (bin === name && !(yield* isOnPath(spawner, name))) {
-              return yield* new ResearchError({
+              return yield* ResearchError.make({
                 message: `${name} not found in PATH. Install it first.`,
                 code: ErrorCode.AGENT_FAILED,
               });

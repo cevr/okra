@@ -28,7 +28,7 @@ const runVault = (opts: { project: boolean; global: boolean; json: boolean }) =>
       if (Option.isSome(p)) {
         return p.value;
       }
-      return yield* new BrainError({
+      return yield* BrainError.make({
         message: "No project vault found",
         code: "NOT_INITIALIZED",
       });

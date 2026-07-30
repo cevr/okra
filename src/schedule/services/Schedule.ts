@@ -239,12 +239,11 @@ const parseSync = (input: string, nowMs: number): Option.Option<Schedule> => {
 export const parse = Effect.fn("Schedule.parse")(function* (input: string, nowMs: number) {
   const result = parseSync(input, nowMs);
   return yield* Effect.fromOption(result).pipe(
-    Effect.mapError(
-      () =>
-        new ScheduleError({
-          message: `Cannot parse schedule: "${input}"`,
-          code: "INVALID_SCHEDULE",
-        }),
+    Effect.mapError(() =>
+      ScheduleError.make({
+        message: `Cannot parse schedule: "${input}"`,
+        code: "INVALID_SCHEDULE",
+      }),
     ),
   );
 });

@@ -48,7 +48,7 @@ const discoverLocalSkillNames = Effect.fn("command.remove.discoverLocal")(functi
 
   const exists = yield* fs.exists(absPath).pipe(Effect.orDie);
   if (!exists) {
-    return yield* new SkillsError({
+    return yield* SkillsError.make({
       message: `Path not found: ${absPath}`,
       code: "NO_SKILLS_FOUND",
     });
@@ -98,7 +98,7 @@ const discoverLocalSkillNames = Effect.fn("command.remove.discoverLocal")(functi
   }
 
   if (names.length === 0) {
-    return yield* new SkillsError({
+    return yield* SkillsError.make({
       message: `No skills found in ${absPath}`,
       code: "NO_SKILLS_FOUND",
     });

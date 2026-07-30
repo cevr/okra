@@ -179,7 +179,7 @@ const installLocalSkillDir = Effect.fn("command.add.installLocalSkillDir")(funct
   const skillMdPath = pathService.join(absPath, "SKILL.md");
   const hasSkillMd = yield* fs.exists(skillMdPath).pipe(Effect.orDie);
   if (!hasSkillMd) {
-    return yield* new SkillsError({
+    return yield* SkillsError.make({
       message: `No SKILL.md found in ${absPath}`,
       code: "NO_SKILLS_FOUND",
     });
@@ -229,7 +229,7 @@ const discoverLocalCandidates = Effect.fn("command.add.discoverLocalCandidates")
 
   const exists = yield* fs.exists(absPath).pipe(Effect.orDie);
   if (!exists) {
-    return yield* new SkillsError({
+    return yield* SkillsError.make({
       message: `Path not found: ${absPath}`,
       code: "NO_SKILLS_FOUND",
     });
@@ -279,7 +279,7 @@ const discoverLocalCandidates = Effect.fn("command.add.discoverLocalCandidates")
   }
 
   if (candidates.length === 0) {
-    return yield* new SkillsError({
+    return yield* SkillsError.make({
       message: `No skills found in ${absPath}`,
       code: "NO_SKILLS_FOUND",
     });
@@ -361,7 +361,7 @@ const planFromRepo = Effect.fn("command.add.planFromRepo")(function* (
   const skills = yield* gh.discoverSkills(owner, repo, ref);
 
   if (skills.length === 0) {
-    return yield* new SkillsError({
+    return yield* SkillsError.make({
       message: "No skills found in this repository.",
       code: "NO_SKILLS_FOUND",
     });
@@ -441,7 +441,7 @@ const planFromRepoWithSkill = Effect.fn("command.add.planFromRepoWithSkill")(fun
     }
   }
 
-  return yield* new SkillsError({
+  return yield* SkillsError.make({
     message: `Skill not found: ${skillFilter}`,
     code: "SKILL_NOT_FOUND",
   });
@@ -452,7 +452,7 @@ const planFromSearch = Effect.fn("command.add.planFromSearch")(function* (query:
   const result = yield* search(query);
 
   if (result.skills.length === 0) {
-    return yield* new SkillsError({
+    return yield* SkillsError.make({
       message: `No skills found for "${query}"`,
       code: "NO_SKILLS_FOUND",
     });
@@ -463,7 +463,7 @@ const planFromSearch = Effect.fn("command.add.planFromSearch")(function* (query:
   );
   const first = result.skills[0];
   if (!first)
-    return yield* new SkillsError({
+    return yield* SkillsError.make({
       message: `No skills found for "${query}"`,
       code: "NO_SKILLS_FOUND",
     });
@@ -480,7 +480,7 @@ const planFromSearch = Effect.fn("command.add.planFromSearch")(function* (query:
 
   const parsed = parseSource(skill.source);
   if (parsed._tag !== "GitHubRepo" && parsed._tag !== "GitHubRepoWithSkill") {
-    return yield* new SkillsError({
+    return yield* SkillsError.make({
       message: `Failed to fetch: ${skill.source} (Unexpected source format from search API)`,
       code: "FETCH_FAILED",
     });

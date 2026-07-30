@@ -7,7 +7,7 @@ import { Session, decodeSession, encodeSession } from "../types.js";
 import { buildXpPaths } from "../paths.js";
 
 const wrapIO = (e: PlatformError, code: ErrorCode = ErrorCode.WRITE_FAILED) =>
-  new ResearchError({ message: e.message, code });
+  ResearchError.make({ message: e.message, code });
 
 export class SessionService extends Context.Service<
   SessionService,
@@ -34,7 +34,7 @@ export class SessionService extends Context.Service<
             .exists(paths.sessionJson)
             .pipe(Effect.orElseSucceed(() => false));
           if (exists) {
-            return yield* new ResearchError({
+            return yield* ResearchError.make({
               message: `Session already exists at ${paths.sessionJson}`,
               code: ErrorCode.SESSION_EXISTS,
             });
@@ -55,7 +55,7 @@ export class SessionService extends Context.Service<
             .exists(paths.sessionJson)
             .pipe(Effect.orElseSucceed(() => false));
           if (!exists) {
-            return yield* new ResearchError({
+            return yield* ResearchError.make({
               message: `No session found at ${paths.sessionJson}`,
               code: ErrorCode.SESSION_NOT_FOUND,
             });
@@ -77,7 +77,7 @@ export class SessionService extends Context.Service<
             .exists(paths.sessionJson)
             .pipe(Effect.orElseSucceed(() => false));
           if (!exists) {
-            return yield* new ResearchError({
+            return yield* ResearchError.make({
               message: `No session found at ${paths.sessionJson}`,
               code: ErrorCode.SESSION_NOT_FOUND,
             });
@@ -86,7 +86,7 @@ export class SessionService extends Context.Service<
             .readFileString(paths.sessionJson)
             .pipe(Effect.mapError((e) => wrapIO(e, ErrorCode.READ_FAILED)));
           const existing = decodeSession(raw);
-          const updated = new Session({
+          const updated = Session.make({
             name: existing.name,
             unit: existing.unit,
             direction: existing.direction,

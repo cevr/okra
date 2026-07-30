@@ -17,7 +17,7 @@ const makeTestLayer = (dir: string, github: GitHubShape) =>
   );
 
 const notImplemented = (..._args: Array<unknown>) =>
-  Effect.fail(new SkillsError({ message: "not-implemented", code: "FETCH_FAILED" }));
+  Effect.fail(SkillsError.make({ message: "not-implemented", code: "FETCH_FAILED" }));
 
 describe("runUpdate", () => {
   it.scoped("removes local skill when source path no longer exists", () =>
@@ -101,7 +101,7 @@ describe("runUpdate", () => {
       const fetchSkillDir: GitHubShape["fetchSkillDir"] = (_owner, _repo, dirPath) => {
         if (dirPath === oldDir) {
           return Effect.fail(
-            new SkillsError({
+            SkillsError.make({
               message: `Failed to fetch: github:mattpocock/skills/${oldDir} (404)`,
               code: "FETCH_FAILED",
             }),
@@ -162,7 +162,7 @@ describe("runUpdate", () => {
 
       const fetchSkillDir: GitHubShape["fetchSkillDir"] = (_owner, _repo, _dirPath) =>
         Effect.fail(
-          new SkillsError({
+          SkillsError.make({
             message: `Failed to fetch: github:mattpocock/skills/skills/in-progress/handoff (404)`,
             code: "FETCH_FAILED",
           }),

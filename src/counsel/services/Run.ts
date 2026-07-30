@@ -47,7 +47,7 @@ const runStatus = (executed: {
 };
 
 const promptConflict = Effect.fail(
-  new CounselError({
+  CounselError.make({
     message: "Provide exactly one prompt source: inline arg, --file, or stdin.",
     code: ErrorCode.PROMPT_CONFLICT,
   }),
@@ -111,12 +111,11 @@ export class RunService extends Context.Service<
         if (Option.isSome(file)) {
           const filePath = path.resolve(cwd, file.value);
           const content = yield* fs.readFileString(filePath).pipe(
-            Effect.mapError(
-              (error: PlatformError) =>
-                new CounselError({
-                  message: `Failed to read prompt file ${filePath}: ${error.message}`,
-                  code: ErrorCode.FILE_READ_FAILED,
-                }),
+            Effect.mapError((error: PlatformError) =>
+              CounselError.make({
+                message: `Failed to read prompt file ${filePath}: ${error.message}`,
+                code: ErrorCode.FILE_READ_FAILED,
+              }),
             ),
           );
           return { content, promptSource: "file" as const };
@@ -126,7 +125,7 @@ export class RunService extends Context.Service<
           return { content: stdin.value, promptSource: "stdin" as const };
         }
 
-        return yield* new CounselError({
+        return yield* CounselError.make({
           message: "Missing prompt. Pass an inline prompt, --file, or pipe stdin.",
           code: ErrorCode.PROMPT_MISSING,
         });
@@ -137,12 +136,11 @@ export class RunService extends Context.Service<
         content: string,
       ) {
         yield* fs.writeFileString(filePath, content).pipe(
-          Effect.mapError(
-            (error: PlatformError) =>
-              new CounselError({
-                message: `Failed to write ${filePath}: ${error.message}`,
-                code: ErrorCode.WRITE_FAILED,
-              }),
+          Effect.mapError((error: PlatformError) =>
+            CounselError.make({
+              message: `Failed to write ${filePath}: ${error.message}`,
+              code: ErrorCode.WRITE_FAILED,
+            }),
           ),
         );
       });
@@ -192,12 +190,11 @@ export class RunService extends Context.Service<
         }
 
         yield* fs.makeDirectory(outputDir, { recursive: true }).pipe(
-          Effect.mapError(
-            (error: PlatformError) =>
-              new CounselError({
-                message: `Failed to create ${outputDir}: ${error.message}`,
-                code: ErrorCode.WRITE_FAILED,
-              }),
+          Effect.mapError((error: PlatformError) =>
+            CounselError.make({
+              message: `Failed to create ${outputDir}: ${error.message}`,
+              code: ErrorCode.WRITE_FAILED,
+            }),
           ),
         );
 
@@ -211,12 +208,11 @@ export class RunService extends Context.Service<
         // Extract agent message from JSONL events → .md
         const outputFile = path.join(outputDir, `${target}.md`);
         const jsonl = yield* fs.readFileString(eventsFile).pipe(
-          Effect.mapError(
-            (error: PlatformError) =>
-              new CounselError({
-                message: `Failed to read events: ${error.message}`,
-                code: ErrorCode.READ_FAILED,
-              }),
+          Effect.mapError((error: PlatformError) =>
+            CounselError.make({
+              message: `Failed to read events: ${error.message}`,
+              code: ErrorCode.READ_FAILED,
+            }),
           ),
         );
         const extractMessage = messageExtractorFor(target);

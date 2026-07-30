@@ -99,7 +99,7 @@ const parseProviderOption = (
   if (Option.isNone(value)) return Effect.succeed(Option.none());
   if (!isAgentProviderId(value.value)) {
     return Effect.fail(
-      new BrainError({
+      BrainError.make({
         message: `Unknown ${label} "${value.value}". Valid: claude, codex`,
         code: "UNSUPPORTED_PROVIDER",
       }),
@@ -277,7 +277,7 @@ const run = Command.make("run", {
   Command.withHandler(({ job, json, executorProvider, sourceProvider }) =>
     Effect.gen(function* () {
       if (!isDaemonJob(job)) {
-        return yield* new BrainError({
+        return yield* BrainError.make({
           message: `Unknown job "${job}". Valid: ${ALL_JOBS.join(", ")}`,
           code: "INVALID_JOB",
         });
@@ -417,13 +417,11 @@ const logs = Command.make("logs", { job: logsJobArg, tail: tailFlag }).pipe(
             }),
           )
           .pipe(
-            Effect.catchTag(
-              "PlatformError",
-              (e: PlatformError) =>
-                new BrainError({
-                  message: `Cannot tail logs: ${e.message}`,
-                  code: "READ_FAILED",
-                }),
+            Effect.catchTag("PlatformError", (e: PlatformError) =>
+              BrainError.make({
+                message: `Cannot tail logs: ${e.message}`,
+                code: "READ_FAILED",
+              }),
             ),
           );
       } else {

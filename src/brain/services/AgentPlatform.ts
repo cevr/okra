@@ -100,8 +100,8 @@ export class AgentPlatformService extends Context.Service<
         Config.option(Config.string(key))
           .parse(envProvider)
           .pipe(
-            Effect.mapError(
-              () => new BrainError({ message: `Cannot read ${key} config`, code: "NO_HOME" }),
+            Effect.mapError(() =>
+              BrainError.make({ message: `Cannot read ${key} config`, code: "NO_HOME" }),
             ),
           );
 
@@ -109,7 +109,7 @@ export class AgentPlatformService extends Context.Service<
       const userProfileOpt = yield* readEnv("USERPROFILE");
       const home = Option.getOrElse(homeOpt, () => Option.getOrElse(userProfileOpt, () => ""));
       if (home === "") {
-        return yield* new BrainError({
+        return yield* BrainError.make({
           message: "HOME environment variable is not set",
           code: "NO_HOME",
         });
@@ -150,17 +150,15 @@ export class AgentPlatformService extends Context.Service<
               { stdout: "ignore", stderr: "inherit" },
             );
             const code = yield* spawner.exitCode(command).pipe(
-              Effect.catchTag(
-                "PlatformError",
-                (e: PlatformError) =>
-                  new BrainError({
-                    message: `Claude invocation failed: ${e.message}`,
-                    code: "SPAWN_FAILED",
-                  }),
+              Effect.catchTag("PlatformError", (e: PlatformError) =>
+                BrainError.make({
+                  message: `Claude invocation failed: ${e.message}`,
+                  code: "SPAWN_FAILED",
+                }),
               ),
             );
             if (code !== 0) {
-              return yield* new BrainError({
+              return yield* BrainError.make({
                 message: `claude exited with code ${code}`,
                 code: "SPAWN_FAILED",
               });
@@ -204,17 +202,15 @@ export class AgentPlatformService extends Context.Service<
               stderr: "inherit",
             });
             const code = yield* spawner.exitCode(command).pipe(
-              Effect.catchTag(
-                "PlatformError",
-                (e: PlatformError) =>
-                  new BrainError({
-                    message: `Codex invocation failed: ${e.message}`,
-                    code: "SPAWN_FAILED",
-                  }),
+              Effect.catchTag("PlatformError", (e: PlatformError) =>
+                BrainError.make({
+                  message: `Codex invocation failed: ${e.message}`,
+                  code: "SPAWN_FAILED",
+                }),
               ),
             );
             if (code !== 0) {
-              return yield* new BrainError({
+              return yield* BrainError.make({
                 message: `codex exited with code ${code}`,
                 code: "SPAWN_FAILED",
               });
@@ -227,12 +223,11 @@ export class AgentPlatformService extends Context.Service<
         Effect.succeed(providers[id]).pipe(
           Effect.flatMap((provider) =>
             Effect.fromOption(Option.fromUndefinedOr(provider)).pipe(
-              Effect.mapError(
-                () =>
-                  new BrainError({
-                    message: `Unsupported provider "${id}"`,
-                    code: "UNSUPPORTED_PROVIDER",
-                  }),
+              Effect.mapError(() =>
+                BrainError.make({
+                  message: `Unsupported provider "${id}"`,
+                  code: "UNSUPPORTED_PROVIDER",
+                }),
               ),
             ),
           ),
@@ -271,12 +266,11 @@ export class AgentPlatformService extends Context.Service<
           if (Option.isSome(claudeProjectDir)) return "claude";
 
           const cfg = yield* config.loadConfigFile.pipe(
-            Effect.mapError(
-              (e) =>
-                new BrainError({
-                  message: e.message,
-                  code: e.code,
-                }),
+            Effect.mapError((e) =>
+              BrainError.make({
+                message: e.message,
+                code: e.code,
+              }),
             ),
           );
           if (cfg.defaultProvider !== undefined) return cfg.defaultProvider;
@@ -287,7 +281,7 @@ export class AgentPlatformService extends Context.Service<
             if (provider !== undefined) return provider;
           }
 
-          return yield* new BrainError({
+          return yield* BrainError.make({
             message: "Provider is ambiguous — use --provider or set defaultProvider",
             code: "AMBIGUOUS_PROVIDER",
           });
@@ -301,12 +295,11 @@ export class AgentPlatformService extends Context.Service<
           if (Option.isSome(requestedId)) return requestedId.value;
 
           const cfg = yield* config.loadConfigFile.pipe(
-            Effect.mapError(
-              (e) =>
-                new BrainError({
-                  message: e.message,
-                  code: e.code,
-                }),
+            Effect.mapError((e) =>
+              BrainError.make({
+                message: e.message,
+                code: e.code,
+              }),
             ),
           );
 
@@ -319,7 +312,7 @@ export class AgentPlatformService extends Context.Service<
             if (provider !== undefined) return provider;
           }
 
-          return yield* new BrainError({
+          return yield* BrainError.make({
             message:
               "Daemon executor is ambiguous — use --executor-provider or set daemon.provider",
             code: "AMBIGUOUS_PROVIDER",

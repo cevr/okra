@@ -18,7 +18,7 @@ export const path = Command.make("path", { spec: specArg }, ({ spec }) =>
     const existingOpt = yield* metadata.find(parsedSpec);
 
     if (Option.isNone(existingOpt)) {
-      return yield* new RepoError({
+      return yield* RepoError.make({
         message: `Not cached: ${specToString(parsedSpec)}. Run: okra repo fetch ${spec}`,
         code: "NOT_CACHED",
       });

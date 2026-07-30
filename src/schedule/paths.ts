@@ -8,8 +8,8 @@ export const PathEnv = Config.withDefault(
 );
 
 const Home = Config.string("HOME").pipe(
-  Effect.mapError(
-    () => new ScheduleError({ message: "HOME environment variable not set", code: "CONFIG_ERROR" }),
+  Effect.mapError(() =>
+    ScheduleError.make({ message: "HOME environment variable not set", code: "CONFIG_ERROR" }),
   ),
 );
 

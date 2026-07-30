@@ -19,13 +19,11 @@ const generateNonce = Effect.fn("run.generateNonce")(
       .join("");
     return `OKRA_STOP_${hex}`;
   },
-  Effect.catchTag(
-    "PlatformError",
-    (e: PlatformError) =>
-      new ScheduleError({
-        message: `Cannot generate stop nonce: ${e.message}`,
-        code: "SPAWN_FAILED",
-      }),
+  Effect.catchTag("PlatformError", (e: PlatformError) =>
+    ScheduleError.make({
+      message: `Cannot generate stop nonce: ${e.message}`,
+      code: "SPAWN_FAILED",
+    }),
   ),
 );
 

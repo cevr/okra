@@ -68,7 +68,7 @@ const VALID_ID = /^[a-zA-Z0-9_-]+$/;
 
 const validateId = Effect.fn("StoreService.validateId")(function* (id: string) {
   if (!VALID_ID.test(id)) {
-    return yield* new ScheduleError({
+    return yield* ScheduleError.make({
       message: `Invalid task ID: "${id}". Only alphanumeric, hyphens, and underscores allowed.`,
       code: "INVALID_ID",
     });
@@ -101,12 +101,11 @@ class StoreService extends Context.Service<
       const { tasksDir } = yield* resolvePaths;
 
       yield* fs.makeDirectory(tasksDir, { recursive: true }).pipe(
-        Effect.mapError(
-          (e: PlatformError) =>
-            new ScheduleError({
-              message: `Cannot create tasks dir: ${e.message}`,
-              code: "WRITE_FAILED",
-            }),
+        Effect.mapError((e: PlatformError) =>
+          ScheduleError.make({
+            message: `Cannot create tasks dir: ${e.message}`,
+            code: "WRITE_FAILED",
+          }),
         ),
       );
 
@@ -115,24 +114,22 @@ class StoreService extends Context.Service<
       const add = Effect.fn("StoreService.add")(function* (input: TaskInput) {
         yield* validateId(input.id);
         const createdAt = (yield* DateTime.now).pipe(DateTime.formatIso);
-        const task = new Task({
+        const task = Task.make({
           ...input,
           createdAt,
           status: "active",
           runCount: 0,
         });
         const json = yield* encodeTask(task).pipe(
-          Effect.mapError(
-            (e) =>
-              new ScheduleError({ message: `Encode failed: ${e.message}`, code: "ENCODE_FAILED" }),
+          Effect.mapError((e) =>
+            ScheduleError.make({ message: `Encode failed: ${e.message}`, code: "ENCODE_FAILED" }),
           ),
         );
         yield* fs
           .writeFileString(taskPath(input.id), json)
           .pipe(
-            Effect.mapError(
-              (e: PlatformError) =>
-                new ScheduleError({ message: `Write failed: ${e.message}`, code: "WRITE_FAILED" }),
+            Effect.mapError((e: PlatformError) =>
+              ScheduleError.make({ message: `Write failed: ${e.message}`, code: "WRITE_FAILED" }),
             ),
           );
         return task;
@@ -141,30 +138,27 @@ class StoreService extends Context.Service<
       const get = Effect.fn("StoreService.get")(function* (id: string) {
         yield* validateId(id);
         const content = yield* fs.readFileString(taskPath(id)).pipe(
-          Effect.mapError(
-            (e: PlatformError) =>
-              new ScheduleError({
-                message: `Task not found: ${id} (${e.message})`,
-                code: "NOT_FOUND",
-              }),
+          Effect.mapError((e: PlatformError) =>
+            ScheduleError.make({
+              message: `Task not found: ${id} (${e.message})`,
+              code: "NOT_FOUND",
+            }),
           ),
         );
         return yield* decodeTask(content).pipe(
-          Effect.mapError(
-            (e) =>
-              new ScheduleError({ message: `Decode failed: ${e.message}`, code: "DECODE_FAILED" }),
+          Effect.mapError((e) =>
+            ScheduleError.make({ message: `Decode failed: ${e.message}`, code: "DECODE_FAILED" }),
           ),
         );
       });
 
       const list = Effect.gen(function* () {
         const files = yield* fs.readDirectory(tasksDir).pipe(
-          Effect.mapError(
-            (e: PlatformError) =>
-              new ScheduleError({
-                message: `Read dir failed: ${e.message}`,
-                code: "READ_FAILED",
-              }),
+          Effect.mapError((e: PlatformError) =>
+            ScheduleError.make({
+              message: `Read dir failed: ${e.message}`,
+              code: "READ_FAILED",
+            }),
           ),
         );
 
@@ -190,7 +184,7 @@ class StoreService extends Context.Service<
       ) {
         yield* validateId(id);
         const existing = yield* get(id);
-        const updated = new Task({
+        const updated = Task.make({
           id: existing.id,
           prompt: existing.prompt,
           provider: existing.provider,
@@ -205,17 +199,15 @@ class StoreService extends Context.Service<
           conditionalStop: existing.conditionalStop,
         });
         const json = yield* encodeTask(updated).pipe(
-          Effect.mapError(
-            (e) =>
-              new ScheduleError({ message: `Encode failed: ${e.message}`, code: "ENCODE_FAILED" }),
+          Effect.mapError((e) =>
+            ScheduleError.make({ message: `Encode failed: ${e.message}`, code: "ENCODE_FAILED" }),
           ),
         );
         yield* fs
           .writeFileString(taskPath(id), json)
           .pipe(
-            Effect.mapError(
-              (e: PlatformError) =>
-                new ScheduleError({ message: `Write failed: ${e.message}`, code: "WRITE_FAILED" }),
+            Effect.mapError((e: PlatformError) =>
+              ScheduleError.make({ message: `Write failed: ${e.message}`, code: "WRITE_FAILED" }),
             ),
           );
         return updated;
@@ -224,12 +216,11 @@ class StoreService extends Context.Service<
       const remove = Effect.fn("StoreService.remove")(function* (id: string) {
         yield* validateId(id);
         yield* fs.remove(taskPath(id)).pipe(
-          Effect.mapError(
-            (e: PlatformError) =>
-              new ScheduleError({
-                message: `Remove failed: ${e.message}`,
-                code: "REMOVE_FAILED",
-              }),
+          Effect.mapError((e: PlatformError) =>
+            ScheduleError.make({
+              message: `Remove failed: ${e.message}`,
+              code: "REMOVE_FAILED",
+            }),
           ),
         );
       });

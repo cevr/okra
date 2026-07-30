@@ -112,12 +112,11 @@ const scanClaudeSessions = Effect.fn("scanClaudeSessions")(function* (state: Dae
   if (!exists) return [] as SessionGroup[];
 
   const projectDirs = yield* fs.readDirectory(projectsDir).pipe(
-    Effect.mapError(
-      (e: PlatformError) =>
-        new BrainError({
-          message: `Cannot read Claude projects dir: ${e.message}`,
-          code: "READ_FAILED",
-        }),
+    Effect.mapError((e: PlatformError) =>
+      BrainError.make({
+        message: `Cannot read Claude projects dir: ${e.message}`,
+        code: "READ_FAILED",
+      }),
     ),
   );
 

@@ -62,7 +62,7 @@ class AgentPlatformService extends Context.Service<
         };
 
         const invokeFailure = (provider: Provider, e: PlatformError, op: string) =>
-          new ScheduleError({
+          ScheduleError.make({
             message: `${provider} ${op} failed: ${e.message}`,
             code: "SPAWN_FAILED",
           });

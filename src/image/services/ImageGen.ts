@@ -84,12 +84,12 @@ export class ImageGenService extends Context.Service<
         Stream.runCollect,
         Effect.mapError((cause) => {
           if (isUnauthorized(cause)) {
-            return new ImageError({
+            return ImageError.make({
               message: "Codex token rejected (expired or invalid). Run `codex login`.",
               code: "AUTH_EXPIRED",
             });
           }
-          return new ImageError({
+          return ImageError.make({
             message: `Image generation failed: ${describeError(cause)}`,
             code: "GENERATION_FAILED",
           });
@@ -101,7 +101,7 @@ export class ImageGenService extends Context.Service<
       );
 
       if (imagePart === undefined || imagePart.type !== "tool-result" || imagePart.isFailure) {
-        return yield* new ImageError({
+        return yield* ImageError.make({
           message: "Backend returned no image. Try rephrasing the prompt.",
           code: "NO_IMAGE",
         });
@@ -109,7 +109,7 @@ export class ImageGenService extends Context.Service<
 
       const base64 = imagePart.result.result;
       if (base64 === null) {
-        return yield* new ImageError({
+        return yield* ImageError.make({
           message: "Backend returned an empty image result.",
           code: "NO_IMAGE",
         });
@@ -124,7 +124,7 @@ const decodeBase64 = (base64: string): Effect.Effect<Uint8Array, ImageError> =>
   Effect.try({
     try: () => Uint8Array.fromBase64(base64),
     catch: () =>
-      new ImageError({
+      ImageError.make({
         message: "Backend returned invalid base64 image data",
         code: "DECODE_FAILED",
       }),

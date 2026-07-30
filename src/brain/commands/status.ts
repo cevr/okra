@@ -24,7 +24,7 @@ export const status = Command.make("status", { json: jsonFlag }).pipe(
       const vaultPath = yield* config.activeVaultPath.pipe(
         Effect.catchTag("@cvr/okra/brain/ConfigError", () =>
           Effect.fail(
-            new VaultError({
+            VaultError.make({
               message: "Vault not initialized — run `okra brain init`",
               code: "NOT_INITIALIZED",
             }),
@@ -35,7 +35,7 @@ export const status = Command.make("status", { json: jsonFlag }).pipe(
         Effect.catchTag("@cvr/okra/brain/VaultError", (e) => {
           if (e.code === "READ_FAILED" || e.code === "NOT_INITIALIZED") {
             return Effect.fail(
-              new VaultError({
+              VaultError.make({
                 message: "Vault not initialized — run `okra brain init`",
                 code: "NOT_INITIALIZED",
               }),

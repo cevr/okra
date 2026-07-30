@@ -10,9 +10,9 @@ const resolveEnvVar = (provider: string): string =>
 /** Map a KeyStoreError into this domain's error (its codes don't overlap 1:1). */
 const toKeysError = (e: { code: string; message: string }): KeysError => {
   if (e.code === "INVALID_INPUT") {
-    return new KeysError({ message: e.message, code: "INVALID_INPUT" });
+    return KeysError.make({ message: e.message, code: "INVALID_INPUT" });
   }
-  return new KeysError({ message: e.message, code: "STORE_FAILED" });
+  return KeysError.make({ message: e.message, code: "STORE_FAILED" });
 };
 
 /** Human label for where a resolved key came from. */
@@ -37,7 +37,7 @@ const stdinFlag = Flag.boolean("stdin").pipe(
 /** Read all of stdin as text (so the key avoids shell history). */
 const readStdin = Effect.tryPromise({
   try: () => new Response(Bun.stdin.stream()).text(),
-  catch: () => new KeysError({ message: "Failed to read stdin", code: "INVALID_INPUT" }),
+  catch: () => KeysError.make({ message: "Failed to read stdin", code: "INVALID_INPUT" }),
 });
 
 /** `okra keys set <provider> [<key>] [--stdin]` — store a key. Never echoes the value. */
@@ -52,12 +52,11 @@ const setCommand = Command.make(
       const readKey = (): Effect.Effect<string, KeysError> => {
         if (stdin) return readStdin;
         return Effect.fromOption(key).pipe(
-          Effect.mapError(
-            () =>
-              new KeysError({
-                message: "No key provided. Pass it as an argument or pipe it with --stdin.",
-                code: "INVALID_INPUT",
-              }),
+          Effect.mapError(() =>
+            KeysError.make({
+              message: "No key provided. Pass it as an argument or pipe it with --stdin.",
+              code: "INVALID_INPUT",
+            }),
           ),
         );
       };
@@ -95,7 +94,7 @@ const getCommand = Command.make("get", { provider: providerArgument }, ({ provid
       .pipe(Effect.mapError(toKeysError));
 
     if (status.source === "missing") {
-      return yield* new KeysError({
+      return yield* KeysError.make({
         message: `No key for "${provider}". Set ${resolveEnvVar(provider)} or run \`okra keys set ${provider}\`.`,
         code: "NOT_FOUND",
       });
@@ -114,7 +113,7 @@ const removeCommand = Command.make("rm", { provider: providerArgument }, ({ prov
     const keyStore = yield* KeyStoreService;
     const removed = yield* keyStore.remove(provider).pipe(Effect.mapError(toKeysError));
     if (!removed) {
-      return yield* new KeysError({
+      return yield* KeysError.make({
         message: `No stored key for "${provider}".`,
         code: "NOT_FOUND",
       });

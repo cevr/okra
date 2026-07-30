@@ -52,17 +52,16 @@ export const SkillLockLive = Layer.effect(
     const readLock: Effect.Effect<LockFile, SkillsError> = Effect.gen(function* () {
       const exists = yield* fs.exists(lockPath);
       if (!exists) {
-        return new LockFile({ version: 1, skills: {} });
+        return LockFile.make({ version: 1, skills: {} });
       }
       const raw = yield* fs.readFileString(lockPath);
       return yield* decodeLockFileJson(raw);
     }).pipe(
-      Effect.mapError(
-        () =>
-          new SkillsError({
-            message: "Failed to read or write skill lock file",
-            code: "LOCK_FILE",
-          }),
+      Effect.mapError(() =>
+        SkillsError.make({
+          message: "Failed to read or write skill lock file",
+          code: "LOCK_FILE",
+        }),
       ),
       Effect.withSpan("SkillLock.read"),
     );
@@ -73,12 +72,11 @@ export const SkillLockLive = Layer.effect(
         yield* fs.makeDirectory(pathService.dirname(lockPath), { recursive: true });
         yield* fs.writeFileString(lockPath, encoded + "\n");
       }).pipe(
-        Effect.mapError(
-          () =>
-            new SkillsError({
-              message: "Failed to read or write skill lock file",
-              code: "LOCK_FILE",
-            }),
+        Effect.mapError(() =>
+          SkillsError.make({
+            message: "Failed to read or write skill lock file",
+            code: "LOCK_FILE",
+          }),
         ),
         Effect.withSpan("SkillLock.write"),
       );
@@ -96,14 +94,14 @@ export const SkillLockLive = Layer.effect(
         const lock = yield* readLock;
         const now = (yield* DateTime.now).pipe(DateTime.formatIso);
         const existing = lock.skills[name];
-        const entry = new LockEntry({
+        const entry = LockEntry.make({
           source,
           skillPath,
           ref,
           installedAt: existing?.installedAt ?? now,
           updatedAt: now,
         });
-        const updated = new LockFile({
+        const updated = LockFile.make({
           version: 1,
           skills: { ...lock.skills, [name]: entry },
         });
@@ -120,7 +118,7 @@ export const SkillLockLive = Layer.effect(
       const newSkills = { ...lock.skills };
       for (const { name, source, skillPath, ref } of entries) {
         const existing = newSkills[name];
-        newSkills[name] = new LockEntry({
+        newSkills[name] = LockEntry.make({
           source,
           skillPath,
           ref,
@@ -128,14 +126,14 @@ export const SkillLockLive = Layer.effect(
           updatedAt: now,
         });
       }
-      yield* writeLock(new LockFile({ version: 1, skills: newSkills }));
+      yield* writeLock(LockFile.make({ version: 1, skills: newSkills }));
     });
 
     const remove = (name: string) =>
       Effect.gen(function* () {
         const lock = yield* readLock;
         const { [name]: _, ...rest } = lock.skills;
-        yield* writeLock(new LockFile({ version: 1, skills: rest }));
+        yield* writeLock(LockFile.make({ version: 1, skills: rest }));
       }).pipe(Effect.withSpan("SkillLock.remove", { attributes: { name } }));
 
     const update = (name: string) =>
@@ -144,11 +142,11 @@ export const SkillLockLive = Layer.effect(
         const entry = lock.skills[name];
         if (!entry) return;
         const now = (yield* DateTime.now).pipe(DateTime.formatIso);
-        const updated = new LockFile({
+        const updated = LockFile.make({
           version: 1,
           skills: {
             ...lock.skills,
-            [name]: new LockEntry({
+            [name]: LockEntry.make({
               source: entry.source,
               skillPath: entry.skillPath,
               ref: entry.ref,
@@ -170,7 +168,7 @@ export const SkillLockLive = Layer.effect(
       for (const { name, skillPath } of entries) {
         const entry = newSkills[name];
         if (entry) {
-          newSkills[name] = new LockEntry({
+          newSkills[name] = LockEntry.make({
             source: entry.source,
             skillPath: skillPath ?? entry.skillPath,
             ref: entry.ref,
@@ -179,7 +177,7 @@ export const SkillLockLive = Layer.effect(
           });
         }
       }
-      yield* writeLock(new LockFile({ version: 1, skills: newSkills }));
+      yield* writeLock(LockFile.make({ version: 1, skills: newSkills }));
     });
 
     return { read: readLock, get, add, addMany, remove, update, updateMany };

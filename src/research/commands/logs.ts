@@ -32,7 +32,7 @@ export const logsCommand = Command.make(
 
       const exists = yield* fs.exists(paths.daemonLog).pipe(Effect.orElseSucceed(() => false));
       if (!exists) {
-        return yield* new ResearchError({
+        return yield* ResearchError.make({
           message: "No daemon log found. Start an experiment first.",
           code: ErrorCode.READ_FAILED,
         });
@@ -41,13 +41,11 @@ export const logsCommand = Command.make(
       const spawner = yield* ChildProcessSpawner;
       const command = buildLogCommand(follow, paths.daemonLog);
       yield* spawner.exitCode(command).pipe(
-        Effect.catchTag(
-          "PlatformError",
-          () =>
-            new ResearchError({
-              message: "Failed to read logs",
-              code: ErrorCode.READ_FAILED,
-            }),
+        Effect.catchTag("PlatformError", () =>
+          ResearchError.make({
+            message: "Failed to read logs",
+            code: ErrorCode.READ_FAILED,
+          }),
         ),
       );
     }),

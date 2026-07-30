@@ -51,7 +51,7 @@ export const reindex = Command.make("reindex", {
           Effect.catchTag("@cvr/okra/brain/VaultError", (e) => {
             if (e.code === "READ_FAILED" || e.code === "NOT_INITIALIZED") {
               return Effect.fail(
-                new VaultError({
+                VaultError.make({
                   message: "Vault not initialized — run `okra brain init`",
                   code: "NOT_INITIALIZED",
                 }),

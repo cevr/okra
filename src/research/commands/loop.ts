@@ -15,17 +15,16 @@ export const loopCommand = Command.make(
     Effect.gen(function* () {
       // Guard: only callable by the daemon
       const internalOpt = yield* readInternal.pipe(
-        Effect.mapError(
-          () =>
-            new ResearchError({
-              message: "Cannot read OKRA_INTERNAL",
-              code: ErrorCode.AGENT_FAILED,
-            }),
+        Effect.mapError(() =>
+          ResearchError.make({
+            message: "Cannot read OKRA_INTERNAL",
+            code: ErrorCode.AGENT_FAILED,
+          }),
         ),
       );
       const internal = Option.getOrElse(internalOpt, () => "");
       if (internal !== "1") {
-        return yield* new ResearchError({
+        return yield* ResearchError.make({
           message: "This command is for internal use only",
           code: ErrorCode.AGENT_FAILED,
         });

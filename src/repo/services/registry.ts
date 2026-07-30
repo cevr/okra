@@ -48,13 +48,13 @@ const decodePypiMetadata = Schema.decodeUnknownEffect(PypiMetadata);
 const decodeCratesMetadata = Schema.decodeUnknownEffect(CratesMetadata);
 
 const registryError = (registry: string, operation: string, cause: unknown) =>
-  new RepoError({
+  RepoError.make({
     message: `Failed to ${operation} from ${registry}: ${String(cause)}`,
     code: "REGISTRY",
   });
 
 const networkError = (url: string, cause: unknown) =>
-  new RepoError({ message: `Network request failed: ${url}: ${String(cause)}`, code: "NETWORK" });
+  RepoError.make({ message: `Network request failed: ${url}: ${String(cause)}`, code: "NETWORK" });
 
 // Registry tags are usually prefixed with "v"; only add it when it is absent.
 const toGitRef = (version: string): string => {

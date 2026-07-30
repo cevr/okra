@@ -141,7 +141,7 @@ export const parseSpec = (input: string): Effect.Effect<PackageSpec, RepoError> 
     Effect.flatMap((result) => {
       if ("error" in result) {
         return Effect.fail(
-          new RepoError({ message: `${result.error}: ${input}`, code: "SPEC_PARSE" }),
+          RepoError.make({ message: `${result.error}: ${input}`, code: "SPEC_PARSE" }),
         );
       }
       return Effect.succeed(result);

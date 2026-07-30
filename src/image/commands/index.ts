@@ -140,18 +140,17 @@ const readImageFile = Effect.fn("image.readImageFile")(function* (filePath: stri
   const fs = yield* FileSystem;
   const mediaType = refMediaType(filePath);
   if (mediaType === undefined) {
-    return yield* new ImageError({
+    return yield* ImageError.make({
       message: `Unsupported ${flag} image type: ${filePath} (use png/jpg/jpeg/webp/gif).`,
       code: "INVALID_INPUT",
     });
   }
   const data = yield* fs.readFile(filePath).pipe(
-    Effect.mapError(
-      (e) =>
-        new ImageError({
-          message: `Cannot read ${flag} ${filePath}: ${e.message}`,
-          code: "INVALID_INPUT",
-        }),
+    Effect.mapError((e) =>
+      ImageError.make({
+        message: `Cannot read ${flag} ${filePath}: ${e.message}`,
+        code: "INVALID_INPUT",
+      }),
     ),
   );
   return { data, mediaType } satisfies ImagePart;
@@ -242,7 +241,7 @@ type RouteResult =
 const ok = (route: Route): RouteResult => ({ ok: true, route });
 const bad = (message: string): RouteResult => ({
   ok: false,
-  error: new ImageError({ message, code: "INVALID_INPUT" }),
+  error: ImageError.make({ message, code: "INVALID_INPUT" }),
 });
 
 /** Name the edit-intent flag that's present, for error messages. */
@@ -379,7 +378,7 @@ const generateCommand = Command.make(
       const path = yield* Path;
 
       if (Option.isNone(prompt)) {
-        return yield* new ImageError({
+        return yield* ImageError.make({
           message: 'Missing prompt. Usage: okra image "<prompt>" [-o out].',
           code: "INVALID_INPUT",
         });
@@ -440,12 +439,11 @@ const generateCommand = Command.make(
 
       const dir = path.dirname(outPath);
       yield* fs.makeDirectory(dir, { recursive: true }).pipe(
-        Effect.mapError(
-          (e) =>
-            new ImageError({
-              message: `Cannot create ${dir}: ${e.message}`,
-              code: "WRITE_FAILED",
-            }),
+        Effect.mapError((e) =>
+          ImageError.make({
+            message: `Cannot create ${dir}: ${e.message}`,
+            code: "WRITE_FAILED",
+          }),
         ),
       );
 
@@ -460,12 +458,11 @@ const generateCommand = Command.make(
 
       yield* Effect.forEach(outputs, ({ bytes, filePath }) =>
         fs.writeFile(filePath, bytes).pipe(
-          Effect.mapError(
-            (e) =>
-              new ImageError({
-                message: `Cannot write ${filePath}: ${e.message}`,
-                code: "WRITE_FAILED",
-              }),
+          Effect.mapError((e) =>
+            ImageError.make({
+              message: `Cannot write ${filePath}: ${e.message}`,
+              code: "WRITE_FAILED",
+            }),
           ),
         ),
       );

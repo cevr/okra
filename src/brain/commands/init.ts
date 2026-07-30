@@ -44,7 +44,7 @@ const orFallbackWhenMissing =
       return Effect.succeed(fallback);
     }
     return Effect.fail(
-      new ConfigError({
+      ConfigError.make({
         message: message(describeError(e)),
         code: "READ_FAILED",
       }),
@@ -116,7 +116,7 @@ export const init = Command.make("init", {
       const path = yield* Path;
 
       if (Option.isSome(provider) && !isAgentProviderId(provider.value)) {
-        return yield* new BrainError({
+        return yield* BrainError.make({
           message: `Unknown provider "${provider.value}". Valid: ${allProviderIds.join(", ")}`,
           code: "UNSUPPORTED_PROVIDER",
         });
@@ -137,12 +137,11 @@ export const init = Command.make("init", {
           const projectName = path.basename(cwd);
           vaultPath = path.join(globalPath, "projects", projectName);
           const targetExists = yield* fs.exists(vaultPath).pipe(
-            Effect.mapError(
-              (e: PlatformError) =>
-                new ConfigError({
-                  message: `Cannot check project vault: ${e.message}`,
-                  code: "READ_FAILED",
-                }),
+            Effect.mapError((e: PlatformError) =>
+              ConfigError.make({
+                message: `Cannot check project vault: ${e.message}`,
+                code: "READ_FAILED",
+              }),
             ),
           );
           if (targetExists) {
@@ -166,12 +165,11 @@ export const init = Command.make("init", {
 
       const cfgPath = yield* config.configFilePath;
       const cfgExists = yield* fs.exists(cfgPath).pipe(
-        Effect.mapError(
-          (e: PlatformError) =>
-            new ConfigError({
-              message: `Cannot check config: ${e.message}`,
-              code: "READ_FAILED",
-            }),
+        Effect.mapError((e: PlatformError) =>
+          ConfigError.make({
+            message: `Cannot check config: ${e.message}`,
+            code: "READ_FAILED",
+          }),
         ),
       );
       const existingConfig: {
@@ -305,12 +303,11 @@ export const wireHooks = Effect.fn("wireHooks")(function* (settingsPath: string)
   const path = yield* Path;
   const dir = path.dirname(settingsPath);
   yield* fs.makeDirectory(dir, { recursive: true }).pipe(
-    Effect.mapError(
-      (e: PlatformError) =>
-        new ConfigError({
-          message: `Cannot create settings dir: ${e.message}`,
-          code: "WRITE_FAILED",
-        }),
+    Effect.mapError((e: PlatformError) =>
+      ConfigError.make({
+        message: `Cannot create settings dir: ${e.message}`,
+        code: "WRITE_FAILED",
+      }),
     ),
   );
 
@@ -320,10 +317,10 @@ export const wireHooks = Effect.fn("wireHooks")(function* (settingsPath: string)
 
   const parsedRaw = yield* Effect.try({
     try: () => decodeUnknownJson(existing),
-    catch: () => new ConfigError({ message: "Cannot parse settings.json", code: "PARSE_FAILED" }),
+    catch: () => ConfigError.make({ message: "Cannot parse settings.json", code: "PARSE_FAILED" }),
   });
   if (!isRecord(parsedRaw)) {
-    return yield* new ConfigError({
+    return yield* ConfigError.make({
       message: "settings.json is not a JSON object",
       code: "PARSE_FAILED",
     });
@@ -388,12 +385,11 @@ export const wireHooks = Effect.fn("wireHooks")(function* (settingsPath: string)
   if (changed) {
     parsed["hooks"] = hooks;
     yield* fs.writeFileString(settingsPath, encodeSettingsJson(parsed) + "\n").pipe(
-      Effect.mapError(
-        (e: PlatformError) =>
-          new ConfigError({
-            message: `Cannot write settings: ${e.message}`,
-            code: "WRITE_FAILED",
-          }),
+      Effect.mapError((e: PlatformError) =>
+        ConfigError.make({
+          message: `Cannot write settings: ${e.message}`,
+          code: "WRITE_FAILED",
+        }),
       ),
     );
   }
@@ -441,22 +437,20 @@ export const copyStarterPrinciples = Effect.fn("copyStarterPrinciples")(function
 
   for (const file of starterFiles) {
     const content = yield* fs.readFile(path.join(starterDir, file)).pipe(
-      Effect.mapError(
-        (e: PlatformError) =>
-          new ConfigError({
-            message: `Cannot read starter file ${file}: ${e.message}`,
-            code: "READ_FAILED",
-          }),
+      Effect.mapError((e: PlatformError) =>
+        ConfigError.make({
+          message: `Cannot read starter file ${file}: ${e.message}`,
+          code: "READ_FAILED",
+        }),
       ),
     );
     if (content.length > 0) {
       yield* fs.writeFile(path.join(principlesDir, file), content).pipe(
-        Effect.mapError(
-          (e: PlatformError) =>
-            new ConfigError({
-              message: `Cannot write ${file}: ${e.message}`,
-              code: "WRITE_FAILED",
-            }),
+        Effect.mapError((e: PlatformError) =>
+          ConfigError.make({
+            message: `Cannot write ${file}: ${e.message}`,
+            code: "WRITE_FAILED",
+          }),
         ),
       );
     }
@@ -473,22 +467,20 @@ export const copyStarterPrinciples = Effect.fn("copyStarterPrinciples")(function
     );
   if (indexSrcExists) {
     const indexContent = yield* fs.readFile(indexSrc).pipe(
-      Effect.mapError(
-        (e: PlatformError) =>
-          new ConfigError({
-            message: `Cannot read starter principles.md: ${e.message}`,
-            code: "READ_FAILED",
-          }),
+      Effect.mapError((e: PlatformError) =>
+        ConfigError.make({
+          message: `Cannot read starter principles.md: ${e.message}`,
+          code: "READ_FAILED",
+        }),
       ),
     );
     if (indexContent.length > 0) {
       yield* fs.writeFile(path.join(vaultPath, "principles.md"), indexContent).pipe(
-        Effect.mapError(
-          (e: PlatformError) =>
-            new ConfigError({
-              message: `Cannot write principles.md: ${e.message}`,
-              code: "WRITE_FAILED",
-            }),
+        Effect.mapError((e: PlatformError) =>
+          ConfigError.make({
+            message: `Cannot write principles.md: ${e.message}`,
+            code: "WRITE_FAILED",
+          }),
         ),
       );
     }

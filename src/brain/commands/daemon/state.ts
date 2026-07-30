@@ -7,8 +7,8 @@ import type { Provider } from "../../../shared/provider.js";
 
 const readEnv = (key: string): Effect.Effect<Option.Option<string>, BrainError> =>
   Config.option(Config.string(key)).pipe(
-    Effect.mapError(
-      () => new BrainError({ message: `Cannot read ${key} config`, code: "READ_FAILED" }),
+    Effect.mapError(() =>
+      BrainError.make({ message: `Cannot read ${key} config`, code: "READ_FAILED" }),
     ),
   );
 
@@ -73,6 +73,13 @@ const STATE_LOCK_MAX_ATTEMPTS = 40;
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
+const stringOrUndefined = (value: unknown): string | undefined => {
+  if (typeof value === "string") {
+    return value;
+  }
+  return undefined;
+};
+
 const pickProviderMap = (value: unknown): ProviderMap<string> => {
   if (!isRecord(value)) return {};
   const result: ProviderMap<string> = {};
@@ -104,10 +111,9 @@ const normalizeReflectState = (value: unknown): ReflectState => {
   const processedSessionsByProvider = pickProcessedSessionsByProvider(
     value["processedSessionsByProvider"],
   );
-  const lastExecutorRun =
-    typeof value["lastExecutorRun"] === "string" ? value["lastExecutorRun"] : undefined;
+  const lastExecutorRun = stringOrUndefined(value["lastExecutorRun"]);
 
-  const legacyLastRun = typeof value["lastRun"] === "string" ? value["lastRun"] : undefined;
+  const legacyLastRun = stringOrUndefined(value["lastRun"]);
   if (legacyLastRun !== undefined && lastSourceScanByProvider["claude"] === undefined) {
     lastSourceScanByProvider["claude"] = legacyLastRun;
   }
@@ -130,7 +136,7 @@ const normalizeReflectState = (value: unknown): ReflectState => {
 const normalizeJobState = (value: unknown): JobState => {
   if (!isRecord(value)) return {};
   return {
-    lastRun: typeof value["lastRun"] === "string" ? value["lastRun"] : undefined,
+    lastRun: stringOrUndefined(value["lastRun"]),
   };
 };
 
@@ -160,18 +166,17 @@ export const readState = Effect.fn("readState")(function* (brainDir: string) {
   if (!exists) return EMPTY_STATE;
 
   const text = yield* fs.readFileString(filePath).pipe(
-    Effect.mapError(
-      (e: PlatformError) =>
-        new BrainError({
-          message: `Cannot read daemon state: ${e.message}`,
-          code: "READ_FAILED",
-        }),
+    Effect.mapError((e: PlatformError) =>
+      BrainError.make({
+        message: `Cannot read daemon state: ${e.message}`,
+        code: "READ_FAILED",
+      }),
     ),
   );
 
   return yield* Effect.try({
     try: () => normalizeDaemonState(decodeUnknownJson(text)),
-    catch: () => new BrainError({ message: "Cannot parse daemon state", code: "READ_FAILED" }),
+    catch: () => BrainError.make({ message: "Cannot parse daemon state", code: "READ_FAILED" }),
   }).pipe(Effect.orElseSucceed(() => EMPTY_STATE));
 });
 
@@ -185,22 +190,20 @@ export const writeState = Effect.fn("writeState")(function* (brainDir: string, s
   const text = encodeDaemonStateJson(normalizeDaemonState(state));
 
   yield* fs.writeFileString(tmpPath, text + "\n").pipe(
-    Effect.mapError(
-      (e: PlatformError) =>
-        new BrainError({
-          message: `Cannot write daemon state: ${e.message}`,
-          code: "WRITE_FAILED",
-        }),
+    Effect.mapError((e: PlatformError) =>
+      BrainError.make({
+        message: `Cannot write daemon state: ${e.message}`,
+        code: "WRITE_FAILED",
+      }),
     ),
   );
 
   yield* fs.rename(tmpPath, filePath).pipe(
-    Effect.mapError(
-      (e: PlatformError) =>
-        new BrainError({
-          message: `Cannot rename daemon state: ${e.message}`,
-          code: "WRITE_FAILED",
-        }),
+    Effect.mapError((e: PlatformError) =>
+      BrainError.make({
+        message: `Cannot rename daemon state: ${e.message}`,
+        code: "WRITE_FAILED",
+      }),
     ),
   );
 });
@@ -222,7 +225,7 @@ const acquireStateLock = Effect.fn("acquireStateLock")(function* (brainDir: stri
     }
   }
 
-  return yield* new BrainError({
+  return yield* BrainError.make({
     message: `Timed out acquiring daemon state lock after ${String(
       STATE_LOCK_RETRY_DELAY_MS * STATE_LOCK_MAX_ATTEMPTS,
     )}ms`,
@@ -265,7 +268,7 @@ export const acquireLock = Effect.fn("acquireLock")(function* (brainDir: string,
   const holderPid = parseInt(content.trim(), 10);
 
   if (!Number.isNaN(holderPid) && isProcessAlive(holderPid)) {
-    return yield* new BrainError({
+    return yield* BrainError.make({
       message: `Daemon job "${job}" is already running (PID ${holderPid}). If stale, remove ${lock}`,
       code: "LOCKED",
     });
@@ -274,12 +277,11 @@ export const acquireLock = Effect.fn("acquireLock")(function* (brainDir: string,
   yield* fs.remove(lock).pipe(Effect.catch(() => Effect.void));
 
   yield* fs.writeFileString(lock, pid, { flag: "wx" }).pipe(
-    Effect.mapError(
-      () =>
-        new BrainError({
-          message: `Cannot acquire lock for "${job}" — concurrent process won the race`,
-          code: "LOCKED",
-        }),
+    Effect.mapError(() =>
+      BrainError.make({
+        message: `Cannot acquire lock for "${job}" — concurrent process won the race`,
+        code: "LOCKED",
+      }),
     ),
   );
 });
@@ -306,7 +308,7 @@ export const releaseLock = Effect.fn("releaseLock")(function* (brainDir: string,
 export const requireHome = Effect.fn("requireHome")(function* () {
   const home = yield* readHome;
   if (home.length > 0) return home;
-  return yield* new BrainError({
+  return yield* BrainError.make({
     message: "HOME not set — run with HOME defined",
     code: "NO_HOME",
   });
@@ -314,7 +316,7 @@ export const requireHome = Effect.fn("requireHome")(function* () {
 
 export const requireDarwin = Effect.fn("requireDarwin")(function* () {
   if (process.platform === "darwin") return;
-  return yield* new BrainError({
+  return yield* BrainError.make({
     message: "okra brain daemon requires macOS (launchd). Linux: use systemd or cron manually",
     code: "UNSUPPORTED_PLATFORM",
   });

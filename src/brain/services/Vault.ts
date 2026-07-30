@@ -88,13 +88,12 @@ export class VaultService extends Context.Service<
 
       const listMdFiles = Effect.fn("VaultService.listMdFiles")(function* (vaultPath: string) {
         const entries = yield* fs.readDirectory(vaultPath, { recursive: true }).pipe(
-          Effect.mapError(
-            (e: PlatformError) =>
-              new VaultError({
-                message: `Cannot read vault: ${e.message}`,
-                code: "READ_FAILED",
-                path: vaultPath,
-              }),
+          Effect.mapError((e: PlatformError) =>
+            VaultError.make({
+              message: `Cannot read vault: ${e.message}`,
+              code: "READ_FAILED",
+              path: vaultPath,
+            }),
           ),
         );
         return filterMdFiles(entries)
@@ -110,26 +109,24 @@ export class VaultService extends Context.Service<
         const minimal = options?.minimal === true;
 
         yield* fs.makeDirectory(vaultPath, { recursive: true }).pipe(
-          Effect.mapError(
-            (e: PlatformError) =>
-              new VaultError({
-                message: `Cannot create vault: ${e.message}`,
-                code: "WRITE_FAILED",
-                path: vaultPath,
-              }),
+          Effect.mapError((e: PlatformError) =>
+            VaultError.make({
+              message: `Cannot create vault: ${e.message}`,
+              code: "WRITE_FAILED",
+              path: vaultPath,
+            }),
           ),
         );
 
         if (!minimal) {
           for (const dir of VAULT_DIRS) {
             yield* fs.makeDirectory(path.join(vaultPath, dir), { recursive: true }).pipe(
-              Effect.mapError(
-                (e: PlatformError) =>
-                  new VaultError({
-                    message: `Cannot create ${dir}: ${e.message}`,
-                    code: "WRITE_FAILED",
-                    path: vaultPath,
-                  }),
+              Effect.mapError((e: PlatformError) =>
+                VaultError.make({
+                  message: `Cannot create ${dir}: ${e.message}`,
+                  code: "WRITE_FAILED",
+                  path: vaultPath,
+                }),
               ),
             );
           }
@@ -147,24 +144,22 @@ export class VaultService extends Context.Service<
         for (const [filePath, content] of Object.entries(filesToCreate)) {
           const fullPath = path.join(vaultPath, filePath);
           const exists = yield* fs.exists(fullPath).pipe(
-            Effect.mapError(
-              (e: PlatformError) =>
-                new VaultError({
-                  message: `Cannot check ${filePath}: ${e.message}`,
-                  code: "READ_FAILED",
-                  path: vaultPath,
-                }),
+            Effect.mapError((e: PlatformError) =>
+              VaultError.make({
+                message: `Cannot check ${filePath}: ${e.message}`,
+                code: "READ_FAILED",
+                path: vaultPath,
+              }),
             ),
           );
           if (!exists) {
             yield* fs.writeFileString(fullPath, content).pipe(
-              Effect.mapError(
-                (e: PlatformError) =>
-                  new VaultError({
-                    message: `Cannot write ${filePath}: ${e.message}`,
-                    code: "WRITE_FAILED",
-                    path: vaultPath,
-                  }),
+              Effect.mapError((e: PlatformError) =>
+                VaultError.make({
+                  message: `Cannot write ${filePath}: ${e.message}`,
+                  code: "WRITE_FAILED",
+                  path: vaultPath,
+                }),
               ),
             );
             created.push(filePath);
@@ -183,13 +178,12 @@ export class VaultService extends Context.Service<
 
         const existingContent = yield* fs.readFileString(indexPath).pipe(
           Effect.catchIf(isNotFound, () => Effect.succeed("")),
-          Effect.mapError(
-            (e) =>
-              new VaultError({
-                message: `Cannot read index: ${(e as PlatformError).message}`,
-                code: "INDEX_MISSING",
-                path: vaultPath,
-              }),
+          Effect.mapError((e) =>
+            VaultError.make({
+              message: `Cannot read index: ${(e as PlatformError).message}`,
+              code: "INDEX_MISSING",
+              path: vaultPath,
+            }),
           ),
         );
 
@@ -242,13 +236,12 @@ export class VaultService extends Context.Service<
         lines.push("");
 
         yield* fs.writeFileString(indexPath, lines.join("\n")).pipe(
-          Effect.mapError(
-            (e: PlatformError) =>
-              new VaultError({
-                message: `Cannot write index: ${e.message}`,
-                code: "WRITE_FAILED",
-                path: vaultPath,
-              }),
+          Effect.mapError((e: PlatformError) =>
+            VaultError.make({
+              message: `Cannot write index: ${e.message}`,
+              code: "WRITE_FAILED",
+              path: vaultPath,
+            }),
           ),
         );
 
@@ -263,13 +256,12 @@ export class VaultService extends Context.Service<
       const readIndex = Effect.fn("VaultService.readIndex")(function* (vaultPath: string) {
         const indexPath = path.join(vaultPath, "index.md");
         return yield* fs.readFileString(indexPath).pipe(
-          Effect.mapError(
-            (e: PlatformError) =>
-              new VaultError({
-                message: `Cannot read index: ${e.message}`,
-                code: "INDEX_MISSING",
-                path: vaultPath,
-              }),
+          Effect.mapError((e: PlatformError) =>
+            VaultError.make({
+              message: `Cannot read index: ${e.message}`,
+              code: "INDEX_MISSING",
+              path: vaultPath,
+            }),
           ),
         );
       });
@@ -279,13 +271,12 @@ export class VaultService extends Context.Service<
 
         const indexContent = yield* fs.readFileString(path.join(vaultPath, "index.md")).pipe(
           Effect.catchIf(isNotFound, () => Effect.succeed("")),
-          Effect.mapError(
-            (e) =>
-              new VaultError({
-                message: `Cannot read index: ${(e as PlatformError).message}`,
-                code: "INDEX_MISSING",
-                path: vaultPath,
-              }),
+          Effect.mapError((e) =>
+            VaultError.make({
+              message: `Cannot read index: ${(e as PlatformError).message}`,
+              code: "INDEX_MISSING",
+              path: vaultPath,
+            }),
           ),
         );
         const indexed = new Set(
@@ -305,13 +296,12 @@ export class VaultService extends Context.Service<
         outputPath: Option.Option<string>,
       ) {
         const files = yield* fs.readDirectory(dirPath, { recursive: true }).pipe(
-          Effect.mapError(
-            (e: PlatformError) =>
-              new VaultError({
-                message: `Cannot read directory: ${e.message}`,
-                code: "READ_FAILED",
-                path: dirPath,
-              }),
+          Effect.mapError((e: PlatformError) =>
+            VaultError.make({
+              message: `Cannot read directory: ${e.message}`,
+              code: "READ_FAILED",
+              path: dirPath,
+            }),
           ),
         );
 
@@ -321,13 +311,12 @@ export class VaultService extends Context.Service<
         for (const file of mdFiles) {
           const fullPath = path.join(dirPath, file);
           const content = yield* fs.readFileString(fullPath).pipe(
-            Effect.mapError(
-              (e: PlatformError) =>
-                new VaultError({
-                  message: `Cannot read ${file}: ${e.message}`,
-                  code: "READ_FAILED",
-                  path: dirPath,
-                }),
+            Effect.mapError((e: PlatformError) =>
+              VaultError.make({
+                message: `Cannot read ${file}: ${e.message}`,
+                code: "READ_FAILED",
+                path: dirPath,
+              }),
             ),
           );
           chunks.push(`=== ${file} ===`);
@@ -340,23 +329,21 @@ export class VaultService extends Context.Service<
         if (Option.isSome(outputPath)) {
           // Ensure parent directory exists
           yield* fs.makeDirectory(path.dirname(outputPath.value), { recursive: true }).pipe(
-            Effect.mapError(
-              (e: PlatformError) =>
-                new VaultError({
-                  message: `Cannot create output dir: ${e.message}`,
-                  code: "WRITE_FAILED",
-                  path: outputPath.value,
-                }),
+            Effect.mapError((e: PlatformError) =>
+              VaultError.make({
+                message: `Cannot create output dir: ${e.message}`,
+                code: "WRITE_FAILED",
+                path: outputPath.value,
+              }),
             ),
           );
           yield* fs.writeFileString(outputPath.value, result).pipe(
-            Effect.mapError(
-              (e: PlatformError) =>
-                new VaultError({
-                  message: `Cannot write snapshot: ${e.message}`,
-                  code: "WRITE_FAILED",
-                  path: outputPath.value,
-                }),
+            Effect.mapError((e: PlatformError) =>
+              VaultError.make({
+                message: `Cannot write snapshot: ${e.message}`,
+                code: "WRITE_FAILED",
+                path: outputPath.value,
+              }),
             ),
           );
           return outputPath.value;

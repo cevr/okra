@@ -97,12 +97,11 @@ class LaunchdService extends Context.Service<
       const pathEnv: string = yield* PathEnv;
 
       yield* fs.makeDirectory(logsDir, { recursive: true }).pipe(
-        Effect.mapError(
-          (e: PlatformError) =>
-            new ScheduleError({
-              message: `Cannot create logs dir: ${e.message}`,
-              code: "WRITE_FAILED",
-            }),
+        Effect.mapError((e: PlatformError) =>
+          ScheduleError.make({
+            message: `Cannot create logs dir: ${e.message}`,
+            code: "WRITE_FAILED",
+          }),
         ),
       );
 
@@ -121,9 +120,8 @@ class LaunchdService extends Context.Service<
           );
           return code === 0;
         },
-        Effect.catchTag(
-          "PlatformError",
-          () => new ScheduleError({ message: "Cannot check launchctl", code: "LAUNCHD_FAILED" }),
+        Effect.catchTag("PlatformError", () =>
+          ScheduleError.make({ message: "Cannot check launchctl", code: "LAUNCHD_FAILED" }),
         ),
       );
 
@@ -140,10 +138,8 @@ class LaunchdService extends Context.Service<
           return { code, stderr: stderr.trim() };
         },
         Effect.scoped,
-        Effect.catchTag(
-          "PlatformError",
-          () =>
-            new ScheduleError({ message: "Cannot run launchctl unload", code: "LAUNCHD_FAILED" }),
+        Effect.catchTag("PlatformError", () =>
+          ScheduleError.make({ message: "Cannot run launchctl unload", code: "LAUNCHD_FAILED" }),
         ),
       );
 
@@ -152,12 +148,11 @@ class LaunchdService extends Context.Service<
         const content = generatePlist(task, okraBin, home, logPath(task.id), pathEnv);
 
         yield* fs.makeDirectory(agentsDir, { recursive: true }).pipe(
-          Effect.mapError(
-            (e: PlatformError) =>
-              new ScheduleError({
-                message: `Cannot create LaunchAgents dir: ${e.message}`,
-                code: "WRITE_FAILED",
-              }),
+          Effect.mapError((e: PlatformError) =>
+            ScheduleError.make({
+              message: `Cannot create LaunchAgents dir: ${e.message}`,
+              code: "WRITE_FAILED",
+            }),
           ),
         );
 
@@ -171,12 +166,11 @@ class LaunchdService extends Context.Service<
         }
 
         yield* fs.writeFileString(plist, content).pipe(
-          Effect.mapError(
-            (e: PlatformError) =>
-              new ScheduleError({
-                message: `Cannot write plist: ${e.message}`,
-                code: "WRITE_FAILED",
-              }),
+          Effect.mapError((e: PlatformError) =>
+            ScheduleError.make({
+              message: `Cannot write plist: ${e.message}`,
+              code: "WRITE_FAILED",
+            }),
           ),
         );
 
@@ -192,13 +186,11 @@ class LaunchdService extends Context.Service<
           return { code, stderr: stderr.trim() };
         }).pipe(
           Effect.scoped,
-          Effect.catchTag(
-            "PlatformError",
-            (e: PlatformError) =>
-              new ScheduleError({
-                message: `Cannot load ${label(task.id)}: ${e.message}`,
-                code: "LAUNCHD_FAILED",
-              }),
+          Effect.catchTag("PlatformError", (e: PlatformError) =>
+            ScheduleError.make({
+              message: `Cannot load ${label(task.id)}: ${e.message}`,
+              code: "LAUNCHD_FAILED",
+            }),
           ),
         );
 
@@ -218,7 +210,7 @@ class LaunchdService extends Context.Service<
               )
               .pipe(Effect.catch(() => Effect.void));
           }
-          return yield* new ScheduleError({
+          return yield* ScheduleError.make({
             message: `Cannot load ${label(task.id)}: ${loadResult.stderr || `exit code ${loadResult.code}`}`,
             code: "LAUNCHD_FAILED",
           });
@@ -234,7 +226,7 @@ class LaunchdService extends Context.Service<
             // Re-check if still loaded — maybe it was already unloaded
             const stillLoaded = yield* isLoaded(id);
             if (stillLoaded) {
-              return yield* new ScheduleError({
+              return yield* ScheduleError.make({
                 message: `Cannot unload ${label(id)}: ${result.stderr || `exit code ${result.code}`}. Job is still running — plist not removed.`,
                 code: "LAUNCHD_FAILED",
               });

@@ -100,7 +100,7 @@ export const SkillStoreLive = Layer.effect(
         const skillMdPath = pathService.join(dir, name, "SKILL.md");
         const exists = yield* fs.exists(skillMdPath).pipe(Effect.orDie);
         if (!exists)
-          return yield* new SkillsError({
+          return yield* SkillsError.make({
             message: `Skill not found: ${name}`,
             code: "SKILL_NOT_FOUND",
           });
@@ -139,7 +139,7 @@ export const SkillStoreLive = Layer.effect(
         const skillDir = pathService.join(dir, name);
         const exists = yield* fs.exists(skillDir).pipe(Effect.orDie);
         if (!exists)
-          return yield* new SkillsError({
+          return yield* SkillsError.make({
             message: `Skill not found: ${name}`,
             code: "SKILL_NOT_FOUND",
           });

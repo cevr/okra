@@ -15,7 +15,7 @@ const parseUntilDate = Effect.fn("parseUntilDate")(function* (input: string) {
   const trimmed = input.trim();
   const baseMs = Date.parse(input);
   if (Number.isNaN(baseMs)) {
-    return yield* new ScheduleError({
+    return yield* ScheduleError.make({
       message: `Invalid --until date: "${input}". Use ISO 8601 or YYYY-MM-DD.`,
       code: "INVALID_DATE",
     });
@@ -45,7 +45,7 @@ const root = Command.make(
       }
 
       if (config.schedule._tag === "None") {
-        return yield* new ScheduleError({
+        return yield* ScheduleError.make({
           message: 'Missing --schedule (-s). Usage: okra schedule "<prompt>" -s "<schedule>"',
           code: "MISSING_FLAG",
         });
@@ -76,7 +76,7 @@ const root = Command.make(
       let conditionalStop: ConditionalStop | undefined;
       if (config.stopWhen._tag === "Some") {
         if (stopConditions.length === 0) {
-          return yield* new ScheduleError({
+          return yield* ScheduleError.make({
             message:
               "--stop-when requires a deterministic fallback (--max-runs or --until). The agent could run forever without one.",
             code: "MISSING_FALLBACK",

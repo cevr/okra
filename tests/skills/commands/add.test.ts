@@ -19,7 +19,7 @@ const makeTestLayer = (dir: string, github: GitHubShape) =>
   );
 
 const notImplemented = (..._args: Array<unknown>) =>
-  Effect.fail(new SkillsError({ message: "not-implemented", code: "FETCH_FAILED" }));
+  Effect.fail(SkillsError.make({ message: "not-implemented", code: "FETCH_FAILED" }));
 
 const skillMd = (name: string, description = "test") =>
   `---\nname: ${name}\ndescription: ${description}\n---\n\nContent\n`;

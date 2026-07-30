@@ -22,7 +22,7 @@ describe("escapeXml", () => {
 });
 
 describe("generatePlist", () => {
-  const task = new Task({
+  const task = Task.make({
     id: "test-task",
     prompt: "do stuff",
     provider: "claude",
@@ -67,7 +67,7 @@ describe("generatePlist", () => {
   });
 
   test("escapes XML special characters in all fields", () => {
-    const xmlTask = new Task({
+    const xmlTask = Task.make({
       id: "a&b",
       prompt: "check <things>",
       provider: "claude",
@@ -101,7 +101,7 @@ describe("generatePlist", () => {
   });
 
   test("generates StartCalendarInterval dict for daily cron", () => {
-    const dailyTask = new Task({
+    const dailyTask = Task.make({
       id: "daily",
       prompt: "run",
       provider: "claude",
@@ -129,7 +129,7 @@ describe("generatePlist", () => {
   });
 
   test("generates StartCalendarInterval array for weekday range", () => {
-    const weekdayTask = new Task({
+    const weekdayTask = Task.make({
       id: "weekday",
       prompt: "run",
       provider: "claude",
@@ -158,7 +158,7 @@ describe("generatePlist", () => {
   });
 
   test("generates oneshot calendar interval with Month/Day/Hour/Minute", () => {
-    const oneshotTask = new Task({
+    const oneshotTask = Task.make({
       id: "oneshot",
       prompt: "run",
       provider: "claude",

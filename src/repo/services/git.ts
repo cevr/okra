@@ -3,7 +3,7 @@ import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 import { RepoError } from "../errors.js";
 
 const gitError = (operation: string, repo: string, cause: unknown) =>
-  new RepoError({ message: `Git ${operation} failed on ${repo}: ${String(cause)}`, code: "GIT" });
+  RepoError.make({ message: `Git ${operation} failed on ${repo}: ${String(cause)}`, code: "GIT" });
 
 export class GitService extends Context.Service<
   GitService,

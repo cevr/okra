@@ -46,7 +46,7 @@ export class GitService extends Context.Service<
           const stderr = yield* Stream.mkString(Stream.decodeText(handle.stderr));
 
           if (exitCode !== 0) {
-            return yield* new ResearchError({
+            return yield* ResearchError.make({
               message: stderr.trim() || `git ${args[0]} failed with exit code ${exitCode}`,
               code: ErrorCode.GIT_FAILED,
             });
@@ -55,13 +55,11 @@ export class GitService extends Context.Service<
           return stdout.trim();
         },
         Effect.scoped,
-        Effect.catchTag(
-          "PlatformError",
-          (e: PlatformError) =>
-            new ResearchError({
-              message: `git process failed: ${e.message}`,
-              code: ErrorCode.GIT_FAILED,
-            }),
+        Effect.catchTag("PlatformError", (e: PlatformError) =>
+          ResearchError.make({
+            message: `git process failed: ${e.message}`,
+            code: ErrorCode.GIT_FAILED,
+          }),
         ),
       );
 
@@ -70,7 +68,7 @@ export class GitService extends Context.Service<
           Effect.filterOrFail(
             (branch) => branch !== "HEAD",
             () =>
-              new ResearchError({
+              ResearchError.make({
                 message: "HEAD is detached",
                 code: ErrorCode.GIT_FAILED,
               }),

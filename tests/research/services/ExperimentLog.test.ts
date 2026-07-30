@@ -18,7 +18,7 @@ describe("ExperimentLogService", () => {
       const root = yield* fs.makeTempDirectoryScoped({ prefix: "okra-xp-log-" });
       yield* fs.makeDirectory(path.join(root, ".xp"), { recursive: true });
 
-      const event = new LifecycleEventEntry({
+      const event = LifecycleEventEntry.make({
         _tag: "lifecycle",
         timestamp: FIXTURE_ISO,
         event: "started",
@@ -57,7 +57,7 @@ describe("ExperimentLogService", () => {
       const root = yield* fs.makeTempDirectoryScoped({ prefix: "okra-xp-log-" });
       yield* fs.makeDirectory(path.join(root, ".xp"), { recursive: true });
 
-      const config = new ConfigEvent({
+      const config = ConfigEvent.make({
         _tag: "config",
         timestamp: FIXTURE_ISO,
         segment: 1,
@@ -70,7 +70,7 @@ describe("ExperimentLogService", () => {
         benchmarkDigest: "deadbeef",
       });
 
-      const baseline = new ResultEvent({
+      const baseline = ResultEvent.make({
         _tag: "result",
         timestamp: FIXTURE_ISO,
         segment: 1,

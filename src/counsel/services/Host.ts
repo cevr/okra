@@ -22,9 +22,9 @@ export class HostService extends Context.Service<
         try: () => new Response(Bun.stdin.stream()).text(),
         catch: (error) => {
           if (error instanceof Error) {
-            return new CounselError({ message: error.message, code: ErrorCode.READ_FAILED });
+            return CounselError.make({ message: error.message, code: ErrorCode.READ_FAILED });
           }
-          return new CounselError({ message: String(error), code: ErrorCode.READ_FAILED });
+          return CounselError.make({ message: String(error), code: ErrorCode.READ_FAILED });
         },
       });
       if (text.length > 0) return text;

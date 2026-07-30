@@ -22,7 +22,7 @@ export const detectSourceFromEnv = (
 
   if (inClaude === inCodex) {
     return Effect.fail(
-      new CounselError({
+      CounselError.make({
         message: "Cannot infer the current agent. Pass --from claude or --from codex.",
         code: ErrorCode.AMBIGUOUS_PROVIDER,
       }),
@@ -139,7 +139,7 @@ export class AgentPlatformService extends Context.Service<
           Effect.flatMap((command) => {
             if (command === null) {
               return Effect.fail(
-                new CounselError({
+                CounselError.make({
                   message: `Target provider "${provider}" is not installed or not on PATH.`,
                   code: ErrorCode.TARGET_NOT_INSTALLED,
                   command: commands[provider],

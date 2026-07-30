@@ -24,12 +24,11 @@ export const logs = Command.make(
       if (id._tag === "None") {
         // List available logs
         const exists = yield* fs.exists(logsDir).pipe(
-          Effect.mapError(
-            () =>
-              new ScheduleError({
-                message: `Cannot access logs dir: ${logsDir}`,
-                code: "READ_FAILED",
-              }),
+          Effect.mapError(() =>
+            ScheduleError.make({
+              message: `Cannot access logs dir: ${logsDir}`,
+              code: "READ_FAILED",
+            }),
           ),
         );
         if (!exists) {
@@ -37,12 +36,11 @@ export const logs = Command.make(
           return;
         }
         const files = yield* fs.readDirectory(logsDir).pipe(
-          Effect.mapError(
-            () =>
-              new ScheduleError({
-                message: `Cannot read logs dir: ${logsDir}`,
-                code: "READ_FAILED",
-              }),
+          Effect.mapError(() =>
+            ScheduleError.make({
+              message: `Cannot read logs dir: ${logsDir}`,
+              code: "READ_FAILED",
+            }),
           ),
         );
         if (files.length === 0) {
@@ -58,16 +56,15 @@ export const logs = Command.make(
 
       const logFile = path.join(logsDir, `${id.value}.log`);
       const exists = yield* fs.exists(logFile).pipe(
-        Effect.mapError(
-          () =>
-            new ScheduleError({
-              message: `Cannot access log file: ${logFile}`,
-              code: "READ_FAILED",
-            }),
+        Effect.mapError(() =>
+          ScheduleError.make({
+            message: `Cannot access log file: ${logFile}`,
+            code: "READ_FAILED",
+          }),
         ),
       );
       if (!exists) {
-        return yield* new ScheduleError({
+        return yield* ScheduleError.make({
           message: `No logs found for task ${id.value}`,
           code: "NOT_FOUND",
         });
@@ -86,23 +83,20 @@ export const logs = Command.make(
           yield* handle.exitCode;
         }).pipe(
           Effect.scoped,
-          Effect.catchTag(
-            "PlatformError",
-            (e: PlatformError) =>
-              new ScheduleError({
-                message: `Failed to tail log: ${e.message}`,
-                code: "READ_FAILED",
-              }),
+          Effect.catchTag("PlatformError", (e: PlatformError) =>
+            ScheduleError.make({
+              message: `Failed to tail log: ${e.message}`,
+              code: "READ_FAILED",
+            }),
           ),
         );
       } else {
         const content = yield* fs.readFileString(logFile).pipe(
-          Effect.mapError(
-            () =>
-              new ScheduleError({
-                message: `Cannot read log for ${id.value}`,
-                code: "READ_FAILED",
-              }),
+          Effect.mapError(() =>
+            ScheduleError.make({
+              message: `Cannot read log for ${id.value}`,
+              code: "READ_FAILED",
+            }),
           ),
         );
         yield* Console.log(content);

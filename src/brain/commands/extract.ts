@@ -208,9 +208,8 @@ const loadConversationFromFile = Effect.fn("extract.loadConversationFromFile")(f
   const stat = yield* fs
     .stat(fullPath)
     .pipe(
-      Effect.mapError(
-        (e: PlatformError) =>
-          new BrainError({ message: `Cannot stat ${file}: ${e.message}`, code: "READ_FAILED" }),
+      Effect.mapError((e: PlatformError) =>
+        BrainError.make({ message: `Cannot stat ${file}: ${e.message}`, code: "READ_FAILED" }),
       ),
     );
 
@@ -226,9 +225,8 @@ const loadConversationFromFile = Effect.fn("extract.loadConversationFromFile")(f
   const content = yield* fs
     .readFileString(fullPath)
     .pipe(
-      Effect.mapError(
-        (e: PlatformError) =>
-          new BrainError({ message: `Cannot read ${file}: ${e.message}`, code: "READ_FAILED" }),
+      Effect.mapError((e: PlatformError) =>
+        BrainError.make({ message: `Cannot read ${file}: ${e.message}`, code: "READ_FAILED" }),
       ),
     );
   const messages = parseMessages(content, provider);
@@ -259,13 +257,13 @@ export const extractConversations = Effect.fn("extractConversations")(function* 
   const filter = parseDateFilter(opts.from, opts.to);
 
   if (Option.isSome(filter.fromMs) && Number.isNaN(filter.fromMs.value)) {
-    return yield* new BrainError({
+    return yield* BrainError.make({
       message: "Invalid --from date. Use YYYY-MM-DD format.",
       code: "INVALID_DATE",
     });
   }
   if (Option.isSome(filter.toMs) && Number.isNaN(filter.toMs.value)) {
-    return yield* new BrainError({
+    return yield* BrainError.make({
       message: "Invalid --to date. Use YYYY-MM-DD format.",
       code: "INVALID_DATE",
     });
@@ -274,9 +272,8 @@ export const extractConversations = Effect.fn("extractConversations")(function* 
   const files = yield* fs
     .readDirectory(inputDir)
     .pipe(
-      Effect.mapError(
-        (e: PlatformError) =>
-          new BrainError({ message: `Cannot read ${inputDir}: ${e.message}`, code: "READ_FAILED" }),
+      Effect.mapError((e: PlatformError) =>
+        BrainError.make({ message: `Cannot read ${inputDir}: ${e.message}`, code: "READ_FAILED" }),
       ),
     );
 
@@ -301,12 +298,11 @@ export const extractConversations = Effect.fn("extractConversations")(function* 
   conversations.sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
 
   yield* fs.makeDirectory(outputDir, { recursive: true }).pipe(
-    Effect.mapError(
-      (e: PlatformError) =>
-        new BrainError({
-          message: `Cannot create ${outputDir}: ${e.message}`,
-          code: "WRITE_FAILED",
-        }),
+    Effect.mapError((e: PlatformError) =>
+      BrainError.make({
+        message: `Cannot create ${outputDir}: ${e.message}`,
+        code: "WRITE_FAILED",
+      }),
     ),
   );
 
@@ -319,12 +315,11 @@ export const extractConversations = Effect.fn("extractConversations")(function* 
     }
     const outFile = path.join(outputDir, `${String(idx).padStart(3, "0")}_${conv.uuid}.txt`);
     yield* fs.writeFileString(outFile, outLines.join("\n\n")).pipe(
-      Effect.mapError(
-        (e: PlatformError) =>
-          new BrainError({
-            message: `Cannot write ${outFile}: ${e.message}`,
-            code: "WRITE_FAILED",
-          }),
+      Effect.mapError((e: PlatformError) =>
+        BrainError.make({
+          message: `Cannot write ${outFile}: ${e.message}`,
+          code: "WRITE_FAILED",
+        }),
       ),
     );
     writtenPaths.push(outFile);
@@ -334,12 +329,11 @@ export const extractConversations = Effect.fn("extractConversations")(function* 
   const batches = opts.batches ?? 3;
   const batchDir = path.join(outputDir, "batches");
   yield* fs.makeDirectory(batchDir, { recursive: true }).pipe(
-    Effect.mapError(
-      (e: PlatformError) =>
-        new BrainError({
-          message: `Cannot create ${batchDir}: ${e.message}`,
-          code: "WRITE_FAILED",
-        }),
+    Effect.mapError((e: PlatformError) =>
+      BrainError.make({
+        message: `Cannot create ${batchDir}: ${e.message}`,
+        code: "WRITE_FAILED",
+      }),
     ),
   );
 
@@ -354,9 +348,8 @@ export const extractConversations = Effect.fn("extractConversations")(function* 
     yield* fs
       .writeFileString(batchPath, batchFiles.join("\n") + "\n")
       .pipe(
-        Effect.mapError(
-          (e: PlatformError) =>
-            new BrainError({ message: `Cannot write batch: ${e.message}`, code: "WRITE_FAILED" }),
+        Effect.mapError((e: PlatformError) =>
+          BrainError.make({ message: `Cannot write batch: ${e.message}`, code: "WRITE_FAILED" }),
         ),
       );
     batchPaths.push(batchPath);
@@ -381,7 +374,7 @@ export const extract = Command.make("extract", {
     ({ dir, output, batches, from: fromDate, to: toDate, json, minSize, provider, verbose }) =>
       Effect.gen(function* () {
         if (Option.isSome(provider) && !isAgentProviderId(provider.value)) {
-          return yield* new BrainError({
+          return yield* BrainError.make({
             message: `Unknown provider "${provider.value}". Valid: claude, codex`,
             code: "UNSUPPORTED_PROVIDER",
           });

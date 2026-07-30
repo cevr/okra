@@ -16,6 +16,21 @@ const InjectOutput = Schema.Struct({
 });
 const encodeInjectOutput = Schema.encodeSync(Schema.fromJsonString(InjectOutput));
 
+const nullUnless = (present: boolean, value: string): string | null => {
+  if (present) {
+    return value;
+  }
+  return null;
+};
+
+/** Appends a section with a leading newline, or nothing when the section is empty. */
+const prefixedSection = (section: string): string => {
+  if (section.length === 0) {
+    return "";
+  }
+  return "\n" + section;
+};
+
 export const inject = Command.make("inject", { json: jsonFlag }).pipe(
   Command.withDescription("Inject vault index into session (SessionStart hook)"),
   Command.withHandler(({ json }) =>
@@ -43,9 +58,13 @@ export const inject = Command.make("inject", { json: jsonFlag }).pipe(
         );
 
       // Read indexes concurrently when project vault exists
-      const [globalIndex, projectIndex] = Option.isSome(projectPath)
-        ? yield* Effect.all([readIndexSafe(globalPath), readIndexSafe(projectPath.value)])
-        : [yield* readIndexSafe(globalPath), ""];
+      const readIndexes = Effect.fn("brain.inject.readIndexes")(function* () {
+        if (Option.isSome(projectPath)) {
+          return yield* Effect.all([readIndexSafe(globalPath), readIndexSafe(projectPath.value)]);
+        }
+        return [yield* readIndexSafe(globalPath), ""] as const;
+      });
+      const [globalIndex, projectIndex] = yield* readIndexes();
 
       // Both empty means no vault — already warned to stderr, exit cleanly
       if (globalIndex.length === 0 && projectIndex.length === 0) return;
@@ -69,16 +88,20 @@ export const inject = Command.make("inject", { json: jsonFlag }).pipe(
       }
 
       if (json) {
+        const projectField = nullUnless(
+          Option.isSome(projectPath) && projectIndex.length > 0,
+          projectIndex,
+        );
+        const projectNotesField = nullUnless(projectNotes.length > 0, projectNotes);
+        const index = globalIndex + prefixedSection(projectNotes) + prefixedSection(projectIndex);
+
         yield* Console.log(
           encodeInjectOutput({
             global: globalIndex,
-            project: Option.isSome(projectPath) && projectIndex.length > 0 ? projectIndex : null,
+            project: projectField,
             projectName: Option.getOrNull(detectedProject),
-            projectNotes: projectNotes.length > 0 ? projectNotes : null,
-            index:
-              globalIndex +
-              (projectNotes.length > 0 ? "\n" + projectNotes : "") +
-              (projectIndex.length > 0 ? "\n" + projectIndex : ""),
+            projectNotes: projectNotesField,
+            index,
           }),
         );
         return;

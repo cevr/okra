@@ -15,23 +15,23 @@ const makeTestLayer = (dir: string) =>
       GitHub.layerTest({
         listContents: ((..._args: Array<unknown>) =>
           Effect.fail(
-            new SkillsError({ message: "n/a", code: "FETCH_FAILED" }),
+            SkillsError.make({ message: "n/a", code: "FETCH_FAILED" }),
           )) as GitHubShape["listContents"],
         listTree: ((..._args: Array<unknown>) =>
           Effect.fail(
-            new SkillsError({ message: "n/a", code: "FETCH_FAILED" }),
+            SkillsError.make({ message: "n/a", code: "FETCH_FAILED" }),
           )) as GitHubShape["listTree"],
         discoverSkills: ((..._args: Array<unknown>) =>
           Effect.fail(
-            new SkillsError({ message: "n/a", code: "FETCH_FAILED" }),
+            SkillsError.make({ message: "n/a", code: "FETCH_FAILED" }),
           )) as GitHubShape["discoverSkills"],
         fetchRaw: ((..._args: Array<unknown>) =>
           Effect.fail(
-            new SkillsError({ message: "n/a", code: "FETCH_FAILED" }),
+            SkillsError.make({ message: "n/a", code: "FETCH_FAILED" }),
           )) as GitHubShape["fetchRaw"],
         fetchSkillDir: ((..._args: Array<unknown>) =>
           Effect.fail(
-            new SkillsError({ message: "n/a", code: "FETCH_FAILED" }),
+            SkillsError.make({ message: "n/a", code: "FETCH_FAILED" }),
           )) as GitHubShape["fetchSkillDir"],
       }),
     ),

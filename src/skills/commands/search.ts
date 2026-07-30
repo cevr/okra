@@ -6,7 +6,7 @@ export const runSearch = Effect.fn("command.search")(function* (query: string) {
   const result = yield* search(query);
 
   if (result.skills.length === 0) {
-    return yield* new SkillsError({
+    return yield* SkillsError.make({
       message: `No skills found for "${query}"`,
       code: "NO_SKILLS_FOUND",
     });

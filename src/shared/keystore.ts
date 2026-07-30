@@ -83,9 +83,8 @@ export class KeyStoreService extends Context.Service<
       const path = yield* Path;
 
       const keysPath = Config.string("HOME").pipe(
-        Effect.mapError(
-          () =>
-            new KeyStoreError({ message: "HOME environment variable is not set", code: "MISSING" }),
+        Effect.mapError(() =>
+          KeyStoreError.make({ message: "HOME environment variable is not set", code: "MISSING" }),
         ),
         Effect.map((home) => path.join(home, KEYS_RELATIVE_PATH)),
       );
@@ -110,7 +109,7 @@ export class KeyStoreService extends Context.Service<
         const all = yield* readAll;
         const stored = all[name];
         if (stored === undefined || stored.length === 0) {
-          return yield* new KeyStoreError({
+          return yield* KeyStoreError.make({
             message: `No key for "${name}". Set ${envVar} or store one.`,
             code: "MISSING",
           });
@@ -123,27 +122,24 @@ export class KeyStoreService extends Context.Service<
         const file = yield* keysPath;
         const dir = path.dirname(file);
         yield* fs.makeDirectory(dir, { recursive: true }).pipe(
-          Effect.mapError(
-            (e) =>
-              new KeyStoreError({
-                message: `Cannot create ${dir}: ${e.message}`,
-                code: "WRITE_FAILED",
-              }),
+          Effect.mapError((e) =>
+            KeyStoreError.make({
+              message: `Cannot create ${dir}: ${e.message}`,
+              code: "WRITE_FAILED",
+            }),
           ),
         );
         const text = yield* encodeKeysFile(map).pipe(
-          Effect.mapError(
-            () =>
-              new KeyStoreError({ message: "Failed to serialize key store", code: "WRITE_FAILED" }),
+          Effect.mapError(() =>
+            KeyStoreError.make({ message: "Failed to serialize key store", code: "WRITE_FAILED" }),
           ),
         );
         yield* fs.writeFileString(file, `${text}\n`).pipe(
-          Effect.mapError(
-            (e) =>
-              new KeyStoreError({
-                message: `Cannot write ${file}: ${e.message}`,
-                code: "WRITE_FAILED",
-              }),
+          Effect.mapError((e) =>
+            KeyStoreError.make({
+              message: `Cannot write ${file}: ${e.message}`,
+              code: "WRITE_FAILED",
+            }),
           ),
         );
         // Restrict to the owner — the file holds secrets.
@@ -154,7 +150,7 @@ export class KeyStoreService extends Context.Service<
       const store = Effect.fn("KeyStore.store")(function* (name: string, key: string) {
         const trimmed = key.trim();
         if (trimmed.length === 0) {
-          return yield* new KeyStoreError({ message: "Key is empty", code: "INVALID_INPUT" });
+          return yield* KeyStoreError.make({ message: "Key is empty", code: "INVALID_INPUT" });
         }
         // Merge into the existing map so storing one provider keeps the others.
         const current = yield* readAll;
@@ -203,7 +199,7 @@ export class KeyStoreService extends Context.Service<
         const value = env[envVar] ?? keys[name];
         if (value === undefined) {
           return Effect.fail(
-            new KeyStoreError({ message: `No key for "${name}".`, code: "MISSING" }),
+            KeyStoreError.make({ message: `No key for "${name}".`, code: "MISSING" }),
           );
         }
         return Effect.succeed(Redacted.make(value));

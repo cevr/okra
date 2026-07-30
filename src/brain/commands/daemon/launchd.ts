@@ -13,8 +13,8 @@ const readPathEnv = Config.option(Config.string("PATH"))
   .parse(ConfigProvider.fromEnv())
   .pipe(
     Effect.map((opt) => Option.getOrElse(opt, () => "/usr/local/bin:/usr/bin:/bin")),
-    Effect.mapError(
-      () => new BrainError({ message: "Cannot read PATH config", code: "READ_FAILED" }),
+    Effect.mapError(() =>
+      BrainError.make({ message: "Cannot read PATH config", code: "READ_FAILED" }),
     ),
   );
 
@@ -39,9 +39,8 @@ const launchctlUnload = (
     )
     .pipe(
       Effect.asVoid,
-      Effect.catchTag(
-        "PlatformError",
-        () => new BrainError({ message: `Cannot unload ${jobLabel}`, code: "LAUNCHD_FAILED" }),
+      Effect.catchTag("PlatformError", () =>
+        BrainError.make({ message: `Cannot unload ${jobLabel}`, code: "LAUNCHD_FAILED" }),
       ),
     );
 
@@ -56,9 +55,8 @@ const launchctlIsLoaded = (
     )
     .pipe(
       Effect.map((code) => code === 0),
-      Effect.catchTag(
-        "PlatformError",
-        () => new BrainError({ message: "Cannot check launchctl", code: "LAUNCHD_FAILED" }),
+      Effect.catchTag("PlatformError", () =>
+        BrainError.make({ message: "Cannot check launchctl", code: "LAUNCHD_FAILED" }),
       ),
     );
 
@@ -74,17 +72,15 @@ const launchctlLoad = Effect.fn("launchctlLoad")(
     const stderr = yield* Stream.mkString(Stream.decodeText(handle.stderr));
 
     if (exitCode !== 0) {
-      return yield* new BrainError({
+      return yield* BrainError.make({
         message: `Cannot load ${jobLabel}: ${stderr.trim() || `exit code ${String(exitCode)}`}`,
         code: "LAUNCHD_FAILED",
       });
     }
   },
   Effect.scoped,
-  Effect.catchTag(
-    "PlatformError",
-    (e: PlatformError) =>
-      new BrainError({ message: `Cannot load plist: ${e.message}`, code: "LAUNCHD_FAILED" }),
+  Effect.catchTag("PlatformError", (e: PlatformError) =>
+    BrainError.make({ message: `Cannot load plist: ${e.message}`, code: "LAUNCHD_FAILED" }),
   ),
 );
 
@@ -162,24 +158,22 @@ export const installPlist = Effect.fn("installPlist")(function* (job: DaemonJob)
 
   // Ensure log directory exists
   yield* fs.makeDirectory(logDir(home, path), { recursive: true }).pipe(
-    Effect.mapError(
-      (e: PlatformError) =>
-        new BrainError({
-          message: `Cannot create log dir: ${e.message}`,
-          code: "WRITE_FAILED",
-        }),
+    Effect.mapError((e: PlatformError) =>
+      BrainError.make({
+        message: `Cannot create log dir: ${e.message}`,
+        code: "WRITE_FAILED",
+      }),
     ),
   );
 
   // Ensure LaunchAgents dir exists
   const agentsDir = path.join(home, "Library", "LaunchAgents");
   yield* fs.makeDirectory(agentsDir, { recursive: true }).pipe(
-    Effect.mapError(
-      (e: PlatformError) =>
-        new BrainError({
-          message: `Cannot create LaunchAgents dir: ${e.message}`,
-          code: "WRITE_FAILED",
-        }),
+    Effect.mapError((e: PlatformError) =>
+      BrainError.make({
+        message: `Cannot create LaunchAgents dir: ${e.message}`,
+        code: "WRITE_FAILED",
+      }),
     ),
   );
 
@@ -194,12 +188,11 @@ export const installPlist = Effect.fn("installPlist")(function* (job: DaemonJob)
   }
 
   yield* fs.writeFileString(plist, content).pipe(
-    Effect.mapError(
-      (e: PlatformError) =>
-        new BrainError({
-          message: `Cannot write plist: ${e.message}`,
-          code: "WRITE_FAILED",
-        }),
+    Effect.mapError((e: PlatformError) =>
+      BrainError.make({
+        message: `Cannot write plist: ${e.message}`,
+        code: "WRITE_FAILED",
+      }),
     ),
   );
 
@@ -320,20 +313,18 @@ export const installUnifiedPlist = Effect.fn("installUnifiedPlist")(function* ()
   yield* fs
     .makeDirectory(logDir(home, path), { recursive: true })
     .pipe(
-      Effect.mapError(
-        (e: PlatformError) =>
-          new BrainError({ message: `Cannot create log dir: ${e.message}`, code: "WRITE_FAILED" }),
+      Effect.mapError((e: PlatformError) =>
+        BrainError.make({ message: `Cannot create log dir: ${e.message}`, code: "WRITE_FAILED" }),
       ),
     );
 
   const agentsDir = path.join(home, "Library", "LaunchAgents");
   yield* fs.makeDirectory(agentsDir, { recursive: true }).pipe(
-    Effect.mapError(
-      (e: PlatformError) =>
-        new BrainError({
-          message: `Cannot create LaunchAgents dir: ${e.message}`,
-          code: "WRITE_FAILED",
-        }),
+    Effect.mapError((e: PlatformError) =>
+      BrainError.make({
+        message: `Cannot create LaunchAgents dir: ${e.message}`,
+        code: "WRITE_FAILED",
+      }),
     ),
   );
 
@@ -349,9 +340,8 @@ export const installUnifiedPlist = Effect.fn("installUnifiedPlist")(function* ()
   yield* fs
     .writeFileString(plist, content)
     .pipe(
-      Effect.mapError(
-        (e: PlatformError) =>
-          new BrainError({ message: `Cannot write plist: ${e.message}`, code: "WRITE_FAILED" }),
+      Effect.mapError((e: PlatformError) =>
+        BrainError.make({ message: `Cannot write plist: ${e.message}`, code: "WRITE_FAILED" }),
       ),
     );
 

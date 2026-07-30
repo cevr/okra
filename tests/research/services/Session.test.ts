@@ -9,7 +9,7 @@ import { SessionService } from "../../../src/research/services/Session.js";
 const FIXTURE_ISO = "2026-01-01T00:00:00.000Z";
 
 const makeSession = (projectRoot: string): Session =>
-  new Session({
+  Session.make({
     name: "test",
     unit: "ms",
     direction: "min",

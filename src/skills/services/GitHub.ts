@@ -95,7 +95,7 @@ const causeSuffix = (cause?: unknown): string => {
 };
 
 const fetchError = (url: string, cause?: unknown) =>
-  new SkillsError({
+  SkillsError.make({
     message: `Failed to fetch: ${url}${causeSuffix(cause)}`,
     code: "FETCH_FAILED",
   });

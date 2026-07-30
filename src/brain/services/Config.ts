@@ -55,8 +55,8 @@ export class ConfigService extends Context.Service<
 
         const readEnv = (key: string): Effect.Effect<Option.Option<string>, ConfigError> =>
           Config.option(Config.string(key)).pipe(
-            Effect.mapError(
-              () => new ConfigError({ message: `Cannot read ${key} config`, code: "READ_FAILED" }),
+            Effect.mapError(() =>
+              ConfigError.make({ message: `Cannot read ${key} config`, code: "READ_FAILED" }),
             ),
           );
 
@@ -65,7 +65,7 @@ export class ConfigService extends Context.Service<
           if (Option.isSome(homeOpt)) return homeOpt.value;
           const userProfileOpt = yield* readEnv("USERPROFILE");
           if (Option.isSome(userProfileOpt)) return userProfileOpt.value;
-          return yield* new ConfigError({
+          return yield* ConfigError.make({
             message: "HOME environment variable is not set",
             code: "READ_FAILED",
           });
@@ -86,22 +86,20 @@ export class ConfigService extends Context.Service<
         const loadConfigFile = Effect.gen(function* () {
           const cfgPath = yield* resolveConfigFilePath;
           const exists = yield* fs.exists(cfgPath).pipe(
-            Effect.mapError(
-              (e: PlatformError) =>
-                new ConfigError({
-                  message: `Cannot check config: ${e.message}`,
-                  code: "READ_FAILED",
-                }),
+            Effect.mapError((e: PlatformError) =>
+              ConfigError.make({
+                message: `Cannot check config: ${e.message}`,
+                code: "READ_FAILED",
+              }),
             ),
           );
           if (!exists) return {};
           const text = yield* fs.readFileString(cfgPath).pipe(
-            Effect.mapError(
-              (e: PlatformError) =>
-                new ConfigError({
-                  message: `Cannot read config: ${e.message}`,
-                  code: "READ_FAILED",
-                }),
+            Effect.mapError((e: PlatformError) =>
+              ConfigError.make({
+                message: `Cannot read config: ${e.message}`,
+                code: "READ_FAILED",
+              }),
             ),
           );
           return yield* decodeConfigFile(text).pipe(
@@ -127,12 +125,11 @@ export class ConfigService extends Context.Service<
         const projectVaultPath = Effect.gen(function* () {
           const checkIndex = (dir: string) =>
             fs.exists(path.join(dir, "index.md")).pipe(
-              Effect.mapError(
-                (e: PlatformError) =>
-                  new ConfigError({
-                    message: `Cannot check project vault: ${e.message}`,
-                    code: "READ_FAILED",
-                  }),
+              Effect.mapError((e: PlatformError) =>
+                ConfigError.make({
+                  message: `Cannot check project vault: ${e.message}`,
+                  code: "READ_FAILED",
+                }),
               ),
             );
 
@@ -175,26 +172,24 @@ export class ConfigService extends Context.Service<
           const cfgPath = yield* resolveConfigFilePath;
           const dir = path.dirname(cfgPath);
           yield* fs.makeDirectory(dir, { recursive: true }).pipe(
-            Effect.mapError(
-              (e: PlatformError) =>
-                new ConfigError({
-                  message: `Cannot create config dir: ${e.message}`,
-                  code: "WRITE_FAILED",
-                }),
+            Effect.mapError((e: PlatformError) =>
+              ConfigError.make({
+                message: `Cannot create config dir: ${e.message}`,
+                code: "WRITE_FAILED",
+              }),
             ),
           );
           const text = yield* encodeConfigFile(config).pipe(
-            Effect.mapError(
-              () => new ConfigError({ message: "Cannot encode config", code: "WRITE_FAILED" }),
+            Effect.mapError(() =>
+              ConfigError.make({ message: "Cannot encode config", code: "WRITE_FAILED" }),
             ),
           );
           yield* fs.writeFileString(cfgPath, text + "\n").pipe(
-            Effect.mapError(
-              (e: PlatformError) =>
-                new ConfigError({
-                  message: `Cannot write config: ${e.message}`,
-                  code: "WRITE_FAILED",
-                }),
+            Effect.mapError((e: PlatformError) =>
+              ConfigError.make({
+                message: `Cannot write config: ${e.message}`,
+                code: "WRITE_FAILED",
+              }),
             ),
           );
         });

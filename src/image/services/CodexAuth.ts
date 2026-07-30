@@ -51,12 +51,11 @@ export class CodexAuthService extends Context.Service<
       const path = yield* Path;
 
       const resolveHome = Config.string("HOME").pipe(
-        Effect.mapError(
-          () =>
-            new ImageError({
-              message: "HOME environment variable is not set",
-              code: "AUTH_MISSING",
-            }),
+        Effect.mapError(() =>
+          ImageError.make({
+            message: "HOME environment variable is not set",
+            code: "AUTH_MISSING",
+          }),
         ),
       );
 
@@ -75,29 +74,27 @@ export class CodexAuthService extends Context.Service<
 
         const exists = yield* fs.exists(authPath).pipe(Effect.orElseSucceed(() => false));
         if (!exists) {
-          return yield* new ImageError({
+          return yield* ImageError.make({
             message: `No codex credentials at ${authPath}. Run \`codex login\` first.`,
             code: "AUTH_MISSING",
           });
         }
 
         const text = yield* fs.readFileString(authPath).pipe(
-          Effect.mapError(
-            () =>
-              new ImageError({
-                message: `Cannot read ${authPath}. Run \`codex login\` to refresh credentials.`,
-                code: "AUTH_MISSING",
-              }),
+          Effect.mapError(() =>
+            ImageError.make({
+              message: `Cannot read ${authPath}. Run \`codex login\` to refresh credentials.`,
+              code: "AUTH_MISSING",
+            }),
           ),
         );
 
         const parsed = yield* decodeAuthFile(text).pipe(
-          Effect.mapError(
-            () =>
-              new ImageError({
-                message: `Malformed codex credentials at ${authPath}. Run \`codex login\` again.`,
-                code: "AUTH_MISSING",
-              }),
+          Effect.mapError(() =>
+            ImageError.make({
+              message: `Malformed codex credentials at ${authPath}. Run \`codex login\` again.`,
+              code: "AUTH_MISSING",
+            }),
           ),
         );
 

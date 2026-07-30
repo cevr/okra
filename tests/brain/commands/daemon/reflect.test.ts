@@ -402,7 +402,7 @@ describe("daemon reflect", () => {
           makeConfigLayer(dir, brainDir),
           VaultService.layer,
           makePlatformLayer(invocations, () =>
-            Effect.fail(new BrainError({ message: "Executor crashed", code: "SPAWN_FAILED" })),
+            Effect.fail(BrainError.make({ message: "Executor crashed", code: "SPAWN_FAILED" })),
           ),
         ).pipe(Layer.provideMerge(BunServices.layer));
 
@@ -445,7 +445,7 @@ describe("daemon reflect", () => {
               callCount++;
               if (callCount === 1) {
                 return Effect.fail(
-                  new BrainError({ message: "First call fails", code: "SPAWN_FAILED" }),
+                  BrainError.make({ message: "First call fails", code: "SPAWN_FAILED" }),
                 );
               }
               return Effect.void;

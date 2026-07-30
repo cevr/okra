@@ -5,9 +5,9 @@ import type { ExecutionResult, Invocation } from "../types.js";
 
 const spawnFailed = (error: unknown): CounselError => {
   if (error instanceof Error) {
-    return new CounselError({ message: error.message, code: ErrorCode.SPAWN_FAILED });
+    return CounselError.make({ message: error.message, code: ErrorCode.SPAWN_FAILED });
   }
-  return new CounselError({ message: String(error), code: ErrorCode.SPAWN_FAILED });
+  return CounselError.make({ message: String(error), code: ErrorCode.SPAWN_FAILED });
 };
 
 const spawnProcess = (invocation: Invocation, outputFile: string, stderrFile: string) =>

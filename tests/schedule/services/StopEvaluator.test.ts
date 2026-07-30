@@ -8,7 +8,7 @@ import { Task, type StopCondition } from "../../../src/schedule/services/Store.j
 const FIXED_NOW_MS = 1773576000000;
 
 const makeTask = (overrides: Partial<Task> = {}): Task =>
-  new Task({
+  Task.make({
     id: "test",
     prompt: "test",
     provider: "claude",
