@@ -1,7 +1,6 @@
 // The codex model layer is parameterized by the runtime `--model` flag, so it is
 // composed and provided here (the command handler is this domain's entry point)
 // rather than statically at the domain root.
-/** @effect-diagnostics strictEffectProvide:off */
 import { Console, Effect, Option } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";

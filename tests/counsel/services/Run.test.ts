@@ -29,9 +29,11 @@ const RunLayer = RunService.layer.pipe(
             '{"type":"system","subtype":"init","session_id":"test"}',
             '{"type":"result","subtype":"success","is_error":false,"result":"second opinion"}',
           ].join("\n");
-          yield* Effect.promise(() =>
-            Promise.all([Bun.write(outputFile, claudeJsonl), Bun.write(stderrFile, "warning\n")]),
-          );
+          yield* Effect.gen(function* () {
+            const fs = yield* FileSystem;
+            yield* fs.writeFileString(outputFile, claudeJsonl);
+            yield* fs.writeFileString(stderrFile, "warning\n");
+          }).pipe(Effect.provide(BunServices.layer), Effect.orDie);
           return {
             exitCode: 0,
             durationMs: 12,

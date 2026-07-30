@@ -32,8 +32,10 @@ const AUTH_JSON = encodeAuthJson({
 const makeLayer = (files: Record<string, string>) => {
   const fs = layerNoop({
     exists: (path: string) => Effect.succeed(path in files),
-    readFileString: (path: string) =>
-      path in files ? Effect.succeed(files[path] as string) : notFound(),
+    readFileString: (path: string) => {
+      if (path in files) return Effect.succeed(files[path] as string);
+      return notFound();
+    },
   });
   return Layer.mergeAll(
     CodexAuthService.layer.pipe(Layer.provide(Layer.mergeAll(fs, BunPath.layer))),

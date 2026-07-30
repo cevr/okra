@@ -41,7 +41,8 @@ function assertSequenceContains(actual: RecordedCall[], expected: ExpectedCall[]
     if (!found) {
       const remainingCalls = actual.slice(Math.max(0, actualIndex - 1));
       const formattedCalls = remainingCalls.map((c) => `  ${c.service}.${c.method}`).join("\n");
-      throw new Error(
+      // A missing call is an assertion failure, so report it through expect.
+      expect.unreachable(
         `Expected ${exp.service}.${exp.method} not found in sequence.\n` +
           `Remaining calls:\n${formattedCalls || "  (none)"}\n` +
           `Full sequence:\n${actual.map((c) => `  ${c.service}.${c.method}`).join("\n")}`,
