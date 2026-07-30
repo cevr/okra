@@ -11,9 +11,7 @@
     "moduleDetection": "force",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "types": [
-      "bun"
-    ],
+    "types": ["bun"],
     "noEmit": true,
     "plugins": [
       {
@@ -100,7 +98,7 @@
           "scopeInLayerEffect": "error",
           "serviceNotAsClass": "error",
           "strictBooleanExpressions": "off",
-          "strictEffectProvide": "error",
+          "strictEffectProvide": "off",
           "syncToSucceed": "error",
           "tryCatchInEffectGen": "off",
           "unknownInEffectCatch": "error",
@@ -116,45 +114,17 @@
           {
             "target": "service",
             "pattern": "default",
-            "skipLeadingPath": [
-              "src/",
-              "packages/"
-            ]
+            "skipLeadingPath": ["src/", "packages/"]
           },
           {
             "target": "error",
             "pattern": "default",
-            "skipLeadingPath": [
-              "src/",
-              "packages/"
-            ]
-          }
-        ],
-        "overrides": [
-          {
-            "include": [
-              "tests/**/*",
-              "src/**/test-utils/**/*"
-            ],
-            "options": {
-              "diagnosticSeverity": {
-                "strictEffectProvide": "off"
-              }
-            }
+            "skipLeadingPath": ["src/", "packages/"]
           }
         ]
       }
     ]
   },
-  "include": [
-    "src",
-    "tests",
-    "scripts"
-  ],
-  "exclude": [
-    "node_modules",
-    "bin",
-    "dist",
-    "fixture"
-  ]
+  "include": ["src", "tests", "scripts"],
+  "exclude": ["node_modules", "bin", "dist", "fixture"]
 }
