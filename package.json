@@ -16,7 +16,7 @@
     "fmt:check": "oxfmt --check",
     "test": "bun test",
     "gate": "concurrently -n type,style,build,test -c blue,yellow,cyan,green \"bun run typecheck\" \"bun run lint && bun run fmt\" \"bun run build\" \"bun run test\"",
-    "prepare": "effect-tsgo patch && lefthook install",
+    "prepare": "lefthook install && effect-tsgo patch",
     "version": "changeset version",
     "release": "changeset publish"
   },
@@ -36,7 +36,7 @@
     "lefthook": "^2.1.10",
     "oxfmt": "^0.59.0",
     "oxlint": "^1.74.0",
-    "oxlint-tsgolint": "^0.24.0",
+    "oxlint-plugin-effect": "^0.5.1",
     "typescript": "^7.0.2"
   }
 }

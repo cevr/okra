@@ -1,4 +1,7 @@
-import { Effect, Layer, Context } from "effect";
+import { Effect, Layer, Context, Stream } from "effect";
+import type { PlatformError } from "effect/PlatformError";
+import * as ChildProcess from "effect/unstable/process/ChildProcess";
+import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner";
 import { ResearchError, ErrorCode } from "../errors.js";
 
 export class GitService extends Context.Service<
@@ -20,60 +23,45 @@ export class GitService extends Context.Service<
     readonly pruneWorktrees: (cwd?: string) => Effect.Effect<void, ResearchError>;
   }
 >()("@cvr/okra/research/services/Git/GitService") {
-  static layer: Layer.Layer<GitService> = Layer.sync(GitService, () => {
-    const run = Effect.fn("git.run")(function* (args: readonly string[], cwd?: string) {
-      const proc = yield* Effect.sync(() =>
-        Bun.spawn(["git", ...args], {
-          stdout: "pipe",
-          stderr: "pipe",
-          ...(cwd !== undefined ? { cwd } : {}),
-        }),
-      );
+  static layer: Layer.Layer<GitService, never, ChildProcessSpawner> = Layer.effect(
+    GitService,
+    Effect.gen(function* () {
+      const spawner = yield* ChildProcessSpawner;
 
-      const exitCode = yield* Effect.tryPromise({
-        try: () => proc.exited,
-        catch: (e) =>
-          new ResearchError({
-            message: `git process failed: ${e instanceof Error ? e.message : String(e)}`,
-            code: ErrorCode.GIT_FAILED,
-          }),
-      }).pipe(
-        Effect.onInterrupt(() =>
-          Effect.sync(() => {
-            proc.kill();
-          }),
+      const run = Effect.fn("git.run")(
+        function* (args: readonly string[], cwd?: string) {
+          const command = ChildProcess.make("git", [...args], {
+            stdout: "pipe",
+            stderr: "pipe",
+            ...(cwd !== undefined ? { cwd } : {}),
+          });
+
+          const handle = yield* spawner.spawn(command);
+          const exitCode = yield* handle.exitCode;
+          const stdout = yield* Stream.mkString(Stream.decodeText(handle.stdout));
+          const stderr = yield* Stream.mkString(Stream.decodeText(handle.stderr));
+
+          if (exitCode !== 0) {
+            return yield* new ResearchError({
+              message: stderr.trim() || `git ${args[0]} failed with exit code ${exitCode}`,
+              code: ErrorCode.GIT_FAILED,
+            });
+          }
+
+          return stdout.trim();
+        },
+        Effect.scoped,
+        Effect.catchTag(
+          "PlatformError",
+          (e: PlatformError) =>
+            new ResearchError({
+              message: `git process failed: ${e.message}`,
+              code: ErrorCode.GIT_FAILED,
+            }),
         ),
       );
 
-      const stdout = yield* Effect.tryPromise({
-        try: () => new Response(proc.stdout).text(),
-        catch: (e) =>
-          new ResearchError({
-            message: `Failed to read git stdout: ${e instanceof Error ? e.message : String(e)}`,
-            code: ErrorCode.GIT_FAILED,
-          }),
-      });
-
-      const stderr = yield* Effect.tryPromise({
-        try: () => new Response(proc.stderr).text(),
-        catch: (e) =>
-          new ResearchError({
-            message: `Failed to read git stderr: ${e instanceof Error ? e.message : String(e)}`,
-            code: ErrorCode.GIT_FAILED,
-          }),
-      });
-
-      if (exitCode !== 0) {
-        return yield* new ResearchError({
-          message: stderr.trim() || `git ${args[0]} failed with exit code ${exitCode}`,
-          code: ErrorCode.GIT_FAILED,
-        });
-      }
-
-      return stdout.trim();
-    });
-
-    return {
+      return {
       currentBranch: run(["rev-parse", "--abbrev-ref", "HEAD"]).pipe(
         Effect.filterOrFail(
           (branch) => branch !== "HEAD",
@@ -119,8 +107,9 @@ export class GitService extends Context.Service<
       diff: (cwd) => run(["diff", "HEAD"], cwd),
 
       pruneWorktrees: (cwd) => run(["worktree", "prune"], cwd).pipe(Effect.asVoid),
-    };
-  });
+      };
+    }),
+  );
 
   static layerTest = (impl: Partial<Context.Service.Shape<typeof GitService>> = {}) =>
     Layer.succeed(GitService, {

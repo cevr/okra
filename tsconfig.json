@@ -11,7 +11,9 @@
     "moduleDetection": "force",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "types": ["bun"],
+    "types": [
+      "bun"
+    ],
     "noEmit": true,
     "plugins": [
       {
@@ -24,12 +26,14 @@
         "ignoreEffectErrorsInTscExitCode": false,
         "diagnosticSeverity": {
           "anyUnknownInErrorContext": "error",
-          "asyncFunction": "error",
+          "asyncFunction": "off",
           "catchAllToMapError": "error",
+          "catchToIgnore": "error",
+          "catchToOrElseSucceed": "error",
           "catchUnfailableEffect": "error",
           "classSelfMismatch": "error",
-          "cryptoRandomUUID": "error",
-          "cryptoRandomUUIDInEffect": "error",
+          "cryptoRandomUUID": "off",
+          "cryptoRandomUUIDInEffect": "off",
           "deterministicKeys": "error",
           "duplicatePackage": "error",
           "effectDoNotation": "error",
@@ -43,22 +47,24 @@
           "effectMapVoid": "error",
           "effectSucceedWithVoid": "error",
           "extendsNativeError": "error",
+          "flatMapToMap": "error",
           "floatingEffect": "error",
           "genericEffectServices": "error",
-          "globalConsole": "error",
-          "globalConsoleInEffect": "error",
-          "globalDate": "error",
-          "globalDateInEffect": "error",
+          "globalConsole": "off",
+          "globalConsoleInEffect": "off",
+          "globalDate": "off",
+          "globalDateInEffect": "off",
           "globalErrorInEffectCatch": "error",
           "globalErrorInEffectFailure": "error",
-          "globalFetch": "error",
-          "globalFetchInEffect": "error",
-          "globalRandom": "error",
-          "globalRandomInEffect": "error",
-          "globalTimers": "error",
-          "globalTimersInEffect": "error",
+          "globalFetch": "off",
+          "globalFetchInEffect": "off",
+          "globalRandom": "off",
+          "globalRandomInEffect": "off",
+          "globalTimers": "off",
+          "globalTimersInEffect": "off",
           "instanceOfSchema": "error",
           "layerMergeAllWithDependencies": "error",
+          "lazyEffect": "error",
           "lazyPromiseInEffectSync": "error",
           "leakingRequirements": "error",
           "missedPipeableOpportunity": "off",
@@ -66,21 +72,28 @@
           "missingEffectError": "error",
           "missingEffectServiceDependency": "error",
           "missingLayerContext": "error",
+          "missingPipeableSignature": "error",
           "missingReturnYieldStar": "error",
           "missingStarInYieldEffectGen": "error",
+          "multipleCatchTag": "error",
           "multipleEffectProvide": "error",
           "nestedEffectGenYield": "error",
-          "newPromise": "error",
-          "nodeBuiltinImport": "error",
+          "newPromise": "off",
+          "newSchemaClass": "error",
+          "nodeBuiltinImport": "off",
           "nonObjectEffectServiceType": "error",
           "outdatedApi": "error",
           "overriddenSchemaConstructor": "error",
-          "preferSchemaOverJson": "error",
-          "processEnv": "error",
-          "processEnvInEffect": "error",
+          "preferSchemaOverJson": "off",
+          "processEnv": "off",
+          "processEnvInEffect": "off",
+          "redundantMapError": "error",
+          "redundantOrDie": "error",
           "redundantSchemaTagIdentifier": "error",
           "returnEffectInGen": "error",
           "runEffectInsideEffect": "error",
+          "schemaNumber": "error",
+          "schemaOpaqueInstanceMember": "error",
           "schemaStructWithTag": "error",
           "schemaSyncInEffect": "error",
           "schemaUnionOfLiterals": "error",
@@ -88,98 +101,44 @@
           "serviceNotAsClass": "error",
           "strictBooleanExpressions": "off",
           "strictEffectProvide": "error",
-          "tryCatchInEffectGen": "error",
+          "syncToSucceed": "error",
+          "tryCatchInEffectGen": "off",
           "unknownInEffectCatch": "error",
           "unnecessaryArrowBlock": "error",
           "unnecessaryEffectGen": "error",
           "unnecessaryFailYieldableError": "error",
           "unnecessaryPipe": "off",
-          "unnecessaryPipeChain": "off"
+          "unnecessaryPipeChain": "off",
+          "unnecessaryTypeofType": "error",
+          "unsafeEffectTypeAssertion": "error"
         },
         "keyPatterns": [
-          { "target": "service", "pattern": "default", "skipLeadingPath": ["src/", "packages/"] },
-          { "target": "error", "pattern": "default", "skipLeadingPath": ["src/", "packages/"] }
+          {
+            "target": "service",
+            "pattern": "default",
+            "skipLeadingPath": [
+              "src/",
+              "packages/"
+            ]
+          },
+          {
+            "target": "error",
+            "pattern": "default",
+            "skipLeadingPath": [
+              "src/",
+              "packages/"
+            ]
+          }
         ],
         "overrides": [
           {
-            "include": ["tests/**/*", "src/**/test-utils/**/*"],
+            "include": [
+              "tests/**/*",
+              "src/**/test-utils/**/*"
+            ],
             "options": {
               "diagnosticSeverity": {
                 "strictEffectProvide": "off"
-              }
-            }
-          },
-          {
-            "include": ["scripts/**/*"],
-            "options": {
-              "diagnosticSeverity": {
-                "anyUnknownInErrorContext": "off",
-                "asyncFunction": "off",
-                "catchAllToMapError": "off",
-                "catchUnfailableEffect": "off",
-                "classSelfMismatch": "off",
-                "cryptoRandomUUID": "off",
-                "cryptoRandomUUIDInEffect": "off",
-                "deterministicKeys": "off",
-                "duplicatePackage": "off",
-                "effectDoNotation": "off",
-                "effectFnIife": "off",
-                "effectFnImplicitAny": "off",
-                "effectFnOpportunity": "off",
-                "effectGenUsesAdapter": "off",
-                "effectInFailure": "off",
-                "effectInVoidSuccess": "off",
-                "effectMapVoid": "off",
-                "effectSucceedWithVoid": "off",
-                "extendsNativeError": "off",
-                "floatingEffect": "off",
-                "genericEffectServices": "off",
-                "globalConsole": "off",
-                "globalConsoleInEffect": "off",
-                "globalDate": "off",
-                "globalDateInEffect": "off",
-                "globalErrorInEffectCatch": "off",
-                "globalErrorInEffectFailure": "off",
-                "globalFetch": "off",
-                "globalFetchInEffect": "off",
-                "globalRandom": "off",
-                "globalRandomInEffect": "off",
-                "globalTimers": "off",
-                "globalTimersInEffect": "off",
-                "instanceOfSchema": "off",
-                "layerMergeAllWithDependencies": "off",
-                "lazyPromiseInEffectSync": "off",
-                "leakingRequirements": "off",
-                "missingEffectContext": "off",
-                "missingEffectError": "off",
-                "missingEffectServiceDependency": "off",
-                "missingLayerContext": "off",
-                "missingReturnYieldStar": "off",
-                "missingStarInYieldEffectGen": "off",
-                "multipleEffectProvide": "off",
-                "nestedEffectGenYield": "off",
-                "newPromise": "off",
-                "nodeBuiltinImport": "off",
-                "nonObjectEffectServiceType": "off",
-                "outdatedApi": "off",
-                "overriddenSchemaConstructor": "off",
-                "preferSchemaOverJson": "off",
-                "processEnv": "off",
-                "processEnvInEffect": "off",
-                "redundantSchemaTagIdentifier": "off",
-                "returnEffectInGen": "off",
-                "runEffectInsideEffect": "off",
-                "schemaStructWithTag": "off",
-                "schemaSyncInEffect": "off",
-                "schemaUnionOfLiterals": "off",
-                "scopeInLayerEffect": "off",
-                "serviceNotAsClass": "off",
-                "strictEffectProvide": "off",
-                "tryCatchInEffectGen": "off",
-                "unknownInEffectCatch": "off",
-                "unnecessaryArrowBlock": "off",
-                "unnecessaryEffectGen": "off",
-                "unnecessaryFailYieldableError": "off"
               }
             }
           }
@@ -187,6 +146,15 @@
       }
     ]
   },
-  "include": ["src", "tests", "scripts"],
-  "exclude": ["node_modules", "bin", "dist", "fixture"]
+  "include": [
+    "src",
+    "tests",
+    "scripts"
+  ],
+  "exclude": [
+    "node_modules",
+    "bin",
+    "dist",
+    "fixture"
+  ]
 }

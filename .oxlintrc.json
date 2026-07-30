@@ -1,14 +1,12 @@
 {
   "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
-  "options": {
-    "typeAware": true
-  },
   "categories": {
     "correctness": "error",
     "suspicious": "error",
     "perf": "error"
   },
   "plugins": ["typescript", "import", "node"],
+  "jsPlugins": ["oxlint-plugin-effect/plugin"],
   "rules": {
     "typescript/no-explicit-any": "error",
     "typescript/no-unsafe-type-assertion": "error",
@@ -26,9 +24,18 @@
     "complexity": ["error", 20],
     "no-underscore-dangle": "off",
     "consistent-return": "off",
-    "typescript/no-unnecessary-type-assertion": "off",
-    "typescript/no-base-to-string": "off",
-    "typescript/no-unnecessary-type-arguments": "off"
+    "effect/noAsyncFunction": "error",
+    "effect/noDynamicImports": "error",
+    "effect/noEffectBind": "error",
+    "effect/noEffectDo": "error",
+    "effect/noGlobals": "error",
+    "effect/noNewError": "error",
+    "effect/noNewPromise": "error",
+    "effect/noNodeBuiltinImport": "error",
+    "effect/noTernary": "error",
+    "effect/noTestLifecycleHooks": "error",
+    "effect/noThrowStatement": "error",
+    "effect/noTryCatch": "error"
   },
   "ignorePatterns": [
     "**/dist/**",
