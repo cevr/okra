@@ -5,6 +5,11 @@ import { SessionService } from "../services/Session.js";
 import { ExperimentLogService } from "../services/ExperimentLog.js";
 import { Direction, Provider } from "../types.js";
 
+const describeDaemonState = (running: boolean): string => {
+  if (running) return "running";
+  return "stopped";
+};
+
 const NoSessionOutput = Schema.Struct({
   running: Schema.Literal(false),
   session: Schema.Null,
@@ -79,7 +84,7 @@ export const statusCommand = Command.make(
       if (json) {
         yield* Console.log(encodeStatusInfo(info));
       } else {
-        const statusIcon = daemonStatus.running ? "running" : "stopped";
+        const statusIcon = describeDaemonState(daemonStatus.running);
         yield* Console.log(`Experiment: ${session.name} [${statusIcon}]`);
         if (daemonStatus.pid !== undefined) yield* Console.log(`  pid: ${daemonStatus.pid}`);
         yield* Console.log(`  direction: ${session.direction}`);

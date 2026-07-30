@@ -15,7 +15,7 @@ import {
 import type { ExperimentState, Session } from "../types.js";
 import { buildXpPaths } from "../paths.js";
 import { buildExperimentPrompt, buildSetupPrompt } from "../prompt.js";
-import { shouldKeep } from "../scoring.js";
+import { formatUnitSuffix, shouldKeep } from "../scoring.js";
 import { AgentPlatformService } from "./AgentPlatform.js";
 import { BudgetService } from "./Budget.js";
 import { ExperimentLogService } from "./ExperimentLog.js";
@@ -23,6 +23,12 @@ import { GitService } from "./Git.js";
 import { RunnerService } from "./Runner.js";
 import { SessionService } from "./Session.js";
 import { WorkspaceService } from "./Workspace.js";
+
+/** Benchmarks get 5x the baseline duration, floored at 30s; no baseline means no timeout. */
+const computeBenchmarkTimeoutMs = (baseline: ResultEvent | undefined): number | undefined => {
+  if (baseline === undefined) return undefined;
+  return Math.max(baseline.durationMs * 5, 30_000);
+};
 
 const wrapIO = (e: PlatformError, code: ErrorCode = ErrorCode.WRITE_FAILED) =>
   new ResearchError({ message: e.message, code });
@@ -207,10 +213,7 @@ export class LoopService extends Context.Service<
             }
 
             // Compute benchmark timeout: 5x baseline duration, minimum 30s
-            const benchmarkTimeoutMs =
-              state.baseline !== undefined
-                ? Math.max(state.baseline.durationMs * 5, 30_000)
-                : undefined;
+            const benchmarkTimeoutMs = computeBenchmarkTimeoutMs(state.baseline);
 
             yield* log.regenerateMarkdown(projectRoot, session);
 
@@ -460,7 +463,7 @@ const decideBenchmarkOutcome = (args: DecideArgs) =>
     ) {
       const sha = yield* git.commitInWorktree(
         worktreePath,
-        `xp(${session.name}): iter ${nextIteration} — ${metricValue}${session.unit !== "" ? " " + session.unit : ""}`,
+        `xp(${session.name}): iter ${nextIteration} — ${metricValue}${formatUnitSuffix(session.unit)}`,
       );
       yield* log.append(
         projectRoot,

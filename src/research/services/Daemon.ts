@@ -10,14 +10,12 @@ export interface DaemonStatus {
   readonly pid?: number;
 }
 
-const isProcessRunning = (pid: number): boolean => {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-};
+// Signal 0 probes liveness without delivering a signal; it throws when the pid is gone.
+const isProcessRunning = (pid: number): Effect.Effect<boolean> =>
+  Effect.try(() => process.kill(pid, 0)).pipe(
+    Effect.as(true),
+    Effect.orElseSucceed(() => false),
+  );
 
 const wrapIO = (e: PlatformError, code: ErrorCode = ErrorCode.WRITE_FAILED) =>
   new ResearchError({ message: e.message, code });
@@ -53,7 +51,7 @@ export class DaemonService extends Context.Service<
                 .readFileString(paths.daemonPid)
                 .pipe(Effect.orElseSucceed(() => ""));
               const existingPid = Number(pidContent.trim());
-              if (isProcessRunning(existingPid)) {
+              if (yield* isProcessRunning(existingPid)) {
                 return yield* new ResearchError({
                   message: `Daemon already running (pid ${existingPid})`,
                   code: ErrorCode.DAEMON_ALREADY_RUNNING,
@@ -106,7 +104,7 @@ export class DaemonService extends Context.Service<
               .readFileString(paths.daemonPid)
               .pipe(Effect.orElseSucceed(() => ""));
             const pid = Number(pidContent.trim());
-            if (!isProcessRunning(pid)) {
+            if (!(yield* isProcessRunning(pid))) {
               yield* fs.remove(paths.daemonPid).pipe(Effect.catch(() => Effect.void));
               return yield* new ResearchError({
                 message: `Daemon not running (stale pid ${pid})`,
@@ -120,14 +118,14 @@ export class DaemonService extends Context.Service<
             // Poll for up to 5s
             const startMs = yield* Clock.currentTimeMillis;
             const deadline = startMs + 5000;
-            while (isProcessRunning(pid)) {
+            while (yield* isProcessRunning(pid)) {
               const nowMs = yield* Clock.currentTimeMillis;
               if (nowMs >= deadline) break;
               yield* Effect.sleep("200 millis");
             }
 
             // If still running, escalate to SIGKILL
-            if (isProcessRunning(pid)) {
+            if (yield* isProcessRunning(pid)) {
               process.kill(pid, "SIGKILL");
               yield* Effect.sleep("500 millis");
             }
@@ -152,7 +150,7 @@ export class DaemonService extends Context.Service<
               .readFileString(paths.daemonPid)
               .pipe(Effect.orElseSucceed(() => ""));
             const pid = Number(pidContent.trim());
-            if (!isProcessRunning(pid)) return { running: false };
+            if (!(yield* isProcessRunning(pid))) return { running: false };
             return { running: true, pid };
           }),
 
@@ -167,7 +165,7 @@ export class DaemonService extends Context.Service<
               .readFileString(paths.daemonPid)
               .pipe(Effect.orElseSucceed(() => ""));
             const pid = Number(pidContent.trim());
-            return isProcessRunning(pid);
+            return yield* isProcessRunning(pid);
           }),
 
         writePid: (projectRoot, pid) =>

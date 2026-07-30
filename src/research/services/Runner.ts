@@ -1,10 +1,13 @@
-import { Clock, Effect, Layer, Context } from "effect";
+import { Clock, Effect, Layer, Context, Stream } from "effect";
+import type { PlatformError } from "effect/PlatformError";
+import * as ChildProcess from "effect/unstable/process/ChildProcess";
+import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner";
 import { ResearchError, ErrorCode } from "../errors.js";
 import { BenchmarkResult } from "../types.js";
 
-const benchmarkFailed = (e: unknown) =>
+const benchmarkFailed = (e: PlatformError) =>
   new ResearchError({
-    message: `Benchmark execution failed: ${e instanceof Error ? e.message : String(e)}`,
+    message: `Benchmark execution failed: ${e.message}`,
     code: ErrorCode.BENCHMARK_FAILED,
   });
 
@@ -39,56 +42,64 @@ export class RunnerService extends Context.Service<
     ) => Effect.Effect<BenchmarkResult, ResearchError>;
   }
 >()("@cvr/okra/research/services/Runner/RunnerService") {
-  static layer: Layer.Layer<RunnerService> = Layer.succeed(RunnerService, {
-    run: (cmd, cwd, timeoutMs) => {
-      const execute = Effect.gen(function* () {
-        const start = yield* Clock.currentTimeMillis;
-        const proc = Bun.spawn(["sh", "-c", cmd], {
-          stdout: "pipe",
-          stderr: "pipe",
-          cwd,
-        });
+  static layer: Layer.Layer<RunnerService, never, ChildProcessSpawner> = Layer.effect(
+    RunnerService,
+    Effect.gen(function* () {
+      const spawner = yield* ChildProcessSpawner;
 
-        const [stdout, stderr, exitCode] = yield* Effect.tryPromise({
-          try: () =>
-            Promise.all([
-              new Response(proc.stdout).text(),
-              new Response(proc.stderr).text(),
-              proc.exited,
-            ]),
-          catch: benchmarkFailed,
-        });
-
-        const end = yield* Clock.currentTimeMillis;
-        const durationMs = end - start;
-        const parsed = parseResult(stdout);
-
-        return new BenchmarkResult({
-          stdout,
-          stderr,
-          exitCode,
-          durationMs,
-          value: parsed.value,
-        });
-      });
-
-      if (timeoutMs !== undefined) {
-        return execute.pipe(
-          Effect.timeout(`${timeoutMs} millis`),
-          Effect.catchTag("TimeoutError", () =>
-            Effect.fail(
-              new ResearchError({
-                message: `Benchmark timed out after ${timeoutMs}ms`,
-                code: ErrorCode.BENCHMARK_TIMEOUT,
+      return {
+        run: (cmd, cwd, timeoutMs) => {
+          const execute = Effect.gen(function* () {
+            const start = yield* Clock.currentTimeMillis;
+            const handle = yield* spawner.spawn(
+              ChildProcess.make("sh", ["-c", cmd], {
+                stdout: "pipe",
+                stderr: "pipe",
+                cwd,
               }),
-            ),
-          ),
-        );
-      }
+            );
 
-      return execute;
-    },
-  });
+            const [stdout, stderr, exitCode] = yield* Effect.all(
+              [
+                Stream.mkString(Stream.decodeText(handle.stdout)),
+                Stream.mkString(Stream.decodeText(handle.stderr)),
+                handle.exitCode,
+              ],
+              { concurrency: "unbounded" },
+            );
+
+            const end = yield* Clock.currentTimeMillis;
+            const durationMs = end - start;
+            const parsed = parseResult(stdout);
+
+            return new BenchmarkResult({
+              stdout,
+              stderr,
+              exitCode,
+              durationMs,
+              value: parsed.value,
+            });
+          }).pipe(Effect.scoped, Effect.catchTag("PlatformError", benchmarkFailed));
+
+          if (timeoutMs !== undefined) {
+            return execute.pipe(
+              Effect.timeout(`${timeoutMs} millis`),
+              Effect.catchTag("TimeoutError", () =>
+                Effect.fail(
+                  new ResearchError({
+                    message: `Benchmark timed out after ${timeoutMs}ms`,
+                    code: ErrorCode.BENCHMARK_TIMEOUT,
+                  }),
+                ),
+              ),
+            );
+          }
+
+          return execute;
+        },
+      };
+    }),
+  );
 }
 
 export { parseResult };

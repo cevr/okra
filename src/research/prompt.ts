@@ -1,4 +1,5 @@
 import type { ExperimentState, ResultEvent, Session, SteerEvent } from "./types.js";
+import { describeDirection, describeDirectionComparative, formatMetricValue } from "./scoring.js";
 
 export const buildExperimentPrompt = (
   session: Session,
@@ -14,9 +15,7 @@ export const buildExperimentPrompt = (
   lines.push(`## Objective`);
   lines.push(session.objective);
   lines.push("");
-  lines.push(
-    `## Goal: ${session.direction === "min" ? "minimize" : "maximize"} (${session.unit || "unitless"})`,
-  );
+  lines.push(`## Goal: ${describeDirection(session.direction)} (${session.unit || "unitless"})`);
   lines.push("");
 
   if (state.best !== undefined) {
@@ -37,7 +36,7 @@ export const buildExperimentPrompt = (
       if (trial.status === "kept") status = "KEPT";
       else if (trial.status === "failed") status = "FAILED";
       else status = "DISCARDED";
-      const value = trial.value !== undefined ? `${trial.value} ${session.unit}` : "N/A";
+      const value = formatMetricValue(trial.value, session.unit);
       lines.push(`- [${status}] iter ${trial.iteration}: ${value} — ${trial.summary}`);
     }
     lines.push("");
@@ -69,7 +68,7 @@ export const buildExperimentPrompt = (
   lines.push(`You are working in: ${worktreePath}`);
   lines.push(`The original source is in: ${sourcePath} (read-only reference)`);
   lines.push(
-    `Your goal: make changes to improve the result (${session.direction === "min" ? "lower is better" : "higher is better"}).`,
+    `Your goal: make changes to improve the result (${describeDirectionComparative(session.direction)}).`,
   );
   lines.push(`After making changes, the benchmark command will be run automatically.`);
   lines.push(`Be surgical — make one focused change per iteration.`);
@@ -119,6 +118,6 @@ const resultStatusLabel = (status: ResultEvent["status"]): string => {
 
 export const formatResultForLog = (result: ResultEvent, session: Session): string => {
   const status = resultStatusLabel(result.status);
-  const value = result.value !== undefined ? `${result.value} ${session.unit}` : "N/A";
+  const value = formatMetricValue(result.value, session.unit);
   return `[${status}] iter ${result.iteration} (${result.kind}): ${value} — ${result.summary}`;
 };

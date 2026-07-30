@@ -1,4 +1,4 @@
-import { Effect, Layer, Context, Stream } from "effect";
+import { Effect, Layer, Context, Option, Stream } from "effect";
 import type { PlatformError } from "effect/PlatformError";
 import * as ChildProcess from "effect/unstable/process/ChildProcess";
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner";
@@ -30,10 +30,14 @@ export class GitService extends Context.Service<
 
       const run = Effect.fn("git.run")(
         function* (args: readonly string[], cwd?: string) {
+          // `cwd: undefined` is not the same as omitting it — the spawner would reject it.
           const command = ChildProcess.make("git", [...args], {
             stdout: "pipe",
             stderr: "pipe",
-            ...(cwd !== undefined ? { cwd } : {}),
+            ...Option.match(Option.fromUndefinedOr(cwd), {
+              onNone: () => ({}),
+              onSome: (dir) => ({ cwd: dir }),
+            }),
           });
 
           const handle = yield* spawner.spawn(command);
@@ -62,51 +66,54 @@ export class GitService extends Context.Service<
       );
 
       return {
-      currentBranch: run(["rev-parse", "--abbrev-ref", "HEAD"]).pipe(
-        Effect.filterOrFail(
-          (branch) => branch !== "HEAD",
-          () =>
-            new ResearchError({
-              message: "HEAD is detached",
-              code: ErrorCode.GIT_FAILED,
-            }),
-        ),
-      ),
-
-      headSha: (cwd) => run(["rev-parse", "HEAD"], cwd),
-
-      isClean: (cwd) => run(["status", "--porcelain"], cwd).pipe(Effect.map((r) => r === "")),
-
-      createBranch: (name, from) => {
-        const args = from !== undefined ? ["branch", name, from] : ["branch", name];
-        return run(args).pipe(Effect.asVoid);
-      },
-
-      branchExists: (name) =>
-        run(["rev-parse", "--verify", `refs/heads/${name}`]).pipe(
-          Effect.as(true),
-          Effect.catchTag("@cvr/okra/research/ResearchError", () => Effect.succeed(false)),
+        currentBranch: run(["rev-parse", "--abbrev-ref", "HEAD"]).pipe(
+          Effect.filterOrFail(
+            (branch) => branch !== "HEAD",
+            () =>
+              new ResearchError({
+                message: "HEAD is detached",
+                code: ErrorCode.GIT_FAILED,
+              }),
+          ),
         ),
 
-      addWorktree: (path, branch) => run(["worktree", "add", path, branch]).pipe(Effect.asVoid),
+        headSha: (cwd) => run(["rev-parse", "HEAD"], cwd),
 
-      removeWorktree: (path) => run(["worktree", "remove", path, "--force"]).pipe(Effect.asVoid),
+        isClean: (cwd) => run(["status", "--porcelain"], cwd).pipe(Effect.map((r) => r === "")),
 
-      commitInWorktree: (cwd, message) =>
-        run(["add", "-A"], cwd).pipe(
-          Effect.flatMap(() => run(["commit", "-m", message], cwd)),
-          Effect.flatMap(() => run(["rev-parse", "HEAD"], cwd)),
-        ),
+        createBranch: (name, from) => {
+          const args = Option.match(Option.fromUndefinedOr(from), {
+            onNone: () => ["branch", name],
+            onSome: (start) => ["branch", name, start],
+          });
+          return run(args).pipe(Effect.asVoid);
+        },
 
-      revertWorktree: (cwd) =>
-        run(["reset", "--hard", "HEAD"], cwd).pipe(
-          Effect.flatMap(() => run(["clean", "-fd"], cwd)),
-          Effect.asVoid,
-        ),
+        branchExists: (name) =>
+          run(["rev-parse", "--verify", `refs/heads/${name}`]).pipe(
+            Effect.as(true),
+            Effect.catchTag("@cvr/okra/research/ResearchError", () => Effect.succeed(false)),
+          ),
 
-      diff: (cwd) => run(["diff", "HEAD"], cwd),
+        addWorktree: (path, branch) => run(["worktree", "add", path, branch]).pipe(Effect.asVoid),
 
-      pruneWorktrees: (cwd) => run(["worktree", "prune"], cwd).pipe(Effect.asVoid),
+        removeWorktree: (path) => run(["worktree", "remove", path, "--force"]).pipe(Effect.asVoid),
+
+        commitInWorktree: (cwd, message) =>
+          run(["add", "-A"], cwd).pipe(
+            Effect.flatMap(() => run(["commit", "-m", message], cwd)),
+            Effect.flatMap(() => run(["rev-parse", "HEAD"], cwd)),
+          ),
+
+        revertWorktree: (cwd) =>
+          run(["reset", "--hard", "HEAD"], cwd).pipe(
+            Effect.flatMap(() => run(["clean", "-fd"], cwd)),
+            Effect.asVoid,
+          ),
+
+        diff: (cwd) => run(["diff", "HEAD"], cwd),
+
+        pruneWorktrees: (cwd) => run(["worktree", "prune"], cwd).pipe(Effect.asVoid),
       };
     }),
   );

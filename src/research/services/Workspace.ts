@@ -2,6 +2,8 @@ import { Effect, Layer, Context } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
+import * as ChildProcess from "effect/unstable/process/ChildProcess";
+import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner";
 import { ResearchError, ErrorCode } from "../errors.js";
 import { buildXpPaths } from "../paths.js";
 import { decodeSetupManifest } from "../types.js";
@@ -20,12 +22,17 @@ export class WorkspaceService extends Context.Service<
     readonly path: (projectRoot: string) => Effect.Effect<string>;
   }
 >()("@cvr/okra/research/services/Workspace/WorkspaceService") {
-  static layer: Layer.Layer<WorkspaceService, never, GitService | FileSystem | Path> = Layer.effect(
+  static layer: Layer.Layer<
+    WorkspaceService,
+    never,
+    GitService | FileSystem | Path | ChildProcessSpawner
+  > = Layer.effect(
     WorkspaceService,
     Effect.gen(function* () {
       const git = yield* GitService;
       const fs = yield* FileSystem;
       const path = yield* Path;
+      const spawner = yield* ChildProcessSpawner;
 
       const replaySetup = Effect.fn("Workspace.replaySetup")(function* (
         setupJsonPath: string,
@@ -65,19 +72,24 @@ export class WorkspaceService extends Context.Service<
 
         if (manifest.commands !== undefined) {
           for (const cmd of manifest.commands) {
-            const proc = Bun.spawn(["sh", "-c", cmd], {
-              cwd: worktreePath,
-              stdout: "inherit",
-              stderr: "inherit",
-            });
-            const code = yield* Effect.tryPromise({
-              try: () => proc.exited,
-              catch: (e) =>
-                new ResearchError({
-                  message: `Setup command failed: ${e instanceof Error ? e.message : String(e)}`,
-                  code: ErrorCode.WORKTREE_FAILED,
+            const code = yield* spawner
+              .exitCode(
+                ChildProcess.make("sh", ["-c", cmd], {
+                  cwd: worktreePath,
+                  stdout: "inherit",
+                  stderr: "inherit",
                 }),
-            });
+              )
+              .pipe(
+                Effect.catchTag(
+                  "PlatformError",
+                  (e: PlatformError) =>
+                    new ResearchError({
+                      message: `Setup command failed: ${e.message}`,
+                      code: ErrorCode.WORKTREE_FAILED,
+                    }),
+                ),
+              );
             if (code !== 0) {
               return yield* new ResearchError({
                 message: `Setup command failed (exit ${String(code)}): ${cmd}`,

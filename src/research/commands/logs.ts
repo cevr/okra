@@ -2,8 +2,17 @@ import { Effect } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import { Command, Flag } from "effect/unstable/cli";
+import * as ChildProcess from "effect/unstable/process/ChildProcess";
+import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner";
 import { buildXpPaths } from "../paths.js";
 import { ResearchError, ErrorCode } from "../errors.js";
+
+const LOG_STDIO = { stdout: "inherit", stderr: "inherit" } as const;
+
+const buildLogCommand = (follow: boolean, logPath: string): ChildProcess.Command => {
+  if (follow) return ChildProcess.make("tail", ["-f", logPath], LOG_STDIO);
+  return ChildProcess.make("cat", [logPath], LOG_STDIO);
+};
 
 export const logsCommand = Command.make(
   "logs",
@@ -29,18 +38,17 @@ export const logsCommand = Command.make(
         });
       }
 
-      const args = follow ? ["tail", "-f", paths.daemonLog] : ["cat", paths.daemonLog];
-      const proc = Bun.spawn(args, {
-        stdout: "inherit",
-        stderr: "inherit",
-      });
-      yield* Effect.tryPromise({
-        try: () => proc.exited,
-        catch: () =>
-          new ResearchError({
-            message: "Failed to read logs",
-            code: ErrorCode.READ_FAILED,
-          }),
-      });
+      const spawner = yield* ChildProcessSpawner;
+      const command = buildLogCommand(follow, paths.daemonLog);
+      yield* spawner.exitCode(command).pipe(
+        Effect.catchTag(
+          "PlatformError",
+          () =>
+            new ResearchError({
+              message: "Failed to read logs",
+              code: ErrorCode.READ_FAILED,
+            }),
+        ),
+      );
     }),
 ).pipe(Command.withDescription("View daemon logs"));

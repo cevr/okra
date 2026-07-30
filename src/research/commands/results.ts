@@ -1,4 +1,4 @@
-import { Console, Effect, Schema } from "effect";
+import { Console, Effect, Option, Schema } from "effect";
 import { Command, Flag } from "effect/unstable/cli";
 import { ExperimentLogService } from "../services/ExperimentLog.js";
 import { SessionService } from "../services/Session.js";
@@ -25,7 +25,10 @@ export const resultsCommand = Command.make(
 
       const session = yield* sessionSvc.load(projectRoot);
       const state = yield* experimentLog.reconstructState(projectRoot);
-      const results = last._tag === "Some" ? state.results.slice(-last.value) : state.results;
+      const results = Option.match(last, {
+        onNone: () => state.results,
+        onSome: (n) => state.results.slice(-n),
+      });
 
       if (json) {
         yield* Console.log(encodeResultsJson(results));

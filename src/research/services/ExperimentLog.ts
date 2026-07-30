@@ -7,7 +7,7 @@ import { decodeExperimentEvent, encodeExperimentEvent, ResultEvent } from "../ty
 import type { Direction, ExperimentEvent, ExperimentState, Session, SteerEvent } from "../types.js";
 import { buildXpPaths } from "../paths.js";
 import { formatResultForLog } from "../prompt.js";
-import { shouldKeep } from "../scoring.js";
+import { describeDirection, shouldKeep } from "../scoring.js";
 
 const wrapIO = (e: PlatformError, code: ErrorCode = ErrorCode.WRITE_FAILED) =>
   new ResearchError({ message: e.message, code });
@@ -66,7 +66,8 @@ const applyDecisionEvent = (
   }
   s.hasDecisionForLastPending = true;
   const idx = s.results.findIndex((r) => r.iteration === event.iteration && r.status === "pending");
-  const r = idx !== -1 ? s.results[idx] : undefined;
+  if (idx === -1) return;
+  const r = s.results[idx];
   if (r === undefined) return;
   const updated = new ResultEvent({
     timestamp: r.timestamp,
@@ -152,9 +153,7 @@ const generateMarkdown = (session: Session, state: ExperimentState): string => {
   lines.push(`# Experiment: ${session.name}`);
   lines.push("");
   lines.push(`**Objective**: ${session.objective}`);
-  lines.push(
-    `**Goal**: ${session.direction === "min" ? "minimize" : "maximize"} (${session.unit || "unitless"})`,
-  );
+  lines.push(`**Goal**: ${describeDirection(session.direction)} (${session.unit || "unitless"})`);
   lines.push(`**Provider**: ${session.provider}`);
   lines.push(`**Segment**: ${state.segment} | **Iteration**: ${state.iteration}`);
   lines.push("");
