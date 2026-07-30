@@ -1,5 +1,7 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http";
-import { Config, Effect, Layer, Option, Schema, Context } from "effect";
+import * as ChildProcess from "effect/unstable/process/ChildProcess";
+import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner";
+import { Config, Effect, Layer, Option, Schema, Stream, Context } from "effect";
 import { SkillsError } from "../errors.js";
 import { DEFAULT_REF, SKILL_DIR_PREFIXES } from "../lib/constants.js";
 
@@ -402,96 +404,130 @@ const makeFetchSkillDir = (
 export class GitHubCli extends Context.Service<GitHubCli, GitHubCliShape>()(
   "@cvr/okra/skills/services/GitHub/GitHubCli",
 ) {
-  static readonly layer = Layer.sync(this, () => {
-    const run = Effect.fn("GitHubCli.run")(function* (args: ReadonlyArray<string>) {
-      const process = yield* Effect.try({
-        try: () => Bun.spawn(["gh", ...args], { stdout: "pipe", stderr: "pipe" }),
-        catch: (cause) => fetchError(`gh:${args.join(" ")}`, cause),
-      });
+  static readonly layer = Layer.effect(
+    this,
+    Effect.gen(function* () {
+      const spawner = yield* ChildProcessSpawner;
 
-      const [stdout, stderr, exitCode] = yield* Effect.tryPromise({
-        try: () =>
-          Promise.all([
-            new Response(process.stdout).text(),
-            new Response(process.stderr).text(),
-            process.exited,
-          ]),
-        catch: (cause) => fetchError(`gh:${args.join(" ")}`, cause),
-      });
+      const run = Effect.fn("GitHubCli.run")(function* (args: ReadonlyArray<string>) {
+        const label = `gh:${args.join(" ")}`;
+        const proc = yield* spawner
+          .spawn(
+            ChildProcess.make("gh", [...args], {
+              stdin: "ignore",
+              stdout: "pipe",
+              stderr: "pipe",
+            }),
+          )
+          .pipe(Effect.mapError((cause) => fetchError(label, cause)));
 
-      if (exitCode !== 0) {
-        return yield* fetchError(
-          `gh:${args.join(" ")}`,
-          stderr.trim() || `gh exited with code ${exitCode}`,
+        // Both streams must be drained while the child runs, otherwise it blocks
+        // once a pipe buffer fills.
+        const [stdout, stderr, exitCode] = yield* Effect.all(
+          [
+            Stream.mkString(Stream.decodeText(proc.stdout)),
+            Stream.mkString(Stream.decodeText(proc.stderr)),
+            proc.exitCode,
+          ],
+          { concurrency: "unbounded" },
+        ).pipe(Effect.mapError((cause) => fetchError(label, cause)));
+
+        if (exitCode !== 0) {
+          return yield* fetchError(label, stderr.trim() || `gh exited with code ${exitCode}`);
+        }
+
+        return stdout;
+      }, Effect.scoped);
+
+      const isInstalled = spawner
+        .spawn(
+          ChildProcess.make("gh", ["--version"], {
+            stdin: "ignore",
+            stdout: "ignore",
+            stderr: "ignore",
+          }),
+        )
+        .pipe(
+          Effect.flatMap((proc) => proc.exitCode),
+          Effect.map((exitCode) => exitCode === 0),
+          Effect.orElseSucceed(() => false),
+          Effect.scoped,
         );
-      }
 
-      return stdout;
-    });
+      const isAvailable = Effect.gen(function* () {
+        if (!(yield* isInstalled)) return false;
 
-    const isAvailable = Effect.gen(function* () {
-      if (!Bun.which("gh")) return false;
+        return yield* run(["auth", "status"]).pipe(
+          Effect.as(true),
+          Effect.catchTag("@cvr/okra/skills/SkillsError", () => Effect.succeed(false)),
+        );
+      });
 
-      return yield* run(["auth", "status"]).pipe(
-        Effect.as(true),
-        Effect.catchTag("@cvr/okra/skills/SkillsError", () => Effect.succeed(false)),
-      );
-    });
+      const listContents = Effect.fn("GitHubCli.listContents")(function* (
+        owner: string,
+        repo: string,
+        path: string,
+        ref?: string,
+      ) {
+        const endpoint = contentsEndpoint(owner, repo, path, ref);
+        const output = yield* run([
+          "api",
+          "-H",
+          "Accept: application/vnd.github.v3+json",
+          endpoint,
+        ]);
+        return yield* decodeContentsJson(output).pipe(
+          Effect.mapError((cause) => fetchError(`github:${owner}/${repo}/${path}`, cause)),
+          Effect.withSpan("GitHubCli.listContents", { attributes: { owner, repo, path, ref } }),
+        );
+      });
 
-    const listContents = Effect.fn("GitHubCli.listContents")(function* (
-      owner: string,
-      repo: string,
-      path: string,
-      ref?: string,
-    ) {
-      const endpoint = contentsEndpoint(owner, repo, path, ref);
-      const output = yield* run(["api", "-H", "Accept: application/vnd.github.v3+json", endpoint]);
-      return yield* decodeContentsJson(output).pipe(
-        Effect.mapError((cause) => fetchError(`github:${owner}/${repo}/${path}`, cause)),
-        Effect.withSpan("GitHubCli.listContents", { attributes: { owner, repo, path, ref } }),
-      );
-    });
+      const fetchRaw = Effect.fn("GitHubCli.fetchRaw")(function* (
+        owner: string,
+        repo: string,
+        path: string,
+        ref = DEFAULT_REF,
+      ) {
+        const endpoint = contentsEndpoint(owner, repo, path, ref);
+        return yield* run(["api", "-H", "Accept: application/vnd.github.raw", endpoint]).pipe(
+          Effect.mapError((cause) => fetchError(`github:${owner}/${repo}/${path}`, cause)),
+          Effect.withSpan("GitHubCli.fetchRaw", { attributes: { owner, repo, path, ref } }),
+        );
+      });
 
-    const fetchRaw = Effect.fn("GitHubCli.fetchRaw")(function* (
-      owner: string,
-      repo: string,
-      path: string,
-      ref = DEFAULT_REF,
-    ) {
-      const endpoint = contentsEndpoint(owner, repo, path, ref);
-      return yield* run(["api", "-H", "Accept: application/vnd.github.raw", endpoint]).pipe(
-        Effect.mapError((cause) => fetchError(`github:${owner}/${repo}/${path}`, cause)),
-        Effect.withSpan("GitHubCli.fetchRaw", { attributes: { owner, repo, path, ref } }),
-      );
-    });
+      // P3: Tree API via gh CLI
+      const listTree = Effect.fn("GitHubCli.listTree")(function* (
+        owner: string,
+        repo: string,
+        ref: string,
+      ) {
+        const endpoint = treeEndpoint(owner, repo, ref);
+        const output = yield* run([
+          "api",
+          "-H",
+          "Accept: application/vnd.github.v3+json",
+          endpoint,
+        ]);
+        return yield* decodeTreeJson(output).pipe(
+          Effect.mapError((cause) => fetchError(`github:${owner}/${repo}/tree/${ref}`, cause)),
+          Effect.withSpan("GitHubCli.listTree", { attributes: { owner, repo, ref } }),
+        );
+      });
 
-    // P3: Tree API via gh CLI
-    const listTree = Effect.fn("GitHubCli.listTree")(function* (
-      owner: string,
-      repo: string,
-      ref: string,
-    ) {
-      const endpoint = treeEndpoint(owner, repo, ref);
-      const output = yield* run(["api", "-H", "Accept: application/vnd.github.v3+json", endpoint]);
-      return yield* decodeTreeJson(output).pipe(
-        Effect.mapError((cause) => fetchError(`github:${owner}/${repo}/tree/${ref}`, cause)),
-        Effect.withSpan("GitHubCli.listTree", { attributes: { owner, repo, ref } }),
-      );
-    });
+      const discoverSkills = makeDiscoverSkills(listContents, listTree);
+      const fetchSkillDirImpl = makeFetchSkillDir(listContents, fetchRaw);
 
-    const discoverSkills = makeDiscoverSkills(listContents, listTree);
-    const fetchSkillDirImpl = makeFetchSkillDir(listContents, fetchRaw);
-
-    return GitHubCli.of({
-      run,
-      isAvailable,
-      listContents,
-      fetchRaw,
-      listTree,
-      discoverSkills,
-      fetchSkillDir: fetchSkillDirImpl,
-    });
-  });
+      return GitHubCli.of({
+        run,
+        isAvailable,
+        listContents,
+        fetchRaw,
+        listTree,
+        discoverSkills,
+        fetchSkillDir: fetchSkillDirImpl,
+      });
+    }),
+  );
 }
 
 export class GitHubHttp extends Context.Service<GitHubHttp, GitHubHttpShape>()(
