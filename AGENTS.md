@@ -12,7 +12,7 @@ bun run build         # compile binary to bin/okra
 
 ## Architecture
 
-Eight orthogonal domains under `src/`, each with own errors, services, commands:
+Nine orthogonal domains under `src/`, each with own errors, services, commands:
 
 | Domain      | Subcommand      | Error tag                               | Data dir                                                           |
 | ----------- | --------------- | --------------------------------------- | ------------------------------------------------------------------ |
@@ -24,6 +24,7 @@ Eight orthogonal domains under `src/`, each with own errors, services, commands:
 | `skills/`   | `okra skills`   | `SkillsError`                           | `$SKILLS_DIR` or `~/Developer/personal/dotfiles/skills`            |
 | `image/`    | `okra image`    | `ImageError`                            | reads `~/.codex/auth.json` + `~/.okra/keys.json`; writes `-o` path |
 | `keys/`     | `okra keys`     | `KeysError`                             | `~/.okra/keys.json` (via shared `KeyStoreService`)                 |
+| `how/`      | `okra how`      | `HowError`                              | none — docs embedded at compile time                               |
 
 Shared utilities in `src/shared/`: `Provider` schema, `resolveExecutable`, `isColorEnabled`, `KeyStoreService` (`keystore.ts` — generic multi-provider secret store at `~/.okra/keys.json`).
 
@@ -66,6 +67,7 @@ Shared utilities in `src/shared/`: `Provider` schema, `resolveExecutable`, `isCo
 - Codex backend requires `store: false` + `stream: true` and a current `version` header; it streams SSE with **no** `content-type` header
 - `ImageGenService` is transport-agnostic (consumes a provided `LanguageModel`) so the model layer is provided per-invocation in the command handler (parameterized by `--model`) — hence `strictEffectProvide:off` on `image/commands/index.ts`
 - `CodexStreamPatch` rewrites the codex-only `image_generation_call` status `"generating"` → `"in_progress"` at SSE-event granularity before decoding, working around upstream `OpenAiSchema.MessageStatus` which omits `"generating"` (their `Generated.ts` includes it; the handwritten streaming schema is stricter)
+- The `how` domain embeds every `skills/*/SKILL.md` via Bun `with { type: "text" }` imports (`src/how/topics.ts`) — a new skill must be registered there to appear in `okra how`. It is pure (no service layer). `okra how` prints a TOC of first-sentence summaries; `okra how <topic>` prints the SKILL.md body (frontmatter stripped); `brain-*` sub-skills surface as a "Subtopics" footer on `okra how brain`. `skills/okra/SKILL.md` is the thin installable TOC skill pointing at the command
 - Image command pre-checks `CodexAuthService.load` before generating, so missing creds surface as `AUTH_MISSING` (not a boxed transport error); `isUnauthorized` matches the structured `AiError.reason._tag === "AuthenticationError"`, not message substrings
 
 ## Skills
@@ -80,3 +82,4 @@ Shared utilities in `src/shared/`: `Provider` schema, `resolveExecutable`, `isCo
 | `okra skills`   | `skills/skills/SKILL.md`   |
 | `okra image`    | `skills/image/SKILL.md`    |
 | `okra keys`     | `skills/keys/SKILL.md`     |
+| `okra` (TOC)    | `skills/okra/SKILL.md`     |

@@ -17,6 +17,7 @@ import { isSkillsError } from "./skills/errors.js";
 import { imageCommand } from "./image/index.js";
 import { isImageError } from "./image/errors.js";
 import { keysCommand, isKeysError } from "./keys/index.js";
+import { howCommand, isHowError } from "./how/index.js";
 
 // __VERSION__ is injected by scripts/build.ts; it is absent under `bun run dev`.
 const resolveVersion = (): string => {
@@ -45,6 +46,7 @@ const root = Command.make("okra", {}, () => Effect.void).pipe(
     skillsCommand,
     imageCommand,
     keysCommand,
+    howCommand,
   ]),
 );
 
@@ -78,6 +80,8 @@ const program = cli.pipe(
         } else if (isImageError(err)) {
           yield* Console.error(`[${err.code}] ${err.message}`);
         } else if (isKeysError(err)) {
+          yield* Console.error(`[${err.code}] ${err.message}`);
+        } else if (isHowError(err)) {
           yield* Console.error(`[${err.code}] ${err.message}`);
         }
       }
