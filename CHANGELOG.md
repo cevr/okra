@@ -1,5 +1,14 @@
 # @cvr/okra
 
+## 0.8.0
+
+### Minor Changes
+
+- [`93870d1`](https://github.com/cevr/okra/commit/93870d1293b58fbec291bab65cf4403713f675bb) Thanks [@cevr](https://github.com/cevr)! - Remove the `brain` and `research` domains. `okra brain` and `okra research`
+  (with their skills, tests, fixtures, and the `__ASSET_ROOT__` compile-time
+  asset root they required) are gone; the toolkit now covers schedule, counsel,
+  repo, skills, image, keys, and how.
+
 ## 0.7.0
 
 ### Minor Changes
