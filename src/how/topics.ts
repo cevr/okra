@@ -1,14 +1,7 @@
-import brainDoc from "../../skills/brain/SKILL.md" with { type: "text" };
-import brainMeditateDoc from "../../skills/brain-meditate/SKILL.md" with { type: "text" };
-import brainPlanDoc from "../../skills/brain-plan/SKILL.md" with { type: "text" };
-import brainReflectDoc from "../../skills/brain-reflect/SKILL.md" with { type: "text" };
-import brainReviewDoc from "../../skills/brain-review/SKILL.md" with { type: "text" };
-import brainRuminateDoc from "../../skills/brain-ruminate/SKILL.md" with { type: "text" };
 import counselDoc from "../../skills/counsel/SKILL.md" with { type: "text" };
 import imageDoc from "../../skills/image/SKILL.md" with { type: "text" };
 import keysDoc from "../../skills/keys/SKILL.md" with { type: "text" };
 import repoDoc from "../../skills/repo/SKILL.md" with { type: "text" };
-import researchDoc from "../../skills/research/SKILL.md" with { type: "text" };
 import scheduleDoc from "../../skills/schedule/SKILL.md" with { type: "text" };
 import skillsDoc from "../../skills/skills/SKILL.md" with { type: "text" };
 
@@ -52,13 +45,6 @@ const makeTopic = (name: string, doc: string): Topic => ({
 export const TOPICS: ReadonlyArray<Topic> = [
   makeTopic("schedule", scheduleDoc),
   makeTopic("counsel", counselDoc),
-  makeTopic("research", researchDoc),
-  makeTopic("brain", brainDoc),
-  makeTopic("brain-meditate", brainMeditateDoc),
-  makeTopic("brain-plan", brainPlanDoc),
-  makeTopic("brain-reflect", brainReflectDoc),
-  makeTopic("brain-review", brainReviewDoc),
-  makeTopic("brain-ruminate", brainRuminateDoc),
   makeTopic("repo", repoDoc),
   makeTopic("skills", skillsDoc),
   makeTopic("image", imageDoc),
@@ -68,6 +54,6 @@ export const TOPICS: ReadonlyArray<Topic> = [
 export const findTopic = (name: string): Topic | undefined =>
   TOPICS.find((topic) => topic.name === name);
 
-/** Topics nested under `name` by naming convention (`brain` → `brain-plan`, ...). */
+/** Topics nested under `name` by naming convention (`x` → `x-sub`, ...). */
 export const subtopicsOf = (name: string): ReadonlyArray<Topic> =>
   TOPICS.filter((topic) => topic.name.startsWith(`${name}-`));

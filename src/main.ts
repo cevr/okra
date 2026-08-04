@@ -7,9 +7,6 @@ import { scheduleCommand } from "./schedule/index.js";
 import { ScheduleError } from "./schedule/errors.js";
 import { counselCommand } from "./counsel/index.js";
 import { isCounselError } from "./counsel/errors.js";
-import { researchCommand } from "./research/index.js";
-import { ResearchError } from "./research/errors.js";
-import { brainCommand, isBrainDomainError } from "./brain/index.js";
 import { repoCommand } from "./repo/index.js";
 import { isRepoError } from "./repo/errors.js";
 import { skillsCommand } from "./skills/index.js";
@@ -28,7 +25,6 @@ const resolveVersion = (): string => {
 const VERSION = resolveVersion();
 
 const isScheduleError = Schema.is(ScheduleError);
-const isResearchError = Schema.is(ResearchError);
 
 const RECOVERY_HINTS: Record<string, string> = {
   NOT_FOUND: "Run 'okra schedule list' to see available tasks.",
@@ -40,8 +36,6 @@ const root = Command.make("okra", {}, () => Effect.void).pipe(
   Command.withSubcommands([
     scheduleCommand,
     counselCommand,
-    researchCommand,
-    brainCommand,
     repoCommand,
     skillsCommand,
     imageCommand,
@@ -68,10 +62,6 @@ const program = cli.pipe(
             yield* Console.error(hint);
           }
         } else if (isCounselError(err)) {
-          yield* Console.error(`[${err.code}] ${err.message}`);
-        } else if (isResearchError(err)) {
-          yield* Console.error(`[${err.code}] ${err.message}`);
-        } else if (isBrainDomainError(err)) {
           yield* Console.error(`[${err.code}] ${err.message}`);
         } else if (isRepoError(err)) {
           yield* Console.error(`[${err.code}] ${err.message}`);

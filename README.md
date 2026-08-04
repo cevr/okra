@@ -1,13 +1,14 @@
 # okra
 
-AI agent orchestration toolkit. Six subcommands:
+AI agent orchestration toolkit. Seven subcommands:
 
 - **`okra schedule`** — Schedule AI agent tasks via macOS launchd
 - **`okra counsel`** — Route prompts between Claude and Codex for second opinions
-- **`okra research`** — Autonomous experiment daemon that optimizes measurable metrics
-- **`okra brain`** — Persistent agent memory vault with AI-powered maintenance
 - **`okra repo`** — Multi-registry source code cache for exploring external repos
 - **`okra skills`** — Manage AI agent skills from GitHub repos or local paths
+- **`okra image`** — Generate or edit images via codex or the OpenAI Images API
+- **`okra keys`** — Manage stored provider API keys
+- **`okra how`** — Print the embedded usage guide for any subcommand
 
 ## Install
 
@@ -26,13 +27,6 @@ okra schedule "babysit this pr" -s "every weekday at 9am"
 
 # Get a second opinion from the opposite agent
 okra counsel "Review the auth refactor for blind spots"
-
-# Run an optimization experiment
-okra research start --direction min --benchmark "bun run bench.ts" --objective "Minimize runtime"
-
-# Initialize and manage agent memory
-okra brain init
-okra brain daemon start
 
 # Install skills (variadic, multi-select for multi-skill repos)
 okra skills add owner/repo                # all skills (multi-select prompt)

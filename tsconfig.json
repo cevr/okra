@@ -126,5 +126,5 @@
     ]
   },
   "include": ["src", "tests", "scripts"],
-  "exclude": ["node_modules", "bin", "dist", "fixture"]
+  "exclude": ["node_modules", "bin", "dist"]
 }

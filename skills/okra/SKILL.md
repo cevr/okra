@@ -1,6 +1,6 @@
 ---
 name: okra
-description: Table of contents for the okra CLI (AI agent orchestration toolkit). Use whenever a task involves an okra subcommand — schedule, counsel, research, brain, repo, skills, image, keys — to pull the authoritative guide instead of guessing flags. Triggers on "okra", "okra how", or any okra subcommand name.
+description: Table of contents for the okra CLI (AI agent orchestration toolkit). Use whenever a task involves an okra subcommand — schedule, counsel, repo, skills, image, keys — to pull the authoritative guide instead of guessing flags. Triggers on "okra", "okra how", or any okra subcommand name.
 ---
 
 # okra
@@ -15,19 +15,16 @@ okra how <topic>      # print the full guide for one topic
 
 ## Topics
 
-| Topic      | Use for                                                                                                                         |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `schedule` | Run prompts on recurring launchd timers                                                                                         |
-| `counsel`  | Route a prompt to the opposite local coding agent (Claude ↔ Codex)                                                              |
-| `research` | Autonomous background research loops writing to `.xp/`                                                                          |
-| `brain`    | Persistent memory vault + daemon (subtopics: `brain-plan`, `brain-reflect`, `brain-review`, `brain-ruminate`, `brain-meditate`) |
-| `repo`     | Fetch, cache, and read external repos/packages (GitHub/npm/PyPI/Crates)                                                         |
-| `skills`   | Manage installed agent skills                                                                                                   |
-| `image`    | Generate or edit images (codex backend or OpenAI Images API)                                                                    |
-| `keys`     | Store and inspect provider API keys (`~/.okra/keys.json`)                                                                       |
+| Topic      | Use for                                                                 |
+| ---------- | ----------------------------------------------------------------------- |
+| `schedule` | Run prompts on recurring launchd timers                                 |
+| `counsel`  | Route a prompt to the opposite local coding agent (Claude ↔ Codex)      |
+| `repo`     | Fetch, cache, and read external repos/packages (GitHub/npm/PyPI/Crates) |
+| `skills`   | Manage installed agent skills                                           |
+| `image`    | Generate or edit images (codex backend or OpenAI Images API)            |
+| `keys`     | Store and inspect provider API keys (`~/.okra/keys.json`)               |
 
 ## Workflow
 
 1. Run `okra how <topic>` before the first use of a subcommand in a session.
 2. Follow that guide's quick-reference table; it is the same content as the per-topic skill.
-3. For brain daemon jobs, read the matching `brain-*` subtopic before editing job behavior.

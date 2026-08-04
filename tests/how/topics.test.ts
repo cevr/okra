@@ -30,16 +30,7 @@ describe("how topics", () => {
   it.effect("covers every domain subcommand", () =>
     Effect.sync(() => {
       const names = TOPICS.map((topic) => topic.name);
-      for (const domain of [
-        "schedule",
-        "counsel",
-        "research",
-        "brain",
-        "repo",
-        "skills",
-        "image",
-        "keys",
-      ]) {
+      for (const domain of ["schedule", "counsel", "repo", "skills", "image", "keys"]) {
         expect(names).toContain(domain);
       }
     }),
@@ -47,22 +38,17 @@ describe("how topics", () => {
 
   it.effect("findTopic resolves known topics and rejects unknown ones", () =>
     Effect.sync(() => {
-      expect(findTopic("brain")?.name).toBe("brain");
+      expect(findTopic("repo")?.name).toBe("repo");
       expect(findTopic("nope")).toBeUndefined();
     }),
   );
 
-  it.effect("subtopicsOf groups the brain sub-skills", () =>
+  it.effect("subtopicsOf groups hyphen-nested topics only", () =>
     Effect.sync(() => {
-      const names = subtopicsOf("brain").map((topic) => topic.name);
-      expect(names).toEqual([
-        "brain-meditate",
-        "brain-plan",
-        "brain-reflect",
-        "brain-review",
-        "brain-ruminate",
-      ]);
-      expect(subtopicsOf("keys")).toEqual([]);
+      // No hyphen-nested skills exist right now, so every topic stands alone.
+      for (const topic of TOPICS) {
+        expect(subtopicsOf(topic.name)).toEqual([]);
+      }
     }),
   );
 
