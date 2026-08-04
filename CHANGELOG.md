@@ -1,5 +1,13 @@
 # @cvr/okra
 
+## 0.8.1
+
+### Patch Changes
+
+- [`2e4899b`](https://github.com/cevr/okra/commit/2e4899b63d8dd967198b1a437800aa3209e99229) Thanks [@cevr](https://github.com/cevr)! - Counsel's standard Claude profile now pins `claude-opus-5` (was the bare
+  `opus` alias, which resolved to Opus 4.8). The `--deep` profile still uses
+  Fable at max effort.
+
 ## 0.8.0
 
 ### Minor Changes
