@@ -11,8 +11,8 @@ const modelReasoningEffort = (profile: Profile): string => {
 
 const claudeModel = (profile: Profile): string => {
   if (profile === "deep") return "fable";
-  // Pinned: the bare `opus` alias tracks whatever the installed CLI defaults to.
-  return "claude-opus-5";
+  // Alias, not a pin: tracks the latest Opus the installed CLI offers.
+  return "opus";
 };
 
 export const detectSourceFromEnv = (
