@@ -1,5 +1,21 @@
 # @cvr/okra
 
+## 0.7.0
+
+### Minor Changes
+
+- [`5d8c06b`](https://github.com/cevr/okra/commit/5d8c06b02d9c8830542adad6dc3cebc3b70f7d24) Thanks [@cevr](https://github.com/cevr)! - Add `okra how` — progressive-disclosure docs served from the binary. `okra how`
+  lists every topic with a one-line summary; `okra how <topic>` prints the full
+  guide (the embedded `skills/*/SKILL.md` body); `okra how brain` advertises the
+  `brain-*` subtopics. The new `skills/okra` skill is a thin table of contents
+  that points agents at the command instead of carrying the full docs.
+
+### Patch Changes
+
+- [`0bcc569`](https://github.com/cevr/okra/commit/0bcc569c1edcaa7819139668678b701bc88b3502) Thanks [@cevr](https://github.com/cevr)! - Route process, stdio and crypto access through Effect platform services, and
+  replace ternaries, `new` Schema construction and ignored-failure catches with
+  their idiomatic Effect equivalents.
+
 ## 0.6.2
 
 ### Patch Changes
