@@ -92,6 +92,6 @@ src/counsel/
 
 - Fails if it cannot infer Claude vs Codex and `--from` is missing
 - Writes files; does not stream the other model's answer back into active chat
-- Claude: `--deep` uses Fable with max effort; standard uses Opus 4.8 with medium effort
+- Claude: `--deep` uses Fable with max effort; standard uses Opus 5 with medium effort
 - Codex: both profiles use GPT-5.6 SOL; `--deep` uses xhigh reasoning effort, standard uses medium
 - Claude invocation includes `--tools` and `--allowedTools` restricted to read-only tools

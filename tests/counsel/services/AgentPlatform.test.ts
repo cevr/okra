@@ -55,7 +55,7 @@ describe("AgentPlatform helpers", () => {
     }),
   );
 
-  it.effect("builds the standard Claude invocation with Opus 4.8", () =>
+  it.effect("builds the standard Claude invocation with Opus 5", () =>
     Effect.sync(() => {
       const invocation = buildClaudeInvocation(
         "claude",
@@ -67,7 +67,7 @@ describe("AgentPlatform helpers", () => {
       expect(invocation.args).toContain("--output-format");
       expect(invocation.args).toContain("stream-json");
       expect(invocation.args).toContain("--verbose");
-      expect(flagValue(invocation.args, "--model")).toBe("opus");
+      expect(flagValue(invocation.args, "--model")).toBe("claude-opus-5");
       expect(flagValue(invocation.args, "--effort")).toBe("medium");
       expect(invocation.args).toContain("--allowedTools");
       expect(invocation.args).toContain("--no-session-persistence");

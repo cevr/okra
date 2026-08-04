@@ -11,7 +11,8 @@ const modelReasoningEffort = (profile: Profile): string => {
 
 const claudeModel = (profile: Profile): string => {
   if (profile === "deep") return "fable";
-  return "opus";
+  // Pinned: the bare `opus` alias tracks whatever the installed CLI defaults to.
+  return "claude-opus-5";
 };
 
 export const detectSourceFromEnv = (
