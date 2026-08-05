@@ -1,5 +1,11 @@
 # @cvr/okra
 
+## 0.8.1
+
+### Patch Changes
+
+- [#11](https://github.com/cevr/okra/pull/11) [`6cda1dc`](https://github.com/cevr/okra/commit/6cda1dcdfa28385530ca3cd0f1267d7ac77b040f) Thanks [@cevr](https://github.com/cevr)! - Make `okra` available after a global Bun install and report the package version from the source entry point.
+
 ## 0.8.0
 
 ### Minor Changes
