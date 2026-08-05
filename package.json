@@ -5,6 +5,9 @@
     "type": "git",
     "url": "https://github.com/cevr/okra"
   },
+  "bin": {
+    "okra": "src/main.ts"
+  },
   "type": "module",
   "scripts": {
     "dev": "bun run src/main.ts",

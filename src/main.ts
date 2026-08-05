@@ -15,12 +15,7 @@ import { imageCommand } from "./image/index.js";
 import { isImageError } from "./image/errors.js";
 import { keysCommand, isKeysError } from "./keys/index.js";
 import { howCommand, isHowError } from "./how/index.js";
-
-// __VERSION__ is injected by scripts/build.ts; it is absent under `bun run dev`.
-const resolveVersion = (): string => {
-  if (typeof __VERSION__ === "undefined") return "0.0.0-dev";
-  return __VERSION__;
-};
+import { resolveVersion } from "./version.js";
 
 const VERSION = resolveVersion();
 
