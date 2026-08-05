@@ -13,11 +13,10 @@ AI agent orchestration toolkit. Seven subcommands:
 ## Install
 
 ```bash
-bun install
-bun run build
+bun add --global @cvr/okra
 ```
 
-Binary compiles to `bin/okra` and symlinks to `~/.bun/bin/okra`.
+Bun links the package entry point to `~/.bun/bin/okra`.
 
 ## Usage
 
@@ -43,6 +42,7 @@ okra repo path effect-ts/effect-smol
 ## Development
 
 ```bash
+bun install     # install dependencies
 bun run gate    # typecheck + lint + fmt + test + build (parallel)
 bun run dev     # run from source
 bun test        # tests only
