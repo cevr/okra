@@ -32,6 +32,7 @@ const keyArgument = Argument.String("key").pipe(
 );
 
 const stdinFlag = Flag.Boolean("stdin").pipe(
+  Flag.withDefault(false),
   Flag.withDescription("Read the key from stdin instead of an argument"),
 );
 

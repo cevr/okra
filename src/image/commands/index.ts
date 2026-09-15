@@ -88,6 +88,7 @@ const refFlag = Flag.String("ref").pipe(
 // --ref (the source). On OpenAI, --ref already routes to edits, so --edit is just a
 // clarity flag; on codex it errors (codex has no pixel-edit primitive).
 const editFlag = Flag.Boolean("edit").pipe(
+  Flag.withDefault(false),
   Flag.withDescription("Edit the --ref image(s) in place (OpenAI image models only)"),
 );
 

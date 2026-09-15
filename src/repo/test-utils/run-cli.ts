@@ -72,7 +72,8 @@ function createCliTestRunner(args: string[], layerOptions: CreateTestLayerOption
     expectSequence: (expected) =>
       Effect.gen(function* () {
         const { run, sequenceRef } = runWithLayer(args, layerOptions);
-        yield* run;
+        const result = yield* run;
+        expect(Result.isSuccess(result)).toBe(true);
         const actual = yield* Ref.get(sequenceRef);
         assertSequenceContains(actual, expected);
       }),
@@ -90,12 +91,14 @@ function createCliTestRunner(args: string[], layerOptions: CreateTestLayerOption
 
     expectSuccess: Effect.gen(function* () {
       const { run } = runWithLayer(args, layerOptions);
-      yield* run;
+      const result = yield* run;
+      expect(Result.isSuccess(result)).toBe(true);
     }),
 
     getSequence: Effect.gen(function* () {
       const { run, sequenceRef } = runWithLayer(args, layerOptions);
-      yield* run;
+      const result = yield* run;
+      expect(Result.isSuccess(result)).toBe(true);
       return yield* Ref.get(sequenceRef);
     }),
   };
