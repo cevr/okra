@@ -1,5 +1,17 @@
 # @cvr/okra
 
+## 0.9.0
+
+### Minor Changes
+
+- [`a7ea4ac`](https://github.com/cevr/okra/commit/a7ea4acfcebd83ffc81d9aa195a7cf17cad1acf6) Thanks [@cevr](https://github.com/cevr)! - Update all dependencies and migrate to Effect 4 RC. Preserve optional CLI boolean flags.
+
+  Use GPT Image 2.5 Flare for the default ChatGPT subscription image tool. Add `--image-model` to select Sunburst on that route. Support both models through the paid Images API, including `xhigh` and `max` quality and custom response sizes. Update the image guide and add CLI integration tests.
+
+### Patch Changes
+
+- [`a8899d8`](https://github.com/cevr/okra/commit/a8899d87719f8b5e87e2c07a83de559f9b914e8d) Thanks [@cevr](https://github.com/cevr)! - Keep skill progress on one live terminal line. Print each completed result once. Prevent large skill lists and spinner ticks from filling terminal history. Serialize progress writes and preserve the cursor when progress ends.
+
 ## 0.8.1
 
 ### Patch Changes
