@@ -1,13 +1,17 @@
 import { Context, Effect, Layer, Stream } from "effect";
 import { LanguageModel, Toolkit } from "effect/unstable/ai";
 import { OpenAiTool } from "@effect/ai-openai";
-import { IMAGE_INSTRUCTION } from "../constants.js";
+import {
+  DEFAULT_IMAGE_MODEL,
+  IMAGE_INSTRUCTION,
+  type IMAGE_QUALITY_CHOICES,
+} from "../constants.js";
 import { ImageError } from "../errors.js";
 
 export type ImageFormat = "png" | "webp" | "jpeg";
 
 /** Rendering quality accepted by the OpenAI Images API (codex path ignores it). */
-export type ImageQuality = "auto" | "low" | "medium" | "high";
+export type ImageQuality = (typeof IMAGE_QUALITY_CHOICES)[number];
 
 /** A reference image to condition generation on (style/composition), not edit. */
 export interface ReferenceImage {
@@ -17,6 +21,7 @@ export interface ReferenceImage {
 }
 
 export interface GenerateImageInput {
+  readonly imageModel?: string;
   readonly prompt: string;
   readonly size: string;
   readonly format: ImageFormat;
@@ -46,7 +51,11 @@ export class ImageGenService extends Context.Service<
     generate: Effect.fn("ImageGen.generate")(function* (input: GenerateImageInput) {
       // image_generation is a provider-defined tool: no handler, args set at construction.
       const toolkit = Toolkit.make(
-        OpenAiTool.ImageGeneration({ size: input.size, output_format: input.format }),
+        OpenAiTool.ImageGeneration({
+          model: input.imageModel ?? DEFAULT_IMAGE_MODEL,
+          size: input.size,
+          output_format: input.format,
+        }),
       );
 
       const text = `${IMAGE_INSTRUCTION}\n\n${input.prompt}`;

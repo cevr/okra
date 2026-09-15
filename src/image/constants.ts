@@ -1,14 +1,4 @@
-/**
- * Constants for the codex image-generation backend.
- *
- * The `okra image` command reuses the ChatGPT subscription via the same internal
- * "codex" Responses endpoint the `codex` CLI authenticates against. It does NOT
- * use the metered OpenAI Images API. Auth comes from the OAuth token that
- * `codex login` writes to `~/.codex/auth.json`.
- *
- * Reference: leeguooooo/chatgpt-imagegen (codex backend) + the gent project's
- * codex-transform middleware.
- */
+/** Shared model, format, and authentication settings for both image backends. */
 
 /** Base URL for the OpenAiClient. The provider appends `/responses`. */
 export const CODEX_API_URL = "https://chatgpt.com/backend-api/codex";
@@ -32,8 +22,13 @@ export const DEFAULT_MODEL = "gpt-5.5";
  */
 export const OPENAI_IMAGE_MODEL_PREFIXES = ["gpt-image", "dall-e"] as const;
 
-/** The recommended latest image model for the metered API. */
-export const DEFAULT_OPENAI_IMAGE_MODEL = "gpt-image-1.5";
+/** GPT Image 2.5 models available through the image tool and the Images API. */
+export const IMAGE_MODEL_CHOICES = ["gpt-image-2.5-flare", "gpt-image-2.5-sunburst"] as const;
+export const DEFAULT_IMAGE_MODEL = IMAGE_MODEL_CHOICES[0];
+
+/** GPT Image 2.5 aliases and dated snapshots support the additional quality levels. */
+export const supportsExtendedQuality = (model: string): boolean =>
+  /^gpt-image-2\.5-(?:flare|sunburst)(?:-\d{4}-\d{2}-\d{2})?$/.test(model);
 
 /** True when `model` should be routed to the metered OpenAI Images API instead of codex. */
 export const isOpenAiImageModel = (model: string): boolean =>
@@ -46,7 +41,7 @@ export const DEFAULT_FORMAT = "png";
 export const DEFAULT_SIZE = "auto";
 
 /** Quality values accepted by the OpenAI Images API (`--quality`). "auto" = model default. */
-export const IMAGE_QUALITY_CHOICES = ["auto", "low", "medium", "high"] as const;
+export const IMAGE_QUALITY_CHOICES = ["auto", "low", "medium", "high", "xhigh", "max"] as const;
 
 /** Background values accepted by the OpenAI Images API (`--background`). */
 export const IMAGE_BACKGROUND_CHOICES = ["auto", "transparent", "opaque"] as const;
@@ -67,9 +62,6 @@ export const refMediaType = (filePath: string): string | undefined => {
   return REF_MEDIA_TYPES[filePath.slice(dot).toLowerCase()];
 };
 
-/** Default model for the OpenAI `/images/edits` path (only GPT image models support edits). */
-export const DEFAULT_OPENAI_EDIT_MODEL = DEFAULT_OPENAI_IMAGE_MODEL;
-
 /** True when the model is a GPT image model that supports the edits endpoint (not DALL·E 3+). */
 export const supportsEdits = (model: string): boolean => model.startsWith("gpt-image");
 
@@ -78,10 +70,10 @@ export const IMAGE_FIDELITY_CHOICES = ["high", "low"] as const;
 
 /**
  * True when the model supports `input_fidelity` on edits. Per the OpenAI schema it's
- * `gpt-image-1` / `gpt-image-1.5` (and later) only — explicitly NOT `gpt-image-1-mini`.
+ * `gpt-image-1` / `gpt-image-1.5` only, including dated snapshots.
  */
 export const supportsInputFidelity = (model: string): boolean =>
-  supportsEdits(model) && !model.startsWith("gpt-image-1-mini");
+  /^gpt-image-1(?:\.5)?(?:-\d{4}-\d{2}-\d{2})?$/.test(model);
 
 /** Identifier the codex backend expects; mirrors the codex CLI. */
 export const ORIGINATOR = "codex_cli_rs";

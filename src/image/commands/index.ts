@@ -8,13 +8,16 @@ import { Argument, Command, Flag } from "effect/unstable/cli";
 import {
   DEFAULT_FORMAT,
   DEFAULT_MODEL,
+  DEFAULT_IMAGE_MODEL,
   DEFAULT_SIZE,
   IMAGE_BACKGROUND_CHOICES,
   IMAGE_FIDELITY_CHOICES,
+  IMAGE_MODEL_CHOICES,
   IMAGE_QUALITY_CHOICES,
   isOpenAiImageModel,
   refMediaType,
   supportsEdits,
+  supportsExtendedQuality,
   supportsInputFidelity,
 } from "../constants.js";
 import { ImageError } from "../errors.js";
@@ -53,14 +56,21 @@ const modelFlag = Flag.String("model").pipe(
   Flag.withDefault(DEFAULT_MODEL),
   Flag.withDescription(
     "Model. Codex backend (default gpt-5.5), or an OpenAI image model " +
-      "(gpt-image-1.5, gpt-image-1, gpt-image-1-mini, dall-e-3) which uses OPENAI_API_KEY.",
+      "(gpt-image-2.5-flare or gpt-image-2.5-sunburst) which uses OPENAI_API_KEY.",
   ),
+);
+
+const imageModelFlag = Flag.Literals("image-model", IMAGE_MODEL_CHOICES).pipe(
+  Flag.optional,
+  Flag.withDescription("Codex image tool model (default gpt-image-2.5-flare)"),
 );
 
 // The next three apply only to OpenAI image models; the codex backend ignores them.
 const qualityFlag = Flag.Literals("quality", IMAGE_QUALITY_CHOICES).pipe(
   Flag.optional,
-  Flag.withDescription("Rendering quality (OpenAI image models): auto, low, medium, high"),
+  Flag.withDescription(
+    "Rendering quality (OpenAI image models): auto, low, medium, high; GPT Image 2.5 also supports xhigh, max",
+  ),
 );
 
 const backgroundFlag = Flag.Literals("background", IMAGE_BACKGROUND_CHOICES).pipe(
@@ -109,6 +119,7 @@ const fidelityFlag = Flag.Literals("fidelity", IMAGE_FIDELITY_CHOICES).pipe(
 );
 
 interface GenerateArgs {
+  readonly imageModel: Option.Option<string>;
   readonly prompt: string;
   readonly model: string;
   readonly size: string;
@@ -131,7 +142,13 @@ const generateViaCodex = Effect.fn("image.generateViaCodex")(function* (args: Ge
   // AUTH_MISSING error before the HTTP layer can box it into a transport error.
   yield* auth.load;
   return yield* images
-    .generate({ prompt: args.prompt, size: args.size, format: args.format, refs: args.refs })
+    .generate({
+      prompt: args.prompt,
+      size: args.size,
+      format: args.format,
+      refs: args.refs,
+      imageModel: Option.getOrUndefined(args.imageModel),
+    })
     .pipe(Effect.provide(codexModelLayer(args.model)));
 });
 
@@ -223,6 +240,8 @@ const slugify = (prompt: string): string => {
 type Route = "codex" | "openai-generate" | "openai-edit";
 
 interface RouteInput {
+  readonly imageModel: Option.Option<string>;
+  readonly quality: Option.Option<ImageQuality>;
   readonly model: string;
   readonly refCount: number;
   readonly edit: boolean;
@@ -270,10 +289,23 @@ const resolveRoute = (input: RouteInput): RouteResult => {
     // Codex has no pixel-edit/mask primitive; point at an OpenAI image model.
     if (wantsEdit || hasFidelity) {
       return bad(
-        `--${editFlagName(input)} needs an OpenAI image model — pass --model gpt-image-1.5.`,
+        `--${editFlagName(input)} needs an OpenAI image model — pass --model ${DEFAULT_IMAGE_MODEL}.`,
       );
     }
     return ok("codex"); // --ref (if any) is a style reference on this path.
+  }
+
+  if (Option.isSome(input.imageModel)) {
+    return bad(
+      "--image-model selects the Codex image tool. Use --model alone for the OpenAI Images API.",
+    );
+  }
+  if (
+    Option.isSome(input.quality) &&
+    (input.quality.value === "xhigh" || input.quality.value === "max") &&
+    !supportsExtendedQuality(model)
+  ) {
+    return bad(`--quality ${input.quality.value} needs a GPT Image 2.5 model.`);
   }
 
   // OpenAI path: any input image means the edits endpoint.
@@ -283,7 +315,7 @@ const resolveRoute = (input: RouteInput): RouteResult => {
     }
     if (!supportsEdits(model)) {
       return bad(
-        `${model} cannot edit images — use a GPT image model (e.g. --model gpt-image-1.5).`,
+        `${model} cannot edit images — use a GPT image model (e.g. --model ${DEFAULT_IMAGE_MODEL}).`,
       );
     }
     // input_fidelity is gpt-image-1 / gpt-image-1.5 only (not -mini).
@@ -364,6 +396,7 @@ const generateCommand = Command.make(
     size: sizeFlag,
     format: formatFlag,
     model: modelFlag,
+    imageModel: imageModelFlag,
     quality: qualityFlag,
     background: backgroundFlag,
     n: countFlag,
@@ -372,7 +405,21 @@ const generateCommand = Command.make(
     mask: maskFlag,
     fidelity: fidelityFlag,
   },
-  ({ prompt, out, size, format, model, quality, background, n, ref, edit, mask, fidelity }) =>
+  ({
+    prompt,
+    out,
+    size,
+    format,
+    model,
+    imageModel,
+    quality,
+    background,
+    n,
+    ref,
+    edit,
+    mask,
+    fidelity,
+  }) =>
     Effect.gen(function* () {
       const fs = yield* FileSystem;
       const path = yield* Path;
@@ -392,6 +439,8 @@ const generateCommand = Command.make(
       // Reconcile model + flags into a single route (or a validation error).
       const resolved = resolveRoute({
         model,
+        imageModel,
+        quality,
         refCount: ref.length,
         edit,
         hasMask: Option.isSome(mask),
@@ -424,6 +473,7 @@ const generateCommand = Command.make(
       );
 
       const args: GenerateArgs = {
+        imageModel,
         prompt: promptText,
         model,
         size,

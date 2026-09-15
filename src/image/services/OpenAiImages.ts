@@ -2,7 +2,12 @@ import { Context, Effect, Layer, Option, Redacted, Schema } from "effect";
 import { HttpBody, HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http";
 import { Generated } from "@effect/ai-openai";
 import { KeyStoreService } from "../../shared/keystore.js";
-import { OPENAI_API_KEY_ENV, OPENAI_API_URL, OPENAI_KEY_NAME } from "../constants.js";
+import {
+  IMAGE_QUALITY_CHOICES,
+  OPENAI_API_KEY_ENV,
+  OPENAI_API_URL,
+  OPENAI_KEY_NAME,
+} from "../constants.js";
 import { ImageError } from "../errors.js";
 import type { ImageFormat, ImageQuality } from "./ImageGen.js";
 
@@ -11,7 +16,7 @@ export interface OpenAiImageInput {
   readonly model: string;
   readonly size: string;
   readonly format: ImageFormat;
-  /** Rendering quality; the API maps `auto`/`low`/`medium`/`high` per model. Omitted → model default. */
+  /** Rendering quality. GPT Image 2.5 adds `xhigh` and `max`. Omitted → model default. */
   readonly quality?: ImageQuality;
   /** Transparent vs opaque background (GPT image models only). Omitted → model default. */
   readonly background?: "transparent" | "opaque" | "auto";
@@ -45,7 +50,19 @@ export interface OpenAiEditInput {
   readonly inputFidelity?: "high" | "low";
 }
 
-const decodeImagesResponse = HttpClientResponse.schemaBodyJson(Generated.ImagesResponse);
+// The upstream request schema predates GPT Image 2.5 quality values.
+const CreateImageRequest = Schema.Struct({
+  ...Generated.CreateImageRequest.fields,
+  quality: Schema.optionalKey(Schema.Literals(IMAGE_QUALITY_CHOICES)),
+});
+const encodeImageRequest = HttpClientRequest.schemaBodyJson(CreateImageRequest);
+
+const ImagesResponse = Schema.Struct({
+  ...Generated.ImagesResponse.fields,
+  quality: Schema.optionalKey(Schema.Literals(IMAGE_QUALITY_CHOICES)),
+  size: Schema.optionalKey(Schema.String),
+});
+const decodeImagesResponse = HttpClientResponse.schemaBodyJson(ImagesResponse);
 
 /** Extension to put on a form-part filename so the API infers the right type. */
 const extForMedia = (mediaType: string): string => {
@@ -172,7 +189,7 @@ export class OpenAiImagesService extends Context.Service<
 
         const generate = Effect.fn("OpenAiImages.generate")(function* (input: OpenAiImageInput) {
           const key = yield* apiKey;
-          const request: typeof Generated.CreateImageRequest.Encoded = {
+          const request: typeof CreateImageRequest.Encoded = {
             model: input.model,
             prompt: input.prompt,
             size: input.size,
@@ -184,9 +201,16 @@ export class OpenAiImagesService extends Context.Service<
               n: input.n,
             }),
           };
-          const http = HttpClientRequest.post(`${OPENAI_API_URL}/images/generations`, {
-            body: HttpBody.jsonUnsafe(request),
-          }).pipe(HttpClientRequest.bearerToken(Redacted.value(key)));
+          const http = yield* HttpClientRequest.post(`${OPENAI_API_URL}/images/generations`).pipe(
+            HttpClientRequest.bearerToken(Redacted.value(key)),
+            encodeImageRequest(request),
+            Effect.mapError((cause) =>
+              ImageError.make({
+                message: `Invalid image request: ${cause.message}`,
+                code: "INVALID_INPUT",
+              }),
+            ),
+          );
           return yield* runImages(http, input.model, "generation");
         });
 
