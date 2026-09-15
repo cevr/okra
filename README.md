@@ -34,6 +34,13 @@ okra skills add ~/path/to/skill           # local path
 okra skills i owner/a owner/b ./local     # alias `i`, multiple at once
 okra skills rm my-skill                   # alias `rm` for remove
 
+# Generate with GPT Image 2.5 through the ChatGPT subscription
+okra image "an okra botanical illustration" -o okra.png
+okra image "a detailed product illustration" --image-model gpt-image-2.5-sunburst
+
+# Use the paid Images API explicitly
+okra image "a landscape" --model gpt-image-2.5-flare --quality max
+
 # Cache an external repo for exploration
 okra repo fetch effect-ts/effect-smol
 okra repo path effect-ts/effect-smol
@@ -50,4 +57,4 @@ bun test        # tests only
 
 ## Stack
 
-Effect v4 (beta.60), Bun, `effect/unstable/cli`, oxlint, oxfmt, lefthook.
+Effect v4 (rc.115), Bun, `effect/unstable/cli`, oxlint, oxfmt, lefthook.
