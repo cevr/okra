@@ -11,8 +11,8 @@ import { resolvePaths } from "../paths.js";
 export const logs = Command.make(
   "logs",
   {
-    id: Argument.string("id").pipe(Argument.optional),
-    follow: Flag.boolean("follow").pipe(Flag.withAlias("f"), Flag.withDefault(false)),
+    id: Argument.String("id").pipe(Argument.optional),
+    follow: Flag.Boolean("follow").pipe(Flag.withAlias("f"), Flag.withDefault(false)),
   },
   (config) =>
     Effect.gen(function* () {

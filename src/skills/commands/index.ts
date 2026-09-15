@@ -17,7 +17,7 @@ const wrap = (code: string, s: string, color: boolean): string => {
   return s;
 };
 
-const readNoColor = Config.option(Config.string("NO_COLOR"))
+const readNoColor = Config.option(Config.String("NO_COLOR"))
   .parse(ConfigProvider.fromEnv())
   .pipe(
     Effect.map(Option.isSome),
@@ -69,9 +69,9 @@ const skillsCommand = Command.make("skills", {}, () =>
   }).pipe(Effect.withSpan("command.list")),
 );
 
-const sourcesArg = Argument.string("source").pipe(Argument.variadic({ min: 1 }));
-const namesArg = Argument.string("name").pipe(Argument.variadic({ min: 1 }));
-const queryArg = Argument.string("query");
+const sourcesArg = Argument.String("source").pipe(Argument.variadic({ min: 1 }));
+const namesArg = Argument.String("name").pipe(Argument.variadic({ min: 1 }));
+const queryArg = Argument.String("query");
 
 const ADD_DESCRIPTION = `Install one or more skills from GitHub, search query, or local path
 

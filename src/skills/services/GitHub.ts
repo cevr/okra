@@ -31,7 +31,7 @@ const decodeContentsJson = Schema.decodeUnknownEffect(
   Schema.fromJsonString(GitHubContentsArraySchema),
 );
 const decodeTreeJson = Schema.decodeUnknownEffect(Schema.fromJsonString(GitHubTreeResponseSchema));
-const githubToken = Config.option(Config.string("GITHUB_TOKEN"));
+const githubToken = Config.option(Config.String("GITHUB_TOKEN"));
 
 export interface SkillFile {
   readonly path: string;

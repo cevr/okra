@@ -11,19 +11,19 @@ const AUTO_PRUNE_DAYS = 30;
 
 const JsonUnknown = Schema.fromJsonString(Schema.Unknown);
 
-const specArg = Argument.string("spec").pipe(
+const specArg = Argument.String("spec").pipe(
   Argument.withDescription(
     "Package spec: owner/repo, npm:package[@version], pypi:package, crates:crate",
   ),
 );
 
-const forceFlag = Flag.boolean("force").pipe(
+const forceFlag = Flag.Boolean("force").pipe(
   Flag.withAlias("f"),
   Flag.withDefault(false),
   Flag.withDescription("Force re-clone (removes existing and clones fresh)"),
 );
 
-const jsonFlag = Flag.boolean("json").pipe(
+const jsonFlag = Flag.Boolean("json").pipe(
   Flag.withDefault(false),
   Flag.withDescription("Output as JSON"),
 );

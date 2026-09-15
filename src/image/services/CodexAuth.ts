@@ -50,7 +50,7 @@ export class CodexAuthService extends Context.Service<
       const fs = yield* FileSystem;
       const path = yield* Path;
 
-      const resolveHome = Config.string("HOME").pipe(
+      const resolveHome = Config.String("HOME").pipe(
         Effect.mapError(() =>
           ImageError.make({
             message: "HOME environment variable is not set",

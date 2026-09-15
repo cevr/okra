@@ -37,15 +37,15 @@ const nonEmptyOrUndefined = <A>(items: ReadonlyArray<A>): ReadonlyArray<A> | und
 const root = Command.make(
   "schedule",
   {
-    prompt: Argument.string("prompt").pipe(Argument.optional),
-    schedule: Flag.string("schedule").pipe(Flag.withAlias("s"), Flag.optional),
-    provider: Flag.choice("provider", ["claude", "codex"]).pipe(
+    prompt: Argument.String("prompt").pipe(Argument.optional),
+    schedule: Flag.String("schedule").pipe(Flag.withAlias("s"), Flag.optional),
+    provider: Flag.Literals("provider", ["claude", "codex"]).pipe(
       Flag.withAlias("p"),
       Flag.withDefault("claude" as const),
     ),
-    maxRuns: Flag.integer("max-runs").pipe(Flag.optional),
-    until: Flag.string("until").pipe(Flag.optional),
-    stopWhen: Flag.string("stop-when").pipe(Flag.optional),
+    maxRuns: Flag.Int("max-runs").pipe(Flag.optional),
+    until: Flag.String("until").pipe(Flag.optional),
+    stopWhen: Flag.String("stop-when").pipe(Flag.optional),
   },
   (config) =>
     Effect.gen(function* () {

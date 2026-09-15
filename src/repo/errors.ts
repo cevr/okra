@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-export class RepoError extends Schema.TaggedErrorClass<RepoError>()("@cvr/okra/repo/RepoError", {
+export class RepoError extends Schema.TaggedError<RepoError>()("@cvr/okra/repo/RepoError", {
   message: Schema.String,
   code: Schema.String,
 }) {}

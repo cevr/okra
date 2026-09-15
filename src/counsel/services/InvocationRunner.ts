@@ -22,12 +22,14 @@ const waitForExit = Effect.fn("InvocationRunner.waitForExit")(function* (
   proc: ChildProcessHandle,
   timeoutSeconds: number,
 ) {
-  // Race process exit against timeout.
-  const result = yield* Effect.raceFirst(
-    awaitExit(proc).pipe(Effect.map((exitCode) => ({ exitCode, timedOut: false }))),
-    Effect.sleep(timeoutSeconds * 1_000).pipe(Effect.as({ exitCode: -1, timedOut: true } as const)),
-    // On interrupt (signal/abort) or timeout-branch win, fire terminate as a finalizer
-  ).pipe(Effect.onInterrupt(() => Effect.forkDetach(terminate(proc)).pipe(Effect.asVoid)));
+  const result = yield* awaitExit(proc).pipe(
+    Effect.map((exitCode) => ({ exitCode, timedOut: false })),
+    Effect.timeoutOrElse({
+      duration: timeoutSeconds * 1_000,
+      orElse: () => Effect.succeed({ exitCode: -1, timedOut: true }),
+    }),
+    Effect.onInterrupt(() => Effect.forkDetach(terminate(proc)).pipe(Effect.asVoid)),
+  );
 
   if (result.timedOut) {
     // Ensure process is terminated; await its actual exit code.

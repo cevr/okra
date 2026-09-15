@@ -215,7 +215,7 @@ const discoverLocalCandidates = Effect.fn("command.add.discoverLocalCandidates")
   const fs = yield* FileSystem.FileSystem;
   const pathService = yield* Path.Path;
 
-  const homeOpt = yield* Config.option(Config.string("HOME"))
+  const homeOpt = yield* Config.option(Config.String("HOME"))
     .parse(ConfigProvider.fromEnv())
     .pipe(Effect.orElseSucceed(() => Option.none<string>()));
   const expandHome = (): string => {
@@ -305,7 +305,7 @@ const selectFrom = Effect.fn("command.add.selectFrom")(function* <A>(
     if (choices.some((choice) => !choice.disabled)) return 1;
     return 0;
   })();
-  const selected = yield* Prompt.multiSelect({
+  const selected = yield* Prompt.MultiSelect({
     message,
     choices,
     min: minSelections,
@@ -330,12 +330,10 @@ const planFromLocal = Effect.fn("command.add.planFromLocal")(function* (
       installed: installed.names.has(toKebab(candidate.name)),
     })),
   );
-  return selected.map(
-    (candidate): InstallPlan => ({
-      displayName: candidate.name,
-      run: installLocalSkillDir(candidate.absPath),
-    }),
-  );
+  return selected.map((candidate): InstallPlan => ({
+    displayName: candidate.name,
+    run: installLocalSkillDir(candidate.absPath),
+  }));
 });
 
 const planFromRepo = Effect.fn("command.add.planFromRepo")(function* (
@@ -378,12 +376,10 @@ const planFromRepo = Effect.fn("command.add.planFromRepo")(function* (
     })),
   );
 
-  return selected.map(
-    (skill): InstallPlan => ({
-      displayName: skill.dirName,
-      run: installSkillDir(owner, repo, skill.skillDir, ref, sourceStr),
-    }),
-  );
+  return selected.map((skill): InstallPlan => ({
+    displayName: skill.dirName,
+    run: installSkillDir(owner, repo, skill.skillDir, ref, sourceStr),
+  }));
 });
 
 const planFromRepoWithSkill = Effect.fn("command.add.planFromRepoWithSkill")(function* (

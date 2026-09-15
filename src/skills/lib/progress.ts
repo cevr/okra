@@ -19,7 +19,7 @@ interface State {
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
-const readNoColor = Config.option(Config.string("NO_COLOR"))
+const readNoColor = Config.option(Config.String("NO_COLOR"))
   .parse(ConfigProvider.fromEnv())
   .pipe(
     Effect.map(Option.isSome),

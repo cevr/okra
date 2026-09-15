@@ -34,9 +34,9 @@ export class SkillStore extends Context.Service<
   }
 >()("@cvr/okra/skills/services/SkillStore") {}
 
-const skillsDirConfig = Config.option(Config.string("SKILLS_DIR"));
+const skillsDirConfig = Config.option(Config.String("SKILLS_DIR"));
 
-const defaultSkillsDir = Config.string("HOME").pipe(
+const defaultSkillsDir = Config.String("HOME").pipe(
   Config.map((home) => `${home}/Developer/personal/dotfiles/skills`),
 );
 

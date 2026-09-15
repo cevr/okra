@@ -34,7 +34,7 @@ const discoverLocalSkillNames = Effect.fn("command.remove.discoverLocal")(functi
   const fs = yield* FileSystem.FileSystem;
   const pathService = yield* Path.Path;
 
-  const homeOpt = yield* Config.option(Config.string("HOME"))
+  const homeOpt = yield* Config.option(Config.String("HOME"))
     .parse(ConfigProvider.fromEnv())
     .pipe(Effect.orElseSucceed(() => Option.none<string>()));
   const expandHome = (): string => {

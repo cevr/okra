@@ -3,11 +3,11 @@ import { Path } from "effect/Path";
 import { ScheduleError } from "./errors.js";
 
 export const PathEnv = Config.withDefault(
-  Config.string("PATH"),
+  Config.String("PATH"),
   "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
 );
 
-const Home = Config.string("HOME").pipe(
+const Home = Config.String("HOME").pipe(
   Effect.mapError(() =>
     ScheduleError.make({ message: "HOME environment variable not set", code: "CONFIG_ERROR" }),
   ),

@@ -46,7 +46,7 @@ export class MetadataService extends Context.Service<
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const pathService = yield* Path.Path;
-      const home = yield* Config.string("HOME").pipe(Config.withDefault("~"));
+      const home = yield* Config.String("HOME").pipe(Config.withDefault("~"));
       const cacheDir = pathService.join(home, ".cache", "repo");
       const metadataPath = pathService.join(cacheDir, "metadata.json");
 
@@ -59,7 +59,7 @@ export class MetadataService extends Context.Service<
             return { version: 1, repos: [] };
           }
           const content = yield* fs.readFileString(metadataPath);
-          return yield* Schema.decodeUnknownEffect(MetadataIndexJson)(content);
+          return yield* Schema.decodeEffect(MetadataIndexJson)(content);
         }).pipe(Effect.orElseSucceed(() => ({ version: 1, repos: [] })));
 
       const load: Effect.Effect<MetadataIndex> = Effect.gen(function* () {

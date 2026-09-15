@@ -136,14 +136,10 @@ export function parseSpecSync(input: string): ParseResult {
 }
 
 /** Parse spec as Effect, failing with RepoError on invalid input. */
-export const parseSpec = (input: string): Effect.Effect<PackageSpec, RepoError> =>
-  Effect.sync(() => parseSpecSync(input)).pipe(
-    Effect.flatMap((result) => {
-      if ("error" in result) {
-        return Effect.fail(
-          RepoError.make({ message: `${result.error}: ${input}`, code: "SPEC_PARSE" }),
-        );
-      }
-      return Effect.succeed(result);
-    }),
-  );
+export const parseSpec = Effect.fn("parseSpec")(function* (input: string) {
+  const result = parseSpecSync(input);
+  if ("error" in result) {
+    return yield* RepoError.make({ message: `${result.error}: ${input}`, code: "SPEC_PARSE" });
+  }
+  return result;
+});

@@ -137,18 +137,15 @@ export class AgentPlatformService extends Context.Service<
 
       const ensureExecutable = (provider: Provider) =>
         Effect.sync(() => Bun.which(commands[provider])).pipe(
-          Effect.flatMap((command) => {
-            if (command === null) {
-              return Effect.fail(
-                CounselError.make({
-                  message: `Target provider "${provider}" is not installed or not on PATH.`,
-                  code: ErrorCode.TARGET_NOT_INSTALLED,
-                  command: commands[provider],
-                }),
-              );
-            }
-            return Effect.succeed(command);
-          }),
+          Effect.filterOrFail(
+            (command): command is string => command !== null,
+            () =>
+              CounselError.make({
+                message: `Target provider "${provider}" is not installed or not on PATH.`,
+                code: ErrorCode.TARGET_NOT_INSTALLED,
+                command: commands[provider],
+              }),
+          ),
         );
 
       const buildInvocation = (

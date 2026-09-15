@@ -49,7 +49,7 @@ const resolveNextStatus = (isOneshot: boolean, current: Task["status"]): Task["s
   return current;
 };
 
-export const run = Command.make("run", { id: Argument.string("id") }, (config) =>
+export const run = Command.make("run", { id: Argument.String("id") }, (config) =>
   Effect.gen(function* () {
     const store = yield* StoreService;
     const task = yield* store.get(config.id);

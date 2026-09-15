@@ -29,7 +29,7 @@ export class HostService extends Context.Service<
       return {
         getCwd: Effect.sync(() => process.cwd()),
         getAgentMarkers: Effect.forEach(AGENT_MARKER_KEYS, (key) =>
-          Config.option(Config.string(key)).pipe(
+          Config.option(Config.String(key)).pipe(
             Effect.map((value) => [key, Option.getOrUndefined(value)] as const),
             Effect.orElseSucceed(() => [key, undefined] as const),
           ),

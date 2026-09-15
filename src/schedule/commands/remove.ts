@@ -6,7 +6,7 @@ import { LaunchdService } from "../services/Launchd.js";
 import { resolvePaths } from "../paths.js";
 import { Path } from "effect/Path";
 
-export const remove = Command.make("remove", { id: Argument.string("id") }, (config) =>
+export const remove = Command.make("remove", { id: Argument.String("id") }, (config) =>
   Effect.gen(function* () {
     const store = yield* StoreService;
     const launchd = yield* LaunchdService;

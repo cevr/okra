@@ -30,29 +30,29 @@ export const pruneByAge = Effect.fn("pruneByAge")(function* (days: number) {
   return stale.map((r) => r.spec);
 });
 
-const allFlag = Flag.boolean("all").pipe(
+const allFlag = Flag.Boolean("all").pipe(
   Flag.withDefault(false),
   Flag.withDescription("Remove all cached repositories"),
 );
 
-const confirmFlag = Flag.boolean("yes").pipe(
+const confirmFlag = Flag.Boolean("yes").pipe(
   Flag.withAlias("y"),
   Flag.withDefault(false),
   Flag.withDescription("Skip confirmation prompt"),
 );
 
-const daysFlag = Flag.integer("days").pipe(
+const daysFlag = Flag.Int("days").pipe(
   Flag.withAlias("d"),
   Flag.optional,
   Flag.withDescription("Remove repos not accessed in N days"),
 );
 
-const maxSizeFlag = Flag.string("max-size").pipe(
+const maxSizeFlag = Flag.String("max-size").pipe(
   Flag.optional,
   Flag.withDescription("Remove repos larger than size (e.g., 100M, 1G)"),
 );
 
-const dryRunFlag = Flag.boolean("dry-run").pipe(
+const dryRunFlag = Flag.Boolean("dry-run").pipe(
   Flag.withDefault(false),
   Flag.withDescription("Show what would be removed without actually removing"),
 );

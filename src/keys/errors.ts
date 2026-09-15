@@ -11,7 +11,7 @@ export const ErrorCodeSchema = Schema.Literals([
 
 export type ErrorCode = typeof ErrorCodeSchema.Type;
 
-export class KeysError extends Schema.TaggedErrorClass<KeysError>()("@cvr/okra/keys/KeysError", {
+export class KeysError extends Schema.TaggedError<KeysError>()("@cvr/okra/keys/KeysError", {
   message: Schema.String,
   code: ErrorCodeSchema,
 }) {}

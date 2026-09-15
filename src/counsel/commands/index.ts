@@ -6,34 +6,34 @@ import { RunService } from "../services/Run.js";
 import { HostService } from "../services/Host.js";
 import { encodeDryRunPreview, type Provider } from "../types.js";
 
-const promptArgument = Argument.string("prompt").pipe(
+const promptArgument = Argument.String("prompt").pipe(
   Argument.optional,
   Argument.withDescription("Inline prompt to send to the opposite agent"),
 );
 
-const fileFlag = Flag.file("file").pipe(
+const fileFlag = Flag.File("file").pipe(
   Flag.withAlias("f"),
   Flag.optional,
   Flag.withDescription("Read the prompt from a file"),
 );
 
-const fromFlag = Flag.choice("from", ["claude", "codex"]).pipe(
+const fromFlag = Flag.Literals("from", ["claude", "codex"]).pipe(
   Flag.optional,
   Flag.withDescription("Override source detection"),
 );
 
-const outputDirFlag = Flag.string("output-dir").pipe(
+const outputDirFlag = Flag.String("output-dir").pipe(
   Flag.withAlias("o"),
   Flag.withDefault(DEFAULT_OUTPUT_DIR),
   Flag.withDescription("Base directory for run artifacts"),
 );
 
-const deepFlag = Flag.boolean("deep").pipe(
+const deepFlag = Flag.Boolean("deep").pipe(
   Flag.withDefault(false),
   Flag.withDescription("Use the deeper profile"),
 );
 
-const dryRunFlag = Flag.boolean("dry-run").pipe(
+const dryRunFlag = Flag.Boolean("dry-run").pipe(
   Flag.withDefault(false),
   Flag.withDescription("Resolve the route and command without executing"),
 );

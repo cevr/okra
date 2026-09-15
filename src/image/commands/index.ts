@@ -28,28 +28,28 @@ import {
 } from "../services/ImageGen.js";
 import { type ImagePart, OpenAiImagesService } from "../services/OpenAiImages.js";
 
-const promptArgument = Argument.string("prompt").pipe(
+const promptArgument = Argument.String("prompt").pipe(
   Argument.withDescription("Text description of the image to generate"),
   Argument.optional,
 );
 
-const outFlag = Flag.string("out").pipe(
+const outFlag = Flag.String("out").pipe(
   Flag.withAlias("o"),
   Flag.optional,
   Flag.withDescription("Output file path (default: <slug>.<format> in the current directory)"),
 );
 
-const sizeFlag = Flag.string("size").pipe(
+const sizeFlag = Flag.String("size").pipe(
   Flag.withDefault(DEFAULT_SIZE),
   Flag.withDescription("Image size: auto or WIDTHxHEIGHT (e.g. 1024x1024)"),
 );
 
-const formatFlag = Flag.choice("format", ["png", "webp", "jpeg"]).pipe(
+const formatFlag = Flag.Literals("format", ["png", "webp", "jpeg"]).pipe(
   Flag.withDefault(DEFAULT_FORMAT as ImageFormat),
   Flag.withDescription("Output image format"),
 );
 
-const modelFlag = Flag.string("model").pipe(
+const modelFlag = Flag.String("model").pipe(
   Flag.withDefault(DEFAULT_MODEL),
   Flag.withDescription(
     "Model. Codex backend (default gpt-5.5), or an OpenAI image model " +
@@ -58,17 +58,17 @@ const modelFlag = Flag.string("model").pipe(
 );
 
 // The next three apply only to OpenAI image models; the codex backend ignores them.
-const qualityFlag = Flag.choice("quality", IMAGE_QUALITY_CHOICES).pipe(
+const qualityFlag = Flag.Literals("quality", IMAGE_QUALITY_CHOICES).pipe(
   Flag.optional,
   Flag.withDescription("Rendering quality (OpenAI image models): auto, low, medium, high"),
 );
 
-const backgroundFlag = Flag.choice("background", IMAGE_BACKGROUND_CHOICES).pipe(
+const backgroundFlag = Flag.Literals("background", IMAGE_BACKGROUND_CHOICES).pipe(
   Flag.optional,
   Flag.withDescription("Background (OpenAI image models): auto, transparent, opaque"),
 );
 
-const countFlag = Flag.integer("n").pipe(
+const countFlag = Flag.Int("n").pipe(
   Flag.optional,
   Flag.withDescription("Number of images to request (OpenAI image models); default 1"),
 );
@@ -76,7 +76,7 @@ const countFlag = Flag.integer("n").pipe(
 // Repeatable: each --ref is a reference image. On codex it's a style/composition
 // reference (Responses input_image); on an OpenAI image model it's the source
 // image to edit (the /images/edits endpoint).
-const refFlag = Flag.string("ref").pipe(
+const refFlag = Flag.String("ref").pipe(
   Flag.atLeast(0),
   Flag.withDescription(
     "Path to a reference image. Codex: style/composition reference. " +
@@ -87,11 +87,11 @@ const refFlag = Flag.string("ref").pipe(
 // Explicit opt-in to edit semantics. Requires an OpenAI image model + at least one
 // --ref (the source). On OpenAI, --ref already routes to edits, so --edit is just a
 // clarity flag; on codex it errors (codex has no pixel-edit primitive).
-const editFlag = Flag.boolean("edit").pipe(
+const editFlag = Flag.Boolean("edit").pipe(
   Flag.withDescription("Edit the --ref image(s) in place (OpenAI image models only)"),
 );
 
-const maskFlag = Flag.string("mask").pipe(
+const maskFlag = Flag.String("mask").pipe(
   Flag.optional,
   Flag.withDescription(
     "Path to a PNG mask; its transparent areas mark where to edit (OpenAI image models only)",
@@ -100,7 +100,7 @@ const maskFlag = Flag.string("mask").pipe(
 
 // Edits-only: how hard the model preserves the source's style/features (faces).
 // gpt-image-1 / gpt-image-1.5 only (not gpt-image-1-mini); API default is "low".
-const fidelityFlag = Flag.choice("fidelity", IMAGE_FIDELITY_CHOICES).pipe(
+const fidelityFlag = Flag.Literals("fidelity", IMAGE_FIDELITY_CHOICES).pipe(
   Flag.optional,
   Flag.withDescription(
     "Edit fidelity to the source (gpt-image-1/1.5 edits only): high or low (default low)",

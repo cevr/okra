@@ -3,7 +3,7 @@ import { Argument, Command } from "effect/unstable/cli";
 import { HowError } from "../errors.js";
 import { findTopic, subtopicsOf, TOPICS, type Topic } from "../topics.js";
 
-const topicArgument = Argument.string("topic").pipe(
+const topicArgument = Argument.String("topic").pipe(
   Argument.withDescription("Topic to explain; omit to list all topics"),
   Argument.optional,
 );

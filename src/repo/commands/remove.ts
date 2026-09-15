@@ -5,7 +5,7 @@ import { CacheService } from "../services/cache.js";
 import { MetadataService } from "../services/metadata.js";
 import { RegistryService } from "../services/registry.js";
 
-const specArg = Argument.string("spec").pipe(Argument.withDescription("Package spec to remove"));
+const specArg = Argument.String("spec").pipe(Argument.withDescription("Package spec to remove"));
 
 export const remove = Command.make("remove", { spec: specArg }, ({ spec }) =>
   Effect.gen(function* () {

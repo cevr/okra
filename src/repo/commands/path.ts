@@ -5,7 +5,7 @@ import { RepoError } from "../errors.js";
 import { MetadataService } from "../services/metadata.js";
 import { RegistryService } from "../services/registry.js";
 
-const specArg = Argument.string("spec").pipe(
+const specArg = Argument.String("spec").pipe(
   Argument.withDescription("Package spec to get path for"),
 );
 

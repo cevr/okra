@@ -22,7 +22,7 @@ const formatStopSuffix = (parts: ReadonlyArray<string>): string => {
 export const list = Command.make(
   "list",
   {
-    json: Flag.boolean("json").pipe(Flag.withAlias("j"), Flag.withDefault(false)),
+    json: Flag.Boolean("json").pipe(Flag.withAlias("j"), Flag.withDefault(false)),
   },
   (config) =>
     Effect.gen(function* () {

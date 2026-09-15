@@ -70,7 +70,7 @@ export const parseFrontmatter = Effect.fn("parseFrontmatter")(function* (content
 
 export const tryParseFrontmatter = Effect.fn("tryParseFrontmatter")(function* (content: string) {
   return yield* parseFrontmatter(content).pipe(
-    Effect.map(Option.some),
+    Effect.asSome,
     Effect.orElseSucceed(() => Option.none()),
   );
 });

@@ -17,7 +17,7 @@ export const PROVIDER_ENV_VARS: Record<string, string> = {
 export const envVarForProvider = (name: string): string | undefined => PROVIDER_ENV_VARS[name];
 
 /** Failure reading, parsing, or writing the key store. Domains map this to their own error. */
-export class KeyStoreError extends Schema.TaggedErrorClass<KeyStoreError>()(
+export class KeyStoreError extends Schema.TaggedError<KeyStoreError>()(
   "@cvr/okra/shared/KeyStoreError",
   { message: Schema.String, code: Schema.Literals(["MISSING", "WRITE_FAILED", "INVALID_INPUT"]) },
 ) {}
@@ -82,7 +82,7 @@ export class KeyStoreService extends Context.Service<
       const fs = yield* FileSystem;
       const path = yield* Path;
 
-      const keysPath = Config.string("HOME").pipe(
+      const keysPath = Config.String("HOME").pipe(
         Effect.mapError(() =>
           KeyStoreError.make({ message: "HOME environment variable is not set", code: "MISSING" }),
         ),
@@ -102,7 +102,7 @@ export class KeyStoreService extends Context.Service<
 
       const resolve = Effect.fn("KeyStore.resolve")(function* (name: string, envVar: string) {
         // Ambient env wins over the stored value.
-        const fromEnv = yield* Config.option(Config.string(envVar)).pipe(
+        const fromEnv = yield* Config.option(Config.String(envVar)).pipe(
           Effect.orElseSucceed(() => Option.none<string>()),
         );
         if (Option.isSome(fromEnv)) return Redacted.make(fromEnv.value);
@@ -169,7 +169,7 @@ export class KeyStoreService extends Context.Service<
 
       const describe = Effect.fn("KeyStore.describe")(function* (name: string, envVar: string) {
         // Mirror resolve()'s precedence so the report matches what consumers use.
-        const fromEnv = yield* Config.option(Config.string(envVar)).pipe(
+        const fromEnv = yield* Config.option(Config.String(envVar)).pipe(
           Effect.orElseSucceed(() => Option.none<string>()),
         );
         if (Option.isSome(fromEnv) && fromEnv.value.length > 0) {

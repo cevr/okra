@@ -7,7 +7,7 @@ export const ErrorCodeSchema = Schema.Literals([
 
 export type ErrorCode = typeof ErrorCodeSchema.Type;
 
-export class HowError extends Schema.TaggedErrorClass<HowError>()("@cvr/okra/how/HowError", {
+export class HowError extends Schema.TaggedError<HowError>()("@cvr/okra/how/HowError", {
   message: Schema.String,
   code: ErrorCodeSchema,
 }) {}

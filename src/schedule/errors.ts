@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-export class ScheduleError extends Schema.TaggedErrorClass<ScheduleError>()(
+export class ScheduleError extends Schema.TaggedError<ScheduleError>()(
   "@cvr/okra/schedule/ScheduleError",
   {
     message: Schema.String,

@@ -5,18 +5,18 @@ import { MetadataService } from "../services/metadata.js";
 
 const JsonUnknown = Schema.fromJsonString(Schema.Unknown);
 
-const registryFlag = Flag.choice("registry", ["github", "npm", "pypi", "crates"] as const).pipe(
+const registryFlag = Flag.Literals("registry", ["github", "npm", "pypi", "crates"] as const).pipe(
   Flag.withAlias("r"),
   Flag.optional,
   Flag.withDescription("Filter by registry"),
 );
 
-const jsonFlag = Flag.boolean("json").pipe(
+const jsonFlag = Flag.Boolean("json").pipe(
   Flag.withDefault(false),
   Flag.withDescription("Output as JSON"),
 );
 
-const sortFlag = Flag.choice("sort", ["date", "size", "name"] as const).pipe(
+const sortFlag = Flag.Literals("sort", ["date", "size", "name"] as const).pipe(
   Flag.withAlias("s"),
   Flag.withDefault("date" as const),
   Flag.withDescription("Sort by: date, size, name"),

@@ -29,13 +29,10 @@ export const ErrorCodeSchema = Schema.Literals([
   "INVALID_INPUT",
 ]);
 
-export class ImageError extends Schema.TaggedErrorClass<ImageError>()(
-  "@cvr/okra/image/ImageError",
-  {
-    message: Schema.String,
-    code: ErrorCodeSchema,
-  },
-) {}
+export class ImageError extends Schema.TaggedError<ImageError>()("@cvr/okra/image/ImageError", {
+  message: Schema.String,
+  code: ErrorCodeSchema,
+}) {}
 
 export const isImageError = (e: unknown): e is { _tag: string; code: string; message: string } => {
   if (typeof e !== "object" || e === null || !("_tag" in e)) return false;

@@ -26,7 +26,7 @@ export const ErrorCodeSchema = Schema.Literals([
   "WRITE_FAILED",
 ]);
 
-export class CounselError extends Schema.TaggedErrorClass<CounselError>()(
+export class CounselError extends Schema.TaggedError<CounselError>()(
   "@cvr/okra/counsel/CounselError",
   {
     message: Schema.String,

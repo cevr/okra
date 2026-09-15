@@ -19,7 +19,7 @@ export class CacheService extends Context.Service<
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const pathService = yield* Path.Path;
-      const home = yield* Config.string("HOME").pipe(Config.withDefault("~"));
+      const home = yield* Config.String("HOME").pipe(Config.withDefault("~"));
       const cacheDir = pathService.join(home, ".cache", "repo");
 
       yield* fs.makeDirectory(cacheDir, { recursive: true }).pipe(

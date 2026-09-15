@@ -22,16 +22,16 @@ const describeOrigin = (source: "env" | "stored", provider: string): string => {
   return "stored";
 };
 
-const providerArgument = Argument.string("provider").pipe(
+const providerArgument = Argument.String("provider").pipe(
   Argument.withDescription("Provider name, e.g. openai"),
 );
 
-const keyArgument = Argument.string("key").pipe(
+const keyArgument = Argument.String("key").pipe(
   Argument.withDescription("API key value (omit and use --stdin to avoid shell history)"),
   Argument.optional,
 );
 
-const stdinFlag = Flag.boolean("stdin").pipe(
+const stdinFlag = Flag.Boolean("stdin").pipe(
   Flag.withDescription("Read the key from stdin instead of an argument"),
 );
 
