@@ -1,15 +1,42 @@
 import { describe, expect, it } from "effect-bun-test";
-import { Effect, Ref } from "effect";
+import { Effect, Layer, Ref } from "effect";
+import { TestClock } from "effect/testing";
 import * as Stdio from "effect/Stdio";
+import * as Terminal from "effect/Terminal";
 import { make } from "../../../src/skills/lib/progress.js";
 
 const captureWrites = (output: Ref.Ref<string>) => (text: string) =>
   Ref.update(output, (current) => current + text);
 
 // These tests inject `write`, so the Stdio default is never exercised — a drain layer suffices.
-const TestStdio = Stdio.layerTest({});
+const TestStdio = Layer.mergeAll(
+  Stdio.layerTest({}),
+  Layer.succeed(
+    Terminal.Terminal,
+    Terminal.make({
+      columns: Effect.succeed(80),
+      rows: Effect.succeed(24),
+      readInput: Effect.never,
+      readLine: Effect.never,
+      display: () => Effect.void,
+    }),
+  ),
+);
 
 describe("progress", () => {
+  it.effect("TTY: spinner ticks do not add rows for a list taller than the terminal", () =>
+    Effect.gen(function* () {
+      const out = yield* Ref.make("");
+      const names = Array.from({ length: 60 }, (_, index) => `skill-${index}`);
+      const progress = yield* make(names, { tty: true, write: captureWrites(out) });
+      yield* progress.setStatus(names[0] ?? "skill-0", "running");
+      yield* TestClock.adjust("800 millis");
+      const during = yield* Ref.get(out);
+      yield* progress.finish;
+      expect(during.split("\n").length - 1).toBe(0);
+    }).pipe(Effect.provide(TestStdio)),
+  );
+
   it.effect("non-TTY: prints each terminal status, including unchanged", () =>
     Effect.gen(function* () {
       const out = yield* Ref.make("");
@@ -97,7 +124,7 @@ describe("progress", () => {
     }).pipe(Effect.provide(TestStdio)),
   );
 
-  it.effect("TTY: redraws use cursor-up + clear-line ANSI", () =>
+  it.effect("TTY: replaces one live row and prints each result once", () =>
     Effect.gen(function* () {
       const out = yield* Ref.make("");
       const progress = yield* make(["one", "two"], {
@@ -109,8 +136,9 @@ describe("progress", () => {
       yield* progress.finish;
 
       const text = yield* Ref.get(out);
-      // 2 entries → cursor up by 2 between redraws
-      expect(text).toContain("\x1b[2A");
+      expect(text).not.toContain("\x1b[2A");
+      expect(text.split("one").length - 1).toBe(1);
+      expect(text.split("two").length - 1).toBe(1);
       expect(text).toContain("\x1b[2K"); // clear line
       expect(text).toContain("one");
       expect(text).toContain("two");
@@ -152,22 +180,49 @@ describe("progress", () => {
     }).pipe(Effect.provide(TestStdio)),
   );
 
-  it.live("finish stops the ticker (no more writes after finish)", () =>
+  it.effect("finish stops the ticker and ignores repeated finish or status calls", () =>
     Effect.gen(function* () {
       const out = yield* Ref.make("");
-      const progress = yield* make(["a"], {
+      const progress = yield* make(["a"], { tty: true, write: captureWrites(out) });
+      yield* progress.finish;
+      const before = yield* Ref.get(out);
+      yield* TestClock.adjust("800 millis");
+      yield* progress.finish;
+      yield* progress.setStatus("a", "installed");
+      expect(yield* Ref.get(out)).toBe(before);
+    }).pipe(Effect.provide(TestStdio)),
+  );
+
+  it.effect("TTY: live output stays within a narrow terminal", () =>
+    Effect.gen(function* () {
+      const out = yield* Ref.make("");
+      const progress = yield* make(["a-very-long-skill-name"], {
         tty: true,
+        columns: 12,
         write: captureWrites(out),
       });
-
+      yield* TestClock.adjust("160 millis");
+      const during = yield* Ref.get(out);
       yield* progress.finish;
-      const beforeSleep = (yield* Ref.get(out)).length;
+      const plain = Bun.stripANSI(during);
+      for (const frame of plain.split("\r")) expect(frame.length).toBeLessThan(12);
+      expect(during).not.toContain("\n");
+    }).pipe(Effect.provide(TestStdio)),
+  );
 
-      // Wait longer than ticker interval (80ms) to verify it stopped
-      yield* Effect.sleep("200 millis");
-      const afterSleep = (yield* Ref.get(out)).length;
-
-      expect(afterSleep).toBe(beforeSleep);
+  it.effect("TTY: concurrent completions produce one permanent row per skill", () =>
+    Effect.gen(function* () {
+      const out = yield* Ref.make("");
+      const names = Array.from({ length: 60 }, (_, index) => `skill-${index}`);
+      const progress = yield* make(names, { tty: true, write: captureWrites(out) });
+      yield* Effect.forEach(names, (name) => progress.setStatus(name, "updated"), {
+        concurrency: 8,
+      });
+      yield* progress.setStatus("skill-0", "updated");
+      yield* progress.finish;
+      const text = yield* Ref.get(out);
+      expect(text.split("\n").length - 1).toBe(names.length);
+      for (const name of names) expect(text.split(`${name}\x1b[0m\n`).length - 1).toBe(1);
     }).pipe(Effect.provide(TestStdio)),
   );
 

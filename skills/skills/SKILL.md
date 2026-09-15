@@ -75,7 +75,7 @@ okra skills update
 ```
 
 For sources that no longer resolve (deleted local path, deleted repo), the lock entry and skill dir are pruned.
-The progress view keeps `updated`, `unchanged`, `moved`, `removed`, and `failed` results visible.
+The terminal shows one live status line. Each completed skill prints one result line. Spinner ticks add no lines to terminal history. Piped output contains results without animation.
 
 ## Gotchas
 

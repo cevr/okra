@@ -1,5 +1,16 @@
-import { Config, ConfigProvider, Effect, Fiber, Option, Ref, Schedule, Stream } from "effect";
+import {
+  Config,
+  ConfigProvider,
+  Effect,
+  Fiber,
+  Option,
+  Ref,
+  Schedule,
+  Semaphore,
+  Stream,
+} from "effect";
 import { Stdio } from "effect/Stdio";
+import { Terminal } from "effect/Terminal";
 
 export type SkillStatus =
   | "pending"
@@ -14,7 +25,7 @@ export type SkillStatus =
 interface State {
   readonly entries: ReadonlyArray<{ readonly name: string; readonly status: SkillStatus }>;
   readonly frame: number;
-  readonly drawn: number;
+  readonly finished: boolean;
 }
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
@@ -31,10 +42,6 @@ const ansi = {
   showCursor: "\x1b[?25h",
   clearLine: "\x1b[2K",
   cr: "\r",
-  up: (n: number) => {
-    if (n > 0) return `\x1b[${n}A`;
-    return "";
-  },
 };
 
 const symbol = (status: SkillStatus, frame: number): string => {
@@ -126,13 +133,14 @@ export interface Progress {
 export interface MakeOptions {
   readonly runningVerb?: string;
   readonly tty?: boolean;
+  readonly columns?: number;
   readonly write?: (text: string) => Effect.Effect<void>;
 }
 
 export const make = (
   names: ReadonlyArray<string>,
   options: MakeOptions = {},
-): Effect.Effect<Progress, never, Stdio> =>
+): Effect.Effect<Progress, never, Stdio | Terminal> =>
   Effect.gen(function* () {
     const runningVerb = options.runningVerb ?? "updating";
     const noColor = yield* readNoColor;
@@ -140,6 +148,7 @@ export const make = (
     const defaultIsTTY = isTty && !noColor;
     const tty = options.tty ?? defaultIsTTY;
     const stdio = yield* Stdio;
+    const terminal = yield* Terminal;
     // Progress output goes to stderr so it never pollutes piped stdout.
     const stderrSink = stdio.stderr({ endOnDone: false });
     const defaultWrite = (text: string): Effect.Effect<void> =>
@@ -147,80 +156,92 @@ export const make = (
     const write = options.write ?? defaultWrite;
     const color = tty;
 
-    const drawTty = (state: State): Effect.Effect<void> => {
-      const moveUp = ansi.up(state.drawn);
-      const lines = state.entries
-        .map(
-          (e) =>
-            `${ansi.clearLine}${ansi.cr}${renderLine(e.name, e.status, state.frame, runningVerb, color)}\n`,
-        )
-        .join("");
-      return write(`${moveUp}${lines}`);
-    };
-
-    const printPlain = (name: string, status: SkillStatus): Effect.Effect<void> => {
-      if (status === "running" || status === "pending") return Effect.void;
-      return write(`${renderLine(name, status, 0, runningVerb, color)}\n`);
-    };
-
-    const initial: State = {
+    const ref = yield* Ref.make<State>({
       entries: names.map((name) => ({ name, status: "pending" as SkillStatus })),
       frame: 0,
-      drawn: 0,
-    };
-    const ref = yield* Ref.make<State>(initial);
-
-    const repaint = Effect.gen(function* () {
-      const s = yield* Ref.get(ref);
-      yield* drawTty(s);
-      yield* Ref.update(ref, (cur) => ({
-        ...cur,
-        drawn: cur.entries.length,
-      }));
+      finished: false,
     });
+    const lock = yield* Semaphore.make(1);
 
-    if (tty) {
+    const isActive = (status: SkillStatus): boolean => status === "pending" || status === "running";
+
+    const liveLine = (state: State, width: number): string => {
+      const active = state.entries.filter((entry) => isActive(entry.status));
+      if (active.length === 0) return "";
+      const completed = state.entries.length - active.length;
+      const line = `  ${symbol("running", state.frame)} ${runningVerb} ${completed}/${state.entries.length}`;
+      const columns = Math.max(0, (options.columns ?? width) - 1);
+      return cyan(line.slice(0, columns), color);
+    };
+
+    const clearLiveLine = `${ansi.cr}${ansi.clearLine}`;
+    const repaint = (state: State): Effect.Effect<void> =>
+      Effect.gen(function* () {
+        const columns = yield* terminal.columns;
+        yield* write(`${clearLiveLine}${liveLine(state, columns)}`);
+      });
+
+    if (tty && names.length > 0) {
       yield* write(ansi.hideCursor);
-      yield* repaint;
+      yield* repaint(yield* Ref.get(ref));
     }
 
-    const spin = Effect.gen(function* () {
-      yield* Ref.update(ref, (s) => ({ ...s, frame: s.frame + 1 }));
-      yield* repaint;
-    }).pipe(
-      Effect.repeat(Schedule.spaced("80 millis")),
-      Effect.ignore,
-      Effect.forkDetach({ startImmediately: true }),
-    );
-
     let ticker: Fiber.Fiber<void> | null = null;
-    if (tty) {
-      ticker = yield* spin;
+    if (tty && names.length > 0) {
+      ticker = yield* Effect.gen(function* () {
+        const state = yield* Ref.get(ref);
+        if (state.finished) return;
+        const next = { ...state, frame: state.frame + 1 };
+        yield* Ref.set(ref, next);
+        yield* repaint(next);
+      }).pipe(
+        lock.withPermit,
+        Effect.repeat(Schedule.spaced("80 millis")),
+        Effect.asVoid,
+        Effect.forkDetach({ startImmediately: true }),
+      );
     }
 
     const setStatus = (name: string, status: SkillStatus): Effect.Effect<void> =>
       Effect.gen(function* () {
-        yield* Ref.update(ref, (s) => ({
-          ...s,
-          entries: s.entries.map((e) => {
-            if (e.name === name) return { ...e, status };
-            return e;
+        const state = yield* Ref.get(ref);
+        if (state.finished) return;
+        const entry = state.entries.find((item) => item.name === name);
+        if (entry === undefined || entry.status === status || !isActive(entry.status)) return;
+        const next = {
+          ...state,
+          entries: state.entries.map((item) => {
+            if (item.name === name) return { ...item, status };
+            return item;
           }),
-        }));
-        if (tty) {
-          yield* repaint;
-        } else {
-          yield* printPlain(name, status);
+        };
+        yield* Ref.set(ref, next);
+        let result = "";
+        if (!isActive(status)) {
+          result = `${renderLine(name, status, 0, runningVerb, color)}\n`;
         }
-      });
+        if (tty) {
+          const columns = yield* terminal.columns;
+          yield* write(`${clearLiveLine}${result}${liveLine(next, columns)}`);
+        } else if (result.length > 0) {
+          yield* write(result);
+        }
+      }).pipe(lock.withPermit);
 
     const finish = Effect.gen(function* () {
       if (ticker !== null) yield* Fiber.interrupt(ticker);
-      if (tty) {
-        yield* Ref.update(ref, (s) => ({ ...s, frame: 0 }));
-        yield* repaint;
-        yield* write(ansi.showCursor);
-      }
+      yield* Effect.gen(function* () {
+        const state = yield* Ref.get(ref);
+        if (state.finished) return;
+        yield* Ref.set(ref, { ...state, finished: true });
+        if (tty && names.length > 0) {
+          const remaining = state.entries
+            .filter((entry) => isActive(entry.status))
+            .map((entry) => `${renderLine(entry.name, entry.status, 0, runningVerb, color)}\n`)
+            .join("");
+          yield* write(`${clearLiveLine}${remaining}${ansi.showCursor}`);
+        }
+      }).pipe(lock.withPermit);
     });
 
     return { setStatus, finish };

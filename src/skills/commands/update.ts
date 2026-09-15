@@ -161,9 +161,6 @@ const updateSkill = Effect.fn("command.update.updateSkill")(function* (
     const newDir = yield* findMovedSkillDir(gh, owner, repo, ref, currentSkillDir);
     if (Option.isNone(newDir)) return Result.fail(fetched.failure);
 
-    yield* Console.error(
-      `  ${name}: source moved ${currentSkillDir || "<root>"} -> ${newDir.value}`,
-    );
     fetched = yield* tryFetchSkillDir(gh, owner, repo, newDir.value, ref);
     if (Result.isFailure(fetched)) return Result.fail(fetched.failure);
     movedTo = newDir;
@@ -238,6 +235,7 @@ export const runUpdate = Effect.fn("command.update")(function* () {
       case "moved":
         updatedEntries.push({ name, skillPath: result.success.skillPath });
         movedNames.push(name);
+        yield* Console.error(`  ${name}: source moved to ${result.success.skillPath}`);
         break;
       case "removed":
         removedNames.push(name);
