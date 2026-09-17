@@ -1,5 +1,11 @@
 # @cvr/okra
 
+## 0.9.2
+
+### Patch Changes
+
+- [`951c977`](https://github.com/cevr/okra/commit/951c977942583b94f6f82eb55215ed42c612a6fe) Thanks [@cevr](https://github.com/cevr)! - Use GPT-6 Astra for all Codex counsel runs, with medium reasoning for standard runs and max reasoning for deep runs.
+
 ## 0.9.1
 
 ### Patch Changes
