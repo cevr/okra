@@ -1,5 +1,11 @@
 # @cvr/okra
 
+## 0.9.1
+
+### Patch Changes
+
+- [`fb8377c`](https://github.com/cevr/okra/commit/fb8377cd63bd0156beb658a0a04b8aafb94d2e8a) Thanks [@cevr](https://github.com/cevr)! - Route deep Codex counsel runs to GPT-6 Astra with xhigh reasoning effort.
+
 ## 0.9.0
 
 ### Minor Changes
