@@ -83,7 +83,7 @@ describe("AgentPlatform helpers", () => {
     }),
   );
 
-  it.effect("builds the standard Codex invocation with GPT-5.6 SOL at medium effort", () =>
+  it.effect("builds the standard Codex invocation with GPT-6 Astra at medium effort", () =>
     Effect.sync(() => {
       const invocation = buildCodexInvocation(
         "codex",
@@ -96,17 +96,17 @@ describe("AgentPlatform helpers", () => {
       expect(invocation.args).toContain("--json");
       expect(invocation.args).toContain("--sandbox");
       expect(invocation.args).toContain("read-only");
-      expect(flagValue(invocation.args, "--model")).toBe("gpt-5.6-sol");
+      expect(flagValue(invocation.args, "--model")).toBe("gpt-6-astra");
       expect(invocation.args).toContain("model_reasoning_effort=medium");
       expect(invocation.args).toContain("--skip-git-repo-check");
     }),
   );
 
-  it.effect("builds the deep Codex invocation with GPT-6 Astra at xhigh effort", () =>
+  it.effect("builds the deep Codex invocation with GPT-6 Astra at max effort", () =>
     Effect.sync(() => {
       const invocation = buildCodexInvocation("codex", "/tmp/prompt.md", "deep", "/tmp/project");
       expect(flagValue(invocation.args, "--model")).toBe("gpt-6-astra");
-      expect(invocation.args).toContain("model_reasoning_effort=xhigh");
+      expect(invocation.args).toContain("model_reasoning_effort=max");
     }),
   );
 

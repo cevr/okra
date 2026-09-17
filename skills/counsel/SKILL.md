@@ -25,7 +25,7 @@ What do you need?
 | `okra counsel "prompt"`               | Send inline prompt to opposite agent          |
 | `okra counsel -f prompt.md`           | Send a prompt file                            |
 | `echo "prompt" \| okra counsel`       | Send stdin                                    |
-| `okra counsel --deep "prompt"`        | Use deeper profile (Fable/max or Astra/xhigh) |
+| `okra counsel --deep "prompt"`        | Use deeper profile (Fable/max or Astra/max)   |
 | `okra counsel --from claude "prompt"` | Force source when auto-detection is ambiguous |
 | `okra counsel --dry-run "prompt"`     | Preview resolved invocation                   |
 
@@ -93,5 +93,5 @@ src/counsel/
 - Fails if it cannot infer Claude vs Codex and `--from` is missing
 - Writes files; does not stream the other model's answer back into active chat
 - Claude: `--deep` uses Fable with max effort; standard uses the `opus` alias (latest Opus) with medium effort
-- Codex: standard uses GPT-5.6 SOL at medium effort; `--deep` uses GPT-6 Astra at xhigh effort
+- Codex: standard uses GPT-6 Astra at medium effort; `--deep` uses GPT-6 Astra at max effort
 - Claude invocation includes `--tools` and `--allowedTools` restricted to read-only tools

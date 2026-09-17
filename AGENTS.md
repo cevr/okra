@@ -36,7 +36,7 @@ Shared utilities in `src/shared/`: `Provider` schema, `resolveExecutable`, `isCo
 
 - `Schedule`, `StopEvaluator`, `Verification` are pure modules, not services
 - Counsel's `program.ts` has standalone argv handling — used for direct invocation, not the subcommand path
-- Counsel model profiles: standard uses the `opus` alias (latest Opus; not pinned) at medium effort or GPT-5.6 SOL at medium; `--deep` uses Claude Fable at max or GPT-6 Astra at xhigh
+- Counsel model profiles: standard uses the `opus` alias (latest Opus; not pinned) at medium effort or GPT-6 Astra at medium; `--deep` uses Claude Fable at max or GPT-6 Astra at max
 - Plist labels: `com.cvr.okra.schedule-{id}`, program args include `schedule run <id>`
 - `resolveExecutable` falls back to `~/.bun/bin`, `/usr/local/bin`, `~/.local/bin` when `Bun.which` fails (daemon PATH issue)
 - oxlint forbids `!` non-null assertions — use `as T` with existence guards

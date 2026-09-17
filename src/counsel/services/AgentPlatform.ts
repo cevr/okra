@@ -5,14 +5,11 @@ import type { Invocation, Profile, Provider } from "../types.js";
 import { HostService } from "./Host.js";
 
 const modelReasoningEffort = (profile: Profile): string => {
-  if (profile === "deep") return "xhigh";
+  if (profile === "deep") return "max";
   return "medium";
 };
 
-const codexModel = (profile: Profile): string => {
-  if (profile === "deep") return "gpt-6-astra";
-  return "gpt-5.6-sol";
-};
+const CODEX_MODEL = "gpt-6-astra";
 
 const claudeModel = (profile: Profile): string => {
   if (profile === "deep") return "fable";
@@ -96,7 +93,7 @@ export const buildCodexInvocation = (
     "--sandbox",
     "read-only",
     "--model",
-    codexModel(profile),
+    CODEX_MODEL,
     "-c",
     "web_search=live",
     "-c",
