@@ -9,6 +9,11 @@ const modelReasoningEffort = (profile: Profile): string => {
   return "medium";
 };
 
+const codexModel = (profile: Profile): string => {
+  if (profile === "deep") return "gpt-6-astra";
+  return "gpt-5.6-sol";
+};
+
 const claudeModel = (profile: Profile): string => {
   if (profile === "deep") return "fable";
   // Alias, not a pin: tracks the latest Opus the installed CLI offers.
@@ -91,7 +96,7 @@ export const buildCodexInvocation = (
     "--sandbox",
     "read-only",
     "--model",
-    "gpt-5.6-sol",
+    codexModel(profile),
     "-c",
     "web_search=live",
     "-c",

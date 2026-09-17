@@ -102,10 +102,10 @@ describe("AgentPlatform helpers", () => {
     }),
   );
 
-  it.effect("builds the deep Codex invocation with GPT-5.6 SOL at xhigh effort", () =>
+  it.effect("builds the deep Codex invocation with GPT-6 Astra at xhigh effort", () =>
     Effect.sync(() => {
       const invocation = buildCodexInvocation("codex", "/tmp/prompt.md", "deep", "/tmp/project");
-      expect(flagValue(invocation.args, "--model")).toBe("gpt-5.6-sol");
+      expect(flagValue(invocation.args, "--model")).toBe("gpt-6-astra");
       expect(invocation.args).toContain("model_reasoning_effort=xhigh");
     }),
   );
