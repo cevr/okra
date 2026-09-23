@@ -4,12 +4,12 @@ import { CounselError, ErrorCode } from "../errors.js";
 import type { Invocation, Profile, Provider } from "../types.js";
 import { HostService } from "./Host.js";
 
-const modelReasoningEffort = (profile: Profile): string => {
+const codexReasoningEffort = (profile: Profile): string => {
   if (profile === "deep") return "max";
   return "medium";
 };
 
-const CODEX_MODEL = "gpt-6-astra";
+const CODEX_MODEL = "gpt-6-sol";
 
 const claudeModel = (profile: Profile): string => {
   if (profile === "deep") return "fable";
@@ -97,7 +97,7 @@ export const buildCodexInvocation = (
     "-c",
     "web_search=live",
     "-c",
-    `model_reasoning_effort=${modelReasoningEffort(profile)}`,
+    `model_reasoning_effort=${codexReasoningEffort(profile)}`,
     "--skip-git-repo-check",
     buildPromptInstruction(promptFilePath),
   ],
