@@ -1,5 +1,11 @@
 # @cvr/okra
 
+## 0.9.3
+
+### Patch Changes
+
+- [`1f672cf`](https://github.com/cevr/okra/commit/1f672cf40cc148e2830f28888ecfb57ba4258527) Thanks [@cevr](https://github.com/cevr)! - Use GPT-6 Sol for Codex counsel runs, with medium reasoning for standard runs and max reasoning for deep runs.
+
 ## 0.9.2
 
 ### Patch Changes
