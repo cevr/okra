@@ -1,5 +1,11 @@
 # @cvr/okra
 
+## 0.11.0
+
+### Minor Changes
+
+- [`be43d14`](https://github.com/cevr/okra/commit/be43d14fadae018417def5a726988b622cb9cc0a) Thanks [@cevr](https://github.com/cevr)! - `okra skills update --json` prints one JSON report on stdout: `outdated` skills with their lock source, skill path, and whether the source moved; `failed` skills with their source and reason; and the `unchanged` count. With `--dry-run` it reports what would change; without it, what changed.
+
 ## 0.10.0
 
 ### Minor Changes
