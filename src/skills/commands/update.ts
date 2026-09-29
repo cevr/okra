@@ -53,6 +53,7 @@ const resolveRepoSource = (
 const updateLocalSkill = Effect.fn("command.update.updateLocalSkill")(function* (
   name: string,
   localPath: string,
+  dryRun: boolean,
 ) {
   const store = yield* SkillStore;
   const fs = yield* FileSystem.FileSystem;
@@ -74,7 +75,7 @@ const updateLocalSkill = Effect.fn("command.update.updateLocalSkill")(function* 
 
   if (filesEqual(incoming, installed)) return Result.succeed<UpdateOk>({ status: "unchanged" });
 
-  yield* store.syncDir(name, incoming);
+  if (!dryRun) yield* store.syncDir(name, incoming);
 
   return Result.succeed<UpdateOk>({ status: "updated" });
 });
@@ -129,13 +130,14 @@ const findMovedSkillDir = Effect.fn("command.update.findMovedSkillDir")(function
 const updateSkill = Effect.fn("command.update.updateSkill")(function* (
   name: string,
   entry: LockEntry,
+  dryRun: boolean,
 ) {
   const store = yield* SkillStore;
   const gh = yield* GitHub;
 
   if (entry.source.startsWith("local:")) {
     const localPath = expandHome(entry.source.slice("local:".length), yield* readHome);
-    return yield* updateLocalSkill(name, localPath);
+    return yield* updateLocalSkill(name, localPath, dryRun);
   }
 
   const source = resolveRepoSource(entry);
@@ -169,7 +171,7 @@ const updateSkill = Effect.fn("command.update.updateSkill")(function* (
     return Result.succeed<UpdateOk>({ status: "unchanged" });
   }
 
-  yield* store.syncDir(name, incoming);
+  if (!dryRun) yield* store.syncDir(name, incoming);
   if (Option.isSome(movedTo)) {
     return Result.succeed<UpdateOk>({
       status: "moved",
@@ -179,8 +181,12 @@ const updateSkill = Effect.fn("command.update.updateSkill")(function* (
   return Result.succeed<UpdateOk>({ status: "updated", skillPath: undefined });
 });
 
-const statusFromResult = (result: Result.Result<UpdateOk, string>): SkillStatus => {
+const statusFromResult = (
+  result: Result.Result<UpdateOk, string>,
+  dryRun: boolean,
+): SkillStatus => {
   if (Result.isFailure(result)) return "failed";
+  if (dryRun && result.success.status !== "unchanged") return "outdated";
   return result.success.status;
 };
 
@@ -188,15 +194,39 @@ const runOne = Effect.fn("command.update.runOne")(function* (
   progress: Progress,
   name: string,
   entry: LockEntry,
+  dryRun: boolean,
 ) {
   yield* progress.setStatus(name, "running");
-  const result = yield* updateSkill(name, entry);
-  yield* progress.setStatus(name, statusFromResult(result));
+  const result = yield* updateSkill(name, entry, dryRun);
+  yield* progress.setStatus(name, statusFromResult(result, dryRun));
   return { name, result };
 });
 
+const progressVerb = (dryRun: boolean): string => {
+  if (dryRun) return "checking";
+  return "updating";
+};
+
+// Dry run: stdout carries only the outdated skill names, one per line, for scripts.
+const reportDryRun = Effect.fn("command.update.reportDryRun")(function* (
+  outdated: ReadonlyArray<{ readonly name: string }>,
+  unchanged: number,
+  failed: number,
+) {
+  for (const { name } of outdated) yield* Console.log(name);
+  const parts = [`${outdated.length} outdated`, `${unchanged} unchanged`];
+  if (failed > 0) parts.push(`${failed} failed`);
+  yield* Console.error(`\n${parts.join(", ")}. Nothing was written.`);
+});
+
+export interface UpdateOptions {
+  /** Report outdated skills without writing skill files or the lock. */
+  readonly dryRun?: boolean;
+}
+
 // P1: Parallel update loop + batched lock writes
-export const runUpdate = Effect.fn("command.update")(function* () {
+export const runUpdate = Effect.fn("command.update")(function* (options: UpdateOptions = {}) {
+  const dryRun = options.dryRun ?? false;
   const lock = yield* SkillLock;
   const lockFile = yield* lock.read;
 
@@ -208,11 +238,16 @@ export const runUpdate = Effect.fn("command.update")(function* () {
 
   yield* Console.error(`Checking ${entries.length} skill(s)...\n`);
 
-  const progress = yield* makeProgress(entries.map(([name]) => name));
+  const progress = yield* makeProgress(
+    entries.map(([name]) => name),
+    { runningVerb: progressVerb(dryRun) },
+  );
 
-  const results = yield* Effect.forEach(entries, ([name, entry]) => runOne(progress, name, entry), {
-    concurrency: 5,
-  }).pipe(Effect.ensuring(progress.finish));
+  const results = yield* Effect.forEach(
+    entries,
+    ([name, entry]) => runOne(progress, name, entry, dryRun),
+    { concurrency: 5 },
+  ).pipe(Effect.ensuring(progress.finish));
 
   const updatedEntries: Array<{ name: string; skillPath?: string }> = [];
   const movedNames: Array<string> = [];
@@ -239,13 +274,15 @@ export const runUpdate = Effect.fn("command.update")(function* () {
     }
   }
 
+  for (const { name, note } of failures) {
+    yield* Console.error(`  Failed to update ${name}: ${note}`);
+  }
+
+  if (dryRun) return yield* reportDryRun(updatedEntries, unchanged, failures.length);
+
   // Batch lock writes
   if (updatedEntries.length > 0) {
     yield* lock.updateMany(updatedEntries);
-  }
-
-  for (const { name, note } of failures) {
-    yield* Console.error(`  Failed to update ${name}: ${note}`);
   }
 
   const updatedCount = updatedEntries.length - movedNames.length;

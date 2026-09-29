@@ -89,6 +89,44 @@ describe("runUpdate", () => {
     }).pipe(Effect.provide(BunServices.layer)),
   );
 
+  it.scoped("dry run writes neither the skill nor the lock", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const dir = yield* fs.makeTempDirectoryScoped();
+      const sourceDir = yield* fs.makeTempDirectoryScoped();
+      yield* fs.makeDirectory(`${sourceDir}/my-skill`, { recursive: true });
+      yield* fs.writeFileString(
+        `${sourceDir}/my-skill/SKILL.md`,
+        "---\nname: my-skill\ndescription: new\n---\n",
+      );
+
+      const github: GitHubShape = {
+        listContents: notImplemented as GitHubShape["listContents"],
+        fetchRaw: notImplemented as GitHubShape["fetchRaw"],
+        listTree: notImplemented as GitHubShape["listTree"],
+        discoverSkills: notImplemented as GitHubShape["discoverSkills"],
+        fetchSkillDir: notImplemented as GitHubShape["fetchSkillDir"],
+      };
+
+      const [before, after] = yield* Effect.gen(function* () {
+        const store = yield* SkillStore;
+        const lock = yield* SkillLock;
+        yield* store.installDir("my-skill", [
+          { path: "SKILL.md", content: "---\nname: my-skill\ndescription: old\n---\n" },
+        ]);
+        yield* lock.add("my-skill", `local:${sourceDir}/my-skill`, "SKILL.md");
+        const initial = yield* lock.get("my-skill");
+
+        yield* runUpdate({ dryRun: true });
+
+        return [initial, yield* lock.get("my-skill")] as const;
+      }).pipe(Effect.provide(makeTestLayer(dir, github)));
+
+      expect(yield* fs.readFileString(`${dir}/my-skill/SKILL.md`)).toContain("description: old");
+      expect(after).toEqual(before);
+    }).pipe(Effect.provide(BunServices.layer)),
+  );
+
   it.scoped("falls back to discoverSkills + updates skillPath when source moved within repo", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem;

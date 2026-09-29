@@ -72,6 +72,9 @@ okra skills uninstall my-skill
 ```bash
 # Re-fetch every managed skill from its recorded source
 okra skills update
+
+# Check without writing: outdated skill names on stdout, progress on stderr
+okra skills update --dry-run
 ```
 
 A local source that is missing on this machine is reported as failed; the skill and its lock entry stay. Delete with `okra skills remove`. A skill whose directory moved within its GitHub repo is found and its path updated.

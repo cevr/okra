@@ -16,6 +16,7 @@ export type SkillStatus =
   | "pending"
   | "running"
   | "updated"
+  | "outdated"
   | "installed"
   | "moved"
   | "unchanged"
@@ -53,6 +54,8 @@ const symbol = (status: SkillStatus, frame: number): string => {
     case "updated":
     case "installed":
       return "✓";
+    case "outdated":
+      return "↑";
     case "moved":
       return "→";
     case "unchanged":
@@ -72,6 +75,8 @@ const verb = (status: SkillStatus, runningVerb: string): string => {
       return runningVerb;
     case "updated":
       return "updated";
+    case "outdated":
+      return "outdated";
     case "installed":
       return "installed";
     case "moved":
@@ -106,6 +111,8 @@ const colorize = (status: SkillStatus, text: string, color: boolean): string => 
     case "moved":
     case "removed":
       return green(text, color);
+    case "outdated":
+      return cyan(text, color);
     case "unchanged":
       return dim(text, color);
     case "failed":

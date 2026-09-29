@@ -1,4 +1,4 @@
-import { Argument, Command } from "effect/unstable/cli";
+import { Argument, Command, Flag } from "effect/unstable/cli";
 import { Config, ConfigProvider, Console, Effect, Option, Path } from "effect";
 import { SkillStore } from "../services/SkillStore.js";
 import { SkillLock } from "../services/SkillLock.js";
@@ -118,9 +118,14 @@ const searchCommand = Command.make("search", { query: queryArg }, ({ query }) =>
   runSearch(query),
 ).pipe(Command.withDescription("Search skills.sh for skills"));
 
-const updateCommand = Command.make("update", {}, () => runUpdate()).pipe(
-  Command.withDescription("Re-fetch all installed skills from their sources"),
+const dryRunFlag = Flag.Boolean("dry-run").pipe(
+  Flag.withDefault(false),
+  Flag.withDescription("List outdated skills on stdout without writing anything"),
 );
+
+const updateCommand = Command.make("update", { dryRun: dryRunFlag }, ({ dryRun }) =>
+  runUpdate({ dryRun }),
+).pipe(Command.withDescription("Re-fetch all installed skills from their sources"));
 
 export const skillsRoot = skillsCommand.pipe(
   Command.withDescription("Manage AI agent skills"),
