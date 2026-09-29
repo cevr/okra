@@ -1,5 +1,13 @@
 # @cvr/okra
 
+## 0.10.0
+
+### Minor Changes
+
+- [`60b8672`](https://github.com/cevr/okra/commit/60b8672681283dc311cf6320caac98c0429c1a7e) Thanks [@cevr](https://github.com/cevr)! - `okra skills` records local sources under `$HOME` as `local:~/path` and expands `~` on update, so one skill lock works across machines. `okra skills update` now reports a missing local source as a failure instead of deleting the installed skill and its lock entry.
+
+- [`62f2071`](https://github.com/cevr/okra/commit/62f20716ff686c168c770def30228c3e6ffcb30c) Thanks [@cevr](https://github.com/cevr)! - `okra skills update --dry-run` checks every skill against its source without writing skill files or the lock. It prints the outdated skill names on stdout, one per line, for scripts.
+
 ## 0.9.3
 
 ### Patch Changes
