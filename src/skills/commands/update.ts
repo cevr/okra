@@ -1,4 +1,4 @@
-import { Console, Effect, FileSystem, Option, Result } from "effect";
+import { Console, Effect, FileSystem, Option, Result, Schema } from "effect";
 import type { SkillsError } from "../errors.js";
 import { SkillStore } from "../services/SkillStore.js";
 import { GitHub, type GitHubShape } from "../services/GitHub.js";
@@ -82,7 +82,7 @@ const updateLocalSkill = Effect.fn("command.update.updateLocalSkill")(function* 
 
 type DoneStatus = "updated" | "unchanged" | "moved";
 
-interface UpdateOk {
+export interface UpdateOk {
   readonly status: DoneStatus;
   readonly skillPath?: string;
 }
@@ -199,8 +199,65 @@ const runOne = Effect.fn("command.update.runOne")(function* (
   yield* progress.setStatus(name, "running");
   const result = yield* updateSkill(name, entry, dryRun);
   yield* progress.setStatus(name, statusFromResult(result, dryRun));
-  return { name, result };
+  return { name, entry, result };
 });
+
+/** The `--json` document: what an update did, or with `--dry-run` would do. */
+export const UpdateReport = Schema.Struct({
+  dryRun: Schema.Boolean,
+  outdated: Schema.Array(
+    Schema.Struct({
+      name: Schema.String,
+      source: Schema.String,
+      skillPath: Schema.String,
+      moved: Schema.Boolean,
+    }),
+  ),
+  failed: Schema.Array(
+    Schema.Struct({ name: Schema.String, source: Schema.String, reason: Schema.String }),
+  ),
+  unchanged: Schema.Int,
+});
+export type UpdateReport = typeof UpdateReport.Type;
+
+export interface SkillOutcome {
+  readonly name: string;
+  readonly entry: LockEntry;
+  readonly result: Result.Result<UpdateOk, string>;
+}
+
+/** Fold per-skill outcomes into the report. A moved skill reports its new path. */
+export const buildReport = (
+  outcomes: ReadonlyArray<SkillOutcome>,
+  dryRun: boolean,
+): UpdateReport => {
+  const outdated: Array<UpdateReport["outdated"][number]> = [];
+  const failed: Array<UpdateReport["failed"][number]> = [];
+  let unchanged = 0;
+  for (const { name, entry, result } of outcomes) {
+    if (Result.isFailure(result)) {
+      failed.push({ name, source: entry.source, reason: result.failure });
+      continue;
+    }
+    if (result.success.status === "unchanged") {
+      unchanged++;
+      continue;
+    }
+    const moved = result.success.status === "moved";
+    outdated.push({
+      name,
+      source: entry.source,
+      skillPath: result.success.skillPath ?? entry.skillPath,
+      moved,
+    });
+  }
+  return { dryRun, outdated, failed, unchanged };
+};
+
+const encodeReportJson = Schema.encodeEffect(Schema.fromJsonString(UpdateReport));
+
+const printReportJson = (report: UpdateReport) =>
+  encodeReportJson(report).pipe(Effect.orDie, Effect.flatMap(Console.log));
 
 const progressVerb = (dryRun: boolean): string => {
   if (dryRun) return "checking";
@@ -208,30 +265,46 @@ const progressVerb = (dryRun: boolean): string => {
 };
 
 // Dry run: stdout carries only the outdated skill names, one per line, for scripts.
-const reportDryRun = Effect.fn("command.update.reportDryRun")(function* (
-  outdated: ReadonlyArray<{ readonly name: string }>,
-  unchanged: number,
-  failed: number,
-) {
-  for (const { name } of outdated) yield* Console.log(name);
-  const parts = [`${outdated.length} outdated`, `${unchanged} unchanged`];
-  if (failed > 0) parts.push(`${failed} failed`);
+const reportDryRun = Effect.fn("command.update.reportDryRun")(function* (report: UpdateReport) {
+  for (const { name } of report.outdated) yield* Console.log(name);
+  const parts = [`${report.outdated.length} outdated`, `${report.unchanged} unchanged`];
+  if (report.failed.length > 0) parts.push(`${report.failed.length} failed`);
   yield* Console.error(`\n${parts.join(", ")}. Nothing was written.`);
+});
+
+const reportUpdate = Effect.fn("command.update.reportUpdate")(function* (report: UpdateReport) {
+  const movedCount = report.outdated.filter((skill) => skill.moved).length;
+  const updatedCount = report.outdated.length - movedCount;
+  const parts: Array<string> = [];
+  if (updatedCount > 0) parts.push(`${updatedCount} updated`);
+  if (movedCount > 0) parts.push(`${movedCount} moved`);
+  if (report.unchanged > 0) parts.push(`${report.unchanged} unchanged`);
+  if (report.failed.length > 0) parts.push(`${report.failed.length} failed`);
+
+  if (report.outdated.length === 0 && report.failed.length === 0) {
+    yield* Console.log("All skills up to date.");
+  } else {
+    yield* Console.log(`\n${parts.join(", ")}.`);
+  }
 });
 
 export interface UpdateOptions {
   /** Report outdated skills without writing skill files or the lock. */
   readonly dryRun?: boolean;
+  /** Print the report as one JSON document on stdout instead of text. */
+  readonly json?: boolean;
 }
 
 // P1: Parallel update loop + batched lock writes
 export const runUpdate = Effect.fn("command.update")(function* (options: UpdateOptions = {}) {
   const dryRun = options.dryRun ?? false;
+  const json = options.json ?? false;
   const lock = yield* SkillLock;
   const lockFile = yield* lock.read;
 
   const entries = Object.entries(lockFile.skills);
   if (entries.length === 0) {
+    if (json) return yield* printReportJson(buildReport([], dryRun));
     yield* Console.log("No skills to update. Lock file is empty.");
     return;
   }
@@ -249,52 +322,26 @@ export const runUpdate = Effect.fn("command.update")(function* (options: UpdateO
     { concurrency: 5 },
   ).pipe(Effect.ensuring(progress.finish));
 
-  const updatedEntries: Array<{ name: string; skillPath?: string }> = [];
-  const movedNames: Array<string> = [];
-  const failures: Array<{ name: string; note: string }> = [];
-  let unchanged = 0;
+  const report = buildReport(results, dryRun);
 
-  for (const { name, result } of results) {
-    if (Result.isFailure(result)) {
-      failures.push({ name, note: result.failure });
-      continue;
-    }
-    switch (result.success.status) {
-      case "updated":
-        updatedEntries.push({ name });
-        break;
-      case "moved":
-        updatedEntries.push({ name, skillPath: result.success.skillPath });
-        movedNames.push(name);
-        yield* Console.error(`  ${name}: source moved to ${result.success.skillPath}`);
-        break;
-      case "unchanged":
-        unchanged++;
-        break;
-    }
+  for (const { name, skillPath } of report.outdated.filter((skill) => skill.moved)) {
+    yield* Console.error(`  ${name}: source moved to ${skillPath}`);
   }
-
-  for (const { name, note } of failures) {
-    yield* Console.error(`  Failed to update ${name}: ${note}`);
+  for (const { name, reason } of report.failed) {
+    yield* Console.error(`  Failed to update ${name}: ${reason}`);
   }
-
-  if (dryRun) return yield* reportDryRun(updatedEntries, unchanged, failures.length);
 
   // Batch lock writes
-  if (updatedEntries.length > 0) {
-    yield* lock.updateMany(updatedEntries);
+  if (!dryRun && report.outdated.length > 0) {
+    yield* lock.updateMany(
+      report.outdated.map(({ name, skillPath, moved }) => {
+        if (moved) return { name, skillPath };
+        return { name };
+      }),
+    );
   }
 
-  const updatedCount = updatedEntries.length - movedNames.length;
-  const parts: Array<string> = [];
-  if (updatedCount > 0) parts.push(`${updatedCount} updated`);
-  if (movedNames.length > 0) parts.push(`${movedNames.length} moved`);
-  if (unchanged > 0) parts.push(`${unchanged} unchanged`);
-  if (failures.length > 0) parts.push(`${failures.length} failed`);
-
-  if (updatedEntries.length === 0 && failures.length === 0) {
-    yield* Console.log("All skills up to date.");
-  } else {
-    yield* Console.log(`\n${parts.join(", ")}.`);
-  }
+  if (json) return yield* printReportJson(report);
+  if (dryRun) return yield* reportDryRun(report);
+  return yield* reportUpdate(report);
 });

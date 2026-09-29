@@ -1,10 +1,10 @@
 import { describe, expect, it } from "effect-bun-test";
-import { ConfigProvider, Effect, Layer, Option } from "effect";
+import { ConfigProvider, Console, Effect, Layer, Option, Result, Schema } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { BunServices } from "@effect/platform-bun";
-import { runUpdate } from "../../../src/skills/commands/update.js";
+import { buildReport, runUpdate, UpdateReport } from "../../../src/skills/commands/update.js";
 import { GitHub, type GitHubShape } from "../../../src/skills/services/GitHub.js";
-import { SkillLock, SkillLockLive } from "../../../src/skills/services/SkillLock.js";
+import { LockEntry, SkillLock, SkillLockLive } from "../../../src/skills/services/SkillLock.js";
 import { SkillStore, SkillStoreLive } from "../../../src/skills/services/SkillStore.js";
 import { SkillsError } from "../../../src/skills/errors.js";
 
@@ -19,7 +19,141 @@ const makeTestLayer = (dir: string, github: GitHubShape) =>
 const notImplemented = (..._args: Array<unknown>) =>
   Effect.fail(SkillsError.make({ message: "not-implemented", code: "FETCH_FAILED" }));
 
+const makeEntry = (source: string, skillPath: string) =>
+  LockEntry.make({ source, skillPath, installedAt: "t", updatedAt: "t" });
+
+const decodeReportJson = Schema.decodeUnknownSync(Schema.fromJsonString(UpdateReport));
+
+/** Run `effect` with a console that records stdout lines and drops stderr. */
+const captureStdout = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+  Effect.gen(function* () {
+    const lines: Array<string> = [];
+    const console: Console.Console = {
+      ...globalThis.console,
+      log: (...args: ReadonlyArray<unknown>) => {
+        lines.push(args.map(String).join(" "));
+      },
+      error: () => {},
+    };
+    yield* effect.pipe(Effect.provideService(Console.Console, console));
+    return lines;
+  });
+
+describe("buildReport", () => {
+  it.effect("sorts outcomes into outdated, failed, and unchanged with their lock sources", () =>
+    Effect.sync(() => {
+      const report = buildReport(
+        [
+          {
+            name: "fresh",
+            entry: makeEntry("local:~/src/fresh", "SKILL.md"),
+            result: Result.succeed({ status: "updated" }),
+          },
+          {
+            name: "handoff",
+            entry: makeEntry("mattpocock/skills", "skills/in-progress/handoff/SKILL.md"),
+            result: Result.succeed({
+              status: "moved",
+              skillPath: "skills/productivity/handoff/SKILL.md",
+            }),
+          },
+          {
+            name: "same",
+            entry: makeEntry("acme/repo", "SKILL.md"),
+            result: Result.succeed({ status: "unchanged" }),
+          },
+          {
+            name: "ghost",
+            entry: makeEntry("local:~/nope/ghost", "SKILL.md"),
+            result: Result.fail("local source not found: /home/x/nope/ghost"),
+          },
+        ],
+        true,
+      );
+
+      expect(report).toEqual({
+        dryRun: true,
+        outdated: [
+          { name: "fresh", source: "local:~/src/fresh", skillPath: "SKILL.md", moved: false },
+          {
+            name: "handoff",
+            source: "mattpocock/skills",
+            skillPath: "skills/productivity/handoff/SKILL.md",
+            moved: true,
+          },
+        ],
+        failed: [
+          {
+            name: "ghost",
+            source: "local:~/nope/ghost",
+            reason: "local source not found: /home/x/nope/ghost",
+          },
+        ],
+        unchanged: 1,
+      });
+    }),
+  );
+});
+
 describe("runUpdate", () => {
+  it.scoped("dry run with json prints one JSON report on stdout and writes nothing", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const dir = yield* fs.makeTempDirectoryScoped();
+      const sourceDir = yield* fs.makeTempDirectoryScoped();
+      yield* fs.makeDirectory(`${sourceDir}/my-skill`, { recursive: true });
+      yield* fs.writeFileString(
+        `${sourceDir}/my-skill/SKILL.md`,
+        "---\nname: my-skill\ndescription: new\n---\n",
+      );
+
+      const github: GitHubShape = {
+        listContents: notImplemented as GitHubShape["listContents"],
+        fetchRaw: notImplemented as GitHubShape["fetchRaw"],
+        listTree: notImplemented as GitHubShape["listTree"],
+        discoverSkills: notImplemented as GitHubShape["discoverSkills"],
+        fetchSkillDir: notImplemented as GitHubShape["fetchSkillDir"],
+      };
+
+      const stdout = yield* Effect.gen(function* () {
+        const store = yield* SkillStore;
+        const lock = yield* SkillLock;
+        yield* store.installDir("my-skill", [
+          { path: "SKILL.md", content: "---\nname: my-skill\ndescription: old\n---\n" },
+        ]);
+        yield* lock.add("my-skill", `local:${sourceDir}/my-skill`, "SKILL.md");
+        yield* store.installDir("ghost", [
+          { path: "SKILL.md", content: "---\nname: ghost\ndescription: gone\n---\n" },
+        ]);
+        yield* lock.add("ghost", "local:/tmp/does-not-exist-ever", "SKILL.md");
+
+        return yield* captureStdout(runUpdate({ dryRun: true, json: true }));
+      }).pipe(Effect.provide(makeTestLayer(dir, github)));
+
+      expect(stdout).toHaveLength(1);
+      expect(decodeReportJson(stdout[0])).toEqual({
+        dryRun: true,
+        outdated: [
+          {
+            name: "my-skill",
+            source: `local:${sourceDir}/my-skill`,
+            skillPath: "SKILL.md",
+            moved: false,
+          },
+        ],
+        failed: [
+          {
+            name: "ghost",
+            source: "local:/tmp/does-not-exist-ever",
+            reason: "local source not found: /tmp/does-not-exist-ever",
+          },
+        ],
+        unchanged: 0,
+      });
+      expect(yield* fs.readFileString(`${dir}/my-skill/SKILL.md`)).toContain("description: old");
+    }).pipe(Effect.provide(BunServices.layer)),
+  );
+
   it.scoped("keeps local skill and reports a failure when the source path is missing", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem;

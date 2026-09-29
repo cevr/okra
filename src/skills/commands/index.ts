@@ -123,8 +123,17 @@ const dryRunFlag = Flag.Boolean("dry-run").pipe(
   Flag.withDescription("List outdated skills on stdout without writing anything"),
 );
 
-const updateCommand = Command.make("update", { dryRun: dryRunFlag }, ({ dryRun }) =>
-  runUpdate({ dryRun }),
+const jsonFlag = Flag.Boolean("json").pipe(
+  Flag.withDefault(false),
+  Flag.withDescription(
+    "Print one JSON report on stdout: outdated, failed, and unchanged skills (with --dry-run: what would change)",
+  ),
+);
+
+const updateCommand = Command.make(
+  "update",
+  { dryRun: dryRunFlag, json: jsonFlag },
+  ({ dryRun, json }) => runUpdate({ dryRun, json }),
 ).pipe(Command.withDescription("Re-fetch all installed skills from their sources"));
 
 export const skillsRoot = skillsCommand.pipe(

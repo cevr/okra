@@ -75,6 +75,9 @@ okra skills update
 
 # Check without writing: outdated skill names on stdout, progress on stderr
 okra skills update --dry-run
+
+# One JSON report on stdout: {dryRun, outdated:[{name,source,skillPath,moved}], failed:[{name,source,reason}], unchanged}
+okra skills update --dry-run --json
 ```
 
 A local source that is missing on this machine is reported as failed; the skill and its lock entry stay. Delete with `okra skills remove`. A skill whose directory moved within its GitHub repo is found and its path updated.
