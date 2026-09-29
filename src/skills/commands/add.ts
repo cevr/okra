@@ -1,4 +1,4 @@
-import { Config, ConfigProvider, Console, Effect, FileSystem, Option, Path, Result } from "effect";
+import { Console, Effect, FileSystem, Option, Path, Result } from "effect";
 import { Prompt } from "effect/unstable/cli";
 import { SkillsError } from "../errors.js";
 import { walkDir } from "../lib/fs.js";
@@ -12,6 +12,7 @@ import {
   type LocalPath,
 } from "../lib/source.js";
 import { toKebab } from "../lib/util.js";
+import { collapseHome, expandHome, readHome } from "../../shared/home.js";
 import { GitHub } from "../services/GitHub.js";
 import { SkillLock } from "../services/SkillLock.js";
 import { SkillStore } from "../services/SkillStore.js";
@@ -198,7 +199,7 @@ const installLocalSkillDir = Effect.fn("command.add.installLocalSkillDir")(funct
     onSome: (fm) => toKebab(fm.name),
   });
 
-  const sourceStr = `local:${absPath}`;
+  const sourceStr = `local:${collapseHome(absPath, yield* readHome)}`;
   yield* store.syncDir(name, files);
 
   return { name, source: sourceStr, skillPath: "SKILL.md" } satisfies InstalledEntry;
@@ -215,17 +216,7 @@ const discoverLocalCandidates = Effect.fn("command.add.discoverLocalCandidates")
   const fs = yield* FileSystem.FileSystem;
   const pathService = yield* Path.Path;
 
-  const homeOpt = yield* Config.option(Config.String("HOME"))
-    .parse(ConfigProvider.fromEnv())
-    .pipe(Effect.orElseSucceed(() => Option.none<string>()));
-  const expandHome = (): string => {
-    if (!source.path.startsWith("~")) return source.path;
-    return pathService.join(
-      Option.getOrElse(homeOpt, () => ""),
-      source.path.slice(1),
-    );
-  };
-  const absPath = pathService.resolve(expandHome());
+  const absPath = pathService.resolve(expandHome(source.path, yield* readHome));
 
   const exists = yield* fs.exists(absPath).pipe(Effect.orDie);
   if (!exists) {

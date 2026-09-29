@@ -1,9 +1,10 @@
-import { Config, ConfigProvider, Console, Effect, FileSystem, Option, Path } from "effect";
+import { Console, Effect, FileSystem, Option, Path } from "effect";
 import { SkillsError } from "../errors.js";
 import { SKILL_DIR_PREFIXES } from "../lib/constants.js";
 import { tryParseFrontmatter } from "../lib/frontmatter.js";
 import { parseSource } from "../lib/source.js";
 import { toKebab } from "../lib/util.js";
+import { expandHome, readHome } from "../../shared/home.js";
 import { SkillStore } from "../services/SkillStore.js";
 import { SkillLock } from "../services/SkillLock.js";
 
@@ -34,17 +35,7 @@ const discoverLocalSkillNames = Effect.fn("command.remove.discoverLocal")(functi
   const fs = yield* FileSystem.FileSystem;
   const pathService = yield* Path.Path;
 
-  const homeOpt = yield* Config.option(Config.String("HOME"))
-    .parse(ConfigProvider.fromEnv())
-    .pipe(Effect.orElseSucceed(() => Option.none<string>()));
-  const expandHome = (): string => {
-    if (!inputPath.startsWith("~")) return inputPath;
-    return pathService.join(
-      Option.getOrElse(homeOpt, () => ""),
-      inputPath.slice(1),
-    );
-  };
-  const absPath = pathService.resolve(expandHome());
+  const absPath = pathService.resolve(expandHome(inputPath, yield* readHome));
 
   const exists = yield* fs.exists(absPath).pipe(Effect.orDie);
   if (!exists) {

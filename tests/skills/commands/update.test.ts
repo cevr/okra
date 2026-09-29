@@ -20,7 +20,7 @@ const notImplemented = (..._args: Array<unknown>) =>
   Effect.fail(SkillsError.make({ message: "not-implemented", code: "FETCH_FAILED" }));
 
 describe("runUpdate", () => {
-  it.scoped("removes local skill when source path no longer exists", () =>
+  it.scoped("keeps local skill and reports a failure when the source path is missing", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem;
       const dir = yield* fs.makeTempDirectoryScoped();
@@ -37,7 +37,7 @@ describe("runUpdate", () => {
         const store = yield* SkillStore;
         const lock = yield* SkillLock;
 
-        // Install a skill and add a lock entry pointing to a non-existent local path
+        // Install a skill whose local source does not exist on this machine
         yield* store.installDir("my-local-skill", [
           { path: "SKILL.md", content: "---\nname: my-local-skill\ndescription: test\n---\n" },
         ]);
@@ -48,9 +48,9 @@ describe("runUpdate", () => {
         return yield* lock.get("my-local-skill");
       }).pipe(Effect.provide(makeTestLayer(dir, github)));
 
-      // Skill dir and lock entry should both be gone
-      expect(Option.isNone(lockEntry)).toBe(true);
-      expect(yield* fs.exists(`${dir}/my-local-skill`)).toBe(false);
+      // The source may exist on another machine: the skill and its lock entry stay
+      expect(Option.isSome(lockEntry)).toBe(true);
+      expect(yield* fs.exists(`${dir}/my-local-skill/SKILL.md`)).toBe(true);
     }).pipe(Effect.provide(BunServices.layer)),
   );
 

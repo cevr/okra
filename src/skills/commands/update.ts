@@ -6,6 +6,7 @@ import { SkillLock, type LockEntry } from "../services/SkillLock.js";
 import { parseSource } from "../lib/source.js";
 import { walkDir } from "../lib/fs.js";
 import { DEFAULT_REF } from "../lib/constants.js";
+import { expandHome, readHome } from "../../shared/home.js";
 import { make as makeProgress, type Progress, type SkillStatus } from "../lib/progress.js";
 
 type FileEntry = { readonly path: string; readonly content: string };
@@ -54,16 +55,13 @@ const updateLocalSkill = Effect.fn("command.update.updateLocalSkill")(function* 
   localPath: string,
 ) {
   const store = yield* SkillStore;
-  const lock = yield* SkillLock;
   const fs = yield* FileSystem.FileSystem;
 
+  // A missing source may only be missing on this machine: keep the installed
+  // skill and its lock entry, and report the failure. `okra skills remove` deletes.
   const exists = yield* fs.exists(localPath).pipe(Effect.orDie);
   if (!exists) {
-    yield* store
-      .remove(name)
-      .pipe(Effect.catchTag("@cvr/okra/skills/SkillsError", () => Effect.void));
-    yield* lock.remove(name);
-    return "removed" as const;
+    return Result.fail(`local source not found: ${localPath}`);
   }
 
   // P6: Parallel fetch+read (installed dir may not exist yet)
@@ -74,14 +72,14 @@ const updateLocalSkill = Effect.fn("command.update.updateLocalSkill")(function* 
       .pipe(Effect.catchDefect(() => Effect.succeed([] as ReadonlyArray<FileEntry>))),
   ]);
 
-  if (filesEqual(incoming, installed)) return "unchanged" as const;
+  if (filesEqual(incoming, installed)) return Result.succeed<UpdateOk>({ status: "unchanged" });
 
   yield* store.syncDir(name, incoming);
 
-  return "updated" as const;
+  return Result.succeed<UpdateOk>({ status: "updated" });
 });
 
-type DoneStatus = "updated" | "unchanged" | "removed" | "moved";
+type DoneStatus = "updated" | "unchanged" | "moved";
 
 interface UpdateOk {
   readonly status: DoneStatus;
@@ -136,9 +134,8 @@ const updateSkill = Effect.fn("command.update.updateSkill")(function* (
   const gh = yield* GitHub;
 
   if (entry.source.startsWith("local:")) {
-    const localPath = entry.source.slice("local:".length);
-    const status = yield* updateLocalSkill(name, localPath);
-    return Result.succeed<UpdateOk>({ status });
+    const localPath = expandHome(entry.source.slice("local:".length), yield* readHome);
+    return yield* updateLocalSkill(name, localPath);
   }
 
   const source = resolveRepoSource(entry);
@@ -218,7 +215,6 @@ export const runUpdate = Effect.fn("command.update")(function* () {
   }).pipe(Effect.ensuring(progress.finish));
 
   const updatedEntries: Array<{ name: string; skillPath?: string }> = [];
-  const removedNames: Array<string> = [];
   const movedNames: Array<string> = [];
   const failures: Array<{ name: string; note: string }> = [];
   let unchanged = 0;
@@ -237,16 +233,13 @@ export const runUpdate = Effect.fn("command.update")(function* () {
         movedNames.push(name);
         yield* Console.error(`  ${name}: source moved to ${result.success.skillPath}`);
         break;
-      case "removed":
-        removedNames.push(name);
-        break;
       case "unchanged":
         unchanged++;
         break;
     }
   }
 
-  // Batch lock writes (removed entries already cleaned their own lock)
+  // Batch lock writes
   if (updatedEntries.length > 0) {
     yield* lock.updateMany(updatedEntries);
   }
@@ -260,10 +253,9 @@ export const runUpdate = Effect.fn("command.update")(function* () {
   if (updatedCount > 0) parts.push(`${updatedCount} updated`);
   if (movedNames.length > 0) parts.push(`${movedNames.length} moved`);
   if (unchanged > 0) parts.push(`${unchanged} unchanged`);
-  if (removedNames.length > 0) parts.push(`${removedNames.length} removed`);
   if (failures.length > 0) parts.push(`${failures.length} failed`);
 
-  if (updatedEntries.length === 0 && removedNames.length === 0 && failures.length === 0) {
+  if (updatedEntries.length === 0 && failures.length === 0) {
     yield* Console.log("All skills up to date.");
   } else {
     yield* Console.log(`\n${parts.join(", ")}.`);

@@ -74,13 +74,13 @@ okra skills uninstall my-skill
 okra skills update
 ```
 
-For sources that no longer resolve (deleted local path, deleted repo), the lock entry and skill dir are pruned.
+A local source that is missing on this machine is reported as failed; the skill and its lock entry stay. Delete with `okra skills remove`. A skill whose directory moved within its GitHub repo is found and its path updated.
 The terminal shows one live status line. Each completed skill prints one result line. Spinner ticks add no lines to terminal history. Piped output contains results without animation.
 
 ## Gotchas
 
 - `$SKILLS_DIR` is read once at layer construction. Restart the process after changing it.
 - Lock entries record the _resolved_ source (so `acme/repo@foo` stays as `acme/repo@foo` for updates).
-- Skills installed from local paths use a `local:/abs/path` source — moving the source folder breaks `update`.
+- Local sources under `$HOME` are recorded as `local:~/path`, so one lock works on machines with different home directories. Moving the source folder breaks `update`.
 - Multi-skill repos: choose carefully. Picking nothing in the prompt aborts the install for that source.
 - The `--skill/-s` flag was removed in favor of the `owner/repo@name` syntax.

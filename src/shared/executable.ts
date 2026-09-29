@@ -1,12 +1,6 @@
-import { Config, ConfigProvider, Effect, Option } from "effect";
+import { Effect } from "effect";
 import { FileSystem } from "effect/FileSystem";
-
-const readHome = Config.option(Config.String("HOME"))
-  .parse(ConfigProvider.fromEnv())
-  .pipe(
-    Effect.map((opt) => Option.getOrElse(opt, () => "")),
-    Effect.orElseSucceed(() => ""),
-  );
+import { readHome } from "./home.js";
 
 export const resolveExecutable = Effect.fn("resolveExecutable")(function* (name: string) {
   const path = Bun.which(name);
