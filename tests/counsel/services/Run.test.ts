@@ -152,13 +152,13 @@ const CODEX_SUCCESS_EVENTS =
   '{"type":"item.completed","item":{"id":"i","type":"agent_message","text":"codex opinion"}}';
 
 // The first attempt fails with the layer's `firstEvents`; any later attempt succeeds.
-const ATTEMPTS: ReadonlyArray<{ readonly events?: string; readonly exitCode: number }> = [
-  { exitCode: 1 },
+const ATTEMPTS: ReadonlyArray<{ readonly events?: string; readonly exitCode?: number }> = [
+  {},
   { events: CODEX_SUCCESS_EVENTS, exitCode: 0 },
 ];
 
 /** Codex target with two model candidates; the first attempt fails with `firstEvents`. */
-const makeRetryLayer = (firstEvents: string, executedModels: Array<string>) =>
+const makeRetryLayer = (firstEvents: string, executedModels: Array<string>, firstExitCode = 1) =>
   Layer.mergeAll(
     RunService.layer.pipe(
       Layer.provideMerge(
@@ -183,7 +183,11 @@ const makeRetryLayer = (firstEvents: string, executedModels: Array<string>) =>
                 yield* fs.writeFileString(outputFile, events);
                 yield* fs.writeFileString(stderrFile, "");
               }).pipe(Effect.provide(BunServices.layer), Effect.orDie);
-              return { exitCode: attempt?.exitCode ?? 1, durationMs: 1, timedOut: false };
+              return {
+                exitCode: attempt?.exitCode ?? firstExitCode,
+                durationMs: 1,
+                timedOut: false,
+              };
             }),
         }),
       ),
@@ -230,5 +234,42 @@ describe("RunService model fallback", () => {
       if (result._tag !== "Completed") return;
       expect(result.manifest.status).toBe("error");
     }).pipe(Effect.provide(makeRetryLayer(OTHER_FAILURE_EVENTS, executedModels)));
+  });
+});
+
+describe("RunService failure detection", () => {
+  it.scopedLive("fails a usage-limited run even when codex exits 0", () => {
+    const executedModels: Array<string> = [];
+    const limit = "You've hit your usage limit. Try again at Sep 28th, 2026 8:28 PM.";
+    const events = [
+      '{"type":"thread.started","thread_id":"t"}',
+      `{"type":"turn.failed","error":{"message":"${limit}"}}`,
+    ].join("\n");
+    return Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const result = yield* runCodexTarget;
+      expect(executedModels).toEqual(["gpt-6.1-sol"]);
+      expect(result._tag).toBe("Completed");
+      if (result._tag !== "Completed") return;
+      expect(result.manifest.exitCode).toBe(0);
+      expect(result.manifest.status).toBe("error");
+      expect(result.manifest.failure).toBe(limit);
+      expect(yield* fs.readFileString(result.manifest.outputFile)).toBe("");
+    }).pipe(Effect.provide(makeRetryLayer(events, executedModels, 0)));
+  });
+
+  it.scopedLive("fails a run that exits 0 without an answer", () => {
+    const executedModels: Array<string> = [];
+    return Effect.gen(function* () {
+      const result = yield* runCodexTarget;
+      expect(result._tag).toBe("Completed");
+      if (result._tag !== "Completed") return;
+      expect(result.manifest.status).toBe("error");
+      expect(result.manifest.failure).toBe("codex ended without an answer");
+    }).pipe(
+      Effect.provide(
+        makeRetryLayer('{"type":"thread.started","thread_id":"t"}', executedModels, 0),
+      ),
+    );
   });
 });

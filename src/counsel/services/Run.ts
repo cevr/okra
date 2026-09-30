@@ -6,8 +6,12 @@ import { cwdBucket } from "../constants.js";
 import { CounselError, ErrorCode } from "../errors.js";
 import { AgentPlatformService } from "./AgentPlatform.js";
 import { InvocationRunnerService } from "./InvocationRunner.js";
-import type { DryRunPreview, Profile, Provider, RunManifest } from "../types.js";
-import { extractClaudeMessage, extractCodexMessage } from "../../shared/agent-output.js";
+import type { DryRunPreview, Profile, Provider, RunManifest, RunStatus } from "../types.js";
+import {
+  type AgentOutcome,
+  readClaudeOutcome,
+  readCodexOutcome,
+} from "../../shared/agent-output.js";
 
 export type RunInput = {
   readonly cwd: string;
@@ -32,18 +36,35 @@ const profileForDeep = (deep: boolean): Profile => {
   return "standard";
 };
 
-const messageExtractorFor = (target: Provider): ((jsonl: string) => Option.Option<string>) => {
-  if (target === "codex") return extractCodexMessage;
-  return extractClaudeMessage;
+const outcomeReaderFor = (target: Provider): ((jsonl: string) => AgentOutcome) => {
+  if (target === "codex") return readCodexOutcome;
+  return readClaudeOutcome;
 };
 
-const runStatus = (executed: {
+interface Executed {
   readonly timedOut: boolean;
   readonly exitCode: number;
-}): "timeout" | "success" | "error" => {
+}
+
+const runStatus = (executed: Executed, outcome: AgentOutcome): RunStatus => {
   if (executed.timedOut) return "timeout";
-  if (executed.exitCode === 0) return "success";
-  return "error";
+  if (executed.exitCode !== 0) return "error";
+  if (outcome._tag !== "Answered") return "error";
+  return "success";
+};
+
+/** Why a run did not answer, for the manifest and stderr; `None` for a successful run. */
+const runFailure = (
+  target: Provider,
+  executed: Executed,
+  outcome: AgentOutcome,
+): Option.Option<string> => {
+  if (executed.timedOut) return Option.some(`${target} timed out`);
+  if (outcome._tag === "Failed") return Option.some(outcome.message);
+  if (outcome._tag === "Silent") return Option.some(`${target} ended without an answer`);
+  if (executed.exitCode !== 0)
+    return Option.some(`${target} exited with code ${executed.exitCode}`);
+  return Option.none();
 };
 
 const promptConflict = Effect.fail(
@@ -215,26 +236,22 @@ export class RunService extends Context.Service<
         );
 
         // Each attempt overwrites the event and stderr logs, so they describe the last attempt.
+        const readOutcome = outcomeReaderFor(target);
         let executed = yield* invocationRunner.execute(invocation, eventsFile, stderrFile);
-        let jsonl = yield* readEvents;
+        let outcome = readOutcome(yield* readEvents);
         for (const fallback of invocations.slice(1)) {
           const rejected =
-            executed.exitCode !== 0 &&
-            !executed.timedOut &&
-            platform.isModelRejected(target, jsonl);
+            outcome._tag === "Failed" && platform.isModelRejected(target, outcome.message);
           if (!rejected) break;
           executed = yield* invocationRunner.execute(fallback, eventsFile, stderrFile);
-          jsonl = yield* readEvents;
+          outcome = readOutcome(yield* readEvents);
         }
 
-        // Extract agent message from JSONL events → .md
+        // The .md holds only a real answer; a failure goes to the manifest and stderr instead.
         const outputFile = path.join(outputDir, `${target}.md`);
-        const extractMessage = messageExtractorFor(target);
-        const message = extractMessage(jsonl);
-        yield* writeTextFile(
-          outputFile,
-          Option.getOrElse(message, () => ""),
-        );
+        let answer = "";
+        if (outcome._tag === "Answered") answer = outcome.text;
+        yield* writeTextFile(outputFile, answer);
 
         const manifest: RunManifest = {
           timestamp: DateTime.formatIso(now),
@@ -245,7 +262,8 @@ export class RunService extends Context.Service<
           source,
           target,
           profile,
-          status: runStatus(executed),
+          status: runStatus(executed, outcome),
+          failure: Option.getOrUndefined(runFailure(target, executed, outcome)),
           exitCode: executed.exitCode,
           durationMs: executed.durationMs,
           promptFilePath,

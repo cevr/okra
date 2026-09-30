@@ -1,58 +1,75 @@
 import { Option, Schema } from "effect";
 
-// --- Codex --json JSONL extraction ---
+/**
+ * What an agent run produced. Exit codes are not enough: a codex usage limit ends in `turn.failed`
+ * and a claude API error in an `is_error` result, both with exit code 0.
+ */
+export type AgentOutcome =
+  | { readonly _tag: "Answered"; readonly text: string }
+  | { readonly _tag: "Failed"; readonly message: string }
+  | { readonly _tag: "Silent" };
 
-const CodexAgentMessageItem = Schema.Struct({
-  type: Schema.Literal("agent_message"),
-  text: Schema.String,
-});
+const answered = (text: string): AgentOutcome => ({ _tag: "Answered", text });
+const failed = (message: string): AgentOutcome => ({ _tag: "Failed", message });
+const silent: AgentOutcome = { _tag: "Silent" };
+
+const parseEvents = (jsonl: string): ReadonlyArray<unknown> => {
+  if (jsonl.length === 0) return [];
+  return Bun.JSONL.parse(jsonl) as ReadonlyArray<unknown>;
+};
+
+// --- Codex --json JSONL ---
 
 const CodexItemCompletedEvent = Schema.Struct({
   type: Schema.Literal("item.completed"),
-  item: CodexAgentMessageItem,
+  item: Schema.Struct({
+    type: Schema.Literal("agent_message"),
+    text: Schema.String,
+  }),
 });
-
 const decodeCodexItemCompleted = Schema.decodeUnknownOption(CodexItemCompletedEvent);
 
-/** Extract the last agent message text from codex `--json` JSONL output. */
-export const extractCodexMessage = (jsonl: string): Option.Option<string> => {
-  if (jsonl.length === 0) return Option.none();
+// Top-level `error` events are not terminal (codex also emits them for retries), and
+// `item.completed` items of type `error` are warnings; only `turn.failed` ends the run.
+const CodexTurnFailedEvent = Schema.Struct({
+  type: Schema.Literal("turn.failed"),
+  error: Schema.Struct({ message: Schema.String }),
+});
+const decodeCodexTurnFailed = Schema.decodeUnknownOption(CodexTurnFailedEvent);
 
-  const events = Bun.JSONL.parse(jsonl) as ReadonlyArray<unknown>;
-
-  let lastMessage: Option.Option<string> = Option.none();
-  for (const event of events) {
-    const decoded = decodeCodexItemCompleted(event);
-    if (Option.isSome(decoded)) {
-      lastMessage = Option.some(decoded.value.item.text);
-    }
+/** The outcome of a codex `--json` run: its last agent message, or the `turn.failed` reason. */
+export const readCodexOutcome = (jsonl: string): AgentOutcome => {
+  let outcome: AgentOutcome = silent;
+  for (const event of parseEvents(jsonl)) {
+    const failure = decodeCodexTurnFailed(event);
+    if (Option.isSome(failure)) return failed(failure.value.error.message);
+    const message = decodeCodexItemCompleted(event);
+    if (Option.isSome(message)) outcome = answered(message.value.item.text);
   }
-
-  return lastMessage;
+  return outcome;
 };
 
-// --- Claude --output-format stream-json extraction ---
+// --- Claude --output-format stream-json ---
 
 const ClaudeResultEvent = Schema.Struct({
   type: Schema.Literal("result"),
-  subtype: Schema.Literal("success"),
-  result: Schema.String,
+  subtype: Schema.String,
+  is_error: Schema.optional(Schema.Boolean),
+  result: Schema.optional(Schema.String),
 });
-
 const decodeClaudeResult = Schema.decodeUnknownOption(ClaudeResultEvent);
 
-/** Extract the result text from claude `--output-format stream-json` JSONL output. */
-export const extractClaudeMessage = (jsonl: string): Option.Option<string> => {
-  if (jsonl.length === 0) return Option.none();
-
-  const events = Bun.JSONL.parse(jsonl) as ReadonlyArray<unknown>;
-
-  for (const event of events) {
+/**
+ * The outcome of a claude stream-json run, from its `result` event. An API error (overload, usage
+ * limit) still reports `subtype: "success"` but sets `is_error` and puts the error in `result`.
+ */
+export const readClaudeOutcome = (jsonl: string): AgentOutcome => {
+  for (const event of parseEvents(jsonl)) {
     const decoded = decodeClaudeResult(event);
-    if (Option.isSome(decoded)) {
-      return Option.some(decoded.value.result);
-    }
+    if (Option.isNone(decoded)) continue;
+    const { subtype, is_error: isError, result } = decoded.value;
+    if (isError === true || subtype !== "success") return failed(result ?? subtype);
+    return answered(result ?? "");
   }
-
-  return Option.none();
+  return silent;
 };

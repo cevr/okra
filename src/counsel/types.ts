@@ -41,6 +41,8 @@ export const RunManifest = Schema.Struct({
   target: Provider,
   profile: Profile,
   status: RunStatus,
+  /** Why the run did not answer (usage limit, API error, no answer); absent on success. */
+  failure: Schema.optional(Schema.String),
   exitCode: Schema.Finite,
   durationMs: Schema.Finite,
   promptFilePath: Schema.String,

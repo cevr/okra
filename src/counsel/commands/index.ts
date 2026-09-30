@@ -79,6 +79,9 @@ export const counselCommandDef = Command.make(
       }
 
       yield* Console.log(path.dirname(result.manifest.outputFile));
+      if (result.manifest.failure !== undefined) {
+        yield* Console.error(`${result.manifest.target} failed: ${result.manifest.failure}`);
+      }
 
       if (result.manifest.status === "timeout") {
         yield* host.setExitCode(124);
