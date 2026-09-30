@@ -79,6 +79,7 @@ describe("AgentPlatform helpers", () => {
     Effect.sync(() => {
       const invocation = buildClaudeInvocation("claude", "/tmp/prompt.md", "deep", "/tmp/project");
       expect(flagValue(invocation.args, "--model")).toBe("fable");
+      expect(invocation.model).toBe("fable");
       expect(flagValue(invocation.args, "--effort")).toBe("max");
     }),
   );
@@ -114,6 +115,7 @@ describe("AgentPlatform helpers", () => {
       );
       expect(flagValue(invocation.args, "--model")).toBe("gpt-6-sol");
       expect(invocation.args).toContain("model_reasoning_effort=max");
+      expect(invocation.model).toBe("gpt-6-sol");
     }),
   );
 

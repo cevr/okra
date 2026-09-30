@@ -16,6 +16,8 @@ export interface Invocation {
   readonly cmd: string;
   readonly args: ReadonlyArray<string>;
   readonly cwd: string;
+  /** The model passed to the CLI: a codex model id, or a claude alias such as `opus`. */
+  readonly model: string;
 }
 
 export interface ExecutionResult {
@@ -28,6 +30,7 @@ export const InvocationPreview = Schema.Struct({
   cmd: Schema.String,
   args: Schema.Array(Schema.String),
   cwd: Schema.String,
+  model: Schema.String,
 });
 export type InvocationPreview = typeof InvocationPreview.Type;
 
@@ -41,6 +44,12 @@ export const RunManifest = Schema.Struct({
   target: Provider,
   profile: Profile,
   status: RunStatus,
+  /**
+   * The model that ran the last attempt: claude's reported model (e.g. `claude-opus-5-5` for the
+   * `opus` alias) when its events name one, else the model passed to the CLI. After a codex
+   * fallback it names the fallback model.
+   */
+  model: Schema.String,
   /** Why the run did not answer (usage limit, API error, no answer); absent on success. */
   failure: Schema.optional(Schema.String),
   exitCode: Schema.Finite,

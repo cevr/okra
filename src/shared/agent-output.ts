@@ -59,6 +59,22 @@ const ClaudeResultEvent = Schema.Struct({
 });
 const decodeClaudeResult = Schema.decodeUnknownOption(ClaudeResultEvent);
 
+const ClaudeInitEvent = Schema.Struct({
+  type: Schema.Literal("system"),
+  subtype: Schema.Literal("init"),
+  model: Schema.String,
+});
+const decodeClaudeInit = Schema.decodeUnknownOption(ClaudeInitEvent);
+
+/** The concrete model a claude stream-json run reports in its `init` event, e.g. `claude-opus-5-5`. */
+export const readClaudeModel = (jsonl: string): Option.Option<string> => {
+  for (const event of parseEvents(jsonl)) {
+    const decoded = decodeClaudeInit(event);
+    if (Option.isSome(decoded)) return Option.some(decoded.value.model);
+  }
+  return Option.none();
+};
+
 /**
  * The outcome of a claude stream-json run, from its `result` event. An API error (overload, usage
  * limit) still reports `subtype: "success"` but sets `is_error` and puts the error in `result`.

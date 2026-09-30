@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { readClaudeOutcome, readCodexOutcome } from "../../src/shared/agent-output.js";
+import { Option } from "effect";
+import {
+  readClaudeModel,
+  readClaudeOutcome,
+  readCodexOutcome,
+} from "../../src/shared/agent-output.js";
 
 describe("readCodexOutcome", () => {
   test("answers with the agent message from complete JSONL", () => {
@@ -123,5 +128,19 @@ describe("readClaudeOutcome", () => {
     ].join("\n");
 
     expect(readClaudeOutcome(jsonl)).toEqual({ _tag: "Answered", text: "partial answer" });
+  });
+});
+
+describe("readClaudeModel", () => {
+  test("reads the concrete model from the init event", () => {
+    const jsonl = [
+      '{"type":"system","subtype":"init","session_id":"abc","model":"claude-opus-5-5"}',
+      '{"type":"result","subtype":"success","is_error":false,"result":"ok"}',
+    ].join("\n");
+    expect(readClaudeModel(jsonl)).toEqual(Option.some("claude-opus-5-5"));
+  });
+
+  test("returns None without an init event", () => {
+    expect(readClaudeModel("")).toEqual(Option.none());
   });
 });

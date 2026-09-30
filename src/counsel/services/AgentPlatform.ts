@@ -79,6 +79,7 @@ export const buildClaudeInvocation = (
     buildPromptInstruction(promptFilePath),
   ],
   cwd,
+  model: claudeModel(profile),
 });
 
 export const buildCodexInvocation = (
@@ -108,6 +109,7 @@ export const buildCodexInvocation = (
     buildPromptInstruction(promptFilePath),
   ],
   cwd,
+  model,
 });
 
 /** Only codex rejects a model per account; the claude CLI resolves its own aliases. */

@@ -6,9 +6,17 @@ import { cwdBucket } from "../constants.js";
 import { CounselError, ErrorCode } from "../errors.js";
 import { AgentPlatformService } from "./AgentPlatform.js";
 import { InvocationRunnerService } from "./InvocationRunner.js";
-import type { DryRunPreview, Profile, Provider, RunManifest, RunStatus } from "../types.js";
+import {
+  type DryRunPreview,
+  encodeRunManifest,
+  type Profile,
+  type Provider,
+  type RunManifest,
+  type RunStatus,
+} from "../types.js";
 import {
   type AgentOutcome,
+  readClaudeModel,
   readClaudeOutcome,
   readCodexOutcome,
 } from "../../shared/agent-output.js";
@@ -207,6 +215,7 @@ export class RunService extends Context.Service<
                 cmd: invocation.cmd,
                 args: [...invocation.args],
                 cwd: invocation.cwd,
+                model: invocation.model,
               },
             },
           };
@@ -237,15 +246,20 @@ export class RunService extends Context.Service<
 
         // Each attempt overwrites the event and stderr logs, so they describe the last attempt.
         const readOutcome = outcomeReaderFor(target);
+        let attempted = invocation;
         let executed = yield* invocationRunner.execute(invocation, eventsFile, stderrFile);
-        let outcome = readOutcome(yield* readEvents);
+        let jsonl = yield* readEvents;
+        let outcome = readOutcome(jsonl);
         for (const fallback of invocations.slice(1)) {
           const rejected =
             outcome._tag === "Failed" && platform.isModelRejected(target, outcome.message);
           if (!rejected) break;
+          attempted = fallback;
           executed = yield* invocationRunner.execute(fallback, eventsFile, stderrFile);
-          outcome = readOutcome(yield* readEvents);
+          jsonl = yield* readEvents;
+          outcome = readOutcome(jsonl);
         }
+        const reportedModel = Option.filter(readClaudeModel(jsonl), () => target === "claude");
 
         // The .md holds only a real answer; a failure goes to the manifest and stderr instead.
         const outputFile = path.join(outputDir, `${target}.md`);
@@ -263,6 +277,7 @@ export class RunService extends Context.Service<
           target,
           profile,
           status: runStatus(executed, outcome),
+          model: Option.getOrElse(reportedModel, () => attempted.model),
           failure: Option.getOrUndefined(runFailure(target, executed, outcome)),
           exitCode: executed.exitCode,
           durationMs: executed.durationMs,
@@ -271,6 +286,17 @@ export class RunService extends Context.Service<
           stderrFile,
           eventsFile,
         };
+
+        // The record of the run (status, model, failure) sits next to its artifacts.
+        const manifestText = yield* encodeRunManifest(manifest).pipe(
+          Effect.mapError(() =>
+            CounselError.make({
+              message: "Failed to serialize the run manifest",
+              code: ErrorCode.WRITE_FAILED,
+            }),
+          ),
+        );
+        yield* writeTextFile(path.join(outputDir, "manifest.json"), `${manifestText}\n`);
 
         return { _tag: "Completed" as const, manifest };
       });

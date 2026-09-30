@@ -69,9 +69,13 @@ Each run writes a directory under `/tmp/counsel/<slug>/`:
 prompt.md
 claude.md or codex.md
 claude.stderr or codex.stderr
+events.jsonl
+manifest.json
 ```
 
-Read order: stdout payload → `<target>.md` → `<target>.stderr` if error/timeout.
+`manifest.json` records the run: `status`, `model`, `failure`, `exitCode`, and `durationMs`. `model` is the model that answered: after a Codex fallback it names the fallback model, and for Claude it names the concrete model behind the alias (e.g. `claude-opus-5-5`).
+
+Read order: stdout payload → `<target>.md` → `manifest.json` and `<target>.stderr` if error/timeout.
 
 ## Architecture
 

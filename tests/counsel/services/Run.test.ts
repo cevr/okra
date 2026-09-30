@@ -17,6 +17,7 @@ const RunLayer = RunService.layer.pipe(
             cmd: "codex",
             args: ["exec", `Read ${promptFilePath}`],
             cwd,
+            model: "fable",
           },
         ] as const),
     }),
@@ -28,7 +29,7 @@ const RunLayer = RunService.layer.pipe(
           // Mock writes JSONL matching the provider's stream format.
           // Target is claude (source=codex), so write claude stream-json.
           const claudeJsonl = [
-            '{"type":"system","subtype":"init","session_id":"test"}',
+            '{"type":"system","subtype":"init","session_id":"test","model":"claude-fable-5-1"}',
             '{"type":"result","subtype":"success","is_error":false,"result":"second opinion"}',
           ].join("\n");
           yield* Effect.gen(function* () {
@@ -112,6 +113,8 @@ describe("RunService", () => {
       expect(manifest.target).toBe("claude");
       expect(manifest.profile).toBe("deep");
       expect(manifest.status).toBe("success");
+      // Claude's init event names the concrete model behind the requested alias.
+      expect(manifest.model).toBe("claude-fable-5-1");
       expect(promptText).toBe("check the command wiring");
       expect(outputText).toBe("second opinion");
       expect(stderrText).toContain("warning");
@@ -165,8 +168,8 @@ const makeRetryLayer = (firstEvents: string, executedModels: Array<string>, firs
         AgentPlatformService.layerTest({
           buildInvocations: (_provider, _promptFilePath, _profile, cwd) =>
             Effect.succeed([
-              { cmd: "codex", args: ["gpt-6.1-sol"], cwd },
-              { cmd: "codex", args: ["gpt-6-sol"], cwd },
+              { cmd: "codex", args: ["gpt-6.1-sol"], cwd, model: "gpt-6.1-sol" },
+              { cmd: "codex", args: ["gpt-6-sol"], cwd, model: "gpt-6-sol" },
             ] as const),
         }),
       ),
@@ -221,7 +224,14 @@ describe("RunService model fallback", () => {
       expect(result._tag).toBe("Completed");
       if (result._tag !== "Completed") return;
       expect(result.manifest.status).toBe("success");
+      expect(result.manifest.model).toBe("gpt-6-sol");
       expect(yield* fs.readFileString(result.manifest.outputFile)).toBe("codex opinion");
+      const path = yield* Path;
+      const record = yield* fs.readFileString(
+        path.join(path.dirname(result.manifest.outputFile), "manifest.json"),
+      );
+      expect(record).toContain('"model":"gpt-6-sol"');
+      expect(record).toContain('"status":"success"');
     }).pipe(Effect.provide(makeRetryLayer(REJECTION_EVENTS, executedModels)));
   });
 
@@ -233,6 +243,7 @@ describe("RunService model fallback", () => {
       expect(result._tag).toBe("Completed");
       if (result._tag !== "Completed") return;
       expect(result.manifest.status).toBe("error");
+      expect(result.manifest.model).toBe("gpt-6.1-sol");
     }).pipe(Effect.provide(makeRetryLayer(OTHER_FAILURE_EVENTS, executedModels)));
   });
 });
