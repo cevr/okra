@@ -7,7 +7,6 @@ import { Path } from "effect/Path";
 import { Argument, Command, Flag } from "effect/unstable/cli";
 import {
   DEFAULT_FORMAT,
-  DEFAULT_MODEL,
   DEFAULT_IMAGE_MODEL,
   DEFAULT_SIZE,
   IMAGE_BACKGROUND_CHOICES,
@@ -20,6 +19,7 @@ import {
   supportsExtendedQuality,
   supportsInputFidelity,
 } from "../constants.js";
+import { isCodexModelRejection, resolveCodexSolCandidates } from "../../shared/codex-models.js";
 import { ImageError } from "../errors.js";
 import { CodexAuthService } from "../services/CodexAuth.js";
 import { codexModelLayer } from "../services/CodexModel.js";
@@ -53,9 +53,9 @@ const formatFlag = Flag.Literals("format", ["png", "webp", "jpeg"]).pipe(
 );
 
 const modelFlag = Flag.String("model").pipe(
-  Flag.withDefault(DEFAULT_MODEL),
+  Flag.optional,
   Flag.withDescription(
-    "Model. Codex backend (default gpt-5.5), or an OpenAI image model " +
+    "Model. Codex backend (default: the newest GPT Sol your codex account can use), or an OpenAI image model " +
       "(gpt-image-2.5-flare or gpt-image-2.5-sunburst) which uses OPENAI_API_KEY.",
   ),
 );
@@ -122,6 +122,8 @@ interface GenerateArgs {
   readonly imageModel: Option.Option<string>;
   readonly prompt: string;
   readonly model: string;
+  /** Codex models to try in order; the first is `model`. See `generateViaCodex`. */
+  readonly codexModels: readonly [string, ...Array<string>];
   readonly size: string;
   readonly format: ImageFormat;
   readonly quality: Option.Option<ImageQuality>;
@@ -141,15 +143,29 @@ const generateViaCodex = Effect.fn("image.generateViaCodex")(function* (args: Ge
   // Fail fast on missing/unreadable codex credentials, surfacing the precise
   // AUTH_MISSING error before the HTTP layer can box it into a transport error.
   yield* auth.load;
-  return yield* images
-    .generate({
-      prompt: args.prompt,
-      size: args.size,
-      format: args.format,
-      refs: args.refs,
-      imageModel: Option.getOrUndefined(args.imageModel),
-    })
-    .pipe(Effect.provide(codexModelLayer(args.model)));
+  const generateWith = (model: string) =>
+    images
+      .generate({
+        prompt: args.prompt,
+        size: args.size,
+        format: args.format,
+        refs: args.refs,
+        imageModel: Option.getOrUndefined(args.imageModel),
+      })
+      .pipe(Effect.provide(codexModelLayer(model)));
+  // The codex model list can name a model the backend still rejects during a rollout, so a
+  // rejection moves on to the next, older candidate.
+  const [first, ...fallbacks] = args.codexModels;
+  let attempt = generateWith(first);
+  for (const model of fallbacks) {
+    attempt = attempt.pipe(
+      Effect.catchIf(
+        (error) => isCodexModelRejection(error.message),
+        () => generateWith(model),
+      ),
+    );
+  }
+  return yield* attempt;
 });
 
 /** Read a single image file into bytes + media type, mapping read/type errors to INVALID_INPUT. */
@@ -410,7 +426,7 @@ const generateCommand = Command.make(
     out,
     size,
     format,
-    model,
+    model: requestedModel,
     imageModel,
     quality,
     background,
@@ -431,6 +447,11 @@ const generateCommand = Command.make(
         });
       }
       const promptText = prompt.value;
+      const codexModels = yield* Option.match(requestedModel, {
+        onNone: () => resolveCodexSolCandidates,
+        onSome: (model) => Effect.succeed([model] as const),
+      });
+      const model = codexModels[0];
 
       const outPath = Option.getOrElse(out, () =>
         path.join(process.cwd(), `${slugify(promptText)}.${format}`),
@@ -476,6 +497,7 @@ const generateCommand = Command.make(
         imageModel,
         prompt: promptText,
         model,
+        codexModels,
         size,
         format,
         quality,

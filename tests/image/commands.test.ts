@@ -1,5 +1,5 @@
 import { BunServices } from "@effect/platform-bun";
-import { Effect, Layer, Redacted, Schema } from "effect";
+import { Effect, Layer, Option, Redacted, Schema } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Command } from "effect/unstable/cli";
 import { HttpClient, HttpClientResponse } from "effect/unstable/http";
@@ -8,7 +8,9 @@ import { imageCommandDef } from "../../src/image/commands/index.js";
 import { CodexAuthService } from "../../src/image/services/CodexAuth.js";
 import { ImageGenService } from "../../src/image/services/ImageGen.js";
 import { OpenAiImagesService } from "../../src/image/services/OpenAiImages.js";
+import { CodexModelsService } from "../../src/shared/codex-models.js";
 import { KeyStoreService } from "../../src/shared/keystore.js";
+import { ModelCatalogService } from "../../src/shared/model-catalog.js";
 
 const PNG =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
@@ -19,11 +21,28 @@ interface RequestCapture {
   json?: unknown;
   form?: FormData;
 }
-const testLayer = (capture: RequestCapture, codex = false) => {
+const decodeModel = Schema.decodeUnknownOption(Schema.Struct({ model: Schema.String }));
+
+const testLayer = (
+  capture: RequestCapture,
+  codex = false,
+  listedModels: ReadonlyArray<string> = ["gpt-6-sol"],
+  rejectedModels: ReadonlyArray<string> = [],
+) => {
   const http = HttpClient.make((request) => {
     capture.url = request.url;
     if (request.body._tag === "Uint8Array") {
       capture.json = decodeJson(new TextDecoder().decode(request.body.body));
+      const model = Option.map(decodeModel(capture.json), (body) => body.model);
+      if (Option.isSome(model) && rejectedModels.includes(model.value)) {
+        const detail = `The '${model.value}' model is not supported when using Codex with a ChatGPT account.`;
+        return Effect.succeed(
+          HttpClientResponse.fromWeb(
+            request,
+            new Response(encodeJson({ detail }), { status: 400 }),
+          ),
+        );
+      }
     }
     if (request.body._tag === "FormData") capture.form = request.body.formData;
     let body = encodeJson({
@@ -41,6 +60,15 @@ const testLayer = (capture: RequestCapture, codex = false) => {
     BunServices.layer,
     Layer.succeed(HttpClient.HttpClient, http),
     KeyStoreService.layerTest({ openai: "sk-test" }),
+    CodexModelsService.layerTest(Option.some(listedModels)),
+    ModelCatalogService.layerTest({
+      openai: {
+        models: {
+          "gpt-6-sol": { family: "gpt-sol", release_date: "2026-09-22" },
+          "gpt-6.1-sol": { family: "gpt-sol", release_date: "2026-09-29" },
+        },
+      },
+    }),
     Layer.succeed(CodexAuthService, {
       load: Effect.succeed({
         accessToken: Redacted.make("test-token"),
@@ -123,7 +151,7 @@ describe("image command", () => {
         yield* cli(args);
         expect(capture.url).toBe("https://chatgpt.com/backend-api/codex/responses");
         expect(capture.json).toMatchObject({
-          model: "gpt-5.5",
+          model: "gpt-6-sol",
           store: false,
           stream: true,
           tools: [{ type: "image_generation", model: selected ?? "gpt-image-2.5-flare" }],
@@ -132,6 +160,19 @@ describe("image command", () => {
       }).pipe(Effect.provide(testLayer(capture, true)));
     });
   }
+
+  it.scoped("falls back to an older Sol model when codex rejects the newest", () => {
+    const capture: RequestCapture = {};
+    return Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const dir = yield* fs.makeTempDirectoryScoped();
+      yield* cli(["a red dot", "-o", `${dir}/out.png`]);
+      expect(capture.json).toMatchObject({ model: "gpt-6-sol" });
+      expect(yield* fs.readFile(`${dir}/out.png`)).toEqual(Uint8Array.fromBase64(PNG));
+    }).pipe(
+      Effect.provide(testLayer(capture, true, ["gpt-6-sol", "gpt-6.1-sol"], ["gpt-6.1-sol"])),
+    );
+  });
 
   for (const flags of [
     ["--model", "gpt-image-1.5", "--quality", "max"],

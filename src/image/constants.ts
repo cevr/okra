@@ -12,9 +12,6 @@ export const OPENAI_API_KEY_ENV = "OPENAI_API_KEY";
 /** Name under which the OpenAI key is stored in the shared key store. */
 export const OPENAI_KEY_NAME = "openai";
 
-/** Default model — gpt-5.5 is known to accept the image_generation tool on the codex backend. */
-export const DEFAULT_MODEL = "gpt-5.5";
-
 /**
  * Models routed to the metered OpenAI Images API (`/images/generations`) instead
  * of the codex backend. Selecting any of these (via `--model`) requires
@@ -91,5 +88,5 @@ export const VERSION_RELATIVE_PATH = ".codex/version.json";
  */
 export const FALLBACK_VERSION = "0.142.3";
 
-/** System-style instruction known to be accepted on gpt-5.5 for image generation. */
+/** System-style instruction known to be accepted on gpt-5.5 and gpt-6-sol for image generation. */
 export const IMAGE_INSTRUCTION = "You are an image generation assistant.";

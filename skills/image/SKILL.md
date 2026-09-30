@@ -7,7 +7,7 @@ description: Generate images from text prompts with GPT Image 2.5 Flare or Sunbu
 
 Generate images with GPT Image 2.5. The ChatGPT subscription remains the default.
 
-- **Codex subscription:** `--model gpt-5.5` selects the main Responses model. Its image tool uses `gpt-image-2.5-flare` by default. Use `--image-model gpt-image-2.5-sunburst` to select Sunburst. Authentication comes from `codex login`.
+- **Codex subscription:** `--model` selects the main Responses model; the default is the newest GPT Sol the Codex account can use. Its image tool uses `gpt-image-2.5-flare` by default. Use `--image-model gpt-image-2.5-sunburst` to select Sunburst. Authentication comes from `codex login`.
 - **OpenAI Images API:** `--model gpt-image-2.5-flare` or `--model gpt-image-2.5-sunburst` selects the paid API. This route needs an OpenAI API key. Use Flare for fast generation. Use Sunburst for precise edits.
 
 `--image-model` selects the subscription tool. It cannot be combined with an API image model in `--model`.
@@ -48,7 +48,7 @@ The last command writes `logo-1.png`, `logo-2.png`, and `logo-3.png`.
 | Flag            | Default               | Use                                                                                               |
 | --------------- | --------------------- | ------------------------------------------------------------------------------------------------- |
 | `--out`, `-o`   | `<prompt-slug>.png`   | Output path.                                                                                      |
-| `--model`       | `gpt-5.5`             | Main Codex model, or a direct API image model.                                                    |
+| `--model`       | newest usable GPT Sol | Main Codex model, or a direct API image model.                                                    |
 | `--image-model` | `gpt-image-2.5-flare` | Codex image tool: Flare or Sunburst.                                                              |
 | `--size`        | `auto`                | Image dimensions, such as `1024x1024` or `1536x864`.                                              |
 | `--format`      | `png`                 | `png`, `webp`, or `jpeg`.                                                                         |

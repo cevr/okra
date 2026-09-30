@@ -36,7 +36,8 @@ Shared utilities in `src/shared/`: `Provider` schema, `resolveExecutable`, `isCo
 
 - `Schedule`, `StopEvaluator`, `Verification` are pure modules, not services
 - Counsel's `program.ts` has standalone argv handling — used for direct invocation, not the subcommand path
-- Counsel model profiles: standard uses the `opus` alias (latest Opus; not pinned) at medium effort or GPT-6 Sol at medium; `--deep` uses Claude Fable at max or GPT-6 Sol at max
+- Counsel model profiles: standard uses the `opus` alias (latest Opus; not pinned) at medium effort or the latest GPT Sol at medium; `--deep` uses Claude Fable at max or the latest GPT Sol at max
+- Codex has no "latest Sol" alias. Counsel and the image default resolve it in `src/shared/codex-models.ts`: models.dev ranks the line (family `gpt-sol` plus the id pattern `gpt-<n>-sol`, because the family also holds `gpt-5.6` and preview aliases), and `~/.codex/models_cache.json` (written by the codex CLI for the signed-in account) filters it. models.dev lists releases a ChatGPT-account login rejects ("model is not supported when using Codex with a ChatGPT account"), and during a rollout the codex list flaps and can name such a model too. So callers try the candidates newest first and move on only on that rejection; the list ends with the verified `CODEX_FALLBACK_MODEL`. models.dev is cached in `~/.okra/models.json` for a day
 - Plist labels: `com.cvr.okra.schedule-{id}`, program args include `schedule run <id>`
 - `resolveExecutable` falls back to `~/.bun/bin`, `/usr/local/bin`, `~/.local/bin` when `Bun.which` fails (daemon PATH issue)
 - oxlint forbids `!` non-null assertions — use `as T` with existence guards
@@ -45,7 +46,7 @@ Shared utilities in `src/shared/`: `Provider` schema, `resolveExecutable`, `isCo
 - Skills has `lib/` subdirectory for non-service code (frontmatter, source parsing, search API, fs helpers)
 - Repo's `CacheService` creates `~/.cache/repo/` directory at layer construction time
 - Repo test-utils are at `src/repo/test-utils/` with mock layers for all 4 services
-- Image has two backends selected by `--model` via `isOpenAiImageModel` (prefixes `gpt-image`/`dall-e`): codex (default `gpt-5.5`) vs the metered OpenAI Images API
+- Image has two backends selected by `--model` via `isOpenAiImageModel` (prefixes `gpt-image`/`dall-e`): codex (default: the newest GPT Sol the codex account can use, see above) vs the metered OpenAI Images API
 - RC CLI constructors are capitalized: `Flag.String`, `Flag.Boolean`, `Flag.Int`, `Flag.Literals`, `Argument.String`, and `Prompt.MultiSelect`. Set `Flag.withDefault(false)` on optional boolean switches. `Flag.Boolean` alone is required. Config uses `Config.String`.
 - Codex image tool defaults to `gpt-image-2.5-flare`; `--image-model gpt-image-2.5-sunburst` selects Sunburst. `--model` still selects the main model or routes image models to the paid API. Reject `--image-model` together with a paid API model.
 - Codex path uses `@effect/ai-openai` (`OpenAiClient` + `OpenAiLanguageModel` + `OpenAiTool.ImageGeneration`) pointed at `https://chatgpt.com/backend-api/codex`; auth = OAuth token from `~/.codex/auth.json` (`codex login`)

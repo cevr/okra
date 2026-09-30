@@ -1,4 +1,11 @@
-import { Effect, Layer, Option, Context } from "effect";
+import { Array as Arr, Effect, Layer, Option, Context } from "effect";
+import {
+  CODEX_FALLBACK_MODEL,
+  CodexModelsService,
+  isCodexModelRejection,
+  resolveCodexSolCandidates,
+} from "../../shared/codex-models.js";
+import { ModelCatalogService } from "../../shared/model-catalog.js";
 import { CLAUDE_READ_ONLY_TOOLS, sanitizePath } from "../constants.js";
 import { CounselError, ErrorCode } from "../errors.js";
 import type { Invocation, Profile, Provider } from "../types.js";
@@ -8,8 +15,6 @@ const codexReasoningEffort = (profile: Profile): string => {
   if (profile === "deep") return "max";
   return "medium";
 };
-
-const CODEX_MODEL = "gpt-6-sol";
 
 const claudeModel = (profile: Profile): string => {
   if (profile === "deep") return "fable";
@@ -81,6 +86,7 @@ export const buildCodexInvocation = (
   promptFilePath: string,
   profile: Profile,
   cwd: string,
+  model: string,
 ): Invocation => ({
   cmd: command,
   args: [
@@ -93,7 +99,7 @@ export const buildCodexInvocation = (
     "--sandbox",
     "read-only",
     "--model",
-    CODEX_MODEL,
+    model,
     "-c",
     "web_search=live",
     "-c",
@@ -104,6 +110,10 @@ export const buildCodexInvocation = (
   cwd,
 });
 
+/** Only codex rejects a model per account; the claude CLI resolves its own aliases. */
+export const isModelRejected = (provider: Provider, events: string): boolean =>
+  provider === "codex" && isCodexModelRejection(events);
+
 export class AgentPlatformService extends Context.Service<
   AgentPlatformService,
   {
@@ -112,18 +122,32 @@ export class AgentPlatformService extends Context.Service<
     ) => Effect.Effect<Provider, CounselError>;
     readonly resolveTarget: (source: Provider) => Provider;
     readonly ensureExecutable: (provider: Provider) => Effect.Effect<string, CounselError>;
-    readonly buildInvocation: (
+    /**
+     * Invocations to try in order. Codex gets one per model candidate, because its model list
+     * can name a model the backend still rejects; see `isModelRejected`.
+     */
+    readonly buildInvocations: (
       provider: Provider,
       promptFilePath: string,
       profile: Profile,
       cwd: string,
-    ) => Effect.Effect<Invocation, CounselError>;
+    ) => Effect.Effect<readonly [Invocation, ...Array<Invocation>], CounselError>;
+    /** True when a failed run's events show the provider refused the model itself. */
+    readonly isModelRejected: (provider: Provider, events: string) => boolean;
   }
 >()("@cvr/okra/counsel/services/AgentPlatform/AgentPlatformService") {
-  static layer: Layer.Layer<AgentPlatformService, never, HostService> = Layer.effect(
+  static layer: Layer.Layer<
+    AgentPlatformService,
+    never,
+    HostService | CodexModelsService | ModelCatalogService
+  > = Layer.effect(
     AgentPlatformService,
     Effect.gen(function* () {
       const host = yield* HostService;
+      const resolveCodexModels = resolveCodexSolCandidates.pipe(
+        Effect.provideService(CodexModelsService, yield* CodexModelsService),
+        Effect.provideService(ModelCatalogService, yield* ModelCatalogService),
+      );
       const commands: Record<Provider, string> = {
         claude: "claude",
         codex: "codex",
@@ -150,26 +174,29 @@ export class AgentPlatformService extends Context.Service<
           ),
         );
 
-      const buildInvocation = (
+      const buildInvocations = (
         provider: Provider,
         promptFilePath: string,
         profile: Profile,
         cwd: string,
       ) =>
-        ensureExecutable(provider).pipe(
-          Effect.map((command) => {
-            if (provider === "claude") {
-              return buildClaudeInvocation(command, promptFilePath, profile, cwd);
-            }
-            return buildCodexInvocation(command, promptFilePath, profile, cwd);
-          }),
-        );
+        Effect.gen(function* () {
+          const command = yield* ensureExecutable(provider);
+          if (provider === "claude") {
+            return [buildClaudeInvocation(command, promptFilePath, profile, cwd)] as const;
+          }
+          const models = yield* resolveCodexModels;
+          return Arr.map(models, (model) =>
+            buildCodexInvocation(command, promptFilePath, profile, cwd, model),
+          );
+        });
 
       return {
         resolveSource,
         resolveTarget: oppositeProvider,
         ensureExecutable,
-        buildInvocation,
+        buildInvocations,
+        isModelRejected,
       };
     }),
   );
@@ -185,12 +212,17 @@ export class AgentPlatformService extends Context.Service<
         }),
       resolveTarget: oppositeProvider,
       ensureExecutable: (provider) => Effect.succeed(provider),
-      buildInvocation: (provider, promptFilePath, profile, cwd) => {
+      buildInvocations: (provider, promptFilePath, profile, cwd) => {
         if (provider === "claude") {
-          return Effect.succeed(buildClaudeInvocation("claude", promptFilePath, profile, cwd));
+          return Effect.succeed([
+            buildClaudeInvocation("claude", promptFilePath, profile, cwd),
+          ] as const);
         }
-        return Effect.succeed(buildCodexInvocation("codex", promptFilePath, profile, cwd));
+        return Effect.succeed([
+          buildCodexInvocation("codex", promptFilePath, profile, cwd, CODEX_FALLBACK_MODEL),
+        ] as const);
       },
+      isModelRejected,
       ...impl,
     });
 }

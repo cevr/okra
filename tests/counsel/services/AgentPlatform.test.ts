@@ -83,13 +83,14 @@ describe("AgentPlatform helpers", () => {
     }),
   );
 
-  it.effect("builds the standard Codex invocation with GPT-6 Sol at medium effort", () =>
+  it.effect("builds the standard Codex invocation with the given model at medium effort", () =>
     Effect.sync(() => {
       const invocation = buildCodexInvocation(
         "codex",
         "/tmp/prompt.md",
         "standard",
         "/tmp/project",
+        "gpt-6-sol",
       );
       expect(invocation.cmd).toBe("codex");
       expect(invocation.args).toContain("exec");
@@ -102,9 +103,15 @@ describe("AgentPlatform helpers", () => {
     }),
   );
 
-  it.effect("builds the deep Codex invocation with GPT-6 Sol at max effort", () =>
+  it.effect("builds the deep Codex invocation with the given model at max effort", () =>
     Effect.sync(() => {
-      const invocation = buildCodexInvocation("codex", "/tmp/prompt.md", "deep", "/tmp/project");
+      const invocation = buildCodexInvocation(
+        "codex",
+        "/tmp/prompt.md",
+        "deep",
+        "/tmp/project",
+        "gpt-6-sol",
+      );
       expect(flagValue(invocation.args, "--model")).toBe("gpt-6-sol");
       expect(invocation.args).toContain("model_reasoning_effort=max");
     }),

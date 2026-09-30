@@ -162,12 +162,14 @@ export class RunService extends Context.Service<
         const outputBucket = cwdBucket(input.cwd);
         const outputDir = path.resolve(input.cwd, input.outputDir, outputBucket, slug);
         const promptFilePath = path.join(outputDir, "prompt.md");
-        const invocation = yield* platform.buildInvocation(
+        const invocations = yield* platform.buildInvocations(
           target,
           promptFilePath,
           profile,
           input.cwd,
         );
+
+        const invocation = invocations[0];
 
         if (input.dryRun) {
           return {
@@ -203,11 +205,7 @@ export class RunService extends Context.Service<
         // Both providers emit JSONL (codex --json, claude --output-format stream-json)
         const eventsFile = path.join(outputDir, "events.jsonl");
         const stderrFile = path.join(outputDir, `${target}.stderr`);
-        const executed = yield* invocationRunner.execute(invocation, eventsFile, stderrFile);
-
-        // Extract agent message from JSONL events → .md
-        const outputFile = path.join(outputDir, `${target}.md`);
-        const jsonl = yield* fs.readFileString(eventsFile).pipe(
+        const readEvents = fs.readFileString(eventsFile).pipe(
           Effect.mapError((error: PlatformError) =>
             CounselError.make({
               message: `Failed to read events: ${error.message}`,
@@ -215,6 +213,22 @@ export class RunService extends Context.Service<
             }),
           ),
         );
+
+        // Each attempt overwrites the event and stderr logs, so they describe the last attempt.
+        let executed = yield* invocationRunner.execute(invocation, eventsFile, stderrFile);
+        let jsonl = yield* readEvents;
+        for (const fallback of invocations.slice(1)) {
+          const rejected =
+            executed.exitCode !== 0 &&
+            !executed.timedOut &&
+            platform.isModelRejected(target, jsonl);
+          if (!rejected) break;
+          executed = yield* invocationRunner.execute(fallback, eventsFile, stderrFile);
+          jsonl = yield* readEvents;
+        }
+
+        // Extract agent message from JSONL events → .md
+        const outputFile = path.join(outputDir, `${target}.md`);
         const extractMessage = messageExtractorFor(target);
         const message = extractMessage(jsonl);
         yield* writeTextFile(

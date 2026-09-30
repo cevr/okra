@@ -11,12 +11,14 @@ const RunLayer = RunService.layer.pipe(
   Layer.provideMerge(
     AgentPlatformService.layerTest({
       ensureExecutable: () => Effect.succeed("codex"),
-      buildInvocation: (_provider, promptFilePath, _profile, cwd) =>
-        Effect.succeed({
-          cmd: "codex",
-          args: ["exec", `Read ${promptFilePath}`],
-          cwd,
-        }),
+      buildInvocations: (_provider, promptFilePath, _profile, cwd) =>
+        Effect.succeed([
+          {
+            cmd: "codex",
+            args: ["exec", `Read ${promptFilePath}`],
+            cwd,
+          },
+        ] as const),
     }),
   ),
   Layer.provideMerge(
@@ -139,4 +141,94 @@ describe("RunService", () => {
       expect(failure.code).toBe("PROMPT_CONFLICT");
     }).pipe(Effect.provide(TestLayer)),
   );
+});
+
+const REJECTION_EVENTS = [
+  '{"type":"thread.started","thread_id":"t"}',
+  `{"type":"turn.failed","error":{"message":"The 'gpt-6.1-sol' model is not supported when using Codex with a ChatGPT account."}}`,
+].join("\n");
+const OTHER_FAILURE_EVENTS = '{"type":"turn.failed","error":{"message":"rate limited"}}';
+const CODEX_SUCCESS_EVENTS =
+  '{"type":"item.completed","item":{"id":"i","type":"agent_message","text":"codex opinion"}}';
+
+// The first attempt fails with the layer's `firstEvents`; any later attempt succeeds.
+const ATTEMPTS: ReadonlyArray<{ readonly events?: string; readonly exitCode: number }> = [
+  { exitCode: 1 },
+  { events: CODEX_SUCCESS_EVENTS, exitCode: 0 },
+];
+
+/** Codex target with two model candidates; the first attempt fails with `firstEvents`. */
+const makeRetryLayer = (firstEvents: string, executedModels: Array<string>) =>
+  Layer.mergeAll(
+    RunService.layer.pipe(
+      Layer.provideMerge(
+        AgentPlatformService.layerTest({
+          buildInvocations: (_provider, _promptFilePath, _profile, cwd) =>
+            Effect.succeed([
+              { cmd: "codex", args: ["gpt-6.1-sol"], cwd },
+              { cmd: "codex", args: ["gpt-6-sol"], cwd },
+            ] as const),
+        }),
+      ),
+      Layer.provideMerge(
+        InvocationRunnerService.layerTest({
+          execute: (invocation, outputFile, stderrFile) =>
+            Effect.gen(function* () {
+              const model = invocation.args[0] ?? "";
+              executedModels.push(model);
+              const attempt = ATTEMPTS[Math.min(executedModels.length - 1, 1)];
+              const events = attempt?.events ?? firstEvents;
+              yield* Effect.gen(function* () {
+                const fs = yield* FileSystem;
+                yield* fs.writeFileString(outputFile, events);
+                yield* fs.writeFileString(stderrFile, "");
+              }).pipe(Effect.provide(BunServices.layer), Effect.orDie);
+              return { exitCode: attempt?.exitCode ?? 1, durationMs: 1, timedOut: false };
+            }),
+        }),
+      ),
+      Layer.provideMerge(BunServices.layer),
+    ),
+    BunServices.layer,
+  );
+
+const runCodexTarget = Effect.gen(function* () {
+  const fs = yield* FileSystem;
+  const run = yield* RunService;
+  const cwd = yield* fs.makeTempDirectoryScoped({ prefix: "counsel-run-test-" });
+  return yield* run.run({
+    cwd,
+    prompt: Option.some("review this"),
+    file: Option.none(),
+    from: Option.some("claude"),
+    deep: false,
+    outputDir: "./agents/counsel",
+    dryRun: false,
+  });
+});
+
+describe("RunService model fallback", () => {
+  it.scopedLive("retries the next model when codex rejects the first", () => {
+    const executedModels: Array<string> = [];
+    return Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const result = yield* runCodexTarget;
+      expect(executedModels).toEqual(["gpt-6.1-sol", "gpt-6-sol"]);
+      expect(result._tag).toBe("Completed");
+      if (result._tag !== "Completed") return;
+      expect(result.manifest.status).toBe("success");
+      expect(yield* fs.readFileString(result.manifest.outputFile)).toBe("codex opinion");
+    }).pipe(Effect.provide(makeRetryLayer(REJECTION_EVENTS, executedModels)));
+  });
+
+  it.scopedLive("does not retry a failure that is not a model rejection", () => {
+    const executedModels: Array<string> = [];
+    return Effect.gen(function* () {
+      const result = yield* runCodexTarget;
+      expect(executedModels).toEqual(["gpt-6.1-sol"]);
+      expect(result._tag).toBe("Completed");
+      if (result._tag !== "Completed") return;
+      expect(result.manifest.status).toBe("error");
+    }).pipe(Effect.provide(makeRetryLayer(OTHER_FAILURE_EVENTS, executedModels)));
+  });
 });
