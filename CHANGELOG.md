@@ -1,5 +1,21 @@
 # @cvr/okra
 
+## 0.12.0
+
+### Minor Changes
+
+- [`5584716`](https://github.com/cevr/okra/commit/5584716d76a6b9ed41dab4d5bae0235bbe5faec4) Thanks [@cevr](https://github.com/cevr)! - Counsel and `okra image` now use the newest GPT Sol model that the Codex account can use, instead of a pinned model, so a new Sol release needs no okra release. models.dev gives the release order (cached in `~/.okra/models.json` for a day), and the Codex CLI's model list filters it. When Codex rejects a model for a ChatGPT account, the command retries with the next older candidate, down to `gpt-6-sol`. The image default changes from `gpt-5.5` to the newest usable GPT Sol.
+
+- [`46ad091`](https://github.com/cevr/okra/commit/46ad09130f6e85a6668c7dd2e95105fdb457192d) Thanks [@cevr](https://github.com/cevr)! - Counsel now writes `manifest.json` into each run directory, with a new `model` field. It names the model that answered: the fallback model after a Codex model rejection, and the concrete Claude model behind the `opus` or `fable` alias. The manifest also carries the run `status` and, for a failed run, the `failure` reason. `--dry-run` shows the requested model in its invocation preview.
+
+- [`a8b9248`](https://github.com/cevr/okra/commit/a8b92489daa984d24c413f0edbb5714993fdf6f6) Thanks [@cevr](https://github.com/cevr)! - Remove the `--image-model` flag from `okra image`. The Codex backend always replaces the image tool's model with its own (`gpt-image-2-codex`), so the flag had no effect there, and the paid API route already rejected it. To use Flare or Sunburst, pass `--model gpt-image-2.5-flare` or `--model gpt-image-2.5-sunburst`, which uses the OpenAI Images API.
+
+### Patch Changes
+
+- [`c666534`](https://github.com/cevr/okra/commit/c666534fc66816ef157505ea85f9c075e1dc481a) Thanks [@cevr](https://github.com/cevr)! - Counsel now fails when the other agent does not answer, even when that agent exits 0. A Codex usage limit (`turn.failed`) and a Claude API error (`is_error` result, such as a 529 overload or a usage limit) now give exit code 1, print the reason on stderr, and record it as `failure` in the run manifest. Before, counsel exited 0 with an empty `codex.md`, or wrote the Claude error text into `claude.md` as if it were the answer.
+
+- [`f15e342`](https://github.com/cevr/okra/commit/f15e342ef8ba278e5b474cdb463d7c2f5e35157d) Thanks [@cevr](https://github.com/cevr)! - `okra image` on the Codex route now asks for the `--size` in the prompt, because the Codex backend ignores the image tool's size setting. Portrait and landscape sizes now come back exact. When the result still differs (a square comes back as 1254x1254), okra prints a note on stderr and points to an OpenAI image model for an exact size.
+
 ## 0.11.0
 
 ### Minor Changes
