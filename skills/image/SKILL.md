@@ -50,7 +50,7 @@ The last command writes `logo-1.png`, `logo-2.png`, and `logo-3.png`.
 | `--out`, `-o`   | `<prompt-slug>.png`   | Output path.                                                                                      |
 | `--model`       | newest usable GPT Sol | Main Codex model, or a direct API image model.                                                    |
 | `--image-model` | `gpt-image-2.5-flare` | Codex image tool: Flare or Sunburst.                                                              |
-| `--size`        | `auto`                | Image dimensions, such as `1024x1024` or `1536x864`.                                              |
+| `--size`        | `auto`                | Image dimensions, such as `1024x1024` or `1536x864`. Exact on the API route; see the note below.  |
 | `--format`      | `png`                 | `png`, `webp`, or `jpeg`.                                                                         |
 | `--quality`     | API model default     | API only: `auto`, `low`, `medium`, `high`, `xhigh`, or `max`. The last two require GPT Image 2.5. |
 | `--background`  | API model default     | API only: `auto`, `transparent`, or `opaque`. Use PNG or WebP for transparency.                   |
@@ -100,6 +100,8 @@ The environment value takes priority over the stored key. Stored keys use `~/.ok
 ## Transport notes
 
 The subscription route sends `store: false`, streams the response, and includes the installed Codex version. `CodexStreamPatch` handles the server's `generating` image status before the Effect adapter decodes the stream.
+
+On the Codex route the backend replaces the tool's `size` with `auto` and lets the model choose. Okra states the requested size in the prompt, which gives exact portrait and landscape sizes (`1024x1536`, `1536x1024`), but a square comes back as `1254x1254`. Okra prints a note on stderr when the result differs from `--size`. Use an API image model for an exact size.
 
 The API route decodes all base64 image results. Okra extends the upstream request and response schemas for GPT Image 2.5 quality values and custom response sizes.
 

@@ -1,5 +1,5 @@
 import { BunServices } from "@effect/platform-bun";
-import { Effect, Layer, Option, Redacted, Schema } from "effect";
+import { Console, Effect, Layer, Option, Redacted, Schema } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Command } from "effect/unstable/cli";
 import { HttpClient, HttpClientResponse } from "effect/unstable/http";
@@ -160,6 +160,30 @@ describe("image command", () => {
       }).pipe(Effect.provide(testLayer(capture, true)));
     });
   }
+
+  it.scoped("asks codex for the size in the prompt and notes a different result", () => {
+    const capture: RequestCapture = {};
+    return Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const dir = yield* fs.makeTempDirectoryScoped();
+      const errors: Array<string> = [];
+      const console: Console.Console = {
+        ...globalThis.console,
+        log: () => {},
+        error: (...args: ReadonlyArray<unknown>) => {
+          errors.push(args.map(String).join(" "));
+        },
+      };
+      yield* cli(["a red dot", "--size", "1024x1536", "-o", `${dir}/out.png`]).pipe(
+        Effect.provideService(Console.Console, console),
+      );
+      expect(encodeJson(capture.json)).toContain(
+        "Output size: exactly 1024x1536 pixels (portrait).",
+      );
+      // The fake backend returns a 1x1 PNG.
+      expect(errors.join("\n")).toContain("codex returned 1x1 for --size 1024x1536");
+    }).pipe(Effect.provide(testLayer(capture, true)));
+  });
 
   it.scoped("falls back to an older Sol model when codex rejects the newest", () => {
     const capture: RequestCapture = {};

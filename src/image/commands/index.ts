@@ -21,6 +21,7 @@ import {
 } from "../constants.js";
 import { isCodexModelRejection, resolveCodexSolCandidates } from "../../shared/codex-models.js";
 import { ImageError } from "../errors.js";
+import { parseSize, readImageDimensions } from "../image-dimensions.js";
 import { CodexAuthService } from "../services/CodexAuth.js";
 import { codexModelLayer } from "../services/CodexModel.js";
 import {
@@ -165,7 +166,25 @@ const generateViaCodex = Effect.fn("image.generateViaCodex")(function* (args: Ge
       ),
     );
   }
-  return yield* attempt;
+  const image = yield* attempt;
+  yield* warnOnSizeMismatch(args.size, image);
+  return image;
+});
+
+// The codex backend picks the final size itself (its square is 1254x1254), so say so instead of
+// passing off a different size as the requested one.
+const warnOnSizeMismatch = Effect.fn("image.warnOnSizeMismatch")(function* (
+  size: string,
+  image: Uint8Array,
+) {
+  const requested = parseSize(size);
+  const actual = readImageDimensions(image);
+  if (Option.isNone(requested) || Option.isNone(actual)) return;
+  const { width, height } = actual.value;
+  if (width === requested.value.width && height === requested.value.height) return;
+  yield* Console.error(
+    `Note: codex returned ${width}x${height} for --size ${size}; the codex backend chooses the final size. Use an OpenAI image model (--model ${DEFAULT_IMAGE_MODEL}) for an exact size.`,
+  );
 });
 
 /** Read a single image file into bytes + media type, mapping read/type errors to INVALID_INPUT. */

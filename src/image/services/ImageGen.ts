@@ -7,6 +7,7 @@ import {
   type IMAGE_QUALITY_CHOICES,
 } from "../constants.js";
 import { ImageError } from "../errors.js";
+import { sizePromptHint } from "../image-dimensions.js";
 
 export type ImageFormat = "png" | "webp" | "jpeg";
 
@@ -58,7 +59,7 @@ export class ImageGenService extends Context.Service<
         }),
       );
 
-      const text = `${IMAGE_INSTRUCTION}\n\n${input.prompt}`;
+      const text = `${IMAGE_INSTRUCTION}\n\n${input.prompt}${sizePromptHint(input.size)}`;
       // With reference images, send a structured user message carrying the text
       // plus each ref as an input image (a `file` part with an image media type,
       // which the OpenAI Responses adapter forwards as `input_image`). Without
