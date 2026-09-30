@@ -19,9 +19,8 @@ export const OPENAI_KEY_NAME = "openai";
  */
 export const OPENAI_IMAGE_MODEL_PREFIXES = ["gpt-image", "dall-e"] as const;
 
-/** GPT Image 2.5 models available through the image tool and the Images API. */
-export const IMAGE_MODEL_CHOICES = ["gpt-image-2.5-flare", "gpt-image-2.5-sunburst"] as const;
-export const DEFAULT_IMAGE_MODEL = IMAGE_MODEL_CHOICES[0];
+/** The API image model that error messages suggest. The codex route cannot select one. */
+export const DEFAULT_IMAGE_MODEL = "gpt-image-2.5-flare";
 
 /** GPT Image 2.5 aliases and dated snapshots support the additional quality levels. */
 export const supportsExtendedQuality = (model: string): boolean =>

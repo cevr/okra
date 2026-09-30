@@ -140,26 +140,35 @@ describe("image command", () => {
     });
   }
 
-  for (const selected of [undefined, "gpt-image-2.5-sunburst"]) {
-    it.scoped(`uses the subscription image tool with ${selected ?? "default Flare"}`, () => {
-      const capture: RequestCapture = {};
-      return Effect.gen(function* () {
-        const fs = yield* FileSystem;
-        const dir = yield* fs.makeTempDirectoryScoped();
-        const args = ["a red dot", "-o", `${dir}/out.png`];
-        if (selected !== undefined) args.push("--image-model", selected);
-        yield* cli(args);
-        expect(capture.url).toBe("https://chatgpt.com/backend-api/codex/responses");
-        expect(capture.json).toMatchObject({
-          model: "gpt-6-sol",
-          store: false,
-          stream: true,
-          tools: [{ type: "image_generation", model: selected ?? "gpt-image-2.5-flare" }],
-        });
-        expect(yield* fs.readFile(`${dir}/out.png`)).toEqual(Uint8Array.fromBase64(PNG));
-      }).pipe(Effect.provide(testLayer(capture, true)));
-    });
-  }
+  it.scoped("uses the subscription image tool without an image model", () => {
+    const capture: RequestCapture = {};
+    return Effect.gen(function* () {
+      const fs = yield* FileSystem;
+      const dir = yield* fs.makeTempDirectoryScoped();
+      yield* cli(["a red dot", "-o", `${dir}/out.png`]);
+      expect(capture.url).toBe("https://chatgpt.com/backend-api/codex/responses");
+      expect(capture.json).toMatchObject({
+        model: "gpt-6-sol",
+        store: false,
+        stream: true,
+        tools: [{ type: "image_generation" }],
+      });
+      // The codex backend always uses its own image model, so okra sends none.
+      expect(encodeJson(capture.json)).not.toContain("gpt-image");
+      expect(yield* fs.readFile(`${dir}/out.png`)).toEqual(Uint8Array.fromBase64(PNG));
+    }).pipe(Effect.provide(testLayer(capture, true)));
+  });
+
+  it.effect("no longer accepts --image-model", () => {
+    const capture: RequestCapture = {};
+    return Effect.gen(function* () {
+      const exit = yield* Effect.exit(
+        cli(["a red dot", "--image-model", "gpt-image-2.5-sunburst"]),
+      );
+      expect(exit._tag).toBe("Failure");
+      expect(capture.url).toBeUndefined();
+    }).pipe(Effect.provide(testLayer(capture, true)));
+  });
 
   it.scoped("asks codex for the size in the prompt and notes a different result", () => {
     const capture: RequestCapture = {};
@@ -201,7 +210,6 @@ describe("image command", () => {
   for (const flags of [
     ["--model", "gpt-image-1.5", "--quality", "max"],
     ["--model", "gpt-image-2.5-flare", "--fidelity", "high", "--ref", "absent.png"],
-    ["--model", "gpt-image-2.5-flare", "--image-model", "gpt-image-2.5-sunburst"],
   ]) {
     it.effect(`rejects unsupported controls before network access: ${flags.join(" ")}`, () => {
       const capture: RequestCapture = {};

@@ -1,11 +1,7 @@
 import { Context, Effect, Layer, Stream } from "effect";
 import { LanguageModel, Toolkit } from "effect/unstable/ai";
 import { OpenAiTool } from "@effect/ai-openai";
-import {
-  DEFAULT_IMAGE_MODEL,
-  IMAGE_INSTRUCTION,
-  type IMAGE_QUALITY_CHOICES,
-} from "../constants.js";
+import { IMAGE_INSTRUCTION, type IMAGE_QUALITY_CHOICES } from "../constants.js";
 import { ImageError } from "../errors.js";
 import { sizePromptHint } from "../image-dimensions.js";
 
@@ -22,7 +18,6 @@ export interface ReferenceImage {
 }
 
 export interface GenerateImageInput {
-  readonly imageModel?: string;
   readonly prompt: string;
   readonly size: string;
   readonly format: ImageFormat;
@@ -50,10 +45,11 @@ export class ImageGenService extends Context.Service<
 >()("@cvr/okra/image/services/ImageGen/ImageGenService") {
   static layer: Layer.Layer<ImageGenService> = Layer.succeed(ImageGenService, {
     generate: Effect.fn("ImageGen.generate")(function* (input: GenerateImageInput) {
-      // image_generation is a provider-defined tool: no handler, args set at construction.
+      // image_generation is a provider-defined tool: no handler, args set at construction. The
+      // codex backend replaces the tool's model (always gpt-image-2-codex), size, and quality, so
+      // no image model is sent and the size also goes into the prompt.
       const toolkit = Toolkit.make(
         OpenAiTool.ImageGeneration({
-          model: input.imageModel ?? DEFAULT_IMAGE_MODEL,
           size: input.size,
           output_format: input.format,
         }),

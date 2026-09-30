@@ -11,7 +11,6 @@ import {
   DEFAULT_SIZE,
   IMAGE_BACKGROUND_CHOICES,
   IMAGE_FIDELITY_CHOICES,
-  IMAGE_MODEL_CHOICES,
   IMAGE_QUALITY_CHOICES,
   isOpenAiImageModel,
   refMediaType,
@@ -59,11 +58,6 @@ const modelFlag = Flag.String("model").pipe(
     "Model. Codex backend (default: the newest GPT Sol your codex account can use), or an OpenAI image model " +
       "(gpt-image-2.5-flare or gpt-image-2.5-sunburst) which uses OPENAI_API_KEY.",
   ),
-);
-
-const imageModelFlag = Flag.Literals("image-model", IMAGE_MODEL_CHOICES).pipe(
-  Flag.optional,
-  Flag.withDescription("Codex image tool model (default gpt-image-2.5-flare)"),
 );
 
 // The next three apply only to OpenAI image models; the codex backend ignores them.
@@ -120,7 +114,6 @@ const fidelityFlag = Flag.Literals("fidelity", IMAGE_FIDELITY_CHOICES).pipe(
 );
 
 interface GenerateArgs {
-  readonly imageModel: Option.Option<string>;
   readonly prompt: string;
   readonly model: string;
   /** Codex models to try in order; the first is `model`. See `generateViaCodex`. */
@@ -151,7 +144,6 @@ const generateViaCodex = Effect.fn("image.generateViaCodex")(function* (args: Ge
         size: args.size,
         format: args.format,
         refs: args.refs,
-        imageModel: Option.getOrUndefined(args.imageModel),
       })
       .pipe(Effect.provide(codexModelLayer(model)));
   // The codex model list can name a model the backend still rejects during a rollout, so a
@@ -275,7 +267,6 @@ const slugify = (prompt: string): string => {
 type Route = "codex" | "openai-generate" | "openai-edit";
 
 interface RouteInput {
-  readonly imageModel: Option.Option<string>;
   readonly quality: Option.Option<ImageQuality>;
   readonly model: string;
   readonly refCount: number;
@@ -330,11 +321,6 @@ const resolveRoute = (input: RouteInput): RouteResult => {
     return ok("codex"); // --ref (if any) is a style reference on this path.
   }
 
-  if (Option.isSome(input.imageModel)) {
-    return bad(
-      "--image-model selects the Codex image tool. Use --model alone for the OpenAI Images API.",
-    );
-  }
   if (
     Option.isSome(input.quality) &&
     (input.quality.value === "xhigh" || input.quality.value === "max") &&
@@ -431,7 +417,6 @@ const generateCommand = Command.make(
     size: sizeFlag,
     format: formatFlag,
     model: modelFlag,
-    imageModel: imageModelFlag,
     quality: qualityFlag,
     background: backgroundFlag,
     n: countFlag,
@@ -446,7 +431,6 @@ const generateCommand = Command.make(
     size,
     format,
     model: requestedModel,
-    imageModel,
     quality,
     background,
     n,
@@ -479,7 +463,6 @@ const generateCommand = Command.make(
       // Reconcile model + flags into a single route (or a validation error).
       const resolved = resolveRoute({
         model,
-        imageModel,
         quality,
         refCount: ref.length,
         edit,
@@ -513,7 +496,6 @@ const generateCommand = Command.make(
       );
 
       const args: GenerateArgs = {
-        imageModel,
         prompt: promptText,
         model,
         codexModels,
