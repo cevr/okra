@@ -56,4 +56,4 @@ bun test        # tests only
 
 ## Stack
 
-Effect v4 (rc.115), Bun, `effect/unstable/cli`, oxlint, oxfmt, lefthook.
+Effect 4.0.0, Bun, `effect/cli`, oxlint, oxfmt, lefthook.

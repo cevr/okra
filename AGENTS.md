@@ -30,7 +30,7 @@ Shared utilities in `src/shared/`: `Provider` schema, `resolveExecutable`, `isCo
 - Each domain exports its command via `Command.provide(DomainServiceLayer)` from `index.ts`
 - All domains self-provide their service layers at command level — no domain layers in main.ts
 - Repo, Skills, Keys, and How use structural `isRepoError`/`isSkillsError`/`isKeysError`/`isHowError` guards
-- Effect v4 (rc.115): `Context.Service`, `Effect.fn`, `Schema.TaggedError`, `effect/unstable/cli`
+- Effect 4.0.0: `Context.Service`, `Effect.fn`, `Schema.TaggedError`, `effect/cli`
 
 ## Gotchas
 
