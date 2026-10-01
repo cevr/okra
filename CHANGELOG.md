@@ -1,5 +1,11 @@
 # @cvr/okra
 
+## 0.12.1
+
+### Patch Changes
+
+- [`7509269`](https://github.com/cevr/okra/commit/75092695deb70226514ceb1c380580d5d8813a13) Thanks [@cevr](https://github.com/cevr)! - Move to Effect 4.0.0 (`effect`, `@effect/platform-bun`, `@effect/ai-openai`). The CLI, HTTP, AI and process modules now import from `effect/<module>` instead of `effect/unstable/<module>`.
+
 ## 0.12.0
 
 ### Minor Changes
