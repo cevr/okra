@@ -1,4 +1,4 @@
-import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Argument, Command, Flag } from "effect/cli";
 import { Config, ConfigProvider, Console, Effect, Option, Path } from "effect";
 import { SkillStore } from "../services/SkillStore.js";
 import { SkillLock } from "../services/SkillLock.js";

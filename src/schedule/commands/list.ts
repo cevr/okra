@@ -1,5 +1,5 @@
 import { Console, Effect, Schema } from "effect";
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 import { StoreService, Task } from "../services/Store.js";
 import { describe } from "../services/Schedule.js";
 import * as StopEvaluator from "../services/StopEvaluator.js";

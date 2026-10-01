@@ -4,7 +4,7 @@
 import { Console, Effect, Option } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
-import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Argument, Command, Flag } from "effect/cli";
 import {
   DEFAULT_FORMAT,
   DEFAULT_IMAGE_MODEL,

@@ -1,5 +1,5 @@
 import { Context, Effect, Layer, Stream } from "effect";
-import { LanguageModel, Toolkit } from "effect/unstable/ai";
+import { LanguageModel, Toolkit } from "effect/ai";
 import { OpenAiTool } from "@effect/ai-openai";
 import { IMAGE_INSTRUCTION, type IMAGE_QUALITY_CHOICES } from "../constants.js";
 import { ImageError } from "../errors.js";

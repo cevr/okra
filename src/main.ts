@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import { Console, Effect, Layer, Schema } from "effect";
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 import { BunRuntime, BunServices } from "@effect/platform-bun";
-import { FetchHttpClient } from "effect/unstable/http";
+import { FetchHttpClient } from "effect/http";
 import { scheduleCommand } from "./schedule/index.js";
 import { ScheduleError } from "./schedule/errors.js";
 import { counselCommand } from "./counsel/index.js";

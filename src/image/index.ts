@@ -1,5 +1,5 @@
 import { Layer } from "effect";
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 import { CodexModelsService } from "../shared/codex-models.js";
 import { KeyStoreService } from "../shared/keystore.js";
 import { ModelCatalogService } from "../shared/model-catalog.js";

@@ -1,4 +1,4 @@
-import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Argument, Command, Flag } from "effect/cli";
 import { Console, DateTime, Effect, Option, Path, Schema } from "effect";
 import { formatBytes, specToString } from "../types.js";
 import { CacheService } from "../services/cache.js";

@@ -1,7 +1,7 @@
 import { Clock, Console, DateTime, Effect, Option } from "effect";
 import { Crypto } from "effect/Crypto";
 import type { PlatformError } from "effect/PlatformError";
-import { Argument, Command } from "effect/unstable/cli";
+import { Argument, Command } from "effect/cli";
 import { ScheduleError } from "../errors.js";
 import { StoreService } from "../services/Store.js";
 import type { Task } from "../services/Store.js";

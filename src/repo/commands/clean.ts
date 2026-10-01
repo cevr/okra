@@ -1,4 +1,4 @@
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 import { Clock, Console, Effect, Option } from "effect";
 import { formatBytes, specToString } from "../types.js";
 import type { PackageSpec } from "../types.js";

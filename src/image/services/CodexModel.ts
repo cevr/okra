@@ -1,8 +1,8 @@
 import { Effect, Layer, Random } from "effect";
-import type { LanguageModel } from "effect/unstable/ai";
-import * as HttpClient from "effect/unstable/http/HttpClient";
-import { HttpClientError, TransportError } from "effect/unstable/http/HttpClientError";
-import * as HttpClientRequest from "effect/unstable/http/HttpClientRequest";
+import type { LanguageModel } from "effect/ai";
+import * as HttpClient from "effect/http/HttpClient";
+import { HttpClientError, TransportError } from "effect/http/HttpClientError";
+import * as HttpClientRequest from "effect/http/HttpClientRequest";
 import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai";
 import { CODEX_API_URL, ORIGINATOR } from "../constants.js";
 import { CodexAuthService } from "./CodexAuth.js";

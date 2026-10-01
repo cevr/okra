@@ -1,6 +1,6 @@
-import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http";
-import * as ChildProcess from "effect/unstable/process/ChildProcess";
-import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner";
+import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
+import * as ChildProcess from "effect/process/ChildProcess";
+import { ChildProcessSpawner } from "effect/process/ChildProcessSpawner";
 import { Config, Effect, Layer, Option, Schema, Stream, Context } from "effect";
 import { SkillsError } from "../errors.js";
 import { DEFAULT_REF, SKILL_DIR_PREFIXES } from "../lib/constants.js";

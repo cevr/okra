@@ -1,5 +1,5 @@
 import { Effect, Layer, Schema } from "effect";
-import { HttpClient, HttpClientResponse } from "effect/unstable/http";
+import { HttpClient, HttpClientResponse } from "effect/http";
 import { describe, expect, it } from "effect-bun-test";
 import { isOpenAiImageModel } from "../../src/image/constants.js";
 import { isImageError } from "../../src/image/errors.js";

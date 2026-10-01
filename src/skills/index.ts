@@ -1,5 +1,5 @@
 import { Layer } from "effect";
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 import { skillsRoot } from "./commands/index.js";
 import { SkillStoreLive } from "./services/SkillStore.js";
 import { SkillLockLive } from "./services/SkillLock.js";

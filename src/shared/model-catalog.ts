@@ -1,7 +1,7 @@
 import { Clock, Config, Context, Duration, Effect, Layer, Option, Schema } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
-import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http";
+import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 
 /** Public model registry: provider id → models keyed by model id. */
 export const MODELS_DEV_URL = "https://models.dev/api.json";

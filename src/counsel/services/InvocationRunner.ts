@@ -1,9 +1,9 @@
 import { Clock, Effect, Layer, Context, Stream } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import type { PlatformError } from "effect/PlatformError";
-import * as ChildProcess from "effect/unstable/process/ChildProcess";
-import type { ChildProcessHandle } from "effect/unstable/process/ChildProcessSpawner";
-import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner";
+import * as ChildProcess from "effect/process/ChildProcess";
+import type { ChildProcessHandle } from "effect/process/ChildProcessSpawner";
+import { ChildProcessSpawner } from "effect/process/ChildProcessSpawner";
 import { DEFAULT_TIMEOUT_SECONDS, KILL_GRACE_PERIOD_MS } from "../constants.js";
 import { CounselError, ErrorCode } from "../errors.js";
 import type { ExecutionResult, Invocation } from "../types.js";

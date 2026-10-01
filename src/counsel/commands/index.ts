@@ -1,6 +1,6 @@
 import { Console, Effect, Option } from "effect";
 import { Path } from "effect/Path";
-import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Argument, Command, Flag } from "effect/cli";
 import { DEFAULT_OUTPUT_DIR } from "../constants.js";
 import { RunService } from "../services/Run.js";
 import { HostService } from "../services/Host.js";

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "effect-bun-test";
 import { ConfigProvider, Effect, Layer, Option } from "effect";
 import { FileSystem } from "effect/FileSystem";
-import { FetchHttpClient } from "effect/unstable/http";
+import { FetchHttpClient } from "effect/http";
 import { BunServices } from "@effect/platform-bun";
 import { makeSelectChoices, runAdd } from "../../../src/skills/commands/add.js";
 import { GitHub, type GitHubShape } from "../../../src/skills/services/GitHub.js";

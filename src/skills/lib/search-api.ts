@@ -1,5 +1,5 @@
 import { Effect, Schema } from "effect";
-import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http";
+import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 import { SkillsError } from "../errors.js";
 
 export class SearchSkill extends Schema.Class<SearchSkill>("SearchSkill")({

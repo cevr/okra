@@ -1,5 +1,5 @@
 import { Console, Effect, FileSystem, Option, Path, Result } from "effect";
-import { Prompt } from "effect/unstable/cli";
+import { Prompt } from "effect/cli";
 import { SkillsError } from "../errors.js";
 import { walkDir } from "../lib/fs.js";
 import { DEFAULT_REF, SKILL_DIR_PREFIXES } from "../lib/constants.js";

@@ -1,5 +1,5 @@
 import { Clock, Console, DateTime, Effect, Random } from "effect";
-import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Argument, Command, Flag } from "effect/cli";
 import { ScheduleError } from "../errors.js";
 import { StoreService, type ConditionalStop, type StopCondition } from "../services/Store.js";
 import { LaunchdService } from "../services/Launchd.js";

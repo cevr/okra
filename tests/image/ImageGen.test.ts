@@ -1,5 +1,5 @@
 import { Effect, Layer, Stream } from "effect";
-import { LanguageModel } from "effect/unstable/ai";
+import { LanguageModel } from "effect/ai";
 import { describe, expect, it } from "effect-bun-test";
 import { isImageError } from "../../src/image/errors.js";
 import { ImageGenService } from "../../src/image/services/ImageGen.js";

@@ -1,4 +1,4 @@
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 
 import { fetch } from "./fetch.js";
 import { list } from "./list.js";

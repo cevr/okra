@@ -1,4 +1,4 @@
-import { Command, Flag } from "effect/unstable/cli";
+import { Command, Flag } from "effect/cli";
 import { Clock, Console, Effect, Option, Schema } from "effect";
 import { formatBytes, formatRelativeTime, specToString } from "../types.js";
 import { MetadataService } from "../services/metadata.js";

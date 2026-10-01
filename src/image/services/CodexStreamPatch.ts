@@ -1,6 +1,6 @@
 import { Effect, Stream } from "effect";
-import * as HttpClient from "effect/unstable/http/HttpClient";
-import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
+import * as HttpClient from "effect/http/HttpClient";
+import * as HttpClientResponse from "effect/http/HttpClientResponse";
 
 /**
  * The codex backend emits `image_generation_call` output items whose `status`

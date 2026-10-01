@@ -1,5 +1,5 @@
 import { Context, Effect, Layer, Option, Redacted, Schema } from "effect";
-import { HttpBody, HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http";
+import { HttpBody, HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 import { Generated } from "@effect/ai-openai";
 import { KeyStoreService } from "../../shared/keystore.js";
 import {

@@ -2,7 +2,7 @@ import { ConfigProvider, Effect, Layer, Option, Ref, Schema } from "effect";
 import { layerNoop } from "effect/FileSystem";
 import { PlatformError, SystemError } from "effect/PlatformError";
 import { TestClock } from "effect/testing";
-import { HttpClient, HttpClientError, HttpClientResponse } from "effect/unstable/http";
+import { HttpClient, HttpClientError, HttpClientResponse } from "effect/http";
 import * as BunPath from "@effect/platform-bun/BunPath";
 import { describe, expect, it } from "effect-bun-test";
 import {

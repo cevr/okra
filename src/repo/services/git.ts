@@ -1,5 +1,5 @@
 import { Effect, Layer, Context } from "effect";
-import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
+import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { RepoError } from "../errors.js";
 
 const gitError = (operation: string, repo: string, cause: unknown) =>

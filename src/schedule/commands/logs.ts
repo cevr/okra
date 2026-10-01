@@ -1,10 +1,10 @@
 import { Console, Effect } from "effect";
-import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Argument, Command, Flag } from "effect/cli";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
-import * as ChildProcess from "effect/unstable/process/ChildProcess";
-import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner";
+import * as ChildProcess from "effect/process/ChildProcess";
+import { ChildProcessSpawner } from "effect/process/ChildProcessSpawner";
 import { ScheduleError } from "../errors.js";
 import { resolvePaths } from "../paths.js";
 

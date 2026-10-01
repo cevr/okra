@@ -1,6 +1,6 @@
 import { Console, Effect, Option, Stream } from "effect";
 import { Stdio } from "effect/Stdio";
-import { Argument, Command, Flag } from "effect/unstable/cli";
+import { Argument, Command, Flag } from "effect/cli";
 import { envVarForProvider, KeyStoreService } from "../../shared/keystore.js";
 import { KeysError } from "../errors.js";
 

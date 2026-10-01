@@ -1,6 +1,6 @@
 import { Clock, Effect, FileSystem, Layer, Option, Random, Result, Schema, Context } from "effect";
-import { HttpClient } from "effect/unstable/http";
-import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
+import { HttpClient } from "effect/http";
+import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import type { PackageSpec, Registry } from "../types.js";
 import { RepoError } from "../errors.js";
 import { parseSpec } from "../parsing.js";

@@ -1,4 +1,4 @@
-import { Argument, Command } from "effect/unstable/cli";
+import { Argument, Command } from "effect/cli";
 import { Console, Effect, Option } from "effect";
 import { specToString } from "../types.js";
 import { RepoError } from "../errors.js";

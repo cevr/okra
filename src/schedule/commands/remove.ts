@@ -1,5 +1,5 @@
 import { Console, Effect } from "effect";
-import { Argument, Command } from "effect/unstable/cli";
+import { Argument, Command } from "effect/cli";
 import { FileSystem } from "effect/FileSystem";
 import { StoreService } from "../services/Store.js";
 import { LaunchdService } from "../services/Launchd.js";

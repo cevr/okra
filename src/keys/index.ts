@@ -1,4 +1,4 @@
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 import { KeyStoreService } from "../shared/keystore.js";
 import { keysRoot } from "./commands/index.js";
 

@@ -1,5 +1,5 @@
 import { Console, Effect, Option } from "effect";
-import { Argument, Command } from "effect/unstable/cli";
+import { Argument, Command } from "effect/cli";
 import { HowError } from "../errors.js";
 import { findTopic, subtopicsOf, TOPICS, type Topic } from "../topics.js";
 

@@ -1,7 +1,7 @@
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 import { BunServices } from "@effect/platform-bun";
 import { Effect, Layer, Ref, Result } from "effect";
-import { FetchHttpClient } from "effect/unstable/http";
+import { FetchHttpClient } from "effect/http";
 import { expect } from "bun:test";
 
 import { repoRoot } from "../commands/index.js";

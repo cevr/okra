@@ -1,8 +1,8 @@
 import { BunServices } from "@effect/platform-bun";
 import { Console, Effect, Layer, Option, Redacted, Schema } from "effect";
 import { FileSystem } from "effect/FileSystem";
-import { Command } from "effect/unstable/cli";
-import { HttpClient, HttpClientResponse } from "effect/unstable/http";
+import { Command } from "effect/cli";
+import { HttpClient, HttpClientResponse } from "effect/http";
 import { describe, expect, it } from "effect-bun-test";
 import { imageCommandDef } from "../../src/image/commands/index.js";
 import { CodexAuthService } from "../../src/image/services/CodexAuth.js";

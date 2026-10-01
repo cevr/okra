@@ -1,5 +1,5 @@
 import { Layer } from "effect";
-import { Command } from "effect/unstable/cli";
+import { Command } from "effect/cli";
 import { repoRoot } from "./commands/index.js";
 import { CacheService } from "./services/cache.js";
 import { MetadataService } from "./services/metadata.js";
