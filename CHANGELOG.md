@@ -1,5 +1,11 @@
 # @cvr/okra
 
+## 0.12.2
+
+### Patch Changes
+
+- [`0f8e4ea`](https://github.com/cevr/okra/commit/0f8e4ea2e0acc7cb6bcdcd2d15d87e95163aa4cc) Thanks [@cevr](https://github.com/cevr)! - Counsel's `--deep` Claude route now runs Opus at max effort instead of Fable. Both Claude profiles use the `opus` alias; deep differs by effort alone.
+
 ## 0.12.1
 
 ### Patch Changes
