@@ -16,11 +16,9 @@ const codexReasoningEffort = (profile: Profile): string => {
   return "medium";
 };
 
-const claudeModel = (profile: Profile): string => {
-  if (profile === "deep") return "fable";
-  // Alias, not a pin: tracks the latest Opus the installed CLI offers.
-  return "opus";
-};
+// Both profiles run Opus: the alias, not a pin, tracks the latest Opus the
+// installed CLI offers. Deep differs by effort alone.
+const claudeModel = (_profile: Profile): string => "opus";
 
 export const detectSourceFromEnv = (
   env: Record<string, string | undefined>,

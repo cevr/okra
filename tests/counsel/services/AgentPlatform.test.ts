@@ -75,11 +75,11 @@ describe("AgentPlatform helpers", () => {
     }),
   );
 
-  it.effect("builds the deep Claude invocation with Fable", () =>
+  it.effect("builds the deep Claude invocation with Opus at max effort", () =>
     Effect.sync(() => {
       const invocation = buildClaudeInvocation("claude", "/tmp/prompt.md", "deep", "/tmp/project");
-      expect(flagValue(invocation.args, "--model")).toBe("fable");
-      expect(invocation.model).toBe("fable");
+      expect(flagValue(invocation.args, "--model")).toBe("opus");
+      expect(invocation.model).toBe("opus");
       expect(flagValue(invocation.args, "--effort")).toBe("max");
     }),
   );

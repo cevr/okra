@@ -17,7 +17,7 @@ const RunLayer = RunService.layer.pipe(
             cmd: "codex",
             args: ["exec", `Read ${promptFilePath}`],
             cwd,
-            model: "fable",
+            model: "opus",
           },
         ] as const),
     }),
@@ -29,7 +29,7 @@ const RunLayer = RunService.layer.pipe(
           // Mock writes JSONL matching the provider's stream format.
           // Target is claude (source=codex), so write claude stream-json.
           const claudeJsonl = [
-            '{"type":"system","subtype":"init","session_id":"test","model":"claude-fable-5-1"}',
+            '{"type":"system","subtype":"init","session_id":"test","model":"claude-opus-5-5"}',
             '{"type":"result","subtype":"success","is_error":false,"result":"second opinion"}',
           ].join("\n");
           yield* Effect.gen(function* () {
@@ -114,7 +114,7 @@ describe("RunService", () => {
       expect(manifest.profile).toBe("deep");
       expect(manifest.status).toBe("success");
       // Claude's init event names the concrete model behind the requested alias.
-      expect(manifest.model).toBe("claude-fable-5-1");
+      expect(manifest.model).toBe("claude-opus-5-5");
       expect(promptText).toBe("check the command wiring");
       expect(outputText).toBe("second opinion");
       expect(stderrText).toContain("warning");
