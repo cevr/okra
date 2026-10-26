@@ -1,5 +1,13 @@
 # @cvr/okra
 
+## 0.12.2
+
+### Patch Changes
+
+- [`0f8e4ea`](https://github.com/cevr/okra/commit/0f8e4ea2e0acc7cb6bcdcd2d15d87e95163aa4cc) Thanks [@cevr](https://github.com/cevr)! - Counsel's `--deep` Claude route now runs Opus at max effort instead of Fable. Both Claude profiles use the `opus` alias; deep differs by effort alone.
+
+- [`6b57994`](https://github.com/cevr/okra/commit/6b57994080992eab7986f1db1a2480d98ae53eb4) Thanks [@cevr](https://github.com/cevr)! - Preserve binary skill assets byte for byte when adding or updating skills from GitHub or local folders. Compare file bytes during update so binary changes are detected without corrupting fonts or images.
+
 ## 0.12.1
 
 ### Patch Changes
