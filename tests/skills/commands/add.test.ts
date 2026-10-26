@@ -57,12 +57,15 @@ describe("runAdd", () => {
         listTree: notImplemented as GitHubShape["listTree"],
         discoverSkills: notImplemented as GitHubShape["discoverSkills"],
         fetchRaw: (_owner, _repo, path) => {
-          if (path === "skills/foo/SKILL.md") return Effect.succeed(skillMd("foo"));
+          if (path === "skills/foo/SKILL.md")
+            return Effect.succeed(new TextEncoder().encode(skillMd("foo")));
           return Effect.die(`unexpected fetchRaw: ${path}`);
         },
         fetchSkillDir: (_owner, _repo, dirPath) => {
           if (dirPath === "skills/foo") {
-            return Effect.succeed([{ path: "SKILL.md", content: skillMd("foo") }]);
+            return Effect.succeed([
+              { path: "SKILL.md", content: new TextEncoder().encode(skillMd("foo")) },
+            ]);
           }
           return Effect.die(`unexpected fetchSkillDir: ${dirPath}`);
         },
@@ -93,15 +96,21 @@ describe("runAdd", () => {
         listTree: notImplemented as GitHubShape["listTree"],
         discoverSkills: notImplemented as GitHubShape["discoverSkills"],
         fetchRaw: (_owner, _repo, path) => {
-          if (path === "skills/alpha/SKILL.md") return Effect.succeed(skillMd("alpha"));
-          if (path === "skills/beta/SKILL.md") return Effect.succeed(skillMd("beta"));
+          if (path === "skills/alpha/SKILL.md")
+            return Effect.succeed(new TextEncoder().encode(skillMd("alpha")));
+          if (path === "skills/beta/SKILL.md")
+            return Effect.succeed(new TextEncoder().encode(skillMd("beta")));
           return Effect.die(`unexpected fetchRaw: ${path}`);
         },
         fetchSkillDir: (_owner, _repo, dirPath) => {
           if (dirPath === "skills/alpha")
-            return Effect.succeed([{ path: "SKILL.md", content: skillMd("alpha") }]);
+            return Effect.succeed([
+              { path: "SKILL.md", content: new TextEncoder().encode(skillMd("alpha")) },
+            ]);
           if (dirPath === "skills/beta")
-            return Effect.succeed([{ path: "SKILL.md", content: skillMd("beta") }]);
+            return Effect.succeed([
+              { path: "SKILL.md", content: new TextEncoder().encode(skillMd("beta")) },
+            ]);
           return Effect.die(`unexpected fetchSkillDir: ${dirPath}`);
         },
       };
@@ -140,7 +149,9 @@ describe("runAdd", () => {
           ]),
         fetchSkillDir: (_owner, _repo, dirPath) => {
           if (dirPath === "skills/solo")
-            return Effect.succeed([{ path: "SKILL.md", content: skillMd("solo") }]);
+            return Effect.succeed([
+              { path: "SKILL.md", content: new TextEncoder().encode(skillMd("solo")) },
+            ]);
           return Effect.die(`unexpected fetchSkillDir: ${dirPath}`);
         },
       };

@@ -33,12 +33,12 @@ describe("SkillStore", () => {
         yield* store.installDir("test-skill", [
           {
             path: "SKILL.md",
-            content: `---
+            content: new TextEncoder().encode(`---
 name: test-skill
 description: A test skill
 ---
 
-# Test Skill`,
+# Test Skill`),
           },
         ]);
 
@@ -57,7 +57,10 @@ description: A test skill
       const skills = yield* Effect.gen(function* () {
         const store = yield* SkillStore;
         yield* store.installDir("to-remove", [
-          { path: "SKILL.md", content: "---\nname: to-remove\ndescription: bye\n---\n" },
+          {
+            path: "SKILL.md",
+            content: new TextEncoder().encode("---\nname: to-remove\ndescription: bye\n---\n"),
+          },
         ]);
         yield* store.remove("to-remove");
         return yield* store.list;
@@ -90,22 +93,22 @@ description: A test skill
         yield* store.installDir("test-skill", [
           {
             path: "SKILL.md",
-            content: "---\nname: test-skill\ndescription: First\n---\n",
+            content: new TextEncoder().encode("---\nname: test-skill\ndescription: First\n---\n"),
           },
           {
             path: "references/old.md",
-            content: "old",
+            content: new TextEncoder().encode("old"),
           },
         ]);
 
         yield* store.syncDir("test-skill", [
           {
             path: "SKILL.md",
-            content: "---\nname: test-skill\ndescription: Second\n---\n",
+            content: new TextEncoder().encode("---\nname: test-skill\ndescription: Second\n---\n"),
           },
           {
             path: "references/new.md",
-            content: "new",
+            content: new TextEncoder().encode("new"),
           },
         ]);
       }).pipe(Effect.provide(makeStoreLayer(dir)));

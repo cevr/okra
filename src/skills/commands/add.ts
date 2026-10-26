@@ -154,7 +154,7 @@ const installSkillDir = Effect.fn("command.add.installSkillDir")(function* (
   const skillMd = files.find((file) => file.path === "SKILL.md");
   let frontmatter: Option.Option<SkillFrontmatter> = Option.none();
   if (skillMd) {
-    frontmatter = yield* tryParseFrontmatter(skillMd.content);
+    frontmatter = yield* tryParseFrontmatter(new TextDecoder().decode(skillMd.content));
   }
 
   const name = Option.match(frontmatter, {
@@ -190,7 +190,7 @@ const installLocalSkillDir = Effect.fn("command.add.installLocalSkillDir")(funct
   const skillMd = files.find((f) => f.path === "SKILL.md");
   let frontmatter: Option.Option<SkillFrontmatter> = Option.none();
   if (skillMd) {
-    frontmatter = yield* tryParseFrontmatter(skillMd.content);
+    frontmatter = yield* tryParseFrontmatter(new TextDecoder().decode(skillMd.content));
   }
 
   const fallbackName = pathService.basename(absPath);
@@ -402,7 +402,7 @@ const planFromRepoWithSkill = Effect.fn("command.add.planFromRepoWithSkill")(fun
   const rootContent = yield* gh.fetchRaw(owner, repo, "SKILL.md", ref).pipe(Effect.option);
 
   if (rootContent._tag === "Some") {
-    const frontmatter = yield* tryParseFrontmatter(rootContent.value);
+    const frontmatter = yield* tryParseFrontmatter(new TextDecoder().decode(rootContent.value));
     if (Option.isSome(frontmatter) && toKebab(frontmatter.value.name) === toKebab(skillFilter)) {
       return [
         {
@@ -417,7 +417,7 @@ const planFromRepoWithSkill = Effect.fn("command.add.planFromRepoWithSkill")(fun
 
   for (const skill of skills) {
     const content = yield* gh.fetchRaw(owner, repo, skill.skillMdPath, ref);
-    const frontmatter = yield* tryParseFrontmatter(content);
+    const frontmatter = yield* tryParseFrontmatter(new TextDecoder().decode(content));
     if (Option.isSome(frontmatter) && toKebab(frontmatter.value.name) === toKebab(skillFilter)) {
       return [
         {

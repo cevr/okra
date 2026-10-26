@@ -35,7 +35,7 @@ const githubToken = Config.option(Config.String("GITHUB_TOKEN"));
 
 export interface SkillFile {
   readonly path: string;
-  readonly content: string;
+  readonly content: Uint8Array;
 }
 
 export interface SkillEntry {
@@ -57,7 +57,7 @@ export interface GitHubShape {
     repo: string,
     path: string,
     ref?: string,
-  ) => Effect.Effect<string, SkillsError>;
+  ) => Effect.Effect<Uint8Array, SkillsError>;
   readonly listTree: (
     owner: string,
     repo: string,
@@ -83,7 +83,7 @@ export interface GitHubShape {
 }
 
 interface GitHubCliShape extends GitHubShape {
-  readonly run: (args: ReadonlyArray<string>) => Effect.Effect<string, SkillsError>;
+  readonly run: (args: ReadonlyArray<string>) => Effect.Effect<Uint8Array, SkillsError>;
   readonly isAvailable: Effect.Effect<boolean, never>;
 }
 
@@ -425,7 +425,7 @@ export class GitHubCli extends Context.Service<GitHubCli, GitHubCliShape>()(
         // once a pipe buffer fills.
         const [stdout, stderr, exitCode] = yield* Effect.all(
           [
-            Stream.mkString(Stream.decodeText(proc.stdout)),
+            Stream.mkUint8Array(proc.stdout),
             Stream.mkString(Stream.decodeText(proc.stderr)),
             proc.exitCode,
           ],
@@ -476,7 +476,7 @@ export class GitHubCli extends Context.Service<GitHubCli, GitHubCliShape>()(
           "Accept: application/vnd.github.v3+json",
           endpoint,
         ]);
-        return yield* decodeContentsJson(output).pipe(
+        return yield* decodeContentsJson(new TextDecoder().decode(output)).pipe(
           Effect.mapError((cause) => fetchError(`github:${owner}/${repo}/${path}`, cause)),
           Effect.withSpan("GitHubCli.listContents", { attributes: { owner, repo, path, ref } }),
         );
@@ -508,7 +508,7 @@ export class GitHubCli extends Context.Service<GitHubCli, GitHubCliShape>()(
           "Accept: application/vnd.github.v3+json",
           endpoint,
         ]);
-        return yield* decodeTreeJson(output).pipe(
+        return yield* decodeTreeJson(new TextDecoder().decode(output)).pipe(
           Effect.mapError((cause) => fetchError(`github:${owner}/${repo}/tree/${ref}`, cause)),
           Effect.withSpan("GitHubCli.listTree", { attributes: { owner, repo, ref } }),
         );
@@ -581,7 +581,8 @@ export class GitHubHttp extends Context.Service<GitHubHttp, GitHubHttpShape>()(
         const response = yield* client
           .execute(request)
           .pipe(Effect.mapError((cause) => fetchError(`github:${owner}/${repo}/${path}`, cause)));
-        return yield* response.text.pipe(
+        return yield* response.arrayBuffer.pipe(
+          Effect.map((buffer) => new Uint8Array(buffer)),
           Effect.mapError((cause) => fetchError(`github:${owner}/${repo}/${path}`, cause)),
           Effect.withSpan("GitHubHttp.fetchRaw", { attributes: { owner, repo, path, ref } }),
         );

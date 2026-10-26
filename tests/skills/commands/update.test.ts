@@ -119,11 +119,17 @@ describe("runUpdate", () => {
         const store = yield* SkillStore;
         const lock = yield* SkillLock;
         yield* store.installDir("my-skill", [
-          { path: "SKILL.md", content: "---\nname: my-skill\ndescription: old\n---\n" },
+          {
+            path: "SKILL.md",
+            content: new TextEncoder().encode("---\nname: my-skill\ndescription: old\n---\n"),
+          },
         ]);
         yield* lock.add("my-skill", `local:${sourceDir}/my-skill`, "SKILL.md");
         yield* store.installDir("ghost", [
-          { path: "SKILL.md", content: "---\nname: ghost\ndescription: gone\n---\n" },
+          {
+            path: "SKILL.md",
+            content: new TextEncoder().encode("---\nname: ghost\ndescription: gone\n---\n"),
+          },
         ]);
         yield* lock.add("ghost", "local:/tmp/does-not-exist-ever", "SKILL.md");
 
@@ -173,7 +179,12 @@ describe("runUpdate", () => {
 
         // Install a skill whose local source does not exist on this machine
         yield* store.installDir("my-local-skill", [
-          { path: "SKILL.md", content: "---\nname: my-local-skill\ndescription: test\n---\n" },
+          {
+            path: "SKILL.md",
+            content: new TextEncoder().encode(
+              "---\nname: my-local-skill\ndescription: test\n---\n",
+            ),
+          },
         ]);
         yield* lock.add("my-local-skill", "local:/tmp/does-not-exist-ever", "SKILL.md");
 
@@ -246,7 +257,10 @@ describe("runUpdate", () => {
         const store = yield* SkillStore;
         const lock = yield* SkillLock;
         yield* store.installDir("my-skill", [
-          { path: "SKILL.md", content: "---\nname: my-skill\ndescription: old\n---\n" },
+          {
+            path: "SKILL.md",
+            content: new TextEncoder().encode("---\nname: my-skill\ndescription: old\n---\n"),
+          },
         ]);
         yield* lock.add("my-skill", `local:${sourceDir}/my-skill`, "SKILL.md");
         const initial = yield* lock.get("my-skill");
@@ -281,7 +295,12 @@ describe("runUpdate", () => {
         }
         if (dirPath === newDir) {
           return Effect.succeed([
-            { path: "SKILL.md", content: "---\nname: handoff\ndescription: moved\n---\nNew\n" },
+            {
+              path: "SKILL.md",
+              content: new TextEncoder().encode(
+                "---\nname: handoff\ndescription: moved\n---\nNew\n",
+              ),
+            },
           ]);
         }
         return Effect.die(`unexpected dir: ${dirPath}`);
@@ -310,7 +329,10 @@ describe("runUpdate", () => {
         const lock = yield* SkillLock;
 
         yield* store.installDir("handoff", [
-          { path: "SKILL.md", content: "---\nname: handoff\ndescription: old\n---\nOld\n" },
+          {
+            path: "SKILL.md",
+            content: new TextEncoder().encode("---\nname: handoff\ndescription: old\n---\nOld\n"),
+          },
         ]);
         yield* lock.add("handoff", "mattpocock/skills", `${oldDir}/SKILL.md`);
 
@@ -362,7 +384,10 @@ describe("runUpdate", () => {
         const lock = yield* SkillLock;
 
         yield* store.installDir("handoff", [
-          { path: "SKILL.md", content: "---\nname: handoff\ndescription: old\n---\n" },
+          {
+            path: "SKILL.md",
+            content: new TextEncoder().encode("---\nname: handoff\ndescription: old\n---\n"),
+          },
         ]);
         yield* lock.add("handoff", "mattpocock/skills", "skills/in-progress/handoff/SKILL.md");
 
@@ -407,15 +432,17 @@ describe("runUpdate", () => {
         fetchRaw: (_owner, _repo, path) => {
           switch (path) {
             case "skill/opentui/SKILL.md":
-              return Effect.succeed(`---
+              return Effect.succeed(
+                new TextEncoder().encode(`---
 name: OpenTUI
 description: Updated skill
 ---
 
 Fresh content
-`);
+`),
+              );
             case "skill/opentui/references/guide.md":
-              return Effect.succeed("new reference");
+              return Effect.succeed(new TextEncoder().encode("new reference"));
             default:
               return Effect.die(`unexpected path: ${path}`);
           }
@@ -427,17 +454,17 @@ Fresh content
             return Effect.succeed([
               {
                 path: "SKILL.md",
-                content: `---
+                content: new TextEncoder().encode(`---
 name: OpenTUI
 description: Updated skill
 ---
 
 Fresh content
-`,
+`),
               },
               {
                 path: "references/guide.md",
-                content: "new reference",
+                content: new TextEncoder().encode("new reference"),
               },
             ]);
           }
@@ -452,21 +479,21 @@ Fresh content
         yield* store.installDir("opentui", [
           {
             path: "SKILL.md",
-            content: `---
+            content: new TextEncoder().encode(`---
 name: OpenTUI
 description: Old skill
 ---
 
 Old content
-`,
+`),
           },
           {
             path: "references/guide.md",
-            content: "old reference",
+            content: new TextEncoder().encode("old reference"),
           },
           {
             path: "references/stale.md",
-            content: "stale reference",
+            content: new TextEncoder().encode("stale reference"),
           },
         ]);
         yield* lock.add("opentui", "msmps/opentui-skill@opentui", "skill/opentui/SKILL.md");

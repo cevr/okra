@@ -2,6 +2,7 @@ import { Config, Effect, FileSystem, Layer, Option, Path, Context } from "effect
 import { SkillsError } from "../errors.js";
 import { tryParseFrontmatter } from "../lib/frontmatter.js";
 import { walkDir } from "../lib/fs.js";
+import type { SkillFile } from "./GitHub.js";
 
 export interface InstalledSkill {
   readonly name: string;
@@ -17,19 +18,9 @@ export class SkillStore extends Context.Service<
     readonly read: (name: string) => Effect.Effect<string, SkillsError>;
     readonly readDir: (
       name: string,
-    ) => Effect.Effect<
-      ReadonlyArray<{ path: string; content: string }>,
-      never,
-      FileSystem.FileSystem | Path.Path
-    >;
-    readonly installDir: (
-      name: string,
-      files: ReadonlyArray<{ path: string; content: string }>,
-    ) => Effect.Effect<void>;
-    readonly syncDir: (
-      name: string,
-      files: ReadonlyArray<{ path: string; content: string }>,
-    ) => Effect.Effect<void>;
+    ) => Effect.Effect<ReadonlyArray<SkillFile>, never, FileSystem.FileSystem | Path.Path>;
+    readonly installDir: (name: string, files: ReadonlyArray<SkillFile>) => Effect.Effect<void>;
+    readonly syncDir: (name: string, files: ReadonlyArray<SkillFile>) => Effect.Effect<void>;
     readonly remove: (name: string) => Effect.Effect<void, SkillsError>;
   }
 >()("@cvr/okra/skills/services/SkillStore") {}
@@ -112,7 +103,7 @@ export const SkillStoreLive = Layer.effect(
         Effect.withSpan("SkillStore.readDir", { attributes: { name } }),
       );
 
-    const installDir = (name: string, files: ReadonlyArray<{ path: string; content: string }>) =>
+    const installDir = (name: string, files: ReadonlyArray<SkillFile>) =>
       Effect.gen(function* () {
         const skillDir = pathService.join(dir, name);
         yield* fs.makeDirectory(skillDir, { recursive: true });
@@ -120,11 +111,11 @@ export const SkillStoreLive = Layer.effect(
           const filePath = pathService.join(skillDir, file.path);
           const fileDir = pathService.dirname(filePath);
           yield* fs.makeDirectory(fileDir, { recursive: true });
-          yield* fs.writeFileString(filePath, file.content);
+          yield* fs.writeFile(filePath, file.content);
         }
       }).pipe(Effect.orDie, Effect.withSpan("SkillStore.installDir", { attributes: { name } }));
 
-    const syncDir = (name: string, files: ReadonlyArray<{ path: string; content: string }>) =>
+    const syncDir = (name: string, files: ReadonlyArray<SkillFile>) =>
       Effect.gen(function* () {
         const skillDir = pathService.join(dir, name);
         const exists = yield* fs.exists(skillDir).pipe(Effect.orDie);

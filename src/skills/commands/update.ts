@@ -1,7 +1,7 @@
 import { Console, Effect, FileSystem, Option, Result, Schema } from "effect";
 import type { SkillsError } from "../errors.js";
 import { SkillStore } from "../services/SkillStore.js";
-import { GitHub, type GitHubShape } from "../services/GitHub.js";
+import { GitHub, type GitHubShape, type SkillFile } from "../services/GitHub.js";
 import { SkillLock, type LockEntry } from "../services/SkillLock.js";
 import { parseSource } from "../lib/source.js";
 import { walkDir } from "../lib/fs.js";
@@ -9,13 +9,13 @@ import { DEFAULT_REF } from "../lib/constants.js";
 import { expandHome, readHome } from "../../shared/home.js";
 import { make as makeProgress, type Progress, type SkillStatus } from "../lib/progress.js";
 
-type FileEntry = { readonly path: string; readonly content: string };
-
-const filesEqual = (a: ReadonlyArray<FileEntry>, b: ReadonlyArray<FileEntry>): boolean => {
+const filesEqual = (a: ReadonlyArray<SkillFile>, b: ReadonlyArray<SkillFile>): boolean => {
   if (a.length !== b.length) return false;
   const mapA = new Map(a.map((f) => [f.path, f.content]));
   for (const file of b) {
-    if (mapA.get(file.path) !== file.content) return false;
+    const content = mapA.get(file.path);
+    if (!content || content.length !== file.content.length) return false;
+    if (!content.every((byte, index) => byte === file.content[index])) return false;
   }
   return true;
 };
@@ -70,7 +70,7 @@ const updateLocalSkill = Effect.fn("command.update.updateLocalSkill")(function* 
     walkDir(localPath),
     store
       .readDir(name)
-      .pipe(Effect.catchDefect(() => Effect.succeed([] as ReadonlyArray<FileEntry>))),
+      .pipe(Effect.catchDefect(() => Effect.succeed([] as ReadonlyArray<SkillFile>))),
   ]);
 
   if (filesEqual(incoming, installed)) return Result.succeed<UpdateOk>({ status: "unchanged" });
@@ -151,7 +151,7 @@ const updateSkill = Effect.fn("command.update.updateSkill")(function* (
   const initial = yield* tryFetchSkillDir(gh, owner, repo, currentSkillDir, ref);
   const installed = yield* store
     .readDir(name)
-    .pipe(Effect.catchDefect(() => Effect.succeed([] as ReadonlyArray<FileEntry>)));
+    .pipe(Effect.catchDefect(() => Effect.succeed([] as ReadonlyArray<SkillFile>)));
 
   let fetched = initial;
   let movedTo: Option.Option<string> = Option.none();

@@ -1,4 +1,5 @@
 import { Effect, FileSystem, Path } from "effect";
+import type { SkillFile } from "../services/GitHub.js";
 
 const joinRelative = (prefix: string, entry: string): string => {
   if (prefix.length === 0) return entry;
@@ -9,7 +10,7 @@ export const walkDir = Effect.fn("walkDir")(function* (dirPath: string) {
   const fs = yield* FileSystem.FileSystem;
   const pathService = yield* Path.Path;
 
-  const files: Array<{ path: string; content: string }> = [];
+  const files: Array<SkillFile> = [];
 
   const walk = (currentDir: string, prefix: string): Effect.Effect<void> =>
     Effect.gen(function* () {
@@ -22,7 +23,7 @@ export const walkDir = Effect.fn("walkDir")(function* (dirPath: string) {
         if (stat.type === "Directory") {
           yield* walk(fullPath, relativePath);
         } else {
-          const content = yield* fs.readFileString(fullPath).pipe(Effect.orDie);
+          const content = yield* fs.readFile(fullPath).pipe(Effect.orDie);
           files.push({ path: relativePath, content });
         }
       }
