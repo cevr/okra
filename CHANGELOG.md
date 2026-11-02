@@ -1,5 +1,11 @@
 # @cvr/okra
 
+## 0.13.0
+
+### Minor Changes
+
+- [`a4dddf4`](https://github.com/cevr/okra/commit/a4dddf446019ec3db091fa8536b7dc78e50412b5) Thanks [@cevr](https://github.com/cevr)! - Record installed skill content hashes and protect local edits during updates. Report skipped skills as modified, add --force to overwrite them, and backfill legacy lock entries without rewriting unchanged files.
+
 ## 0.12.2
 
 ### Patch Changes
