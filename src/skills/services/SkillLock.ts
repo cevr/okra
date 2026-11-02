@@ -6,6 +6,7 @@ export class LockEntry extends Schema.Class<LockEntry>("LockEntry")({
   source: Schema.String,
   skillPath: Schema.String,
   ref: Schema.optional(Schema.String),
+  hash: Schema.optional(Schema.String),
   installedAt: Schema.String,
   updatedAt: Schema.String,
 }) {}
@@ -28,14 +29,21 @@ export class SkillLock extends Context.Service<
       source: string,
       skillPath: string,
       ref?: string,
+      hash?: string,
     ) => Effect.Effect<void, SkillsError>;
     readonly addMany: (
-      entries: ReadonlyArray<{ name: string; source: string; skillPath: string; ref?: string }>,
+      entries: ReadonlyArray<{
+        name: string;
+        source: string;
+        skillPath: string;
+        ref?: string;
+        hash?: string;
+      }>,
     ) => Effect.Effect<void, SkillsError>;
     readonly remove: (name: string) => Effect.Effect<void, SkillsError>;
     readonly update: (name: string) => Effect.Effect<void, SkillsError>;
     readonly updateMany: (
-      entries: ReadonlyArray<{ name: string; skillPath?: string }>,
+      entries: ReadonlyArray<{ name: string; skillPath?: string; hash?: string }>,
     ) => Effect.Effect<void, SkillsError>;
   }
 >()("@cvr/okra/skills/services/SkillLock") {}
@@ -89,7 +97,7 @@ export const SkillLockLive = Layer.effect(
       );
 
     // B4: Preserve installedAt on re-add
-    const add = (name: string, source: string, skillPath: string, ref?: string) =>
+    const add = (name: string, source: string, skillPath: string, ref?: string, hash?: string) =>
       Effect.gen(function* () {
         const lock = yield* readLock;
         const now = (yield* DateTime.now).pipe(DateTime.formatIso);
@@ -98,6 +106,7 @@ export const SkillLockLive = Layer.effect(
           source,
           skillPath,
           ref,
+          hash,
           installedAt: existing?.installedAt ?? now,
           updatedAt: now,
         });
@@ -110,18 +119,25 @@ export const SkillLockLive = Layer.effect(
 
     // B1/B4: Single read-modify-write, preserve installedAt
     const addMany = Effect.fn("SkillLock.addMany")(function* (
-      entries: ReadonlyArray<{ name: string; source: string; skillPath: string; ref?: string }>,
+      entries: ReadonlyArray<{
+        name: string;
+        source: string;
+        skillPath: string;
+        ref?: string;
+        hash?: string;
+      }>,
     ) {
       if (entries.length === 0) return;
       const lock = yield* readLock;
       const now = (yield* DateTime.now).pipe(DateTime.formatIso);
       const newSkills = { ...lock.skills };
-      for (const { name, source, skillPath, ref } of entries) {
+      for (const { name, source, skillPath, ref, hash } of entries) {
         const existing = newSkills[name];
         newSkills[name] = LockEntry.make({
           source,
           skillPath,
           ref,
+          hash,
           installedAt: existing?.installedAt ?? now,
           updatedAt: now,
         });
@@ -150,6 +166,7 @@ export const SkillLockLive = Layer.effect(
               source: entry.source,
               skillPath: entry.skillPath,
               ref: entry.ref,
+              hash: entry.hash,
               installedAt: entry.installedAt,
               updatedAt: now,
             }),
@@ -159,19 +176,20 @@ export const SkillLockLive = Layer.effect(
       }).pipe(Effect.withSpan("SkillLock.update", { attributes: { name } }));
 
     const updateMany = Effect.fn("SkillLock.updateMany")(function* (
-      entries: ReadonlyArray<{ name: string; skillPath?: string }>,
+      entries: ReadonlyArray<{ name: string; skillPath?: string; hash?: string }>,
     ) {
       if (entries.length === 0) return;
       const lock = yield* readLock;
       const now = (yield* DateTime.now).pipe(DateTime.formatIso);
       const newSkills = { ...lock.skills };
-      for (const { name, skillPath } of entries) {
+      for (const { name, skillPath, hash } of entries) {
         const entry = newSkills[name];
         if (entry) {
           newSkills[name] = LockEntry.make({
             source: entry.source,
             skillPath: skillPath ?? entry.skillPath,
             ref: entry.ref,
+            hash: hash ?? entry.hash,
             installedAt: entry.installedAt,
             updatedAt: now,
           });

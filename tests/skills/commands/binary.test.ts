@@ -111,6 +111,7 @@ describe("binary skill files", () => {
               dryRun: true,
               outdated: [],
               failed: [],
+              modified: [],
               unchanged: 1,
             });
             yield* runRemove(["binary-skill"]);

@@ -1,7 +1,8 @@
-import { Console, Effect, FileSystem, Option, Path, Result } from "effect";
+import { Console, Effect, FileSystem, Option, Path, Result, type Crypto } from "effect";
 import { Prompt } from "effect/cli";
 import { SkillsError } from "../errors.js";
 import { walkDir } from "../lib/fs.js";
+import { hashFiles } from "../lib/hash.js";
 import { DEFAULT_REF, SKILL_DIR_PREFIXES } from "../lib/constants.js";
 import { tryParseFrontmatter, type SkillFrontmatter } from "../lib/frontmatter.js";
 import { search } from "../lib/search-api.js";
@@ -23,6 +24,7 @@ export interface InstalledEntry {
   readonly source: string;
   readonly skillPath: string;
   readonly ref?: string;
+  readonly hash: string;
 }
 
 interface InstallPlan {
@@ -30,7 +32,7 @@ interface InstallPlan {
   readonly run: Effect.Effect<
     InstalledEntry,
     SkillsError,
-    GitHub | SkillStore | FileSystem.FileSystem | Path.Path
+    GitHub | SkillStore | FileSystem.FileSystem | Path.Path | Crypto.Crypto
   >;
 }
 
@@ -165,7 +167,13 @@ const installSkillDir = Effect.fn("command.add.installSkillDir")(function* (
 
   yield* store.syncDir(name, files);
 
-  return { name, source: sourceStr, skillPath: skillMdPath, ref } satisfies InstalledEntry;
+  return {
+    name,
+    source: sourceStr,
+    skillPath: skillMdPath,
+    ref,
+    hash: yield* hashFiles(files),
+  } satisfies InstalledEntry;
 });
 
 const installLocalSkillDir = Effect.fn("command.add.installLocalSkillDir")(function* (
@@ -202,7 +210,12 @@ const installLocalSkillDir = Effect.fn("command.add.installLocalSkillDir")(funct
   const sourceStr = `local:${collapseHome(absPath, yield* readHome)}`;
   yield* store.syncDir(name, files);
 
-  return { name, source: sourceStr, skillPath: "SKILL.md" } satisfies InstalledEntry;
+  return {
+    name,
+    source: sourceStr,
+    skillPath: "SKILL.md",
+    hash: yield* hashFiles(files),
+  } satisfies InstalledEntry;
 });
 
 interface LocalSkillCandidate {

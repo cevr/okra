@@ -90,6 +90,7 @@ describe("buildReport", () => {
           },
         ],
         unchanged: 1,
+        modified: [],
       });
     }),
   );
@@ -155,6 +156,7 @@ describe("runUpdate", () => {
           },
         ],
         unchanged: 0,
+        modified: [],
       });
       expect(yield* fs.readFileString(`${dir}/my-skill/SKILL.md`)).toContain("description: old");
     }).pipe(Effect.provide(BunServices.layer)),

@@ -126,14 +126,19 @@ const dryRunFlag = Flag.Boolean("dry-run").pipe(
 const jsonFlag = Flag.Boolean("json").pipe(
   Flag.withDefault(false),
   Flag.withDescription(
-    "Print one JSON report on stdout: outdated, failed, and unchanged skills (with --dry-run: what would change)",
+    "Print one JSON report on stdout: outdated, failed, modified, and unchanged skills (with --dry-run: what would change)",
   ),
+);
+
+const forceFlag = Flag.Boolean("force").pipe(
+  Flag.withDefault(false),
+  Flag.withDescription("Overwrite local edits in all managed skills"),
 );
 
 const updateCommand = Command.make(
   "update",
-  { dryRun: dryRunFlag, json: jsonFlag },
-  ({ dryRun, json }) => runUpdate({ dryRun, json }),
+  { dryRun: dryRunFlag, json: jsonFlag, force: forceFlag },
+  ({ dryRun, json, force }) => runUpdate({ dryRun, json, force }),
 ).pipe(Command.withDescription("Re-fetch all installed skills from their sources"));
 
 export const skillsRoot = skillsCommand.pipe(

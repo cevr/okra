@@ -99,7 +99,7 @@ export const SkillStoreLive = Layer.effect(
       }).pipe(Effect.withSpan("SkillStore.read", { attributes: { name } }));
 
     const readDir = (name: string) =>
-      walkDir(pathService.join(dir, name)).pipe(
+      walkDir(pathService.join(dir, name), { includeHidden: true }).pipe(
         Effect.withSpan("SkillStore.readDir", { attributes: { name } }),
       );
 

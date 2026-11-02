@@ -6,7 +6,10 @@ const joinRelative = (prefix: string, entry: string): string => {
   return `${prefix}/${entry}`;
 };
 
-export const walkDir = Effect.fn("walkDir")(function* (dirPath: string) {
+export const walkDir = Effect.fn("walkDir")(function* (
+  dirPath: string,
+  options: { readonly includeHidden?: boolean } = {},
+) {
   const fs = yield* FileSystem.FileSystem;
   const pathService = yield* Path.Path;
 
@@ -16,7 +19,7 @@ export const walkDir = Effect.fn("walkDir")(function* (dirPath: string) {
     Effect.gen(function* () {
       const entries = yield* fs.readDirectory(currentDir).pipe(Effect.orDie);
       for (const entry of entries) {
-        if (entry.startsWith(".")) continue;
+        if (!options.includeHidden && entry.startsWith(".")) continue;
         const fullPath = pathService.join(currentDir, entry);
         const relativePath = joinRelative(prefix, entry);
         const stat = yield* fs.stat(fullPath).pipe(Effect.orDie);

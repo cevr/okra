@@ -21,6 +21,7 @@ export type SkillStatus =
   | "moved"
   | "unchanged"
   | "removed"
+  | "modified"
   | "failed";
 
 interface State {
@@ -63,6 +64,7 @@ const symbol = (status: SkillStatus, frame: number): string => {
     case "removed":
       return "↻";
     case "failed":
+    case "modified":
       return "✗";
   }
 };
@@ -87,6 +89,8 @@ const verb = (status: SkillStatus, runningVerb: string): string => {
       return "removed";
     case "failed":
       return "failed";
+    case "modified":
+      return "modified";
   }
 };
 
@@ -116,6 +120,7 @@ const colorize = (status: SkillStatus, text: string, color: boolean): string => 
     case "unchanged":
       return dim(text, color);
     case "failed":
+    case "modified":
       return red(text, color);
   }
 };
