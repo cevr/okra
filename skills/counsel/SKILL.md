@@ -7,10 +7,20 @@ description: Route a prompt to the opposite local coding agent. Use when in Clau
 
 One command. Opposite agent. For delegating any task — review, help, exploration, brainstorming — to the other local coding agent.
 
+## From Claude Code: the codex mod
+
+In Claude Code, when the `mcp__codex__start` tool is listed (the `codex` mod), use it in place of `okra counsel`. `okra counsel` stays the path from Codex to Claude, and the fallback when the mod's tools are missing.
+
+- **Start:** `mcp__codex__start` with `model: "sol"` (the newest Sol), `effort: "medium"` (`"max"` where you would pass `--deep`), `sandbox: "read-only"` for advice or review, a short `description`, and the prompt (§Prompt Shape). Pass no `role`: a role carries an orchestrate unit's instructions.
+- **Wait:** the call returns a thread id at once. The answer arrives as a message from the codex plugin when the turn ends. Go on with other work. Set no timer, and do not poll.
+- **Follow up:** `mcp__codex__send` with the thread id. The thread keeps its context, so a follow-up or a next review round sends only what changed.
+- **Check:** `mcp__codex__threads` lists this session's threads and whether each one runs.
+
 ## Navigation
 
 ```
 What do you need?
+├─ In Claude Code             → §From Claude Code: the codex mod
 ├─ Quick command shape        → §Quick Reference
 ├─ When to use it             → §When to Use
 ├─ How to prepare the prompt  → §Prompt Shape
@@ -58,8 +68,8 @@ Bad: `Thoughts?`
 
 1. Gather local context yourself first — counsel does not do discovery
 2. Write the prompt inline, from a file, or through stdin
-3. Run `okra counsel`
-4. Read stdout payload first, then the target output file
+3. In Claude Code, start a Codex thread through the codex mod (§From Claude Code). Elsewhere, run `okra counsel`
+4. The mod's answer comes as a message. For `okra counsel`, read the stdout payload first, then the target output file
 
 ## Output
 
