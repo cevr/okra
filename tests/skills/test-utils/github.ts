@@ -79,8 +79,11 @@ export const repoResponse = (links: Record<string, string> = {}, truncate = fals
       if (bytes) response = new Response(new Uint8Array(bytes));
     } else {
       // Old downloader sees SKILL.md dereferenced and a directory symlink it ignores.
-      const path = url.pathname.split("/contents/")[1] ?? "";
-      if (path === ".agents/skills/domain") {
+      const path = decodeURIComponent(url.pathname.split("/contents/")[1] ?? "");
+      const bytes = blobs.get(path);
+      if (bytes) {
+        response = new Response(new Uint8Array(bytes));
+      } else if (path === ".agents/skills/domain") {
         response = Response.json([
           { name: "SKILL.md", path: `${path}/SKILL.md`, type: "file" },
           { name: "references", path: `${path}/references`, type: "symlink" },

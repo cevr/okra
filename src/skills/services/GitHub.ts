@@ -28,6 +28,7 @@ type FetchBlob = (
   owner: string,
   repo: string,
   sha: string,
+  path: string,
 ) => Effect.Effect<Uint8Array, SkillsError>;
 
 const GitHubTreeResponseSchema = Schema.Struct({
@@ -420,6 +421,7 @@ export const makeDiscoverSkills = (
 const makeFetchSkillDir = (
   listTree: GitHubShape["listTree"],
   fetchBlob: FetchBlob,
+  fetchRaw: GitHubShape["fetchRaw"],
 ): GitHubShape["fetchSkillDir"] =>
   Effect.fn("GitHub.fetchSkillDir")(function* (
     owner: string,
@@ -461,7 +463,7 @@ const makeFetchSkillDir = (
         if (entry?.mode !== "120000") continue;
         const link = origin ?? prefix;
         if (links.has(prefix)) return yield* invalidLink(link, "cycle detected");
-        const target = new TextDecoder().decode(yield* fetchBlob(owner, repo, entry.sha));
+        const target = new TextDecoder().decode(yield* fetchBlob(owner, repo, entry.sha, prefix));
         const normalized = path.normalize(path.join(path.dirname(prefix), target));
         if (
           !target ||
@@ -493,7 +495,7 @@ const makeFetchSkillDir = (
       return entry;
     });
 
-    const files: Array<{ path: string; sha: string }> = [];
+    const files: Array<{ path: string; repoPath: string }> = [];
     const walk = Effect.fn("GitHub.walkSkillTree")(function* (
       repoPath: string,
       installPath: string,
@@ -502,7 +504,7 @@ const makeFetchSkillDir = (
       const entry = yield* resolve(repoPath);
       if (entry.type === "commit") return;
       if (entry.type === "blob") {
-        files.push({ path: installPath, sha: entry.sha });
+        files.push({ path: installPath, repoPath: entry.path });
         return;
       }
       if (ancestors.has(entry.path))
@@ -518,7 +520,8 @@ const makeFetchSkillDir = (
     return yield* Effect.forEach(
       files,
       (file) =>
-        fetchBlob(owner, repo, file.sha).pipe(
+        // Only resolved regular paths reach raw downloads; link text uses git blobs.
+        fetchRaw(owner, repo, file.repoPath, ref).pipe(
           Effect.map((content) => ({ path: file.path, content })),
         ),
       { concurrency: 5 },
@@ -649,7 +652,7 @@ export class GitHubCli extends Context.Service<GitHubCli, GitHubCliShape>()(
 
       const listTree = makeListTree(fetchTree);
       const discoverSkills = makeDiscoverSkills(listContents, listTree);
-      const fetchSkillDirImpl = makeFetchSkillDir(listTree, fetchBlob);
+      const fetchSkillDirImpl = makeFetchSkillDir(listTree, fetchBlob, fetchRaw);
 
       return GitHubCli.of({
         run,
@@ -670,7 +673,8 @@ export class GitHubHttp extends Context.Service<GitHubHttp, GitHubHttpShape>()(
   static readonly layer = Layer.effect(
     this,
     Effect.gen(function* () {
-      const client = (yield* HttpClient.HttpClient).pipe(HttpClient.filterStatusOk);
+      const client = yield* HttpClient.HttpClient;
+      const jsonClient = client.pipe(HttpClient.filterStatusOk);
 
       // E5: Resolve token eagerly in layer setup, not per-request
       const token = yield* githubToken;
@@ -695,7 +699,7 @@ export class GitHubHttp extends Context.Service<GitHubHttp, GitHubHttpShape>()(
             HttpClientRequest.setHeader("User-Agent", "@cvr/skills"),
           ),
         );
-        return yield* client.execute(request).pipe(
+        return yield* jsonClient.execute(request).pipe(
           Effect.flatMap(decodeContents),
           Effect.mapError((cause) => fetchError(`github:${owner}/${repo}/${path}`, cause)),
           Effect.withSpan("GitHubHttp.listContents", { attributes: { owner, repo, path, ref } }),
@@ -712,9 +716,10 @@ export class GitHubHttp extends Context.Service<GitHubHttp, GitHubHttpShape>()(
         const request = withAuth(
           HttpClientRequest.get(url).pipe(HttpClientRequest.setHeader("User-Agent", "@cvr/skills")),
         );
-        const response = yield* client
-          .execute(request)
-          .pipe(Effect.mapError((cause) => fetchError(`github:${owner}/${repo}/${path}`, cause)));
+        const response = yield* client.execute(request).pipe(
+          Effect.flatMap(HttpClientResponse.filterStatusOk),
+          Effect.mapError((cause) => fetchError(`github:${owner}/${repo}/${path}`, cause)),
+        );
         return yield* response.arrayBuffer.pipe(
           Effect.map((buffer) => new Uint8Array(buffer)),
           Effect.mapError((cause) => fetchError(`github:${owner}/${repo}/${path}`, cause)),
@@ -738,7 +743,7 @@ export class GitHubHttp extends Context.Service<GitHubHttp, GitHubHttpShape>()(
             HttpClientRequest.setHeader("User-Agent", "@cvr/skills"),
           ),
         );
-        return yield* client.execute(request).pipe(
+        return yield* jsonClient.execute(request).pipe(
           Effect.flatMap(decodeTreeHttp),
           Effect.mapError((cause) => fetchError(`github:${owner}/${repo}/tree/${ref}`, cause)),
           Effect.withSpan("GitHubHttp.listTree", { attributes: { owner, repo, ref } }),
@@ -748,27 +753,32 @@ export class GitHubHttp extends Context.Service<GitHubHttp, GitHubHttpShape>()(
       // E5: Token already resolved eagerly
       const hasExplicitToken = Effect.succeed(Option.isSome(token));
 
-      const fetchBlob: FetchBlob = Effect.fn("GitHubHttp.fetchBlob")(function* (owner, repo, sha) {
-        const url = `https://api.github.com/repos/${owner}/${repo}/git/blobs/${encodeURIComponent(sha)}`;
-        const response = yield* client
-          .execute(
-            withAuth(
-              HttpClientRequest.get(url).pipe(
-                HttpClientRequest.setHeader("Accept", "application/vnd.github.raw"),
-                HttpClientRequest.setHeader("User-Agent", "@cvr/skills"),
+      const fetchBlob: FetchBlob = Effect.fn("GitHubHttp.fetchBlob")(
+        function* (owner, repo, sha, path) {
+          const url = `https://api.github.com/repos/${owner}/${repo}/git/blobs/${encodeURIComponent(sha)}`;
+          const response = yield* client
+            .execute(
+              withAuth(
+                HttpClientRequest.get(url).pipe(
+                  HttpClientRequest.setHeader("Accept", "application/vnd.github.raw"),
+                  HttpClientRequest.setHeader("User-Agent", "@cvr/skills"),
+                ),
               ),
-            ),
-          )
-          .pipe(Effect.mapError((cause) => fetchError(url, cause)));
-        return yield* response.arrayBuffer.pipe(
-          Effect.map((buffer) => new Uint8Array(buffer)),
-          Effect.mapError((cause) => fetchError(url, cause)),
-        );
-      });
+            )
+            .pipe(
+              Effect.flatMap(HttpClientResponse.filterStatusOk),
+              Effect.mapError((cause) => fetchError(`github:${owner}/${repo}/${path}`, cause)),
+            );
+          return yield* response.arrayBuffer.pipe(
+            Effect.map((buffer) => new Uint8Array(buffer)),
+            Effect.mapError((cause) => fetchError(`github:${owner}/${repo}/${path}`, cause)),
+          );
+        },
+      );
 
       const listTree = makeListTree(fetchTree);
       const discoverSkills = makeDiscoverSkills(listContents, listTree);
-      const fetchSkillDirImpl = makeFetchSkillDir(listTree, fetchBlob);
+      const fetchSkillDirImpl = makeFetchSkillDir(listTree, fetchBlob, fetchRaw);
 
       return GitHubHttp.of({
         hasExplicitToken,
