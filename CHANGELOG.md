@@ -1,5 +1,11 @@
 # @cvr/okra
 
+## 0.13.2
+
+### Patch Changes
+
+- [`2b5ab5f`](https://github.com/cevr/okra/commit/2b5ab5f2751e4ea37aad7a88d45fa6c860185873) Thanks [@cevr](https://github.com/cevr)! - Fix GitHub skill installs and updates to prefer real skill copies and include the contents of repository symlinks, including directory references. Reject dangling, escaping, and cyclic links before changing installed files, and repair existing lock entries pointing at symlinked copies.
+
 ## 0.13.1
 
 ### Patch Changes
