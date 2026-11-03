@@ -1,5 +1,11 @@
 # @cvr/okra
 
+## 0.13.1
+
+### Patch Changes
+
+- [`7d377b7`](https://github.com/cevr/okra/commit/7d377b7f3126934f9a36907a5648f64853257f79) Thanks [@cevr](https://github.com/cevr)! - Update the CLI to Effect 4.1.2 and its explicit crypto services. Existing skills lock hashes and counsel output directory names are preserved; no lockfile migration or configuration changes are needed.
+
 ## 0.13.0
 
 ### Minor Changes
