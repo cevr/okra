@@ -39,7 +39,7 @@
     "lefthook": "^2.1.14",
     "oxfmt": "^0.68.0",
     "oxlint": "^1.83.0",
-    "oxlint-plugin-effect": "0.32.0",
+    "oxlint-plugin-effect": "0.32.1",
     "typescript": "^7.0.2"
   }
 }
