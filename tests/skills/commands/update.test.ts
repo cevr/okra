@@ -1,7 +1,7 @@
 import { describe, expect, it } from "effect-bun-test";
 import { ConfigProvider, Console, Effect, Layer, Option, Result, Schema } from "effect";
 import { FileSystem } from "effect/FileSystem";
-import { BunServices } from "@effect/platform-bun";
+import { BunCrypto, BunServices } from "@effect/platform-bun";
 import { buildReport, runUpdate, UpdateReport } from "../../../src/skills/commands/update.js";
 import { GitHub, type GitHubShape } from "../../../src/skills/services/GitHub.js";
 import { LockEntry, SkillLock, SkillLockLive } from "../../../src/skills/services/SkillLock.js";
@@ -13,6 +13,7 @@ const makeTestLayer = (dir: string, github: GitHubShape) =>
     Layer.provideMerge(SkillStoreLive),
     Layer.provideMerge(GitHub.layerTest(github)),
     Layer.provideMerge(BunServices.layer),
+    Layer.provideMerge(BunCrypto.layerDigest),
     Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({ SKILLS_DIR: dir }))),
   );
 

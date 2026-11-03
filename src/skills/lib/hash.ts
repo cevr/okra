@@ -1,5 +1,5 @@
-import { Crypto, Effect } from "effect";
-import { Hex } from "effect/encoding";
+import { Effect } from "effect";
+import { Digest } from "effect/crypto";
 import type { SkillFile } from "../services/GitHub.js";
 
 /**
@@ -9,7 +9,7 @@ import type { SkillFile } from "../services/GitHub.js";
  * Metadata and empty directories do not participate.
  */
 export const hashFiles = Effect.fn("skills.hashFiles")(function* (files: ReadonlyArray<SkillFile>) {
-  const crypto = yield* Crypto.Crypto;
+  const digest = yield* Digest.Digest;
   const encoder = new TextEncoder();
   const chunks: Array<Uint8Array> = [];
   for (const file of files.toSorted((a, b) => {
@@ -25,6 +25,5 @@ export const hashFiles = Effect.fn("skills.hashFiles")(function* (files: Readonl
     bytes.set(chunk, offset);
     offset += chunk.length;
   }
-  const digest = yield* crypto.digest("SHA-256", bytes).pipe(Effect.orDie);
-  return `sha256:${Hex.encode(digest)}`;
+  return `sha256:${yield* digest.digestHex(Digest.sha256, bytes)}`;
 });

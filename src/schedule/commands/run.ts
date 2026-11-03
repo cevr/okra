@@ -1,8 +1,7 @@
 import { Clock, Console, DateTime, Effect, Option } from "effect";
-import { Crypto } from "effect/Crypto";
-import type { PlatformError } from "effect/PlatformError";
+import { SecureRandom } from "effect/crypto";
+import { Hex } from "effect/encoding";
 import { Argument, Command } from "effect/cli";
-import { ScheduleError } from "../errors.js";
 import { StoreService } from "../services/Store.js";
 import type { Task } from "../services/Store.js";
 import { LaunchdService } from "../services/Launchd.js";
@@ -11,22 +10,11 @@ import { buildPromptWithContext } from "../context.js";
 import * as StopEvaluator from "../services/StopEvaluator.js";
 import * as Verification from "../services/Verification.js";
 
-const generateNonce = Effect.fn("run.generateNonce")(
-  function* () {
-    const crypto = yield* Crypto;
-    const bytes = yield* crypto.randomBytes(4);
-    const hex = Array.from(bytes)
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-    return `OKRA_STOP_${hex}`;
-  },
-  Effect.catchTag("PlatformError", (e: PlatformError) =>
-    ScheduleError.make({
-      message: `Cannot generate stop nonce: ${e.message}`,
-      code: "SPAWN_FAILED",
-    }),
-  ),
-);
+const generateNonce = Effect.fn("run.generateNonce")(function* () {
+  const random = yield* SecureRandom.SecureRandom;
+  const bytes = yield* random.randomBytes(4);
+  return `OKRA_STOP_${Hex.encode(bytes)}`;
+});
 
 const buildStopSignalBlock = (condition: string, nonce: string): string =>
   `\n<stop-signal>

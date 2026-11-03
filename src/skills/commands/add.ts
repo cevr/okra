@@ -1,4 +1,5 @@
-import { Console, Effect, FileSystem, Option, Path, Result, type Crypto } from "effect";
+import { Console, Effect, FileSystem, Option, Path, Result } from "effect";
+import type { Digest } from "effect/crypto";
 import { Prompt } from "effect/cli";
 import { SkillsError } from "../errors.js";
 import { walkDir } from "../lib/fs.js";
@@ -32,7 +33,7 @@ interface InstallPlan {
   readonly run: Effect.Effect<
     InstalledEntry,
     SkillsError,
-    GitHub | SkillStore | FileSystem.FileSystem | Path.Path | Crypto.Crypto
+    GitHub | SkillStore | FileSystem.FileSystem | Path.Path | Digest.Digest
   >;
 }
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "effect-bun-test";
 import { ConfigProvider, Console, Effect, FileSystem, Layer, Option, Schema } from "effect";
 import { Command } from "effect/cli";
-import { BunServices } from "@effect/platform-bun";
+import { BunCrypto, BunServices } from "@effect/platform-bun";
 import { FetchHttpClient } from "effect/http";
 import { runAdd } from "../../../src/skills/commands/add.js";
 import { runUpdate, UpdateReport } from "../../../src/skills/commands/update.js";
@@ -50,6 +50,7 @@ const fixture = Effect.gen(function* () {
     Layer.provideMerge(SkillStoreLive),
     Layer.provideMerge(GitHub.layerTest(github)),
     Layer.provideMerge(BunServices.layer),
+    Layer.provideMerge(BunCrypto.layerDigest),
     Layer.provideMerge(FetchHttpClient.layer),
     Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({ SKILLS_DIR: dir }))),
   );

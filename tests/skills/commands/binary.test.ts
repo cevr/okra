@@ -2,7 +2,7 @@ import { describe, expect, it } from "effect-bun-test";
 import { ConfigProvider, Console, Effect, Layer, Option, Ref, Schema } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { FetchHttpClient } from "effect/http";
-import { BunServices } from "@effect/platform-bun";
+import { BunCrypto, BunServices } from "@effect/platform-bun";
 import { runAdd } from "../../../src/skills/commands/add.js";
 import { runUpdate, UpdateReport } from "../../../src/skills/commands/update.js";
 import { runRemove } from "../../../src/skills/commands/remove.js";
@@ -72,6 +72,7 @@ describe("binary skill files", () => {
             Layer.provideMerge(SkillStoreLive),
             Layer.provideMerge(GitHub.layerTest(github)),
             Layer.provideMerge(BunServices.layer),
+            Layer.provideMerge(BunCrypto.layerDigest),
             Layer.provideMerge(FetchHttpClient.layer),
             Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({ SKILLS_DIR: dir }))),
           );

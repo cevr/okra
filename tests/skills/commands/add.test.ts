@@ -2,7 +2,7 @@ import { describe, expect, it } from "effect-bun-test";
 import { ConfigProvider, Effect, Layer, Option } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { FetchHttpClient } from "effect/http";
-import { BunServices } from "@effect/platform-bun";
+import { BunCrypto, BunServices } from "@effect/platform-bun";
 import { makeSelectChoices, runAdd } from "../../../src/skills/commands/add.js";
 import { GitHub, type GitHubShape } from "../../../src/skills/services/GitHub.js";
 import { SkillLock, SkillLockLive } from "../../../src/skills/services/SkillLock.js";
@@ -14,6 +14,7 @@ const makeTestLayer = (dir: string, github: GitHubShape) =>
     Layer.provideMerge(SkillStoreLive),
     Layer.provideMerge(GitHub.layerTest(github)),
     Layer.provideMerge(BunServices.layer),
+    Layer.provideMerge(BunCrypto.layerDigest),
     Layer.provideMerge(FetchHttpClient.layer),
     Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({ SKILLS_DIR: dir }))),
   );

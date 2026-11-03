@@ -50,7 +50,11 @@ describe("GitHub binary downloads", () => {
                 let output = bytes;
                 if (command.args.includes("Accept: application/vnd.github.v3+json")) {
                   let json = '[{"name":"example.png","path":"assets/example.png","type":"file"}]';
-                  if (command.args.at(-1)?.includes("/git/trees/")) {
+                  if (
+                    command.args.some(
+                      (arg) => typeof arg === "string" && arg.includes("/git/trees/"),
+                    )
+                  ) {
                     json =
                       '{"tree":[{"path":"assets/example.png","type":"blob","sha":"sha"}],"truncated":false}';
                   }

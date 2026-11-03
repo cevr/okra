@@ -1,5 +1,5 @@
 import { describe, expect, it } from "effect-bun-test";
-import { Effect, Layer, Ref } from "effect";
+import { Effect, Layer, Queue, Ref } from "effect";
 import { TestClock } from "effect/testing";
 import * as Stdio from "effect/Stdio";
 import * as Terminal from "effect/Terminal";
@@ -16,6 +16,7 @@ const TestStdio = Layer.mergeAll(
     Terminal.make({
       columns: Effect.succeed(80),
       rows: Effect.succeed(24),
+      size: Queue.unbounded<Terminal.Size>().pipe(Effect.map(Queue.asDequeue)),
       readInput: Effect.never,
       readLine: Effect.never,
       display: () => Effect.void,
