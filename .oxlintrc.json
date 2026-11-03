@@ -25,6 +25,7 @@
     "no-underscore-dangle": "off",
     "consistent-return": "off",
     "effect/noAsyncFunction": "error",
+    "effect/noComments": "error",
     "effect/noDynamicImports": "error",
     "effect/noEffectBind": "error",
     "effect/noEffectDo": "error",
