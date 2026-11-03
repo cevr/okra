@@ -90,6 +90,12 @@ describe("discoverFromTree", () => {
     ]);
   });
 
+  syncIt("retains skills/ precedence when both prefixes contain the same real skill", () => {
+    expect(discoverFromTree(makeTree(["skills/foo/SKILL.md", "skill/foo/SKILL.md"]))).toEqual([
+      { dirName: "foo", skillMdPath: "skills/foo/SKILL.md", skillDir: "skills/foo" },
+    ]);
+  });
+
   syncIt("deeply nested: plugins/X/skills/Y/SKILL.md (railway-skills layout)", () => {
     const result = discoverFromTree(
       makeTree([

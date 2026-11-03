@@ -50,6 +50,8 @@ okra skills install owner/repo@name
 
 When a source resolves to multiple skills, an interactive `multiSelect` prompt opens. The prompt dims installed skills and keeps them unavailable for selection. A newly discovered single skill installs directly without a prompt.
 
+GitHub discovery prefers a real `SKILL.md` over symlinked copies of the same skill. File and directory symlinks within a skill are installed as their target contents at the link's path. Targets must stay inside the same repository and exist in its tree; invalid or cyclic links fail that skill before its installed files are changed. Updates use the same resolution, including existing lock entries pointing at a symlinked copy.
+
 ## Removing skills
 
 ```bash

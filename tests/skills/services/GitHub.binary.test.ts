@@ -36,7 +36,7 @@ describe("GitHub binary downloads", () => {
         { name: "example.png", path: "assets/example.png", type: "file" },
       ]);
       expect(yield* github.listTree("acme", "repo", "main")).toEqual({
-        tree: [{ path: "assets/example.png", type: "blob", sha: "sha" }],
+        tree: [{ path: "assets/example.png", type: "blob", sha: "sha", mode: "100644" }],
         truncated: false,
       });
     }).pipe(
@@ -56,7 +56,7 @@ describe("GitHub binary downloads", () => {
                     )
                   ) {
                     json =
-                      '{"tree":[{"path":"assets/example.png","type":"blob","sha":"sha"}],"truncated":false}';
+                      '{"tree":[{"path":"assets/example.png","type":"blob","sha":"sha","mode":"100644"}],"truncated":false}';
                   }
                   output = new TextEncoder().encode(json);
                 }

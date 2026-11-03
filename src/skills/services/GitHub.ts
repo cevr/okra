@@ -1,7 +1,7 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 import * as ChildProcess from "effect/process/ChildProcess";
 import { ChildProcessSpawner } from "effect/process/ChildProcessSpawner";
-import { Config, Effect, Layer, Option, Schema, Stream, Context } from "effect";
+import { Config, Effect, Layer, Option, Schema, Stream, Context, Path } from "effect";
 import { SkillsError } from "../errors.js";
 import { DEFAULT_REF, SKILL_DIR_PREFIXES } from "../lib/constants.js";
 
@@ -17,9 +17,18 @@ type GitHubContentEntry = typeof GitHubContentEntrySchema.Type;
 
 const GitHubTreeEntrySchema = Schema.Struct({
   path: Schema.String,
-  type: Schema.Literals(["blob", "tree"]),
+  type: Schema.Literals(["blob", "tree", "commit"]),
   sha: Schema.String,
+  mode: Schema.String,
 });
+
+type GitHubTreeEntry = typeof GitHubTreeEntrySchema.Type;
+
+type FetchBlob = (
+  owner: string,
+  repo: string,
+  sha: string,
+) => Effect.Effect<Uint8Array, SkillsError>;
 
 const GitHubTreeResponseSchema = Schema.Struct({
   tree: Schema.Array(GitHubTreeEntrySchema),
@@ -64,7 +73,7 @@ export interface GitHubShape {
     ref: string,
   ) => Effect.Effect<
     {
-      tree: ReadonlyArray<{ path: string; type: "blob" | "tree"; sha: string }>;
+      tree: ReadonlyArray<GitHubTreeEntry>;
       truncated: boolean;
     },
     SkillsError
@@ -115,17 +124,48 @@ const refQuery = (ref?: string): string => {
   return "";
 };
 
-// An empty dirPath means the skill sits at the repo root, so paths are already relative.
-const toRelative = (dirPath: string, entryPath: string): string => {
-  if (dirPath) return entryPath.slice(dirPath.length + 1);
-  return entryPath;
-};
-
 const contentsEndpoint = (owner: string, repo: string, path: string, ref?: string) =>
   `repos/${owner}/${repo}/contents${pathSegment(path)}${refQuery(ref)}`;
 
-const treeEndpoint = (owner: string, repo: string, ref: string) =>
-  `repos/${owner}/${repo}/git/trees/${encodeURIComponent(ref)}?recursive=1`;
+const treeEndpoint = (owner: string, repo: string, ref: string, recursive: boolean) => {
+  const endpoint = `repos/${owner}/${repo}/git/trees/${encodeURIComponent(ref)}`;
+  if (recursive) return `${endpoint}?recursive=1`;
+  return endpoint;
+};
+
+// GitHub caps recursive trees. Rebuild a complete tree from non-recursive
+// subtree requests so discovery and link resolution never use a partial index.
+const makeListTree = (
+  fetchTree: (
+    owner: string,
+    repo: string,
+    ref: string,
+    recursive: boolean,
+  ) => ReturnType<GitHubShape["listTree"]>,
+): GitHubShape["listTree"] =>
+  Effect.fn("GitHub.listTree")(function* (owner, repo, ref) {
+    const result = yield* fetchTree(owner, repo, ref, true);
+    if (!result.truncated) return result;
+    const tree: Array<GitHubTreeEntry> = [];
+    const walk = Effect.fn("GitHub.listSubtree")(function* (
+      treeRef: string,
+      prefix: string,
+    ): Effect.fn.Return<void, SkillsError> {
+      const subtree = yield* fetchTree(owner, repo, treeRef, false);
+      if (subtree.truncated)
+        return yield* fetchError(
+          `github:${owner}/${repo}/${prefix}`,
+          "Repository subtree is truncated",
+        );
+      for (const entry of subtree.tree) {
+        const fullPath = `${prefix}${entry.path}`;
+        tree.push({ ...entry, path: fullPath });
+        if (entry.type === "tree") yield* walk(entry.sha, `${fullPath}/`);
+      }
+    });
+    yield* walk(ref, "");
+    return { tree, truncated: false };
+  });
 
 const skillEntryRank = (entry: SkillEntry): number => {
   const segments = entry.skillDir.split("/");
@@ -136,7 +176,17 @@ const skillEntryRank = (entry: SkillEntry): number => {
   return 2;
 };
 
+const skillPrefixRank = (entry: SkillEntry): number => {
+  const segments = entry.skillDir.split("/");
+  const index = SKILL_DIR_PREFIXES.findIndex((prefix) => segments.includes(prefix));
+  if (index === -1) return SKILL_DIR_PREFIXES.length;
+  return index;
+};
+
 const isPreferredSkillEntry = (candidate: SkillEntry, current: SkillEntry): boolean => {
+  const prefixDifference = skillPrefixRank(candidate) - skillPrefixRank(current);
+  if (prefixDifference !== 0) return prefixDifference < 0;
+
   const rankDifference = skillEntryRank(candidate) - skillEntryRank(current);
   if (rankDifference !== 0) return rankDifference < 0;
 
@@ -146,58 +196,59 @@ const isPreferredSkillEntry = (candidate: SkillEntry, current: SkillEntry): bool
   return candidate.skillDir < current.skillDir;
 };
 
-const dedupeSkillEntries = (entries: ReadonlyArray<SkillEntry>): ReadonlyArray<SkillEntry> => {
+const dedupeSkillEntries = (
+  entries: ReadonlyArray<SkillEntry>,
+  symlinkPaths: ReadonlySet<string>,
+): ReadonlyArray<SkillEntry> => {
+  const usesSymlink = (entry: SkillEntry): boolean => {
+    const parts = entry.skillMdPath.split("/");
+    return parts.some((_, i) => symlinkPaths.has(parts.slice(0, i + 1).join("/")));
+  };
   const byName = new Map<string, SkillEntry>();
   for (const entry of entries) {
     const current = byName.get(entry.dirName);
-    if (!current || isPreferredSkillEntry(entry, current)) {
+    if (
+      !current ||
+      (usesSymlink(current) && !usesSymlink(entry)) ||
+      (usesSymlink(current) === usesSymlink(entry) && isPreferredSkillEntry(entry, current))
+    ) {
       byName.set(entry.dirName, entry);
     }
   }
   return [...byName.values()];
 };
 
-// P3: Tree-based discovery — find all SKILL.md blobs, prefer those under skills/ or skill/ ancestors
+// Prefer real copies before applying the established prefix/depth ranking.
 /** @internal exported for testing */
 export const discoverFromTree = (
-  tree: ReadonlyArray<{ path: string; type: "blob" | "tree" }>,
+  tree: ReadonlyArray<{ path: string; type: "blob" | "tree" | "commit"; mode?: string }>,
 ): ReadonlyArray<SkillEntry> => {
-  const skillMdBlobs = tree.filter((e) => e.type === "blob" && e.path.endsWith("/SKILL.md"));
+  const symlinkPaths = new Set(tree.filter((e) => e.mode === "120000").map((e) => e.path));
+  const candidates = tree
+    .filter((e) => e.type === "blob" && e.path.endsWith("/SKILL.md"))
+    .map((entry) => {
+      const skillDir = entry.path.slice(0, -"/SKILL.md".length);
+      const dirName = skillDir.split("/").at(-1) ?? "unknown";
+      return { dirName, skillMdPath: entry.path, skillDir };
+    });
+  const entries = dedupeSkillEntries(candidates, symlinkPaths);
 
-  if (skillMdBlobs.length === 0) {
-    // Check root SKILL.md (repo itself is a single skill)
+  if (entries.length === 0) {
     if (tree.some((e) => e.type === "blob" && e.path === "SKILL.md")) {
       return [{ dirName: "", skillMdPath: "SKILL.md", skillDir: "" }];
     }
     return [];
   }
 
-  // Group by whether the SKILL.md sits under a known prefix ancestor (skills/ or skill/)
-  // Prefer prefixed skills; if none found, return all discovered skills
-  // Match full path segments only — "myskills/" must not match prefix "skills/"
   for (const prefix of SKILL_DIR_PREFIXES) {
-    const prefixed: Array<SkillEntry> = [];
-    const segment = `${prefix}/`;
-    for (const entry of skillMdBlobs) {
-      const idx = entry.path.indexOf(segment);
-      if (idx === -1) continue;
-      // Ensure segment boundary: must be at start or preceded by /
-      if (idx !== 0 && entry.path[idx - 1] !== "/") continue;
-      const skillDir = entry.path.slice(0, -"/SKILL.md".length);
-      const dirName = skillDir.split("/").at(-1) ?? "unknown";
-      prefixed.push({ dirName, skillMdPath: entry.path, skillDir });
-    }
-    if (prefixed.length > 0) return dedupeSkillEntries(prefixed);
+    const names = new Set(
+      candidates
+        .filter((entry) => entry.skillDir.split("/").includes(prefix))
+        .map((entry) => entry.dirName),
+    );
+    if (names.size > 0) return entries.filter((entry) => names.has(entry.dirName));
   }
-
-  // No known prefix — return all discovered SKILL.md locations
-  return dedupeSkillEntries(
-    skillMdBlobs.map((entry) => {
-      const skillDir = entry.path.slice(0, -"/SKILL.md".length);
-      const dirName = skillDir.split("/").at(-1) ?? "unknown";
-      return { dirName, skillMdPath: entry.path, skillDir };
-    }),
-  );
+  return entries;
 };
 
 // Check if a directory listing contains skill subdirectories (dirs with SKILL.md)
@@ -364,10 +415,11 @@ export const makeDiscoverSkills = (
     return yield* discoverFromListing(listContents, owner, repo, ref);
   });
 
-// Shared implementation for fetchSkillDir
+// Resolve from git objects, not Contents listings: GitHub can dereference file
+// symlinks there and report them as ordinary files. Blob SHAs retain link text.
 const makeFetchSkillDir = (
-  listContents: GitHubShape["listContents"],
-  fetchRaw: GitHubShape["fetchRaw"],
+  listTree: GitHubShape["listTree"],
+  fetchBlob: FetchBlob,
 ): GitHubShape["fetchSkillDir"] =>
   Effect.fn("GitHub.fetchSkillDir")(function* (
     owner: string,
@@ -375,31 +427,103 @@ const makeFetchSkillDir = (
     dirPath: string,
     ref = DEFAULT_REF,
   ) {
-    const fileEntries: Array<{ path: string; relativePath: string }> = [];
+    const path = yield* Path.Path;
+    const result = yield* listTree(owner, repo, ref);
+    if (result.truncated) {
+      return yield* fetchError(
+        `github:${owner}/${repo}/${dirPath}`,
+        "Repository tree is truncated",
+      );
+    }
+    const entries = new Map(result.tree.map((entry) => [entry.path, entry]));
+    const root: GitHubTreeEntry = { path: "", type: "tree", mode: "040000", sha: "" };
+    entries.set("", root);
+    const children = new Map<string, Array<GitHubTreeEntry>>();
+    for (const entry of result.tree) {
+      let parent = path.dirname(entry.path);
+      if (parent === ".") parent = "";
+      const siblings = children.get(parent) ?? [];
+      siblings.push(entry);
+      children.set(parent, siblings);
+    }
+    const invalidLink = (link: string, reason: string) =>
+      SkillsError.make({ code: "INVALID_SYMLINK", message: `Invalid symlink ${link}: ${reason}` });
 
-    const walk = (path: string): Effect.Effect<void, SkillsError> =>
-      Effect.gen(function* () {
-        const entries = yield* listContents(owner, repo, path, ref);
-        for (const entry of entries) {
-          if (entry.type === "file") {
-            fileEntries.push({ path: entry.path, relativePath: toRelative(dirPath, entry.path) });
-          } else if (entry.type === "dir") {
-            yield* walk(entry.path);
-          }
+    const resolve = Effect.fn("GitHub.resolveSkillPath")(function* (
+      repoPath: string,
+      links: ReadonlySet<string> = new Set(),
+      origin?: string,
+    ): Effect.fn.Return<GitHubTreeEntry, SkillsError> {
+      const parts = repoPath.split("/");
+      for (let i = 1; i <= parts.length; i++) {
+        const prefix = parts.slice(0, i).join("/");
+        const entry = entries.get(prefix);
+        if (entry?.mode !== "120000") continue;
+        const link = origin ?? prefix;
+        if (links.has(prefix)) return yield* invalidLink(link, "cycle detected");
+        const target = new TextDecoder().decode(yield* fetchBlob(owner, repo, entry.sha));
+        const normalized = path.normalize(path.join(path.dirname(prefix), target));
+        if (
+          !target ||
+          path.isAbsolute(target) ||
+          normalized === ".." ||
+          normalized.startsWith("../")
+        ) {
+          return yield* invalidLink(link, `target escapes the repository: ${target}`);
         }
-      });
+        let resolvedPath = path.join(normalized, ...parts.slice(i));
+        if (resolvedPath === ".") resolvedPath = "";
+        return yield* resolve(resolvedPath, new Set([...links, prefix]), link);
+      }
+      const entry = entries.get(repoPath);
+      if (!entry) {
+        if (origin)
+          return yield* invalidLink(origin, `target missing from repository tree: ${repoPath}`);
+        return yield* fetchError(
+          `github:${owner}/${repo}/${repoPath}`,
+          "Path missing from repository tree",
+        );
+      }
+      if (origin && entry.type === "commit") {
+        return yield* invalidLink(
+          origin,
+          `target is a submodule, outside this repository tree: ${repoPath}`,
+        );
+      }
+      return entry;
+    });
 
-    yield* walk(dirPath);
-
+    const files: Array<{ path: string; sha: string }> = [];
+    const walk = Effect.fn("GitHub.walkSkillTree")(function* (
+      repoPath: string,
+      installPath: string,
+      ancestors: ReadonlySet<string>,
+    ): Effect.fn.Return<void, SkillsError> {
+      const entry = yield* resolve(repoPath);
+      if (entry.type === "commit") return;
+      if (entry.type === "blob") {
+        files.push({ path: installPath, sha: entry.sha });
+        return;
+      }
+      if (ancestors.has(entry.path))
+        return yield* invalidLink(repoPath, "directory cycle detected");
+      const nextAncestors = new Set([...ancestors, entry.path]);
+      for (const child of children.get(entry.path) ?? []) {
+        yield* walk(child.path, path.join(installPath, path.basename(child.path)), nextAncestors);
+      }
+    });
+    let normalizedDir = path.normalize(dirPath);
+    if (normalizedDir === ".") normalizedDir = "";
+    yield* walk(normalizedDir, "", new Set());
     return yield* Effect.forEach(
-      fileEntries,
-      (entry) =>
-        fetchRaw(owner, repo, entry.path, ref).pipe(
-          Effect.map((content) => ({ path: entry.relativePath, content })),
+      files,
+      (file) =>
+        fetchBlob(owner, repo, file.sha).pipe(
+          Effect.map((content) => ({ path: file.path, content })),
         ),
       { concurrency: 5 },
     );
-  });
+  }, Effect.provide(Path.layer));
 
 export class GitHubCli extends Context.Service<GitHubCli, GitHubCliShape>()(
   "@cvr/okra/skills/services/GitHub/GitHubCli",
@@ -496,12 +620,13 @@ export class GitHubCli extends Context.Service<GitHubCli, GitHubCliShape>()(
       });
 
       // P3: Tree API via gh CLI
-      const listTree = Effect.fn("GitHubCli.listTree")(function* (
+      const fetchTree = Effect.fn("GitHubCli.fetchTree")(function* (
         owner: string,
         repo: string,
         ref: string,
+        recursive: boolean,
       ) {
-        const endpoint = treeEndpoint(owner, repo, ref);
+        const endpoint = treeEndpoint(owner, repo, ref, recursive);
         const output = yield* run([
           "api",
           "-H",
@@ -514,8 +639,17 @@ export class GitHubCli extends Context.Service<GitHubCli, GitHubCliShape>()(
         );
       });
 
+      const fetchBlob: FetchBlob = (owner, repo, sha) =>
+        run([
+          "api",
+          "-H",
+          "Accept: application/vnd.github.raw",
+          `repos/${owner}/${repo}/git/blobs/${encodeURIComponent(sha)}`,
+        ]);
+
+      const listTree = makeListTree(fetchTree);
       const discoverSkills = makeDiscoverSkills(listContents, listTree);
-      const fetchSkillDirImpl = makeFetchSkillDir(listContents, fetchRaw);
+      const fetchSkillDirImpl = makeFetchSkillDir(listTree, fetchBlob);
 
       return GitHubCli.of({
         run,
@@ -591,12 +725,13 @@ export class GitHubHttp extends Context.Service<GitHubHttp, GitHubHttpShape>()(
       // P3: Tree API via HTTP
       const decodeTreeHttp = HttpClientResponse.schemaBodyJson(GitHubTreeResponseSchema);
 
-      const listTree = Effect.fn("GitHubHttp.listTree")(function* (
+      const fetchTree = Effect.fn("GitHubHttp.fetchTree")(function* (
         owner: string,
         repo: string,
         ref: string,
+        recursive: boolean,
       ) {
-        const url = `https://api.github.com/repos/${owner}/${repo}/git/trees/${encodeURIComponent(ref)}?recursive=1`;
+        const url = `https://api.github.com/${treeEndpoint(owner, repo, ref, recursive)}`;
         const request = withAuth(
           HttpClientRequest.get(url).pipe(
             HttpClientRequest.setHeader("Accept", "application/vnd.github.v3+json"),
@@ -613,8 +748,27 @@ export class GitHubHttp extends Context.Service<GitHubHttp, GitHubHttpShape>()(
       // E5: Token already resolved eagerly
       const hasExplicitToken = Effect.succeed(Option.isSome(token));
 
+      const fetchBlob: FetchBlob = Effect.fn("GitHubHttp.fetchBlob")(function* (owner, repo, sha) {
+        const url = `https://api.github.com/repos/${owner}/${repo}/git/blobs/${encodeURIComponent(sha)}`;
+        const response = yield* client
+          .execute(
+            withAuth(
+              HttpClientRequest.get(url).pipe(
+                HttpClientRequest.setHeader("Accept", "application/vnd.github.raw"),
+                HttpClientRequest.setHeader("User-Agent", "@cvr/skills"),
+              ),
+            ),
+          )
+          .pipe(Effect.mapError((cause) => fetchError(url, cause)));
+        return yield* response.arrayBuffer.pipe(
+          Effect.map((buffer) => new Uint8Array(buffer)),
+          Effect.mapError((cause) => fetchError(url, cause)),
+        );
+      });
+
+      const listTree = makeListTree(fetchTree);
       const discoverSkills = makeDiscoverSkills(listContents, listTree);
-      const fetchSkillDirImpl = makeFetchSkillDir(listContents, fetchRaw);
+      const fetchSkillDirImpl = makeFetchSkillDir(listTree, fetchBlob);
 
       return GitHubHttp.of({
         hasExplicitToken,

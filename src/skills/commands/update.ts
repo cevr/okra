@@ -1,5 +1,4 @@
 import { Console, Effect, FileSystem, Option, Path, Result, Schema } from "effect";
-import type { SkillsError } from "../errors.js";
 import { SkillStore } from "../services/SkillStore.js";
 import { GitHub, type GitHubShape, type SkillFile } from "../services/GitHub.js";
 import { SkillLock, type LockEntry } from "../services/SkillLock.js";
@@ -74,13 +73,7 @@ const tryFetchSkillDir = (
   repo: string,
   dirPath: string,
   ref: string,
-) =>
-  gh.fetchSkillDir(owner, repo, dirPath, ref).pipe(
-    Effect.map(Result.succeed),
-    Effect.catchTag("@cvr/okra/skills/SkillsError", (error: SkillsError) =>
-      Effect.succeed(Result.fail(error.message)),
-    ),
-  );
+) => gh.fetchSkillDir(owner, repo, dirPath, ref).pipe(Effect.result);
 
 // 404 fallback: skill moved within the source repo (e.g. `skills/in-progress/X` -> `skills/productivity/X`).
 // Match by the directory name in the current lock entry against discovered SKILL.md locations.
@@ -132,11 +125,14 @@ const fetchIncoming = Effect.fn("command.update.fetchIncoming")(function* (entry
   let movedTo: Option.Option<string> = Option.none();
 
   if (Result.isFailure(fetched)) {
+    // A broken link is not evidence that the skill moved. Preserve the failure
+    // rather than silently substituting a different copy from discovery.
+    if (fetched.failure.code === "INVALID_SYMLINK") return Result.fail(fetched.failure.message);
     const newDir = yield* findMovedSkillDir(gh, owner, repo, ref, currentSkillDir);
-    if (Option.isNone(newDir)) return Result.fail(fetched.failure);
+    if (Option.isNone(newDir)) return Result.fail(fetched.failure.message);
 
     fetched = yield* tryFetchSkillDir(gh, owner, repo, newDir.value, ref);
-    if (Result.isFailure(fetched)) return Result.fail(fetched.failure);
+    if (Result.isFailure(fetched)) return Result.fail(fetched.failure.message);
     movedTo = newDir;
   }
 
