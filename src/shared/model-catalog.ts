@@ -7,11 +7,11 @@ export const MODELS_DEV_URL = "https://models.dev/api.json";
 
 export const MODEL_CATALOG_RELATIVE_PATH = ".okra/models.json";
 
-const CACHE_FORMAT = 1;
+const CACHE_SHAPE_VERSION = 1;
 const CACHE_MAX_AGE = Duration.days(1);
 const FETCH_TIMEOUT = Duration.seconds(5);
 
-const CatalogModel = Schema.Struct({
+const LenientCatalogModel = Schema.Struct({
   id: Schema.optional(Schema.String),
   family: Schema.optional(Schema.String),
   release_date: Schema.optional(Schema.String),
@@ -19,7 +19,7 @@ const CatalogModel = Schema.Struct({
 });
 
 const CatalogProvider = Schema.Struct({
-  models: Schema.Record(Schema.String, CatalogModel),
+  models: Schema.Record(Schema.String, LenientCatalogModel),
 });
 
 const Catalog = Schema.Record(Schema.String, CatalogProvider);
@@ -99,7 +99,7 @@ export class ModelCatalogService extends Context.Service<
             Effect.flatMap(decodeCache),
             Effect.asSome,
             Effect.orElseSucceed(() => Option.none<CatalogCache>()),
-            Effect.map(Option.filter((cache) => cache.format === CACHE_FORMAT)),
+            Effect.map(Option.filter((cache) => cache.format === CACHE_SHAPE_VERSION)),
           );
 
         const writeCache = (file: string, cache: CatalogCache): Effect.Effect<void> =>
@@ -139,7 +139,7 @@ export class ModelCatalogService extends Context.Service<
           if (Option.isSome(fetched)) {
             if (Option.isSome(file)) {
               yield* writeCache(file.value, {
-                format: CACHE_FORMAT,
+                format: CACHE_SHAPE_VERSION,
                 fetchedAt: now,
                 catalog: fetched.value,
               });

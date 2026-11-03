@@ -13,8 +13,17 @@ const pngDimensions = (bytes: Uint8Array, view: DataView): Option.Option<ImageDi
   return Option.some({ width: view.getUint32(16), height: view.getUint32(20) });
 };
 
+const DEFINE_HUFFMAN_TABLE_MARKER = 0xc4;
+const JPEG_EXTENSIONS_MARKER = 0xc8;
+const DEFINE_ARITHMETIC_CODING_MARKER = 0xcc;
+const sizelessMarkersInFrameRange: ReadonlySet<number> = new Set([
+  DEFINE_HUFFMAN_TABLE_MARKER,
+  JPEG_EXTENSIONS_MARKER,
+  DEFINE_ARITHMETIC_CODING_MARKER,
+]);
+
 const isStartOfFrame = (marker: number): boolean =>
-  marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
+  marker >= 0xc0 && marker <= 0xcf && !sizelessMarkersInFrameRange.has(marker);
 
 const jpegDimensions = (bytes: Uint8Array, view: DataView): Option.Option<ImageDimensions> => {
   let offset = 2;
@@ -32,6 +41,9 @@ const jpegDimensions = (bytes: Uint8Array, view: DataView): Option.Option<ImageD
 const uint24 = (view: DataView, offset: number): number =>
   view.getUint8(offset) | (view.getUint8(offset + 1) << 8) | (view.getUint8(offset + 2) << 16);
 
+const VP8L_SIZE_AFTER_SIGNATURE_BYTE_OFFSET = 21;
+const FOURTEEN_BIT_MASK = 0x3fff;
+
 const webpDimensions = (bytes: Uint8Array, view: DataView): Option.Option<ImageDimensions> => {
   if (bytes.length < 30 || ascii(bytes, 8, 4) !== "WEBP") return Option.none();
   const chunk = ascii(bytes, 12, 4);
@@ -39,13 +51,16 @@ const webpDimensions = (bytes: Uint8Array, view: DataView): Option.Option<ImageD
     return Option.some({ width: 1 + uint24(view, 24), height: 1 + uint24(view, 27) });
   }
   if (chunk === "VP8L") {
-    const bits = view.getUint32(21, true);
-    return Option.some({ width: 1 + (bits & 0x3fff), height: 1 + ((bits >> 14) & 0x3fff) });
+    const sizeMinusOne = view.getUint32(VP8L_SIZE_AFTER_SIGNATURE_BYTE_OFFSET, true);
+    return Option.some({
+      width: 1 + (sizeMinusOne & FOURTEEN_BIT_MASK),
+      height: 1 + ((sizeMinusOne >> 14) & FOURTEEN_BIT_MASK),
+    });
   }
   if (chunk === "VP8 ") {
     return Option.some({
-      width: view.getUint16(26, true) & 0x3fff,
-      height: view.getUint16(28, true) & 0x3fff,
+      width: view.getUint16(26, true) & FOURTEEN_BIT_MASK,
+      height: view.getUint16(28, true) & FOURTEEN_BIT_MASK,
     });
   }
   return Option.none();

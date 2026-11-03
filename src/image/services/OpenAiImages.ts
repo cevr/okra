@@ -39,11 +39,13 @@ export interface OpenAiEditInput {
   readonly inputFidelity?: "high" | "low";
 }
 
-const CreateImageRequest = Schema.Struct({
+const CreateImageRequestWithGptImage25Quality = Schema.Struct({
   ...Generated.CreateImageRequest.fields,
   quality: Schema.optionalKey(Schema.Literals(IMAGE_QUALITY_CHOICES)),
 });
-const encodeImageRequest = HttpClientRequest.schemaBodyJson(CreateImageRequest);
+const encodeImageRequest = HttpClientRequest.schemaBodyJson(
+  CreateImageRequestWithGptImage25Quality,
+);
 
 const ImagesResponse = Schema.Struct({
   ...Generated.ImagesResponse.fields,
@@ -155,7 +157,7 @@ export class OpenAiImagesService extends Context.Service<
 
         const generate = Effect.fn("OpenAiImages.generate")(function* (input: OpenAiImageInput) {
           const key = yield* apiKey;
-          const request: typeof CreateImageRequest.Encoded = {
+          const request: typeof CreateImageRequestWithGptImage25Quality.Encoded = {
             model: input.model,
             prompt: input.prompt,
             size: input.size,

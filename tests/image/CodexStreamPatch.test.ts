@@ -20,16 +20,18 @@ const imageEvent = (status: string, result: string) =>
   `data: {"type":"image_generation_call","status":"${status}","result":"${result}"}\n\n`;
 
 describe("makeCodexStatusTransform", () => {
-  it.effect("rewrites image_generation_call status 'generating' to 'in_progress'", () =>
-    Effect.gen(function* () {
-      const out = yield* runTransform(imageEvent("generating", "AAAA"), 4096);
-      expect(out).not.toContain('"generating"');
-      expect(out).toContain('"status":"in_progress"');
-      expect(out).toContain('"result":"AAAA"');
-    }),
+  it.effect(
+    "rewrites codex's image_generation_call status 'generating', which the @effect/ai-openai stream schema rejects, to 'in_progress'",
+    () =>
+      Effect.gen(function* () {
+        const out = yield* runTransform(imageEvent("generating", "AAAA"), 4096);
+        expect(out).not.toContain('"generating"');
+        expect(out).toContain('"status":"in_progress"');
+        expect(out).toContain('"result":"AAAA"');
+      }),
   );
 
-  it.effect("preserves the payload when split across tiny chunks mid-event", () =>
+  it.effect("buffers to whole SSE events so a rewrite never straddles a chunk boundary", () =>
     Effect.gen(function* () {
       const big = "Q".repeat(200_000);
       const input =

@@ -310,9 +310,12 @@ const selectFrom = Effect.fn("command.add.selectFrom")(function* <A>(
     min: minSelections,
   });
 
-  return selected
-    .filter((choice) => !choice.installed)
-    .map((choice) => choice.value) as ReadonlyArray<A>;
+  const withoutDisabledChoicesThePromptStillReturns = selected.filter(
+    (choice) => !choice.installed,
+  );
+  return withoutDisabledChoicesThePromptStillReturns.map(
+    (choice) => choice.value,
+  ) as ReadonlyArray<A>;
 });
 
 const planFromLocal = Effect.fn("command.add.planFromLocal")(function* (

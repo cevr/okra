@@ -6,7 +6,7 @@ import {
   sizePromptHint,
 } from "../../src/image/image-dimensions.js";
 
-const FIXTURES: Record<string, string> = {
+const THREE_BY_TWO_IMAGEMAGICK_AND_LIBWEBP_FIXTURES: Record<string, string> = {
   png: "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACAQMAAACnuvRZAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAGUExURf8AAP///0EdNBEAAAABYktHRAH/Ai3eAAAAB3RJTUUH6gkeAQUkhmuqOgAAAAxJREFUCNdjYGBgAAAABAABJzQnCgAAAABJRU5ErkJggg==",
   jpeg: "/9j/4AAQSkZJRgABAQAAAAAAAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAACAAMDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACP/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAVAQEBAAAAAAAAAAAAAAAAAAAHCf/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/ADoDFU3/2Q==",
   "webp lossless": "UklGRhwAAABXRUJQVlA4TA8AAAAvAkAAAAcQ/Y/+ByKi/wEA",
@@ -15,7 +15,7 @@ const FIXTURES: Record<string, string> = {
 };
 
 describe("readImageDimensions", () => {
-  for (const [format, base64] of Object.entries(FIXTURES)) {
+  for (const [format, base64] of Object.entries(THREE_BY_TWO_IMAGEMAGICK_AND_LIBWEBP_FIXTURES)) {
     test(`reads a ${format} header`, () => {
       expect(readImageDimensions(Uint8Array.fromBase64(base64))).toEqual(
         Option.some({ width: 3, height: 2 }),

@@ -8,6 +8,8 @@ import { CODEX_API_URL, ORIGINATOR } from "../constants.js";
 import { CodexAuthService } from "./CodexAuth.js";
 import { withCodexStreamPatch } from "./CodexStreamPatch.js";
 
+const CODEX_BACKEND_REQUIRED_CONFIG = { store: false };
+
 export const codexModelLayer = (
   model: string,
 ): Layer.Layer<LanguageModel.LanguageModel, never, CodexAuthService | HttpClient.HttpClient> => {
@@ -51,7 +53,7 @@ export const codexModelLayer = (
     }),
   );
 
-  return OpenAiLanguageModel.layer({ model, config: { store: false } }).pipe(
+  return OpenAiLanguageModel.layer({ model, config: CODEX_BACKEND_REQUIRED_CONFIG }).pipe(
     Layer.provide(clientLayer),
   );
 };
