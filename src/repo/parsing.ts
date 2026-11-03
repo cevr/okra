@@ -99,11 +99,6 @@ export function parseCratesSpec(input: string): ParseResult {
   };
 }
 
-/**
- * Parse a package spec string into a PackageSpec.
- * Supports prefixes: npm:, pypi:, pip:, crates:, cargo:, rust:, github:
- * Without prefix: "/" -> GitHub, else npm
- */
 export function parseSpecSync(input: string): ParseResult {
   const trimmed = input.trim();
 
@@ -135,7 +130,6 @@ export function parseSpecSync(input: string): ParseResult {
   return parseNpmSpec(trimmed);
 }
 
-/** Parse spec as Effect, failing with RepoError on invalid input. */
 export const parseSpec = Effect.fn("parseSpec")(function* (input: string) {
   const result = parseSpecSync(input);
   if ("error" in result) {

@@ -2,12 +2,6 @@ import { Effect } from "effect";
 import { Digest } from "effect/crypto";
 import type { SkillFile } from "../services/GitHub.js";
 
-/**
- * SHA-256 of files sorted by relative POSIX path (JS code-unit order).
- * Each record is UTF-8(path), NUL, ASCII(byte length), NUL, then raw content.
- * Length framing preserves file boundaries even for binary content containing NULs.
- * Metadata and empty directories do not participate.
- */
 export const hashFiles = Effect.fn("skills.hashFiles")(function* (files: ReadonlyArray<SkillFile>) {
   const digest = yield* Digest.Digest;
   const encoder = new TextEncoder();

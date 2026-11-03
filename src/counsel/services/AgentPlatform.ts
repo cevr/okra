@@ -16,8 +16,6 @@ const codexReasoningEffort = (profile: Profile): string => {
   return "medium";
 };
 
-// Both profiles run Opus: the alias, not a pin, tracks the latest Opus the
-// installed CLI offers. Deep differs by effort alone.
 const claudeModel = (_profile: Profile): string => "opus";
 
 export const detectSourceFromEnv = (
@@ -110,7 +108,6 @@ export const buildCodexInvocation = (
   model,
 });
 
-/** Only codex rejects a model per account; the claude CLI resolves its own aliases. */
 export const isModelRejected = (provider: Provider, events: string): boolean =>
   provider === "codex" && isCodexModelRejection(events);
 
@@ -122,17 +119,12 @@ export class AgentPlatformService extends Context.Service<
     ) => Effect.Effect<Provider, CounselError>;
     readonly resolveTarget: (source: Provider) => Provider;
     readonly ensureExecutable: (provider: Provider) => Effect.Effect<string, CounselError>;
-    /**
-     * Invocations to try in order. Codex gets one per model candidate, because its model list
-     * can name a model the backend still rejects; see `isModelRejected`.
-     */
     readonly buildInvocations: (
       provider: Provider,
       promptFilePath: string,
       profile: Profile,
       cwd: string,
     ) => Effect.Effect<readonly [Invocation, ...Array<Invocation>], CounselError>;
-    /** True when a failed run's events show the provider refused the model itself. */
     readonly isModelRejected: (provider: Provider, events: string) => boolean;
   }
 >()("@cvr/okra/counsel/services/AgentPlatform/AgentPlatformService") {

@@ -9,7 +9,6 @@ import {
 } from "../../../src/skills/services/GitHub.js";
 import { SkillsError } from "../../../src/skills/errors.js";
 
-// Helper: build a tree from path strings (all blobs unless ending with /)
 const makeTree = (paths: Array<string>) =>
   paths.map((p) => {
     if (p.endsWith("/")) {
@@ -23,7 +22,6 @@ const joinPath = (parent: string, name: string): string => {
   return `${parent}/${name}`;
 };
 
-// Helper: run discoverSkills via listing API (truncated tree forces fallback)
 const discoverViaListing = (
   fileTree: Record<string, Array<{ name: string; type: "file" | "dir" }>>,
 ) => {
@@ -47,8 +45,6 @@ const discoverViaListing = (
 
 const sortByDir = (entries: ReadonlyArray<SkillEntry>) =>
   [...entries].sort((a, b) => a.skillDir.localeCompare(b.skillDir));
-
-// ─── Tree-based discovery ───────────────────────────────────────────
 
 describe("discoverFromTree", () => {
   syncIt("skills/ at root (standard layout)", () => {
@@ -181,8 +177,6 @@ describe("discoverFromTree", () => {
 
   syncIt("root SKILL.md only used when no subdirectory SKILL.md exists", () => {
     const result = discoverFromTree(makeTree(["SKILL.md", "tools/deploy/SKILL.md"]));
-    // "tools/deploy/SKILL.md" ends with /SKILL.md so it's found by the blob filter
-    // Root SKILL.md doesn't end with /SKILL.md, so it's only the fallback
     expect(result).toEqual([
       {
         dirName: "deploy",
@@ -219,9 +213,7 @@ describe("discoverFromTree", () => {
   });
 
   syncIt("skills within skills/ — only immediate children matched", () => {
-    // skills/foo/nested/SKILL.md should match with dirName "nested"
     const result = discoverFromTree(makeTree(["skills/foo/nested/SKILL.md"]));
-    // "skills/" is in the path, so it's a prefixed match
     expect(result).toEqual([
       {
         dirName: "nested",
@@ -233,8 +225,6 @@ describe("discoverFromTree", () => {
 
   syncIt("substring false positive: myskills/ does NOT match prefix skills/", () => {
     const result = discoverFromTree(makeTree(["plugins/myskills/tool/SKILL.md"]));
-    // "myskills" contains "skills" as substring, but it's not a segment match
-    // Should fall through to unprefixed discovery
     expect(result).toEqual([
       {
         dirName: "tool",
@@ -255,8 +245,6 @@ describe("discoverFromTree", () => {
     ]);
   });
 });
-
-// ─── Listing-based discovery (fallback) ──────────────────────────────
 
 describe("discoverFromListing", () => {
   it.live("skills/ at root (standard layout)", () =>

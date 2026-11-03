@@ -70,7 +70,6 @@ describe("SkillLock", () => {
       const value = Option.getOrThrow(after);
       expect(value.source).toBe("owner/repo");
       expect(value.updatedAt).toBeTruthy();
-      // updatedAt is produced by production code via DateTime.formatIso; verify ISO 8601 shape.
       expect(value.updatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
     }).pipe(Effect.provide(BunServices.layer)),
   );

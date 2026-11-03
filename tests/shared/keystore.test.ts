@@ -15,10 +15,8 @@ const notFound = () =>
     ),
   );
 
-/** A fake FS backed by an in-memory map, so `store` is observable and `resolve` reads it back. */
 const makeLayer = (initial: Record<string, string>, envOverrides: Record<string, string>) =>
   Effect.gen(function* () {
-    // HOME is always present; resolution env vars are layered on top per test.
     const env = { HOME: "/home/u", ...envOverrides };
     const files = yield* Ref.make<Record<string, string>>(initial);
     const fs = layerNoop({
@@ -116,7 +114,7 @@ describe("KeyStoreService.store", () => {
         const openai = yield* store.resolve("openai", ENV_VAR);
         const anthropic = yield* store.resolve("anthropic", "ANTHROPIC_API_KEY");
         expect(Redacted.value(openai)).toBe("sk-new");
-        expect(Redacted.value(anthropic)).toBe("sk-keep"); // not clobbered
+        expect(Redacted.value(anthropic)).toBe("sk-keep");
       }).pipe(Effect.provide(layer));
     }),
   );
@@ -144,7 +142,7 @@ describe("KeyStoreService.list", () => {
       const names = yield* Effect.flatMap(KeyStoreService, (s) => s.list).pipe(
         Effect.provide(layer),
       );
-      expect(names).toEqual(["anthropic", "openai"]); // sorted, names only
+      expect(names).toEqual(["anthropic", "openai"]);
     }),
   );
 
@@ -171,7 +169,7 @@ describe("KeyStoreService.remove", () => {
         const removed = yield* store.remove("openai");
         expect(removed).toBe(true);
         const names = yield* store.list;
-        expect(names).toEqual(["anthropic"]); // openai gone, anthropic kept
+        expect(names).toEqual(["anthropic"]);
       }).pipe(Effect.provide(layer));
     }),
   );
@@ -197,7 +195,7 @@ describe("maskSecret", () => {
   it.effect("collapses short secrets to all bullets", () =>
     Effect.sync(() => {
       expect(maskSecret("short")).toBe("•••••");
-      expect(maskSecret("12345678")).toBe("••••••••"); // boundary: 8 chars
+      expect(maskSecret("12345678")).toBe("••••••••");
     }),
   );
 });

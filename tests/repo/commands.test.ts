@@ -3,11 +3,8 @@ import { TestClock } from "effect/testing";
 import { describe, expect, it } from "effect-bun-test";
 import { runCli } from "../../src/repo/test-utils/index.js";
 
-// Fixed ISO timestamps for fixture data (production code doesn't read these back as Dates).
 const FIXTURE_ISO = "2026-01-01T00:00:00.000Z";
-// 2026-01-01T00:00:00.000Z = 1767225600000 ms since epoch.
 const FIXTURE_ISO_MS = 1767225600000;
-// 31 days after FIXTURE_ISO. Used as TestClock "now" so FIXTURE_ISO entries are 31 days old.
 const FIXTURE_NOW_PLUS_31_DAYS_MS = FIXTURE_ISO_MS + 31 * 24 * 60 * 60 * 1000;
 
 describe("fetch command", () => {
@@ -192,7 +189,6 @@ describe("clean command", () => {
 
   it.effect("prunes by days", () =>
     Effect.gen(function* () {
-      // Advance TestClock to FIXTURE_ISO + 31 days so the fixture entries are 31 days old.
       yield* TestClock.setTime(FIXTURE_NOW_PLUS_31_DAYS_MS);
 
       const oldSpec = {
@@ -205,8 +201,8 @@ describe("clean command", () => {
         name: "new/repo",
         version: Option.none<string>(),
       };
-      const oldDate = FIXTURE_ISO; // 31 days before TestClock now
-      const nowDate = "2026-02-01T00:00:00.000Z"; // equal to TestClock now → 0 days old
+      const oldDate = FIXTURE_ISO;
+      const nowDate = "2026-02-01T00:00:00.000Z";
 
       const sequence = yield* runCli("clean --days=30", {
         metadata: {
@@ -233,7 +229,6 @@ describe("clean command", () => {
       }).getSequence;
 
       expect(sequence.some((c) => c.service === "metadata" && c.method === "all")).toBe(true);
-      // Should remove old repo but not new
       const removeCalls = sequence.filter((c) => c.service === "cache" && c.method === "remove");
       expect(removeCalls.length).toBe(1);
     }),
@@ -268,7 +263,6 @@ describe("path command", () => {
 
       expect(sequence.some((c) => c.service === "registry" && c.method === "parseSpec")).toBe(true);
       expect(sequence.some((c) => c.service === "metadata" && c.method === "find")).toBe(true);
-      // Should NOT do any git operations
       expect(sequence.some((c) => c.service === "git")).toBe(false);
     }),
   );

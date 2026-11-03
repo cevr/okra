@@ -1,13 +1,6 @@
 import { Schema } from "effect";
 
-export const ErrorCodeSchema = Schema.Literals([
-  /** No key found for the requested provider. */
-  "NOT_FOUND",
-  /** Could not read, parse, or write the key store. */
-  "STORE_FAILED",
-  /** Invalid CLI input (empty key, missing argument, etc.). */
-  "INVALID_INPUT",
-]);
+export const ErrorCodeSchema = Schema.Literals(["NOT_FOUND", "STORE_FAILED", "INVALID_INPUT"]);
 
 export type ErrorCode = typeof ErrorCodeSchema.Type;
 

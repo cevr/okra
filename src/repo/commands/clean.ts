@@ -6,11 +6,6 @@ import { RepoError } from "../errors.js";
 import { CacheService } from "../services/cache.js";
 import { MetadataService } from "../services/metadata.js";
 
-/**
- * Prune repos not accessed in `days` days.
- * Returns specs of removed repos (empty if nothing pruned).
- * Shared by `clean --days` and `fetch` auto-prune.
- */
 export const pruneByAge = Effect.fn("pruneByAge")(function* (days: number) {
   const cache = yield* CacheService;
   const metadata = yield* MetadataService;
@@ -123,7 +118,6 @@ export const clean = Command.make(
         return;
       }
 
-      // Filtered clean (prune logic)
       let toRemove = [...repos];
 
       if (Option.isSome(days)) {

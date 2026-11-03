@@ -57,7 +57,6 @@ export const fetch = Command.make(
           yield* metadata.remove(parsedSpec);
           fresh = true;
         } else if (isGit) {
-          // Only update versionless specs — pinned versions are immutable
           if (Option.isNone(parsedSpec.version)) {
             yield* Console.error(`Updating ${specStr}...`);
             yield* git
@@ -122,7 +121,6 @@ export const fetch = Command.make(
         fresh = true;
       }
 
-      // Fresh fetch
       yield* Console.error(`Fetching ${specStr}...`);
 
       const parentPath = pathService.dirname(destPath);

@@ -56,13 +56,11 @@ const registryError = (registry: string, operation: string, cause: unknown) =>
 const networkError = (url: string, cause: unknown) =>
   RepoError.make({ message: `Network request failed: ${url}: ${String(cause)}`, code: "NETWORK" });
 
-// Registry tags are usually prefixed with "v"; only add it when it is absent.
 const toGitRef = (version: string): string => {
   if (version.startsWith("v")) return version;
   return `v${version}`;
 };
 
-// Service interface
 export class RegistryService extends Context.Service<
   RegistryService,
   {
@@ -348,7 +346,6 @@ interface RepoInfo {
   repo: string;
 }
 
-// npm allows `repository` as either a bare URL string or an object.
 const repositoryUrl = (
   repository: { type?: string; url?: string } | string,
 ): string | undefined => {

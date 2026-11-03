@@ -27,7 +27,6 @@ export interface SearchQuery {
 export type ParsedSource = GitHubRepo | GitHubRepoWithSkill | LocalPath | SearchQuery;
 
 const repoWithSkillRe = /^([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)@(.+)$/;
-// B3: Removed / from ref group so #ref/subpath parses correctly
 const repoRe = /^([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)(?:#([a-zA-Z0-9_.+-]+))?(?:\/(.+))?$/;
 const githubUrlRe = /^https?:\/\/github\.com\/([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)\/?(.*)$/;
 

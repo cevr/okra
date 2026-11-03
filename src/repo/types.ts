@@ -1,9 +1,7 @@
 import { Option, Schema } from "effect";
 
-// Registry types
 export type Registry = "github" | "npm" | "pypi" | "crates";
 
-// Package spec - identifies a package/repo across registries
 export const PackageSpec = Schema.Struct({
   registry: Schema.Literals(["github", "npm", "pypi", "crates"]),
   name: Schema.String,
@@ -11,7 +9,6 @@ export const PackageSpec = Schema.Struct({
 });
 export type PackageSpec = typeof PackageSpec.Type;
 
-// Metadata stored per-cached entry
 export const RepoMetadata = Schema.Struct({
   spec: PackageSpec,
   fetchedAt: Schema.String,
@@ -21,14 +18,12 @@ export const RepoMetadata = Schema.Struct({
 });
 export type RepoMetadata = typeof RepoMetadata.Type;
 
-// Global metadata index
 export const MetadataIndex = Schema.Struct({
   version: Schema.Finite,
   repos: Schema.Array(RepoMetadata),
 });
 export type MetadataIndex = typeof MetadataIndex.Type;
 
-// Utility to format bytes
 export const formatBytes = (bytes: number): string => {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -36,8 +31,6 @@ export const formatBytes = (bytes: number): string => {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 };
 
-// Utility to format relative time. Caller supplies `nowMs` so we stay
-// off the global clock — pass `yield* Clock.currentTimeMillis` from inside Effect.
 const toEpochMs = (isoOrMs: string | number): number => {
   if (typeof isoOrMs === "number") return isoOrMs;
   return Date.parse(isoOrMs);
@@ -56,19 +49,16 @@ export const formatRelativeTime = (isoOrMs: string | number, nowMs: number): str
   return `${String(Math.floor(diffDays / 365))} years ago`;
 };
 
-// GitHub is the default registry, so its specs carry no prefix.
 const registryPrefix = (registry: Registry): string => {
   if (registry === "github") return "";
   return `${registry}:`;
 };
 
-// GitHub repo names are case-insensitive; every other registry is case-sensitive.
 const normalizeName = (spec: PackageSpec): string => {
   if (spec.registry === "github") return spec.name.toLowerCase();
   return spec.name;
 };
 
-// Spec display helper
 export const specToString = (spec: PackageSpec): string => {
   const prefix = registryPrefix(spec.registry);
   const version = Option.match(spec.version, {
@@ -78,7 +68,6 @@ export const specToString = (spec: PackageSpec): string => {
   return `${prefix}${spec.name}${version}`;
 };
 
-// Shared spec matching logic — case-insensitive for GitHub
 export const specMatches = (a: PackageSpec, b: PackageSpec): boolean => {
   if (a.registry !== b.registry) return false;
   const aName = normalizeName(a);

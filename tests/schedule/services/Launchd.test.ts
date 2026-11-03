@@ -52,7 +52,6 @@ describe("generatePlist", () => {
     expect(plist).toContain('<?xml version="1.0"');
     expect(plist).toContain("com.cvr.okra.schedule-test-task");
     expect(plist).toContain("<string>/usr/local/bin/okra</string>");
-    // Should have "schedule" "run" <id> as program arguments
     expect(plist).toContain("<string>schedule</string>");
     expect(plist).toContain("<string>run</string>");
     expect(plist).toContain("<string>test-task</string>");
@@ -151,9 +150,7 @@ describe("generatePlist", () => {
 
     expect(plist).toContain("<key>StartCalendarInterval</key>");
     expect(plist).toContain("<array>");
-    // Should have 5 dict entries (Mon-Fri)
     const dictCount = (plist.match(/<dict>/g) ?? []).length;
-    // 1 root + 1 env + 5 intervals = 7
     expect(dictCount).toBe(7);
   });
 

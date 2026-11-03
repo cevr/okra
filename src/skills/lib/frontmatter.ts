@@ -10,11 +10,6 @@ export class SkillFrontmatter extends Schema.Class<
 
 const decode = Schema.decodeUnknownEffect(SkillFrontmatter);
 
-/**
- * Extract YAML frontmatter from a markdown string.
- * Expects `---` delimited block at start of file with `key: value` lines.
- * Handles YAML folded (`>`) and literal (`|`) block scalars.
- */
 export const parseFrontmatter = Effect.fn("parseFrontmatter")(function* (content: string) {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   if (!match?.[1]) {
@@ -37,13 +32,11 @@ export const parseFrontmatter = Effect.fn("parseFrontmatter")(function* (content
   };
 
   for (const line of lines) {
-    // Indented continuation line
     if (inBlock && /^\s+/.test(line)) {
       currentLines.push(line.trim());
       continue;
     }
 
-    // New top-level key
     const idx = line.indexOf(":");
     if (idx === -1) continue;
 
@@ -52,10 +45,8 @@ export const parseFrontmatter = Effect.fn("parseFrontmatter")(function* (content
     const key = line.slice(0, idx).trim();
     const value = line.slice(idx + 1).trim();
 
-    // Skip nested YAML objects (e.g. "metadata:")
     if (!key || !value) continue;
 
-    // Block scalar indicator
     if (value === ">" || value === "|") {
       currentKey = key;
       currentLines = [];

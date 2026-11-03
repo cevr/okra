@@ -5,7 +5,6 @@ import { readHome } from "./home.js";
 export const resolveExecutable = Effect.fn("resolveExecutable")(function* (name: string) {
   const path = Bun.which(name);
   if (path !== null) return path;
-  // Fallback: check common locations when PATH is incomplete (e.g. daemon context)
   const fs = yield* FileSystem;
   const home = yield* readHome;
   const candidates = [

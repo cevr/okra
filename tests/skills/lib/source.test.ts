@@ -92,7 +92,6 @@ describe("parseSource", () => {
     expect(result).toEqual({ _tag: "LocalPath", path: "~/projects/my-skill" });
   });
 
-  // B3: ref/subpath parsing
   test("owner/repo#ref/subpath → ref stops at /", () => {
     const result = parseSource("owner/repo#main/skills/foo");
     expect(result).toEqual({

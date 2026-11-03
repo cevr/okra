@@ -1,9 +1,6 @@
 import { Schema } from "effect";
 
-export const ErrorCodeSchema = Schema.Literals([
-  /** No embedded guide for the requested topic. */
-  "NOT_FOUND",
-]);
+export const ErrorCodeSchema = Schema.Literals(["NOT_FOUND"]);
 
 export type ErrorCode = typeof ErrorCodeSchema.Type;
 

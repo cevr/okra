@@ -2,7 +2,6 @@ import { describe, expect, it, test } from "effect-bun-test";
 import { Effect, Exit } from "effect";
 import * as Schedule from "../../../src/schedule/services/Schedule.js";
 
-// 2026-03-15T12:00:00.000Z in milliseconds since epoch
 const FIXED_NOW_MS = 1773576000000;
 
 describe("Schedule.parse", () => {

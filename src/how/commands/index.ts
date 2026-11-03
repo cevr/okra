@@ -28,7 +28,6 @@ const renderTopic = (topic: Topic): string => {
   return `${topic.body}\n\nSubtopics: ${names} — run \`okra how <subtopic>\` for details.`;
 };
 
-/** `okra how [<topic>]` — progressive disclosure of the embedded skill guides. */
 export const howRoot = Command.make("how", { topic: topicArgument }, ({ topic }) =>
   Option.match(topic, {
     onNone: () => Console.log(renderToc()),

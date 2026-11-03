@@ -93,14 +93,12 @@ export const SkillLockLive = Layer.effect(
         Effect.withSpan("SkillLock.write"),
       );
 
-    // B2: Don't swallow SkillsError — only return none when file doesn't exist
     const get = (name: string) =>
       readLock.pipe(
         Effect.map((lock) => Option.fromNullishOr(lock.skills[name])),
         Effect.withSpan("SkillLock.get", { attributes: { name } }),
       );
 
-    // B4: Preserve installedAt on re-add
     const add = (name: string, source: string, skillPath: string, ref?: string, hash?: string) =>
       Effect.gen(function* () {
         const lock = yield* readLock;
@@ -121,7 +119,6 @@ export const SkillLockLive = Layer.effect(
         yield* writeLock(updated);
       }).pipe(Effect.withSpan("SkillLock.add", { attributes: { name, source } }));
 
-    // B1/B4: Single read-modify-write, preserve installedAt
     const addMany = Effect.fn("SkillLock.addMany")(function* (
       entries: ReadonlyArray<{
         name: string;

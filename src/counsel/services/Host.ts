@@ -3,7 +3,6 @@ import type { PlatformError } from "effect/PlatformError";
 import { Stdio } from "effect/Stdio";
 import { CounselError, ErrorCode } from "../errors.js";
 
-/** The env markers that identify which agent is invoking okra. */
 const AGENT_MARKER_KEYS = [
   "CLAUDECODE",
   "CLAUDE_CODE_ENTRYPOINT",
@@ -15,7 +14,6 @@ export class HostService extends Context.Service<
   HostService,
   {
     readonly getCwd: Effect.Effect<string>;
-    /** Only the agent-detection markers, read through Config rather than the raw env map. */
     readonly getAgentMarkers: Effect.Effect<Record<string, string | undefined>>;
     readonly readPipedStdin: Effect.Effect<string | undefined, CounselError>;
     readonly setExitCode: (code: number) => Effect.Effect<void>;
@@ -35,7 +33,6 @@ export class HostService extends Context.Service<
           ),
         ).pipe(Effect.map((entries) => Object.fromEntries(entries))),
         readPipedStdin: Effect.gen(function* () {
-          // An interactive terminal means nothing was piped in.
           if (process.stdin.isTTY) {
             return undefined;
           }

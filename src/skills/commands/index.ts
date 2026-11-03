@@ -89,10 +89,6 @@ Examples:
   okra skills remove a b c
   okra skills remove ./path/with/skills`;
 
-// Aliases: same handler, multiple subcommand names. effect/cli's Command.withAlias
-// only supports a single alias per command, so register parallel commands. The
-// canonical command holds the full description; secondary aliases get a short
-// pointer to keep `--help` readable.
 const makeAdd = (name: string, description: string, alias?: string) => {
   const cmd = Command.make(name, { sources: sourcesArg }, ({ sources }) => runAdd(sources)).pipe(
     Command.withDescription(description),

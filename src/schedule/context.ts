@@ -30,7 +30,6 @@ const exec = Effect.fn("captureContext.exec")(
   Effect.orElseSucceed(() => Option.none<string>()),
 );
 
-/** Applies `f` only when the input is present, keeping `undefined` end-to-end. */
 const mapDefined = <A, B>(value: A | undefined, f: (a: A) => B | undefined): B | undefined => {
   if (value === undefined) return undefined;
   return f(value);
@@ -103,7 +102,6 @@ export const captureContext = Effect.fn("captureContext")(function* (cwd: string
   } satisfies TaskContext;
 });
 
-/** Renders "base (detail)" when a detail is present, or just "base" when it is not. */
 const withParenthetical = (base: string, detail: string | undefined): string => {
   if (detail === undefined) return base;
   return `${base} (${detail})`;

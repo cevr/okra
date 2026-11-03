@@ -58,13 +58,11 @@ const installedLocation = (source: string, skillPath: string): string =>
 
 const dimInstalled = (name: string): string => `\u001b[2m${name} (installed)\u001b[22m`;
 
-// "." means the skills live directly under the input path, not in a subdirectory.
 const resolveSearchDir = (pathService: Path.Path, absPath: string, prefix: string): string => {
   if (prefix === ".") return absPath;
   return pathService.join(absPath, prefix);
 };
 
-// An empty skillDir means the skill sits at the repo root, so the repo name stands in.
 const fallbackSkillName = (skillDir: string, repo: string): string => {
   if (!skillDir) return repo;
   return skillDir.split("/").at(-1) ?? "unknown";
@@ -75,7 +73,6 @@ const skillMdPathFor = (skillDir: string): string => {
   return `${skillDir}/SKILL.md`;
 };
 
-// A subpath may point at either the SKILL.md file or the directory holding it.
 const skillDirFromSubpath = (subpath: string): string => {
   if (subpath.endsWith("SKILL.md")) return subpath.split("/").slice(0, -1).join("/");
   return subpath;
@@ -86,7 +83,6 @@ const refSuffix = (ref?: string): string => {
   return "";
 };
 
-// The first plan for a display name keeps it; later ones carry their source.
 const disambiguate = (base: string, source: string, count: number): string => {
   if (count === 0) return base;
   return `${base} (${source})`;
@@ -293,7 +289,6 @@ const discoverLocalCandidates = Effect.fn("command.add.discoverLocalCandidates")
   return candidates as ReadonlyArray<LocalSkillCandidate>;
 });
 
-// Multi-select if >1 skill, otherwise auto-install the single one
 const selectFrom = Effect.fn("command.add.selectFrom")(function* <A>(
   message: string,
   candidates: ReadonlyArray<SelectCandidate<A>>,
@@ -305,7 +300,6 @@ const selectFrom = Effect.fn("command.add.selectFrom")(function* <A>(
   }
 
   const choices = makeSelectChoices(candidates);
-  // Require a pick only when something is actually selectable.
   const minSelections = ((): number => {
     if (choices.some((choice) => !choice.disabled)) return 1;
     return 0;
@@ -316,7 +310,6 @@ const selectFrom = Effect.fn("command.add.selectFrom")(function* <A>(
     min: minSelections,
   });
 
-  // Effect beta.98 can include disabled multi-select choices in the result.
   return selected
     .filter((choice) => !choice.installed)
     .map((choice) => choice.value) as ReadonlyArray<A>;
@@ -512,7 +505,6 @@ const planFromSource = Effect.fn("command.add.planFromSource")(function* (
   }
 });
 
-// Disambiguate display names so progress lines stay unique across sources
 const dedupeDisplayNames = (
   plans: ReadonlyArray<{ source: string; plans: ReadonlyArray<InstallPlan> }>,
 ): ReadonlyArray<{ source: string; key: string; plan: InstallPlan }> => {
@@ -551,7 +543,6 @@ export const runAdd = Effect.fn("command.add")(function* (sources: ReadonlyArray
   const lock = yield* SkillLock;
   const installedIndex = yield* loadInstalledSkills();
 
-  // Phase 1: discovery + prompts (sequential — prompts can't overlap)
   const planResults: Array<{ source: string; plans: ReadonlyArray<InstallPlan> }> = [];
   const planFailures: Array<{ source: string; note: string }> = [];
 
@@ -581,7 +572,6 @@ export const runAdd = Effect.fn("command.add")(function* (sources: ReadonlyArray
     return;
   }
 
-  // Phase 2: parallel install with live progress
   const progress = yield* makeProgress(
     items.map((i) => i.key),
     { runningVerb: "installing" },

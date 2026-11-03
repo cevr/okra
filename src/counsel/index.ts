@@ -20,6 +20,4 @@ export const CounselServiceLayer = RunService.layer.pipe(
   Layer.provideMerge(HostService.layer),
 );
 
-// Counsel uses its own command definition directly as the subcommand.
-// CounselError handling happens in the root main.ts error handler.
 export const counselCommand = counselCommandDef.pipe(Command.provide(CounselServiceLayer));

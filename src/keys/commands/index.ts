@@ -4,11 +4,9 @@ import { Argument, Command, Flag } from "effect/cli";
 import { envVarForProvider, KeyStoreService } from "../../shared/keystore.js";
 import { KeysError } from "../errors.js";
 
-/** The env var that overrides a provider's stored key; unknown providers get an (unset) sentinel. */
 const resolveEnvVar = (provider: string): string =>
   envVarForProvider(provider) ?? `OKRA_KEY_${provider.toUpperCase()}`;
 
-/** Map a KeyStoreError into this domain's error (its codes don't overlap 1:1). */
 const toKeysError = (e: { code: string; message: string }): KeysError => {
   if (e.code === "INVALID_INPUT") {
     return KeysError.make({ message: e.message, code: "INVALID_INPUT" });
@@ -16,7 +14,6 @@ const toKeysError = (e: { code: string; message: string }): KeysError => {
   return KeysError.make({ message: e.message, code: "STORE_FAILED" });
 };
 
-/** Human label for where a resolved key came from. */
 const describeOrigin = (source: "env" | "stored", provider: string): string => {
   if (source === "env") return `env ${resolveEnvVar(provider)}`;
   return "stored";
@@ -36,7 +33,6 @@ const stdinFlag = Flag.Boolean("stdin").pipe(
   Flag.withDescription("Read the key from stdin instead of an argument"),
 );
 
-/** Read all of stdin as text (so the key avoids shell history). */
 const readStdin = Effect.gen(function* () {
   const stdio = yield* Stdio;
   return yield* Stream.mkString(Stream.decodeText(stdio.stdin)).pipe(
@@ -46,7 +42,6 @@ const readStdin = Effect.gen(function* () {
   );
 });
 
-/** `okra keys set <provider> [<key>] [--stdin]` — store a key. Never echoes the value. */
 const setCommand = Command.make(
   "set",
   { provider: providerArgument, key: keyArgument, stdin: stdinFlag },
@@ -54,7 +49,6 @@ const setCommand = Command.make(
     Effect.gen(function* () {
       const keyStore = yield* KeyStoreService;
 
-      // --stdin reads the key off the pipe; otherwise it must come from the argument.
       const readKey = (): Effect.Effect<string, KeysError, Stdio> => {
         if (stdin) return readStdin;
         return Effect.fromOption(key).pipe(
@@ -69,12 +63,10 @@ const setCommand = Command.make(
       const raw = yield* readKey();
 
       const file = yield* keyStore.store(provider, raw).pipe(Effect.mapError(toKeysError));
-      // Never echo the key; only confirm where it was written.
       yield* Console.error(`Saved "${provider}" key to ${file}`);
     }),
 ).pipe(Command.withDescription("Store an API key for a provider"));
 
-/** `okra keys list` — print stored provider names (never the values), one per line on stdout. */
 const listCommand = Command.make("list", {}, () =>
   Effect.gen(function* () {
     const keyStore = yield* KeyStoreService;
@@ -83,15 +75,10 @@ const listCommand = Command.make("list", {}, () =>
       yield* Console.error("No keys stored. Add one with `okra keys set <provider> <key>`.");
       return;
     }
-    // Names only — values are never read here. stdout so the list is pipeable.
     yield* Console.log(names.join("\n"));
   }),
 ).pipe(Command.withDescription("List provider names that have a stored key"));
 
-/**
- * `okra keys get <provider>` — report whether a key is configured and where it
- * resolves from, with a masked preview. Never prints the secret.
- */
 const getCommand = Command.make("get", { provider: providerArgument }, ({ provider }) =>
   Effect.gen(function* () {
     const keyStore = yield* KeyStoreService;
@@ -108,12 +95,10 @@ const getCommand = Command.make("get", { provider: providerArgument }, ({ provid
 
     const masked = Option.getOrElse(status.masked, () => "");
     const origin = describeOrigin(status.source, provider);
-    // Masked preview + origin on stdout — capturable, reveals nothing.
     yield* Console.log(`${masked} (${origin})`);
   }),
 ).pipe(Command.withDescription("Show whether a provider's key is set (masked), and its source"));
 
-/** `okra keys rm <provider>` — remove a stored key. */
 const removeCommand = Command.make("rm", { provider: providerArgument }, ({ provider }) =>
   Effect.gen(function* () {
     const keyStore = yield* KeyStoreService;

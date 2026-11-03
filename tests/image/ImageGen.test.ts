@@ -6,11 +6,9 @@ import { ImageGenService } from "../../src/image/services/ImageGen.js";
 
 const IMAGE_TOOL_NAME = "OpenAiImageGeneration";
 
-// A 1x1 transparent PNG, base64-encoded — the smallest valid image payload.
 const PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
-/** Builds a mock LanguageModel layer whose stream emits the supplied parts. */
 const mockModelLayer = (parts: ReadonlyArray<unknown>): Layer.Layer<LanguageModel.LanguageModel> =>
   Layer.effect(
     LanguageModel.LanguageModel,
@@ -20,12 +18,10 @@ const mockModelLayer = (parts: ReadonlyArray<unknown>): Layer.Layer<LanguageMode
     }),
   );
 
-/** A holder the capturing mock writes the streamText prompt into. */
 interface PromptSink {
   value: unknown;
 }
 
-/** Like `mockModelLayer`, but records the `prompt` passed to streamText for assertions. */
 const capturingModelLayer = (
   parts: ReadonlyArray<unknown>,
   sink: PromptSink,
@@ -59,7 +55,6 @@ describe("ImageGenService.generate", () => {
     Effect.gen(function* () {
       const images = yield* ImageGenService;
       const bytes = yield* images.generate({ prompt: "a red dot", size: "auto", format: "png" });
-      // PNG magic number: 0x89 0x50 0x4E 0x47.
       expect(bytes.slice(0, 4)).toEqual(new Uint8Array([0x89, 0x50, 0x4e, 0x47]));
     }).pipe((self) => run(self, mockModelLayer([imageToolResult({ result: PNG_BASE64 })]))),
   );
@@ -90,7 +85,6 @@ describe("ImageGenService.generate", () => {
     return Effect.gen(function* () {
       const images = yield* ImageGenService;
       yield* images.generate({ prompt: "a red dot", size: "auto", format: "png" });
-      // Normalized to a single user message with one text part — no file parts.
       const parts = promptParts(sink.value);
       expect(parts.some((p) => p.type === "file")).toBe(false);
       expect(parts.some((p) => p.type === "text")).toBe(true);
@@ -116,7 +110,6 @@ describe("ImageGenService.generate", () => {
       const fileParts = parts.filter((p) => p.type === "file");
       expect(fileParts.length).toBe(2);
       expect(fileParts.map((p) => p.mediaType)).toEqual(["image/png", "image/jpeg"]);
-      // The text part is still present alongside the references.
       expect(parts.some((p) => p.type === "text")).toBe(true);
     }).pipe((self) =>
       run(self, capturingModelLayer([imageToolResult({ result: PNG_BASE64 })], sink)),
@@ -124,7 +117,6 @@ describe("ImageGenService.generate", () => {
   });
 });
 
-/** Extract the content parts of the first message in a captured normalized prompt. */
 const promptParts = (captured: unknown): ReadonlyArray<{ type: string; mediaType?: string }> => {
   const content = (
     captured as {

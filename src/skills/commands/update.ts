@@ -25,7 +25,6 @@ const skillDirFromPath = (skillPath: string) => {
   return skillPath.split("/").slice(0, -1).join("/");
 };
 
-// S1: Read ref from lock entry, not just from source string
 const resolveRepoSource = (
   entry: LockEntry,
 ): Option.Option<{ owner: string; repo: string; ref: string }> => {
@@ -75,8 +74,6 @@ const tryFetchSkillDir = (
   ref: string,
 ) => gh.fetchSkillDir(owner, repo, dirPath, ref).pipe(Effect.result);
 
-// 404 fallback: skill moved within the source repo (e.g. `skills/in-progress/X` -> `skills/productivity/X`).
-// Match by the directory name in the current lock entry against discovered SKILL.md locations.
 const findMovedSkillDir = Effect.fn("command.update.findMovedSkillDir")(function* (
   gh: GitHubShape,
   owner: string,
@@ -125,8 +122,6 @@ const fetchIncoming = Effect.fn("command.update.fetchIncoming")(function* (entry
   let movedTo: Option.Option<string> = Option.none();
 
   if (Result.isFailure(fetched)) {
-    // A broken link is not evidence that the skill moved. Preserve the failure
-    // rather than silently substituting a different copy from discovery.
     if (fetched.failure.code === "INVALID_SYMLINK") return Result.fail(fetched.failure.message);
     const newDir = yield* findMovedSkillDir(gh, owner, repo, ref, currentSkillDir);
     if (Option.isNone(newDir)) return Result.fail(fetched.failure.message);
@@ -154,8 +149,6 @@ const updateSkill = Effect.fn("command.update.updateSkill")(function* (
   const store = yield* SkillStore;
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
-  // Only a missing directory is treated as empty. An unreadable directory must
-  // never become permission to overwrite files whose baseline we could not check.
   const exists = yield* fs.exists(path.join(store.dir, name)).pipe(Effect.orDie);
   let installed: ReadonlyArray<SkillFile> = [];
   if (exists) installed = yield* store.readDir(name);
@@ -206,7 +199,6 @@ const runOne = Effect.fn("command.update.runOne")(function* (
   return { name, entry, result };
 });
 
-/** The `--json` document: what an update did, or with `--dry-run` would do. */
 export const UpdateReport = Schema.Struct({
   dryRun: Schema.Boolean,
   outdated: Schema.Array(
@@ -233,7 +225,6 @@ export interface SkillOutcome {
   readonly result: Result.Result<UpdateOk, string>;
 }
 
-/** Fold per-skill outcomes into the report. A moved skill reports its new path. */
 export const buildReport = (
   outcomes: ReadonlyArray<SkillOutcome>,
   dryRun: boolean,
@@ -276,7 +267,6 @@ const progressVerb = (dryRun: boolean): string => {
   return "updating";
 };
 
-// Dry run: stdout carries only the outdated skill names, one per line, for scripts.
 const reportDryRun = Effect.fn("command.update.reportDryRun")(function* (report: UpdateReport) {
   for (const { name } of report.outdated) yield* Console.log(name);
   const parts = [`${report.outdated.length} outdated`, `${report.unchanged} unchanged`];
@@ -303,15 +293,11 @@ const reportUpdate = Effect.fn("command.update.reportUpdate")(function* (report:
 });
 
 export interface UpdateOptions {
-  /** Report outdated skills without writing skill files or the lock. */
   readonly dryRun?: boolean;
-  /** Print the report as one JSON document on stdout instead of text. */
   readonly json?: boolean;
-  /** Overwrite installed edits for every managed skill. */
   readonly force?: boolean;
 }
 
-// P1: Parallel update loop + batched lock writes
 export const runUpdate = Effect.fn("command.update")(function* (options: UpdateOptions = {}) {
   const dryRun = options.dryRun ?? false;
   const json = options.json ?? false;
@@ -358,7 +344,6 @@ export const runUpdate = Effect.fn("command.update")(function* (options: UpdateO
     }
   }
 
-  // Persist hashes for writes and legacy backfills; skipped skills keep their baseline.
   if (!dryRun) {
     const updates = results.flatMap(({ name, entry, result }) => {
       if (Result.isFailure(result) || result.success.status === "modified") return [];

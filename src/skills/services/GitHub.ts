@@ -54,7 +54,6 @@ export interface SkillEntry {
   readonly skillDir: string;
 }
 
-// E3: All effectful GitHub operations live in the service
 export interface GitHubShape {
   readonly listContents: (
     owner: string,
@@ -114,7 +113,6 @@ const fetchError = (url: string, cause?: unknown) =>
 
 const encodeRepoPath = (path: string) => path.split("/").map(encodeURIComponent).join("/");
 
-// The contents API takes the repo root when no sub-path is given.
 const pathSegment = (path: string): string => {
   if (path) return `/${encodeRepoPath(path)}`;
   return "";
@@ -134,8 +132,6 @@ const treeEndpoint = (owner: string, repo: string, ref: string, recursive: boole
   return endpoint;
 };
 
-// GitHub caps recursive trees. Rebuild a complete tree from non-recursive
-// subtree requests so discovery and link resolution never use a partial index.
 const makeListTree = (
   fetchTree: (
     owner: string,
@@ -219,8 +215,6 @@ const dedupeSkillEntries = (
   return [...byName.values()];
 };
 
-// Prefer real copies before applying the established prefix/depth ranking.
-/** @internal exported for testing */
 export const discoverFromTree = (
   tree: ReadonlyArray<{ path: string; type: "blob" | "tree" | "commit"; mode?: string }>,
 ): ReadonlyArray<SkillEntry> => {
@@ -252,7 +246,6 @@ export const discoverFromTree = (
   return entries;
 };
 
-// Check if a directory listing contains skill subdirectories (dirs with SKILL.md)
 const findSkillsInPrefix = (
   listContents: GitHubShape["listContents"],
   owner: string,
@@ -294,20 +287,17 @@ const findSkillsInPrefix = (
     return results.flat();
   });
 
-// B6: Build discovery from N+1 listing (fallback when tree is truncated)
 const discoverFromListing = Effect.fn("GitHub.discoverFromListing")(function* (
   listContents: GitHubShape["listContents"],
   owner: string,
   repo: string,
   ref?: string,
 ) {
-  // 1. Check skills/ and skill/ at repo root
   for (const prefix of SKILL_DIR_PREFIXES) {
     const skills = yield* findSkillsInPrefix(listContents, owner, repo, prefix, ref);
     if (skills.length > 0) return skills;
   }
 
-  // 2. Check root-level children for SKILL.md or nested skills/skill/ subdirs
   const rootEntries = yield* listContents(owner, repo, "", ref).pipe(
     Effect.catchTag("@cvr/okra/skills/SkillsError", () =>
       Effect.succeed([] as ReadonlyArray<GitHubContentEntry>),
@@ -316,7 +306,6 @@ const discoverFromListing = Effect.fn("GitHub.discoverFromListing")(function* (
 
   const rootDirs = rootEntries.filter((entry) => entry.type === "dir");
   if (rootDirs.length > 0) {
-    // Check each root dir for direct SKILL.md
     const directResults = yield* Effect.forEach(
       rootDirs,
       (dir) =>
@@ -348,8 +337,6 @@ const discoverFromListing = Effect.fn("GitHub.discoverFromListing")(function* (
     }
     if (directSkills.length > 0) return directSkills;
 
-    // 3. Recurse up to 2 levels deep: look for skills/ or skill/ inside root dirs and their children
-    //    Covers: plugins/skills/X, plugins/railway/skills/X, etc.
     const searchQueue: Array<{ path: string; children: ReadonlyArray<GitHubContentEntry> }> =
       directResults.map(({ dir, children }) => ({ path: dir.path, children }));
 
@@ -368,7 +355,6 @@ const discoverFromListing = Effect.fn("GitHub.discoverFromListing")(function* (
           );
           if (skills.length > 0) return skills;
         }
-        // Queue subdirs for next depth level
         if (depth < 1) {
           const subdirs = children.filter(
             (c) => c.type === "dir" && !(SKILL_DIR_PREFIXES as readonly string[]).includes(c.name),
@@ -388,7 +374,6 @@ const discoverFromListing = Effect.fn("GitHub.discoverFromListing")(function* (
     }
   }
 
-  // 4. Check root SKILL.md (repo itself is a single skill)
   if (rootEntries.some((entry) => entry.name === "SKILL.md")) {
     return [{ dirName: repo, skillMdPath: "SKILL.md", skillDir: "" }];
   }
@@ -396,8 +381,6 @@ const discoverFromListing = Effect.fn("GitHub.discoverFromListing")(function* (
   return [] as ReadonlyArray<SkillEntry>;
 });
 
-// Shared implementation for discoverSkills using tree API with listing fallback
-/** @internal exported for testing */
 export const makeDiscoverSkills = (
   listContents: GitHubShape["listContents"],
   listTree: GitHubShape["listTree"],
@@ -405,19 +388,15 @@ export const makeDiscoverSkills = (
   Effect.fn("GitHub.discoverSkills")(function* (owner: string, repo: string, ref?: string) {
     const resolvedRef = ref ?? DEFAULT_REF;
 
-    // P3: Try tree API first (single call)
     const treeResult = yield* listTree(owner, repo, resolvedRef).pipe(Effect.option);
 
     if (treeResult._tag === "Some" && !treeResult.value.truncated) {
       return discoverFromTree(treeResult.value.tree);
     }
 
-    // Fallback to N+1 listing
     return yield* discoverFromListing(listContents, owner, repo, ref);
   });
 
-// Resolve from git objects, not Contents listings: GitHub can dereference file
-// symlinks there and report them as ordinary files. Blob SHAs retain link text.
 const makeFetchSkillDir = (
   listTree: GitHubShape["listTree"],
   fetchBlob: FetchBlob,
@@ -520,7 +499,6 @@ const makeFetchSkillDir = (
     return yield* Effect.forEach(
       files,
       (file) =>
-        // Only resolved regular paths reach raw downloads; link text uses git blobs.
         fetchRaw(owner, repo, file.repoPath, ref).pipe(
           Effect.map((content) => ({ path: file.path, content })),
         ),
@@ -548,8 +526,6 @@ export class GitHubCli extends Context.Service<GitHubCli, GitHubCliShape>()(
           )
           .pipe(Effect.mapError((cause) => fetchError(label, cause)));
 
-        // Both streams must be drained while the child runs, otherwise it blocks
-        // once a pipe buffer fills.
         const [stdout, stderr, exitCode] = yield* Effect.all(
           [
             Stream.mkUint8Array(proc.stdout),
@@ -622,7 +598,6 @@ export class GitHubCli extends Context.Service<GitHubCli, GitHubCliShape>()(
         );
       });
 
-      // P3: Tree API via gh CLI
       const fetchTree = Effect.fn("GitHubCli.fetchTree")(function* (
         owner: string,
         repo: string,
@@ -676,7 +651,6 @@ export class GitHubHttp extends Context.Service<GitHubHttp, GitHubHttpShape>()(
       const client = yield* HttpClient.HttpClient;
       const jsonClient = client.pipe(HttpClient.filterStatusOk);
 
-      // E5: Resolve token eagerly in layer setup, not per-request
       const token = yield* githubToken;
 
       const withAuth = (request: HttpClientRequest.HttpClientRequest) =>
@@ -727,7 +701,6 @@ export class GitHubHttp extends Context.Service<GitHubHttp, GitHubHttpShape>()(
         );
       });
 
-      // P3: Tree API via HTTP
       const decodeTreeHttp = HttpClientResponse.schemaBodyJson(GitHubTreeResponseSchema);
 
       const fetchTree = Effect.fn("GitHubHttp.fetchTree")(function* (
@@ -750,7 +723,6 @@ export class GitHubHttp extends Context.Service<GitHubHttp, GitHubHttpShape>()(
         );
       });
 
-      // E5: Token already resolved eagerly
       const hasExplicitToken = Effect.succeed(Option.isSome(token));
 
       const fetchBlob: FetchBlob = Effect.fn("GitHubHttp.fetchBlob")(
@@ -805,7 +777,6 @@ export class GitHub extends Context.Service<GitHub, GitHubShape>()(
         Effect.gen(function* () {
           const hasExplicitToken = yield* http.hasExplicitToken;
           const ghAvailable = yield* cli.isAvailable;
-          // An explicit token means the caller chose HTTP auth; otherwise prefer the gh CLI.
           if (!hasExplicitToken && ghAvailable) {
             return { transport: cli as GitHubShape, label: "gh" };
           }

@@ -4,10 +4,6 @@ import { Path } from "effect/Path";
 import { AUTH_RELATIVE_PATH, FALLBACK_VERSION, VERSION_RELATIVE_PATH } from "../constants.js";
 import { ImageError } from "../errors.js";
 
-/**
- * Shape of `~/.codex/auth.json`. Only the `tokens` block is load-bearing; other
- * keys (auth_mode, OPENAI_API_KEY, last_refresh) are ignored.
- */
 const CodexAuthFile = Schema.Struct({
   tokens: Schema.Struct({
     access_token: Schema.String,
@@ -17,27 +13,17 @@ const CodexAuthFile = Schema.Struct({
 
 const decodeAuthFile = Schema.decodeUnknownEffect(Schema.fromJsonString(CodexAuthFile));
 
-/** Shape of `~/.codex/version.json` — only `latest_version` is used. */
 const CodexVersionFile = Schema.Struct({
   latest_version: Schema.optionalKey(Schema.NullishOr(Schema.String)),
 });
 const decodeVersionFile = Schema.decodeUnknownEffect(Schema.fromJsonString(CodexVersionFile));
 
 export interface CodexCredentials {
-  /** OAuth access token for the Authorization: Bearer header. Redacted to avoid leaks in logs. */
   readonly accessToken: Redacted.Redacted<string>;
-  /** Value for the chatgpt-account-id header. */
   readonly accountId: string;
-  /** Codex CLI version for the `version` header; the backend rejects stale versions. */
   readonly version: string;
 }
 
-/**
- * Loads ChatGPT/codex OAuth credentials from `~/.codex/auth.json`, the file
- * `codex login` writes. We do not run our own OAuth flow or refresh tokens — on
- * a rejected token the caller surfaces an AUTH_EXPIRED error telling the user to
- * re-run `codex login`.
- */
 export class CodexAuthService extends Context.Service<
   CodexAuthService,
   {
@@ -59,8 +45,6 @@ export class CodexAuthService extends Context.Service<
         ),
       );
 
-      // Best-effort: read the codex CLI version, falling back to FALLBACK_VERSION
-      // when version.json is missing or unparseable. Never fails the load.
       const readVersion = (home: string) =>
         fs.readFileString(path.join(home, VERSION_RELATIVE_PATH)).pipe(
           Effect.flatMap(decodeVersionFile),

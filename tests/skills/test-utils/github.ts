@@ -5,7 +5,6 @@ import { GitHubHttp } from "../../../src/skills/services/GitHub.js";
 export const skillMd = "---\nname: domain\ndescription: test\n---\n";
 export const binary = new Uint8Array([0, 0xff, 0x89, 0x50]);
 
-// Fake only GitHub's wire boundary; exercise the real decoder and service.
 export const repoResponse = (links: Record<string, string> = {}, truncate = false) => {
   const blobs = new Map<string, Uint8Array>();
   const entries = new Map<
@@ -33,7 +32,6 @@ export const repoResponse = (links: Record<string, string> = {}, truncate = fals
     if (typeof bytes === "string") bytes = new TextEncoder().encode(bytes);
     blobs.set(path, bytes);
   }
-  // Real repositories can contain unrelated gitlinks; these are not skill files.
   entries.set("submodules", {
     path: "submodules",
     type: "tree",
@@ -78,7 +76,6 @@ export const repoResponse = (links: Record<string, string> = {}, truncate = fals
       response = new Response("missing blob", { status: 404 });
       if (bytes) response = new Response(new Uint8Array(bytes));
     } else {
-      // Old downloader sees SKILL.md dereferenced and a directory symlink it ignores.
       const path = decodeURIComponent(url.pathname.split("/contents/")[1] ?? "");
       const bytes = blobs.get(path);
       if (bytes) {

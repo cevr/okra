@@ -34,7 +34,6 @@ const calendarIntervalXml = (intervals: ReadonlyArray<Record<string, number>>): 
   return `  <key>StartCalendarInterval</key>\n  <array>\n${items}\n  </array>`;
 };
 
-/** @internal */
 export const generatePlist = (
   task: Task,
   binPath: string,
@@ -156,12 +155,10 @@ class LaunchdService extends Context.Service<
           ),
         );
 
-        // Read existing plist content for rollback if load fails
         const oldContent = yield* fs.readFileString(plist).pipe(Effect.option);
 
         const loaded = yield* isLoaded(task.id);
         if (loaded) {
-          // Best-effort unload — job may already be unloaded
           yield* launchctlUnload(plist).pipe(Effect.ignore);
         }
 
@@ -195,7 +192,6 @@ class LaunchdService extends Context.Service<
         );
 
         if (loadResult.code !== 0) {
-          // Rollback: restore old plist and re-load it
           if (oldContent._tag === "Some") {
             yield* fs.writeFileString(plist, oldContent.value).pipe(Effect.ignore);
             yield* launchctlUnload(plist).pipe(Effect.ignore);
@@ -221,7 +217,6 @@ class LaunchdService extends Context.Service<
         if (loaded) {
           const result = yield* launchctlUnload(plist);
           if (result.code !== 0) {
-            // Re-check if still loaded — maybe it was already unloaded
             const stillLoaded = yield* isLoaded(id);
             if (stillLoaded) {
               return yield* ScheduleError.make({

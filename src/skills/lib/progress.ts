@@ -161,7 +161,6 @@ export const make = (
     const tty = options.tty ?? defaultIsTTY;
     const stdio = yield* Stdio;
     const terminal = yield* Terminal;
-    // Progress output goes to stderr so it never pollutes piped stdout.
     const stderrSink = stdio.stderr({ endOnDone: false });
     const defaultWrite = (text: string): Effect.Effect<void> =>
       Stream.run(Stream.succeed(text), stderrSink).pipe(Effect.ignore);

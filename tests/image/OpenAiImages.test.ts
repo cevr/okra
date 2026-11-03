@@ -6,13 +6,11 @@ import { isImageError } from "../../src/image/errors.js";
 import { type ImagePart, OpenAiImagesService } from "../../src/image/services/OpenAiImages.js";
 import { KeyStoreService } from "../../src/shared/keystore.js";
 
-// 1x1 transparent PNG, base64.
 const PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
 const encodeJsonBody = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
 
-/** Mock HttpClient that returns a fixed JSON body + status for every request. */
 const mockHttp = (status: number, body: unknown) =>
   HttpClient.make((request) =>
     Effect.succeed(
@@ -26,7 +24,6 @@ const mockHttp = (status: number, body: unknown) =>
     ),
   );
 
-// Pass `{ openai: "sk-test" }` to simulate a stored key, or `{}` for no key.
 const makeLayer = (
   status: number,
   body: unknown,
@@ -116,7 +113,6 @@ describe("OpenAiImagesService.generate", () => {
       const svc = yield* OpenAiImagesService;
       const err = yield* Effect.flip(svc.generate(input));
       expect(err.code).toBe("GENERATION_FAILED");
-      // The real reason from the JSON body must reach the user.
       expect(err.message).toContain("Billing hard limit has been reached.");
       expect(err.message).toContain("HTTP 400");
     }).pipe(
@@ -148,14 +144,12 @@ describe("OpenAiImagesService.generate", () => {
   );
 });
 
-/** What the capturing mock records about the outgoing request. */
 interface CapturedRequest {
   url?: string;
   method?: string;
   form?: globalThis.FormData;
 }
 
-/** Mock HttpClient that records the request (incl. FormData body) and returns a fixed 200. */
 const capturingHttp = (sink: CapturedRequest, body: unknown) =>
   HttpClient.make((request) => {
     sink.url = request.url;
@@ -206,10 +200,8 @@ describe("OpenAiImagesService.edit", () => {
       expect(form.get("model")).toBe("gpt-image-1.5");
       expect(form.get("size")).toBe("1024x1024");
       expect(form.get("output_format")).toBe("png");
-      // A single source uses the `image` key and carries a File payload.
       expect(form.get("image")).toBeInstanceOf(globalThis.File);
       expect(form.get("mask")).toBeNull();
-      // Optional knobs are omitted when not supplied, so model defaults stand.
       expect(form.get("input_fidelity")).toBeNull();
     }).pipe(
       Effect.provide(capturingLayer(captured, { created: 1, data: [{ b64_json: PNG_BASE64 }] })),
@@ -249,7 +241,6 @@ describe("OpenAiImagesService.edit", () => {
       });
 
       const form = captured.form as globalThis.FormData;
-      // Two sources repeat under image[]; the single-key `image` is unused.
       expect(form.getAll("image[]").length).toBe(2);
       expect(form.get("image")).toBeNull();
       expect(form.get("mask")).toBeInstanceOf(globalThis.File);

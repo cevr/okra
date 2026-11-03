@@ -8,9 +8,7 @@ import { CacheService } from "../../src/repo/services/cache.js";
 import { MetadataService } from "../../src/repo/services/metadata.js";
 import { specToString } from "../../src/repo/types.js";
 
-// Fixed ISO timestamp for fixture data (production code doesn't read these back as Dates).
 const FIXTURE_ISO = "2026-01-01T00:00:00.000Z";
-// 2026-01-01T00:00:00.000Z = 1767225600000 ms since epoch.
 const FIXTURE_ISO_MS = 1767225600000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -223,7 +221,6 @@ describe("clean flow", () => {
     Effect.gen(function* () {
       const { layer } = createTestLayer();
 
-      // Anchor TestClock at FIXTURE_ISO + 31 days so "FIXTURE_ISO" entries are 31 days old.
       yield* TestClock.setTime(FIXTURE_ISO_MS + 31 * DAY_MS);
 
       yield* Effect.gen(function* () {
@@ -232,7 +229,7 @@ describe("clean flow", () => {
         const metadata = yield* MetadataService;
 
         const oldSpec = yield* registry.parseSpec("old/repo");
-        const oldIso = FIXTURE_ISO; // 31 days before TestClock now
+        const oldIso = FIXTURE_ISO;
         yield* metadata.add({
           spec: oldSpec,
           fetchedAt: oldIso,
@@ -242,7 +239,7 @@ describe("clean flow", () => {
         });
 
         const newSpec = yield* registry.parseSpec("new/repo");
-        const newIso = "2026-02-01T00:00:00.000Z"; // == TestClock now → 0 days old
+        const newIso = "2026-02-01T00:00:00.000Z";
         yield* metadata.add({
           spec: newSpec,
           fetchedAt: newIso,
@@ -311,8 +308,6 @@ describe("update flow", () => {
     Effect.gen(function* () {
       const { layer } = createTestLayer();
 
-      // Set TestClock to FIXTURE_ISO + 1s; initialTime = FIXTURE_ISO; production's
-      // DateTime.now (via TestClock) will produce a later timestamp on updateAccessTime.
       yield* TestClock.setTime(FIXTURE_ISO_MS + 1000);
 
       yield* Effect.gen(function* () {
@@ -503,7 +498,6 @@ describe("integration flow", () => {
     Effect.gen(function* () {
       const { layer } = createTestLayer();
 
-      // Set TestClock to FIXTURE_ISO + 1s so updateAccessTime produces a strictly later timestamp.
       yield* TestClock.setTime(FIXTURE_ISO_MS + 1000);
 
       yield* Effect.gen(function* () {

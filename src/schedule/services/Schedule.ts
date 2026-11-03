@@ -54,13 +54,11 @@ const parseMinuteOrZero = (minuteStr: string | undefined): number => {
   return parseInt(minuteStr, 10);
 };
 
-/** A wildcard minute renders as :00 — the hour's first tick. */
 const resolveMinute = (minute: NumOrStar): number => {
   if (minute === "*") return 0;
   return minute;
 };
 
-/** Renders a cron hour/minute pair as "HH:MM", or "every hour" when the hour is a wildcard. */
 const formatTimeOfDay = (hour: NumOrStar, minute: NumOrStar): string => {
   if (hour === "*") return "every hour";
   const minuteValue = resolveMinute(minute);
@@ -180,8 +178,6 @@ const parseTomorrow = (trimmed: string, nowMs: number): Option.Option<Schedule> 
   const { hour, minute } = parseTime(m[1], m[2], m[3]);
   const tomorrowMs = nowMs + DAY_MS;
   const parts = DateTime.toParts(DateTime.makeUnsafe(tomorrowMs));
-  // Reconstruct as UTC at the requested hour. Original used Date.setHours (local) —
-  // we switch to UTC for determinism across env timezones.
   const atIso = DateTime.formatIso(
     DateTime.makeUnsafe({
       year: parts.year,

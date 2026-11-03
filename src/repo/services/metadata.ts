@@ -14,7 +14,6 @@ import {
 import type { PackageSpec, RepoMetadata } from "../types.js";
 import { MetadataIndex, specMatches } from "../types.js";
 
-// In-memory cache state
 interface CacheState {
   index: Option.Option<MetadataIndex>;
   dirty: boolean;
@@ -27,7 +26,6 @@ const describeError = (e: unknown): string => {
   return String(e);
 };
 
-// Service interface
 export class MetadataService extends Context.Service<
   MetadataService,
   {
@@ -40,7 +38,6 @@ export class MetadataService extends Context.Service<
     readonly all: Effect.Effect<readonly RepoMetadata[]>;
   }
 >()("@cvr/okra/repo/services/metadata/MetadataService") {
-  // Live layer using real filesystem with in-memory caching
   static readonly layer = Layer.effect(
     MetadataService,
     Effect.gen(function* () {

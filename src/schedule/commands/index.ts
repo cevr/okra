@@ -20,7 +20,6 @@ const parseUntilDate = Effect.fn("parseUntilDate")(function* (input: string) {
       code: "INVALID_DATE",
     });
   }
-  // A date without a time means "any moment that day", so aim at its final millisecond (UTC).
   const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(trimmed);
   if (isDateOnly) {
     return DateTime.formatIso(DateTime.makeUnsafe(baseMs + 86_400_000 - 1));
@@ -28,7 +27,6 @@ const parseUntilDate = Effect.fn("parseUntilDate")(function* (input: string) {
   return DateTime.formatIso(DateTime.makeUnsafe(baseMs));
 });
 
-/** An empty stop-condition list is stored as absent rather than as `[]`. */
 const nonEmptyOrUndefined = <A>(items: ReadonlyArray<A>): ReadonlyArray<A> | undefined => {
   if (items.length === 0) return undefined;
   return items;
@@ -70,7 +68,6 @@ const root = Command.make(
       const cwd = yield* Effect.sync(() => process.cwd());
       const context = yield* captureContext(cwd);
 
-      // Build stop conditions
       const stopConditions: Array<StopCondition> = [];
 
       if (config.maxRuns._tag === "Some") {
@@ -81,7 +78,6 @@ const root = Command.make(
         stopConditions.push({ _tag: "AfterDate", date });
       }
 
-      // Conditional stop requires a deterministic fallback
       let conditionalStop: ConditionalStop | undefined;
       if (config.stopWhen._tag === "Some") {
         if (stopConditions.length === 0) {

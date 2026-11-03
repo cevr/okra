@@ -7,9 +7,7 @@ import skillsDoc from "../../skills/skills/SKILL.md" with { type: "text" };
 
 export interface Topic {
   readonly name: string;
-  /** First sentence of the skill's frontmatter description. */
   readonly summary: string;
-  /** Full SKILL.md content with the frontmatter block removed. */
   readonly body: string;
 }
 
@@ -41,7 +39,6 @@ const makeTopic = (name: string, doc: string): Topic => ({
   body: stripFrontmatter(doc),
 });
 
-/** Every embedded guide, in the order they appear in `okra how`'s table of contents. */
 export const TOPICS: ReadonlyArray<Topic> = [
   makeTopic("schedule", scheduleDoc),
   makeTopic("counsel", counselDoc),
@@ -54,6 +51,5 @@ export const TOPICS: ReadonlyArray<Topic> = [
 export const findTopic = (name: string): Topic | undefined =>
   TOPICS.find((topic) => topic.name === name);
 
-/** Topics nested under `name` by naming convention (`x` → `x-sub`, ...). */
 export const subtopicsOf = (name: string): ReadonlyArray<Topic> =>
   TOPICS.filter((topic) => topic.name.startsWith(`${name}-`));

@@ -82,7 +82,6 @@ class AgentPlatformService extends Context.Service<
             function* (provider: Provider, prompt: string, cwd: string) {
               const handle = yield* spawner.spawn(buildCommand(provider, prompt, cwd, "inherit"));
 
-              // Mirror the agent's output to our stdout while capturing it.
               const output = yield* Stream.mkString(
                 handle.stdout.pipe(
                   Stream.tapSink<Uint8Array, PlatformError, never>(

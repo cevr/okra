@@ -79,7 +79,6 @@ const notFound = () =>
     ),
   );
 
-/** In-memory FS plus an HTTP client that serves `remote`, or fails when it is `None`. */
 const makeLayer = (initialFiles: Record<string, string>, remote: Option.Option<Catalog>) =>
   Effect.gen(function* () {
     const files = yield* Ref.make(initialFiles);

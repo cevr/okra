@@ -8,7 +8,6 @@ import { isColorEnabled } from "../../shared/env.js";
 const TasksJson = Schema.fromJsonString(Schema.Array(Task));
 const encodeTasksJson = Schema.encodeSync(TasksJson);
 
-/** Clips to `max` characters, spending the last 3 on an ellipsis so the width still holds. */
 const truncate = (text: string, max: number): string => {
   if (text.length <= max) return text;
   return `${text.slice(0, max - 3)}...`;

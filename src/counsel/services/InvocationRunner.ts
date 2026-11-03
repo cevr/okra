@@ -11,7 +11,6 @@ import type { ExecutionResult, Invocation } from "../types.js";
 const spawnFailed = (error: PlatformError): CounselError =>
   CounselError.make({ message: error.message, code: ErrorCode.SPAWN_FAILED });
 
-/** SIGTERM, then SIGKILL after the grace period. Forked so callers do not block on it. */
 const terminate = (proc: ChildProcessHandle) =>
   proc.kill({ killSignal: "SIGTERM", forceKillAfter: KILL_GRACE_PERIOD_MS }).pipe(Effect.ignore);
 
@@ -32,7 +31,6 @@ const waitForExit = Effect.fn("InvocationRunner.waitForExit")(function* (
   );
 
   if (result.timedOut) {
-    // Ensure process is terminated; await its actual exit code.
     yield* Effect.forkDetach(terminate(proc));
     const exitCode = yield* awaitExit(proc);
     return { exitCode, timedOut: true };
@@ -74,8 +72,6 @@ export class InvocationRunnerService extends Context.Service<
                 )
                 .pipe(Effect.mapError(spawnFailed));
 
-              // Drain both streams to their log files concurrently with the wait,
-              // otherwise the child blocks once the pipe buffers fill.
               yield* Effect.forkScoped(
                 Stream.run(proc.stdout, fs.sink(outputFile)).pipe(Effect.ignore),
               );

@@ -13,7 +13,6 @@ const pngDimensions = (bytes: Uint8Array, view: DataView): Option.Option<ImageDi
   return Option.some({ width: view.getUint32(16), height: view.getUint32(20) });
 };
 
-// SOF markers carry the frame size; C4 (DHT), C8 (JPG) and CC (DAC) share the range but do not.
 const isStartOfFrame = (marker: number): boolean =>
   marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
 
@@ -40,7 +39,6 @@ const webpDimensions = (bytes: Uint8Array, view: DataView): Option.Option<ImageD
     return Option.some({ width: 1 + uint24(view, 24), height: 1 + uint24(view, 27) });
   }
   if (chunk === "VP8L") {
-    // 14-bit width-1 and height-1, packed little-endian after the 0x2f signature byte.
     const bits = view.getUint32(21, true);
     return Option.some({ width: 1 + (bits & 0x3fff), height: 1 + ((bits >> 14) & 0x3fff) });
   }
@@ -53,7 +51,6 @@ const webpDimensions = (bytes: Uint8Array, view: DataView): Option.Option<ImageD
   return Option.none();
 };
 
-/** Width and height from a PNG, JPEG, or WebP header; `None` for anything it cannot read. */
 export const readImageDimensions = (bytes: Uint8Array): Option.Option<ImageDimensions> => {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   if (bytes.length >= 8 && ascii(bytes, 1, 3) === "PNG") return pngDimensions(bytes, view);
@@ -64,7 +61,6 @@ export const readImageDimensions = (bytes: Uint8Array): Option.Option<ImageDimen
   return Option.none();
 };
 
-/** `WIDTHxHEIGHT` as numbers; `None` for `auto` or anything else. */
 export const parseSize = (size: string): Option.Option<ImageDimensions> => {
   const match = /^(\d+)x(\d+)$/.exec(size);
   if (match === null) return Option.none();
@@ -77,10 +73,6 @@ const orientation = ({ width, height }: ImageDimensions): string => {
   return "square";
 };
 
-/**
- * The codex backend replaces the image tool's `size` with `auto` and lets the model choose, but
- * the model follows a size stated in the prompt. Empty for `auto`.
- */
 export const sizePromptHint = (size: string): string =>
   Option.match(parseSize(size), {
     onNone: () => "",

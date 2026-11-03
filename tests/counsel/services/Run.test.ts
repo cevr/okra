@@ -26,8 +26,6 @@ const RunLayer = RunService.layer.pipe(
     InvocationRunnerService.layerTest({
       execute: (_invocation, outputFile, stderrFile) =>
         Effect.gen(function* () {
-          // Mock writes JSONL matching the provider's stream format.
-          // Target is claude (source=codex), so write claude stream-json.
           const claudeJsonl = [
             '{"type":"system","subtype":"init","session_id":"test","model":"claude-opus-5-5"}',
             '{"type":"result","subtype":"success","is_error":false,"result":"second opinion"}',
@@ -114,7 +112,6 @@ describe("RunService", () => {
       expect(manifest.target).toBe("claude");
       expect(manifest.profile).toBe("deep");
       expect(manifest.status).toBe("success");
-      // Claude's init event names the concrete model behind the requested alias.
       expect(manifest.model).toBe("claude-opus-5-5");
       expect(promptText).toBe("check the command wiring");
       expect(outputText).toBe("second opinion");
@@ -155,13 +152,11 @@ const OTHER_FAILURE_EVENTS = '{"type":"turn.failed","error":{"message":"rate lim
 const CODEX_SUCCESS_EVENTS =
   '{"type":"item.completed","item":{"id":"i","type":"agent_message","text":"codex opinion"}}';
 
-// The first attempt fails with the layer's `firstEvents`; any later attempt succeeds.
 const ATTEMPTS: ReadonlyArray<{ readonly events?: string; readonly exitCode?: number }> = [
   {},
   { events: CODEX_SUCCESS_EVENTS, exitCode: 0 },
 ];
 
-/** Codex target with two model candidates; the first attempt fails with `firstEvents`. */
 const makeRetryLayer = (firstEvents: string, executedModels: Array<string>, firstExitCode = 1) =>
   Layer.mergeAll(
     RunService.layer.pipe(

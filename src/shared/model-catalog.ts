@@ -3,18 +3,14 @@ import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 
-/** Public model registry: provider id → models keyed by model id. */
 export const MODELS_DEV_URL = "https://models.dev/api.json";
 
-/** Path (relative to home) of the on-disk copy of the registry. */
 export const MODEL_CATALOG_RELATIVE_PATH = ".okra/models.json";
 
-// Bump when the cached shape changes so an old file is refetched instead of misread.
 const CACHE_FORMAT = 1;
 const CACHE_MAX_AGE = Duration.days(1);
 const FETCH_TIMEOUT = Duration.seconds(5);
 
-// Every field is optional: one malformed upstream entry must not reject the whole registry.
 const CatalogModel = Schema.Struct({
   id: Schema.optional(Schema.String),
   family: Schema.optional(Schema.String),
@@ -40,29 +36,18 @@ const decodeCache = Schema.decodeUnknownEffect(Schema.fromJsonString(CatalogCach
 const encodeCache = Schema.encodeEffect(Schema.fromJsonString(CatalogCache));
 const decodeCatalogResponse = HttpClientResponse.schemaBodyJson(Catalog);
 
-/**
- * A model line such as "GPT Sol": the models.dev `family` tag plus an id pattern. The family tag
- * alone is too loose (`gpt-sol` also holds `gpt-5.6` and preview aliases), so the pattern keeps
- * only the numbered releases of the line.
- */
 export interface ModelLine {
   readonly provider: string;
   readonly family: string;
   readonly idPattern: RegExp;
 }
 
-/** Numbered GPT Sol releases, e.g. `gpt-6.1-sol`. */
 export const GPT_SOL_LINE: ModelLine = {
   provider: "openai",
   family: "gpt-sol",
   idPattern: /^gpt-\d+(\.\d+)?-sol$/,
 };
 
-/**
- * The non-deprecated model ids in `line`, newest release first, limited to `availableIds` when
- * given. Models without a release date cannot be ordered and are skipped. Equal dates fall back
- * to the id so the order is stable.
- */
 export const rankModelsInLine = (
   catalog: Catalog,
   line: ModelLine,
@@ -87,16 +72,9 @@ export const rankModelsInLine = (
     .map((model) => model.id);
 };
 
-/**
- * Ranks the models of a line from models.dev, so a new release is picked up without an okra
- * release. The registry is cached in `~/.okra/models.json` for a day. When the fetch fails, a
- * stale cache is used; with no cache at all, lookups return no models and callers use their own
- * fallback. Resolution never fails.
- */
 export class ModelCatalogService extends Context.Service<
   ModelCatalogService,
   {
-    /** See `rankModelsInLine`. Pass `availableIds` when the caller's account cannot use every release. */
     readonly modelsInLine: (
       line: ModelLine,
       availableIds?: ReadonlySet<string>,

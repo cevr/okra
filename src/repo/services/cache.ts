@@ -1,7 +1,6 @@
 import { Config, Effect, FileSystem, Layer, Option, Path, Context } from "effect";
 import type { PackageSpec } from "../types.js";
 
-// Service interface
 export class CacheService extends Context.Service<
   CacheService,
   {
@@ -13,7 +12,6 @@ export class CacheService extends Context.Service<
     readonly ensureDir: (path: string) => Effect.Effect<void>;
   }
 >()("@cvr/okra/repo/services/cache/CacheService") {
-  // Live layer using real filesystem
   static readonly layer = Layer.effect(
     CacheService,
     Effect.gen(function* () {
@@ -38,7 +36,6 @@ export class CacheService extends Context.Service<
 
               if (yield* fs.exists(normalizedPath)) return normalizedPath;
 
-              // spec.name guaranteed to be "owner/repo" format for github registry
               const parts = spec.name.split("/");
               const owner = parts[0];
               const repo = parts[1];

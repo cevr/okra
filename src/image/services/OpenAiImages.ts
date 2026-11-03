@@ -16,18 +16,13 @@ export interface OpenAiImageInput {
   readonly model: string;
   readonly size: string;
   readonly format: ImageFormat;
-  /** Rendering quality. GPT Image 2.5 adds `xhigh` and `max`. Omitted → model default. */
   readonly quality?: ImageQuality;
-  /** Transparent vs opaque background (GPT image models only). Omitted → model default. */
   readonly background?: "transparent" | "opaque" | "auto";
-  /** Number of images to request. Omitted → 1. */
   readonly n?: number;
 }
 
-/** A binary image payload destined for a multipart edit request. */
 export interface ImagePart {
   readonly data: Uint8Array;
-  /** MIME type, e.g. "image/png" — becomes the form-part content type. */
   readonly mediaType: string;
 }
 
@@ -36,21 +31,14 @@ export interface OpenAiEditInput {
   readonly model: string;
   readonly size: string;
   readonly format: ImageFormat;
-  /** Source image(s) to edit; multipart `image` (GPT image models accept up to 16). */
   readonly images: ReadonlyArray<ImagePart>;
-  /** Optional PNG mask whose transparent areas mark where to edit. */
   readonly mask?: ImagePart;
   readonly quality?: ImageQuality;
   readonly background?: "transparent" | "opaque" | "auto";
   readonly n?: number;
-  /**
-   * How hard the model works to preserve the source's style/features (notably
-   * faces). `gpt-image-1`/`gpt-image-1.5` only. Omitted → API default (`low`).
-   */
   readonly inputFidelity?: "high" | "low";
 }
 
-// The upstream request schema predates GPT Image 2.5 quality values.
 const CreateImageRequest = Schema.Struct({
   ...Generated.CreateImageRequest.fields,
   quality: Schema.optionalKey(Schema.Literals(IMAGE_QUALITY_CHOICES)),
@@ -64,17 +52,12 @@ const ImagesResponse = Schema.Struct({
 });
 const decodeImagesResponse = HttpClientResponse.schemaBodyJson(ImagesResponse);
 
-/** Extension to put on a form-part filename so the API infers the right type. */
 const extForMedia = (mediaType: string): string => {
   if (mediaType === "image/jpeg") return "jpg";
   if (mediaType === "image/webp") return "webp";
   return "png";
 };
 
-/**
- * Drop the entries whose value is `undefined` so spreading the result never sets
- * an explicit `undefined` on the request body (which would override a model default).
- */
 const omitUndefined = <T extends object>(fields: T): Partial<T> => {
   const kept: Partial<T> = {};
   for (const [name, value] of Object.entries(fields)) {
@@ -83,15 +66,12 @@ const omitUndefined = <T extends object>(fields: T): Partial<T> => {
   return kept;
 };
 
-/** Multiple sources repeat the `image[]` form key; a single source uses `image`. */
 const formImageKey = (imageCount: number): string => {
   if (imageCount > 1) return "image[]";
   return "image";
 };
 
 const toBlob = (part: ImagePart, name: string): globalThis.File => {
-  // Copy into a fresh ArrayBuffer-backed view so the BlobPart type is exact
-  // (a SharedArrayBuffer-backed Uint8Array is not a valid BlobPart).
   const buffer = new Uint8Array(part.data.length);
   buffer.set(part.data);
   return new globalThis.File([buffer], `${name}.${extForMedia(part.mediaType)}`, {
@@ -99,20 +79,12 @@ const toBlob = (part: ImagePart, name: string): globalThis.File => {
   });
 };
 
-/**
- * Generates images through the metered OpenAI Images API (`/images/generations`)
- * using an `OPENAI_API_KEY`. This is the non-codex path: selected when `--model`
- * names a GPT image / DALL·E model. Always returns base64 for the GPT image
- * models, which we decode to raw bytes.
- */
 export class OpenAiImagesService extends Context.Service<
   OpenAiImagesService,
   {
-    /** Generate from a prompt (`/images/generations`). One byte array per image (`--n`). */
     readonly generate: (
       input: OpenAiImageInput,
     ) => Effect.Effect<ReadonlyArray<Uint8Array>, ImageError>;
-    /** Edit source image(s) under a prompt (`/images/edits`, multipart). One byte array per image. */
     readonly edit: (input: OpenAiEditInput) => Effect.Effect<ReadonlyArray<Uint8Array>, ImageError>;
   }
 >()("@cvr/okra/image/services/OpenAiImages/OpenAiImagesService") {
@@ -123,8 +95,6 @@ export class OpenAiImagesService extends Context.Service<
         const httpClient = yield* HttpClient.HttpClient;
         const keyStore = yield* KeyStoreService;
 
-        // env OPENAI_API_KEY > stored ~/.okra/keys.json; map the store's error
-        // into this domain's AUTH_MISSING so callers see a single error type.
         const apiKey = keyStore.resolve(OPENAI_KEY_NAME, OPENAI_API_KEY_ENV).pipe(
           Effect.mapError(() =>
             ImageError.make({
@@ -134,7 +104,6 @@ export class OpenAiImagesService extends Context.Service<
           ),
         );
 
-        /** Run a prepared request, normalise auth/transport failures, return decoded images. */
         const runImages = Effect.fn("OpenAiImages.run")(function* (
           request: HttpClientRequest.HttpClientRequest,
           model: string,
@@ -149,8 +118,6 @@ export class OpenAiImagesService extends Context.Service<
             ),
           );
 
-          // Non-2xx: read the API error body so the real reason (e.g. "Billing hard
-          // limit has been reached") reaches the user instead of a bare status code.
           if (httpResponse.status < 200 || httpResponse.status >= 300) {
             const detail = yield* readApiError(httpResponse);
             if (httpResponse.status === 401 || httpResponse.status === 403) {
@@ -174,7 +141,6 @@ export class OpenAiImagesService extends Context.Service<
             ),
           );
 
-          // Collect every returned image (the API returns `--n` of them).
           const encoded = (response.data ?? [])
             .map((item) => item.b64_json)
             .filter((b64): b64 is string => b64 !== undefined);
@@ -194,7 +160,6 @@ export class OpenAiImagesService extends Context.Service<
             prompt: input.prompt,
             size: input.size,
             output_format: input.format,
-            // Optional knobs — only sent when set, so model defaults stand otherwise.
             ...omitUndefined({
               quality: input.quality,
               background: input.background,
@@ -216,9 +181,6 @@ export class OpenAiImagesService extends Context.Service<
 
         const edit = Effect.fn("OpenAiImages.edit")(function* (input: OpenAiEditInput) {
           const key = yield* apiKey;
-          // `/images/edits` is multipart: the source image(s) and optional mask are
-          // binary form parts (the high-level client never surfaces createImageEdit,
-          // so we build the request directly, mirroring the generations path).
           const form = new globalThis.FormData();
           form.append("prompt", input.prompt);
           form.append("model", input.model);
@@ -261,17 +223,11 @@ const describeError = (cause: unknown): string => {
   return String(cause);
 };
 
-/** The OpenAI error envelope: `{ "error": { "message": "..." } }`. */
 const ApiErrorBody = Schema.Struct({
   error: Schema.Struct({ message: Schema.String }),
 });
 const decodeApiErrorBody = Schema.decodeUnknownEffect(Schema.fromJsonString(ApiErrorBody));
 
-/**
- * Best-effort human-readable detail from a non-2xx response body. OpenAI returns
- * `{ "error": { "message": "Billing hard limit has been reached." } }`; we surface
- * that message. Falls back to the raw body, then a status note, if it can't decode.
- */
 const readApiError = Effect.fn("OpenAiImages.readApiError")(function* (
   response: HttpClientResponse.HttpClientResponse,
 ) {

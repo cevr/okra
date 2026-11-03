@@ -45,7 +45,6 @@ describe("how topics", () => {
 
   it.effect("subtopicsOf groups hyphen-nested topics only", () =>
     Effect.sync(() => {
-      // No hyphen-nested skills exist right now, so every topic stands alone.
       for (const topic of TOPICS) {
         expect(subtopicsOf(topic.name)).toEqual([]);
       }

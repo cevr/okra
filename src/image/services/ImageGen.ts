@@ -7,13 +7,10 @@ import { sizePromptHint } from "../image-dimensions.js";
 
 export type ImageFormat = "png" | "webp" | "jpeg";
 
-/** Rendering quality accepted by the OpenAI Images API (codex path ignores it). */
 export type ImageQuality = (typeof IMAGE_QUALITY_CHOICES)[number];
 
-/** A reference image to condition generation on (style/composition), not edit. */
 export interface ReferenceImage {
   readonly data: Uint8Array;
-  /** MIME type, e.g. "image/png" — the codex backend supports PNG/JPEG/WebP. */
   readonly mediaType: string;
 }
 
@@ -21,23 +18,14 @@ export interface GenerateImageInput {
   readonly prompt: string;
   readonly size: string;
   readonly format: ImageFormat;
-  /** Optional style/composition references attached as input images (codex only). */
   readonly refs?: ReadonlyArray<ReferenceImage>;
 }
 
-/** The custom name the OpenAI adapter assigns the image_generation provider tool. */
 const IMAGE_TOOL_NAME = "OpenAiImageGeneration";
 
-/**
- * Generates images through a provided `LanguageModel` using the OpenAI
- * `image_generation` provider tool. The model is wired to the ChatGPT "codex"
- * Responses backend at the domain entry point (see `image/index.ts`), so this
- * service is transport-agnostic and easy to test with a mock LanguageModel.
- */
 export class ImageGenService extends Context.Service<
   ImageGenService,
   {
-    /** Generate an image and return the raw decoded PNG/JPEG/WebP bytes. */
     readonly generate: (
       input: GenerateImageInput,
     ) => Effect.Effect<Uint8Array, ImageError, LanguageModel.LanguageModel>;
@@ -45,9 +33,6 @@ export class ImageGenService extends Context.Service<
 >()("@cvr/okra/image/services/ImageGen/ImageGenService") {
   static layer: Layer.Layer<ImageGenService> = Layer.succeed(ImageGenService, {
     generate: Effect.fn("ImageGen.generate")(function* (input: GenerateImageInput) {
-      // image_generation is a provider-defined tool: no handler, args set at construction. The
-      // codex backend replaces the tool's model (always gpt-image-2-codex), size, and quality, so
-      // no image model is sent and the size also goes into the prompt.
       const toolkit = Toolkit.make(
         OpenAiTool.ImageGeneration({
           size: input.size,
@@ -56,10 +41,6 @@ export class ImageGenService extends Context.Service<
       );
 
       const text = `${IMAGE_INSTRUCTION}\n\n${input.prompt}${sizePromptHint(input.size)}`;
-      // With reference images, send a structured user message carrying the text
-      // plus each ref as an input image (a `file` part with an image media type,
-      // which the OpenAI Responses adapter forwards as `input_image`). Without
-      // refs, keep the plain-string prompt so the common path is unchanged.
       const refs = input.refs ?? [];
       const buildPrompt = () => {
         if (refs.length === 0) return text;
@@ -79,12 +60,9 @@ export class ImageGenService extends Context.Service<
       };
       const prompt = buildPrompt();
 
-      // The codex backend mandates streaming (stream: true), so collect the
-      // stream parts and pull the image from the tool-result part.
       const parts = yield* LanguageModel.streamText({
         prompt,
         toolkit,
-        // Force the image tool to fire; otherwise the model may reply with text only.
         toolChoice: { tool: IMAGE_TOOL_NAME },
       }).pipe(
         Stream.runCollect,
@@ -144,12 +122,6 @@ const describeError = (cause: unknown): string => {
   return String(cause);
 };
 
-/**
- * A genuine auth failure surfaces as an `AiError` whose `reason._tag` is
- * `AuthenticationError`. We match on the structured tag rather than the message
- * text — a substring scan for "401"/"unauthorized" false-matched unrelated
- * errors (e.g. an `InvalidOutputError` whose body happened to contain them).
- */
 const isUnauthorized = (cause: unknown): boolean => {
   if (typeof cause !== "object" || cause === null || !("reason" in cause)) return false;
   const reason = (cause as { reason: unknown }).reason;

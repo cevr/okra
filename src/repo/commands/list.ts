@@ -30,12 +30,10 @@ export const list = Command.make(
       const metadata = yield* MetadataService;
       let repos = yield* metadata.all;
 
-      // Filter by registry if specified
       if (Option.isSome(registry)) {
         repos = repos.filter((r) => r.spec.registry === registry.value);
       }
 
-      // Sort
       const sorted = [...repos].sort((a, b) => {
         switch (sort) {
           case "date":

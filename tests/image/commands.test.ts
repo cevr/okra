@@ -153,7 +153,6 @@ describe("image command", () => {
         stream: true,
         tools: [{ type: "image_generation" }],
       });
-      // The codex backend always uses its own image model, so okra sends none.
       expect(encodeJson(capture.json)).not.toContain("gpt-image");
       expect(yield* fs.readFile(`${dir}/out.png`)).toEqual(Uint8Array.fromBase64(PNG));
     }).pipe(Effect.provide(testLayer(capture, true)));
@@ -189,7 +188,6 @@ describe("image command", () => {
       expect(encodeJson(capture.json)).toContain(
         "Output size: exactly 1024x1536 pixels (portrait).",
       );
-      // The fake backend returns a 1x1 PNG.
       expect(errors.join("\n")).toContain("codex returned 1x1 for --size 1024x1536");
     }).pipe(Effect.provide(testLayer(capture, true)));
   });

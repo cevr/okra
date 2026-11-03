@@ -5,8 +5,6 @@ import { hashFiles } from "../../../src/skills/lib/hash.js";
 
 it.effect("keeps the documented hash stable across enumeration order and binary content", () =>
   Effect.gen(function* () {
-    // Independently hashed with Python hashlib over the documented byte stream:
-    // b'SKILL.md\x003\x00a\x00bassets/\xc3\xa9.bin\x003\x00\xff\x00\xfe'
     const files = [
       { path: "assets/é.bin", content: new Uint8Array([0xff, 0, 0xfe]) },
       { path: "SKILL.md", content: new Uint8Array([0x61, 0, 0x62]) },
@@ -17,7 +15,6 @@ it.effect("keeps the documented hash stable across enumeration order and binary 
   }).pipe(Effect.provide(BunCrypto.layerDigest)),
 );
 
-// Recorded on main at 976dd241cd853efb3b624f67a44e31637c9c481b with Effect 4.0.0.
 it.effect("preserves the pre-4.1 skills lock hash for UTF-8 text and raw binary bytes", () =>
   Effect.gen(function* () {
     const files = [

@@ -22,7 +22,6 @@ export const logs = Command.make(
 
       const id = config.id;
       if (id._tag === "None") {
-        // List available logs
         const exists = yield* fs.exists(logsDir).pipe(
           Effect.mapError(() =>
             ScheduleError.make({
@@ -72,7 +71,6 @@ export const logs = Command.make(
 
       if (config.follow) {
         const spawner = yield* ChildProcessSpawner;
-        // Scope kills `tail -f` on interrupt; it never exits on its own.
         yield* Effect.gen(function* () {
           const handle = yield* spawner.spawn(
             ChildProcess.make("tail", ["-f", logFile], {

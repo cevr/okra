@@ -23,7 +23,6 @@ const original = new Uint8Array([
   ...Array.from({ length: 256 }, (_, byte) => byte),
 ]);
 const updated = original.slice();
-// Both invalid UTF-8 bytes decode to the same replacement character.
 updated[updated.length - 1] = 0xfe;
 
 const decodeReport = Schema.decodeUnknownSync(Schema.fromJsonString(UpdateReport));
@@ -107,7 +106,6 @@ describe("binary skill files", () => {
             const lock = yield* SkillLock;
             expect(Option.isSome(yield* lock.get("binary-skill"))).toBe(true);
 
-            // Freshly read arrays with identical bytes must compare unchanged.
             expect(yield* checkUpdate).toEqual({
               dryRun: true,
               outdated: [],

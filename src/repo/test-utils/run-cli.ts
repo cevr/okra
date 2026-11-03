@@ -41,7 +41,6 @@ function assertSequenceContains(actual: RecordedCall[], expected: ExpectedCall[]
     if (!found) {
       const remainingCalls = actual.slice(Math.max(0, actualIndex - 1));
       const formattedCalls = remainingCalls.map((c) => `  ${c.service}.${c.method}`).join("\n");
-      // A missing call is an assertion failure, so report it through expect.
       expect.unreachable(
         `Expected ${exp.service}.${exp.method} not found in sequence.\n` +
           `Remaining calls:\n${formattedCalls || "  (none)"}\n` +
@@ -104,7 +103,6 @@ function createCliTestRunner(args: string[], layerOptions: CreateTestLayerOption
   };
 }
 
-/** Creates a CLI test runner with the given arguments and options. */
 export function runCli(args: string, options: CreateTestLayerOptions = {}): CliTestRunner {
   return createCliTestRunner(args.split(/\s+/), options);
 }

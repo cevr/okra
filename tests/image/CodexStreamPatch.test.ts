@@ -2,7 +2,6 @@ import { Effect } from "effect";
 import { describe, expect, it } from "effect-bun-test";
 import { makeCodexStatusTransform } from "../../src/image/services/CodexStreamPatch.js";
 
-/** Feeds `input` through the transform in `chunkSize`-byte slices and returns the text output. */
 const runTransform = (input: string, chunkSize: number): Effect.Effect<string> =>
   Effect.promise(() => {
     const bytes = new TextEncoder().encode(input);
@@ -14,7 +13,6 @@ const runTransform = (input: string, chunkSize: number): Effect.Effect<string> =
         controller.close();
       },
     });
-    // `Response.text()` drains the transformed stream without an async closure.
     return new Response(source.pipeThrough(makeCodexStatusTransform())).text();
   });
 
@@ -38,7 +36,6 @@ describe("makeCodexStatusTransform", () => {
         `data: {"type":"response.created","status":"in_progress"}\n\n` +
         imageEvent("generating", big) +
         `data: {"type":"response.completed","status":"completed"}\n\n`;
-      // 1000-byte chunks force the huge event to span many reads.
       const out = yield* runTransform(input, 1000);
       expect(out).not.toContain('"generating"');
       expect(out).toContain(`"result":"${big}"`);

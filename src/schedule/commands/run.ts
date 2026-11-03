@@ -31,7 +31,6 @@ const complete = Effect.fn("run.complete")(function* (id: string, reason: string
   yield* Console.error(`[okra schedule] Task ${id} completed: ${reason}`);
 });
 
-/** One-shot tasks finish when they run; recurring tasks keep their current status. */
 const resolveNextStatus = (isOneshot: boolean, current: Task["status"]): Task["status"] => {
   if (isOneshot) return "completed";
   return current;
@@ -42,7 +41,6 @@ export const run = Command.make("run", { id: Argument.String("id") }, (config) =
     const store = yield* StoreService;
     const task = yield* store.get(config.id);
 
-    // Pre-run: check stop conditions before invoking agent
     const preNowMs = yield* Clock.currentTimeMillis;
     const preStop = StopEvaluator.evaluate(task, preNowMs);
     if (Option.isSome(preStop)) {
@@ -50,10 +48,8 @@ export const run = Command.make("run", { id: Argument.String("id") }, (config) =
       return;
     }
 
-    // Build prompt
     let prompt = buildPromptWithContext(task.prompt, task.cwd, task.context);
 
-    // Generate nonce for conditional stop
     let nonce: string | undefined;
     if (task.conditionalStop !== undefined) {
       nonce = yield* generateNonce();
@@ -65,13 +61,11 @@ export const run = Command.make("run", { id: Argument.String("id") }, (config) =
 
     yield* Console.error(`[okra schedule] Running task ${task.id}: ${task.prompt}`);
 
-    // Run agent — update lifecycle state regardless of outcome
     const agent = yield* AgentPlatformService;
     const runResult = yield* agent.invoke(task.provider, prompt, task.cwd).pipe(Effect.exit);
 
     const newRunCount = task.runCount + 1;
     const isOneshot = task.schedule._tag === "Oneshot";
-    // A one-shot task is done the moment it runs; recurring tasks keep their status.
     const nextStatus = resolveNextStatus(isOneshot, task.status);
 
     if (runResult._tag === "Failure") {
@@ -81,7 +75,6 @@ export const run = Command.make("run", { id: Argument.String("id") }, (config) =
         runCount: newRunCount,
       });
       yield* Console.error(`[okra schedule] Task ${task.id} failed on run #${String(newRunCount)}`);
-      // Re-raise the original failure
       yield* runResult;
       return;
     }
@@ -100,7 +93,6 @@ export const run = Command.make("run", { id: Argument.String("id") }, (config) =
       return;
     }
 
-    // Post-run: re-evaluate with updated runCount
     const updated = yield* store.get(task.id);
     const postNowMs = yield* Clock.currentTimeMillis;
     const postStop = StopEvaluator.evaluate(updated, postNowMs);
@@ -109,7 +101,6 @@ export const run = Command.make("run", { id: Argument.String("id") }, (config) =
       return;
     }
 
-    // Conditional stop: signal detection + verification
     if (task.conditionalStop !== undefined && nonce !== undefined && output.includes(nonce)) {
       yield* Console.error(`[okra schedule] Signal detected for task ${task.id}, verifying...`);
       const verified = yield* Verification.verify(

@@ -25,7 +25,6 @@ const makeEntry = (source: string, skillPath: string) =>
 
 const decodeReportJson = Schema.decodeUnknownSync(Schema.fromJsonString(UpdateReport));
 
-/** Run `effect` with a console that records stdout lines and drops stderr. */
 const captureStdout = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
   Effect.gen(function* () {
     const lines: Array<string> = [];
@@ -180,7 +179,6 @@ describe("runUpdate", () => {
         const store = yield* SkillStore;
         const lock = yield* SkillLock;
 
-        // Install a skill whose local source does not exist on this machine
         yield* store.installDir("my-local-skill", [
           {
             path: "SKILL.md",
@@ -196,7 +194,6 @@ describe("runUpdate", () => {
         return yield* lock.get("my-local-skill");
       }).pipe(Effect.provide(makeTestLayer(dir, github)));
 
-      // The source may exist on another machine: the skill and its lock entry stay
       expect(Option.isSome(lockEntry)).toBe(true);
       expect(yield* fs.exists(`${dir}/my-local-skill/SKILL.md`)).toBe(true);
     }).pipe(Effect.provide(BunServices.layer)),
@@ -206,7 +203,6 @@ describe("runUpdate", () => {
     Effect.gen(function* () {
       const fs = yield* FileSystem;
       const dir = yield* fs.makeTempDirectoryScoped();
-      // Create a local source dir with a skill
       const sourceDir = yield* fs.makeTempDirectoryScoped();
       yield* fs.makeDirectory(`${sourceDir}/my-skill`, { recursive: true });
       yield* fs.writeFileString(
@@ -225,13 +221,11 @@ describe("runUpdate", () => {
       yield* Effect.gen(function* () {
         const lock = yield* SkillLock;
 
-        // Add lock entry but do NOT install the skill dir — simulates deleted dir
         yield* lock.add("my-skill", `local:${sourceDir}/my-skill`, "SKILL.md");
 
         yield* runUpdate();
       }).pipe(Effect.provide(makeTestLayer(dir, github)));
 
-      // Skill dir should be re-created from source
       expect(yield* fs.exists(`${dir}/my-skill/SKILL.md`)).toBe(true);
       expect(yield* fs.readFileString(`${dir}/my-skill/SKILL.md`)).toContain("restored");
     }).pipe(Effect.provide(BunServices.layer)),
@@ -399,7 +393,6 @@ describe("runUpdate", () => {
         return yield* lock.get("handoff");
       }).pipe(Effect.provide(makeTestLayer(dir, github)));
 
-      // Lock entry unchanged (still pointing at old path), files unchanged
       expect(Option.isSome(entry)).toBe(true);
       if (Option.isSome(entry)) {
         expect(entry.value.skillPath).toBe("skills/in-progress/handoff/SKILL.md");

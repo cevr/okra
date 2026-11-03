@@ -62,7 +62,6 @@ const runStatus = (executed: Executed, outcome: AgentOutcome): RunStatus => {
   return "success";
 };
 
-/** Why a run did not answer, for the manifest and stderr; `None` for a successful run. */
 const runFailure = (
   target: Provider,
   executed: Executed,
@@ -96,7 +95,6 @@ export const generateSlug = (
   return `${stamp}-${time}-${source}-to-${target}-${suffix}`;
 };
 
-/** Generate a 6-char hex random suffix using the Effect Random module. */
 export const randomSlugSuffix = Effect.map(Random.next, (n) =>
   n.toString(16).slice(2, 8).padEnd(6, "0"),
 );
@@ -234,7 +232,6 @@ export class RunService extends Context.Service<
 
         yield* writeTextFile(promptFilePath, promptInput.content);
 
-        // Both providers emit JSONL (codex --json, claude --output-format stream-json)
         const eventsFile = path.join(outputDir, "events.jsonl");
         const stderrFile = path.join(outputDir, `${target}.stderr`);
         const readEvents = fs.readFileString(eventsFile).pipe(
@@ -246,7 +243,6 @@ export class RunService extends Context.Service<
           ),
         );
 
-        // Each attempt overwrites the event and stderr logs, so they describe the last attempt.
         const readOutcome = outcomeReaderFor(target);
         let attempted = invocation;
         let executed = yield* invocationRunner.execute(invocation, eventsFile, stderrFile);
@@ -263,7 +259,6 @@ export class RunService extends Context.Service<
         }
         const reportedModel = Option.filter(readClaudeModel(jsonl), () => target === "claude");
 
-        // The .md holds only a real answer; a failure goes to the manifest and stderr instead.
         const outputFile = path.join(outputDir, `${target}.md`);
         let answer = "";
         if (outcome._tag === "Answered") answer = outcome.text;
@@ -289,7 +284,6 @@ export class RunService extends Context.Service<
           eventsFile,
         };
 
-        // The record of the run (status, model, failure) sits next to its artifacts.
         const manifestText = yield* encodeRunManifest(manifest).pipe(
           Effect.mapError(() =>
             CounselError.make({

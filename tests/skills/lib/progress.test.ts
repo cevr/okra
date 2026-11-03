@@ -8,7 +8,6 @@ import { make } from "../../../src/skills/lib/progress.js";
 const captureWrites = (output: Ref.Ref<string>) => (text: string) =>
   Ref.update(output, (current) => current + text);
 
-// These tests inject `write`, so the Stdio default is never exercised — a drain layer suffices.
 const TestStdio = Layer.mergeAll(
   Stdio.layerTest({}),
   Layer.succeed(
@@ -61,10 +60,8 @@ describe("progress", () => {
       expect(text).toContain("failed");
       expect(text).toContain("gamma");
       expect(text).toContain("unchanged");
-      // running/pending should not be printed in non-TTY mode
       expect(text).not.toContain("installing");
       expect(text).not.toContain("pending");
-      // no ANSI sequences in non-TTY mode
       expect(text).not.toContain("\x1b[");
     }).pipe(Effect.provide(TestStdio)),
   );
@@ -115,13 +112,13 @@ describe("progress", () => {
       });
 
       const afterStart = yield* Ref.get(out);
-      expect(afterStart).toContain("\x1b[?25l"); // hide cursor
+      expect(afterStart).toContain("\x1b[?25l");
 
       yield* progress.setStatus("x", "installed");
       yield* progress.finish;
 
       const final = yield* Ref.get(out);
-      expect(final).toContain("\x1b[?25h"); // show cursor
+      expect(final).toContain("\x1b[?25h");
     }).pipe(Effect.provide(TestStdio)),
   );
 
@@ -140,7 +137,7 @@ describe("progress", () => {
       expect(text).not.toContain("\x1b[2A");
       expect(text.split("one").length - 1).toBe(1);
       expect(text.split("two").length - 1).toBe(1);
-      expect(text).toContain("\x1b[2K"); // clear line
+      expect(text).toContain("\x1b[2K");
       expect(text).toContain("one");
       expect(text).toContain("two");
     }).pipe(Effect.provide(TestStdio)),
@@ -159,8 +156,8 @@ describe("progress", () => {
       yield* progress.finish;
 
       const text = yield* Ref.get(out);
-      expect(text).toContain("\x1b[32m"); // green
-      expect(text).toContain("\x1b[31m"); // red
+      expect(text).toContain("\x1b[32m");
+      expect(text).toContain("\x1b[31m");
     }).pipe(Effect.provide(TestStdio)),
   );
 

@@ -4,7 +4,6 @@ import { TestClock } from "effect/testing";
 import * as StopEvaluator from "../../../src/schedule/services/StopEvaluator.js";
 import { Task, type StopCondition } from "../../../src/schedule/services/Store.js";
 
-// 2026-03-15T12:00:00.000Z in milliseconds
 const FIXED_NOW_MS = 1773576000000;
 
 const makeTask = (overrides: Partial<Task> = {}): Task =>
@@ -28,8 +27,8 @@ const makeTask = (overrides: Partial<Task> = {}): Task =>
     ...overrides,
   });
 
-const FUTURE_ISO = "2026-03-16T12:00:00.000Z"; // FIXED_NOW_MS + 1 day
-const PAST_ISO = "2026-03-14T12:00:00.000Z"; // FIXED_NOW_MS - 1 day
+const FUTURE_ISO = "2026-03-16T12:00:00.000Z";
+const PAST_ISO = "2026-03-14T12:00:00.000Z";
 
 describe("StopEvaluator.evaluate", () => {
   it.effect("MaxRuns: returns none when under limit", () =>

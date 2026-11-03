@@ -8,7 +8,6 @@ import { expandHome, readHome } from "../../shared/home.js";
 import { SkillStore } from "../services/SkillStore.js";
 import { SkillLock } from "../services/SkillLock.js";
 
-// "." means the skills live directly under the input path, not in a subdirectory.
 const resolveSearchDir = (pathService: Path.Path, absPath: string, prefix: string): string => {
   if (prefix === ".") return absPath;
   return pathService.join(absPath, prefix);

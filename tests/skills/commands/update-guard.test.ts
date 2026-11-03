@@ -179,7 +179,6 @@ describe("update protects installed edits", () => {
         const fileAfter = yield* fs.stat(`${dir}/guarded/SKILL.md`);
         expect(fileAfter.ino).toEqual(fileBefore.ino);
         expect(fileAfter.mtime).toEqual(fileBefore.mtime);
-        // The backfilled baseline protects the next local edit.
         yield* fs.writeFileString(`${dir}/guarded/SKILL.md`, "Edited after backfill");
         const check = yield* capture(runUpdate({ json: true }));
         expect(decodeReport(check.stdout).modified.map((skill) => skill.name)).toEqual(["guarded"]);
