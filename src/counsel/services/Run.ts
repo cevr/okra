@@ -1,8 +1,9 @@
 import { DateTime, Effect, Layer, Option, Random, Context } from "effect";
 import { FileSystem } from "effect/FileSystem";
+import type { Digest } from "effect/crypto";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
-import { cwdBucket } from "../constants.js";
+import { makeCwdBucket } from "../constants.js";
 import { CounselError, ErrorCode } from "../errors.js";
 import { AgentPlatformService } from "./AgentPlatform.js";
 import { InvocationRunnerService } from "./InvocationRunner.js";
@@ -109,10 +110,11 @@ export class RunService extends Context.Service<
   static layer: Layer.Layer<
     RunService,
     never,
-    AgentPlatformService | InvocationRunnerService | FileSystem | Path
+    AgentPlatformService | InvocationRunnerService | FileSystem | Path | Digest.Digest
   > = Layer.effect(
     RunService,
     Effect.gen(function* () {
+      const cwdBucket = yield* makeCwdBucket;
       const fs = yield* FileSystem;
       const path = yield* Path;
       const platform = yield* AgentPlatformService;
@@ -188,7 +190,7 @@ export class RunService extends Context.Service<
         const now = yield* DateTime.now;
         const suffix = yield* randomSlugSuffix;
         const slug = generateSlug(source, target, now, suffix);
-        const outputBucket = cwdBucket(input.cwd);
+        const outputBucket = yield* cwdBucket(input.cwd);
         const outputDir = path.resolve(input.cwd, input.outputDir, outputBucket, slug);
         const promptFilePath = path.join(outputDir, "prompt.md");
         const invocations = yield* platform.buildInvocations(

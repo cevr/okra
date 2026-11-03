@@ -1,4 +1,4 @@
-import { BunServices } from "@effect/platform-bun";
+import { BunCrypto, BunServices } from "@effect/platform-bun";
 import { describe, expect, it } from "effect-bun-test";
 import { Effect, Layer, Option } from "effect";
 import { FileSystem } from "effect/FileSystem";
@@ -46,6 +46,7 @@ const RunLayer = RunService.layer.pipe(
     }),
   ),
   Layer.provideMerge(BunServices.layer),
+  Layer.provideMerge(BunCrypto.layerDigest),
 );
 
 const TestLayer = Layer.mergeAll(RunLayer, BunServices.layer);
@@ -195,6 +196,7 @@ const makeRetryLayer = (firstEvents: string, executedModels: Array<string>, firs
         }),
       ),
       Layer.provideMerge(BunServices.layer),
+      Layer.provideMerge(BunCrypto.layerDigest),
     ),
     BunServices.layer,
   );

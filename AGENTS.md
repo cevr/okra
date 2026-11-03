@@ -30,9 +30,11 @@ Shared utilities in `src/shared/`: `Provider` schema, `resolveExecutable`, `isCo
 - Each domain exports its command via `Command.provide(DomainServiceLayer)` from `index.ts`
 - All domains self-provide their service layers at command level — no domain layers in main.ts
 - Repo, Skills, Keys, and How use structural `isRepoError`/`isSkillsError`/`isKeysError`/`isHowError` guards
-- Effect 4.0.0: `Context.Service`, `Effect.fn`, `Schema.TaggedError`, `effect/cli`
+- Effect: `Context.Service`, `Effect.fn`, `Schema.TaggedError`, `effect/cli`
 
 ## Gotchas
+
+- `BunServices.layer` omits crypto. The root `PlatformLayer` provides `BunCrypto.layerDigest` and `BunCrypto.layerSecureRandom`; tests provide the families they exercise. Preserve the persisted skills hash framing in `src/skills/lib/hash.ts`.
 
 - `Schedule`, `StopEvaluator`, `Verification` are pure modules, not services
 - Counsel's `program.ts` has standalone argv handling — used for direct invocation, not the subcommand path
