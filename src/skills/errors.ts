@@ -1,6 +1,9 @@
 import { Schema } from "effect";
 
-export class SkillsError extends Schema.TaggedError<SkillsError>()("@cvr/okra/skills/SkillsError", {
+export class SkillsError extends Schema.TaggedError<
+  SkillsError,
+  { readonly brand: unique symbol }
+>()("@cvr/okra/skills/SkillsError", {
   message: Schema.String,
   code: Schema.String,
 }) {}

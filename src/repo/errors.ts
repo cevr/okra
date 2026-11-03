@@ -1,9 +1,12 @@
 import { Schema } from "effect";
 
-export class RepoError extends Schema.TaggedError<RepoError>()("@cvr/okra/repo/RepoError", {
-  message: Schema.String,
-  code: Schema.String,
-}) {}
+export class RepoError extends Schema.TaggedError<RepoError, { readonly brand: unique symbol }>()(
+  "@cvr/okra/repo/RepoError",
+  {
+    message: Schema.String,
+    code: Schema.String,
+  },
+) {}
 
 export const isRepoError = (e: unknown): e is { _tag: string; code: string; message: string } => {
   if (typeof e !== "object" || e === null || !("_tag" in e)) return false;

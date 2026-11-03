@@ -17,10 +17,13 @@ export const PROVIDER_ENV_VARS: Record<string, string> = {
 export const envVarForProvider = (name: string): string | undefined => PROVIDER_ENV_VARS[name];
 
 /** Failure reading, parsing, or writing the key store. Domains map this to their own error. */
-export class KeyStoreError extends Schema.TaggedError<KeyStoreError>()(
-  "@cvr/okra/shared/KeyStoreError",
-  { message: Schema.String, code: Schema.Literals(["MISSING", "WRITE_FAILED", "INVALID_INPUT"]) },
-) {}
+export class KeyStoreError extends Schema.TaggedError<
+  KeyStoreError,
+  { readonly brand: unique symbol }
+>()("@cvr/okra/shared/KeyStoreError", {
+  message: Schema.String,
+  code: Schema.Literals(["MISSING", "WRITE_FAILED", "INVALID_INPUT"]),
+}) {}
 
 /** `~/.okra/keys.json` is a flat map of provider name → secret, e.g. `{ "openai": "sk-..." }`. */
 const KeysFile = Schema.Record(Schema.String, Schema.String);

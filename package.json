@@ -31,7 +31,7 @@
   "devDependencies": {
     "@changesets/changelog-github": "^1.0.1",
     "@changesets/cli": "^3.0.3",
-    "@effect/tsgo": "^0.47.2",
+    "@effect/tsgo": "^0.64.1",
     "@types/bun": "^1.4.2",
     "@typescript/native-preview": "^7.0.0-dev.20260707.2",
     "concurrently": "^10.0.5",

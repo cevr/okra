@@ -11,10 +11,13 @@ export const ErrorCodeSchema = Schema.Literals([
 
 export type ErrorCode = typeof ErrorCodeSchema.Type;
 
-export class KeysError extends Schema.TaggedError<KeysError>()("@cvr/okra/keys/KeysError", {
-  message: Schema.String,
-  code: ErrorCodeSchema,
-}) {}
+export class KeysError extends Schema.TaggedError<KeysError, { readonly brand: unique symbol }>()(
+  "@cvr/okra/keys/KeysError",
+  {
+    message: Schema.String,
+    code: ErrorCodeSchema,
+  },
+) {}
 
 export const isKeysError = (e: unknown): e is { _tag: string; code: string; message: string } => {
   if (typeof e !== "object" || e === null || !("_tag" in e)) return false;

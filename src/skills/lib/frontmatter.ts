@@ -1,6 +1,9 @@
 import { Effect, Option, Schema } from "effect";
 
-export class SkillFrontmatter extends Schema.Class<SkillFrontmatter>("SkillFrontmatter")({
+export class SkillFrontmatter extends Schema.Class<
+  SkillFrontmatter,
+  { readonly brand: unique symbol }
+>("SkillFrontmatter")({
   name: Schema.String,
   description: Schema.String,
 }) {}

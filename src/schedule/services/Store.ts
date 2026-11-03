@@ -38,7 +38,9 @@ export const ConditionalStop = Schema.Struct({
 
 export type ConditionalStop = typeof ConditionalStop.Type;
 
-export class Task extends Schema.Class<Task>("@cvr/okra/schedule/Task")({
+export class Task extends Schema.Class<Task, { readonly brand: unique symbol }>(
+  "@cvr/okra/schedule/Task",
+)({
   id: Schema.String,
   prompt: Schema.String,
   provider: Schema.Literals(["claude", "codex"]),

@@ -2,7 +2,9 @@ import { Effect, Schema } from "effect";
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 import { SkillsError } from "../errors.js";
 
-export class SearchSkill extends Schema.Class<SearchSkill>("SearchSkill")({
+export class SearchSkill extends Schema.Class<SearchSkill, { readonly brand: unique symbol }>(
+  "SearchSkill",
+)({
   id: Schema.String,
   skillId: Schema.String,
   name: Schema.String,
@@ -10,7 +12,9 @@ export class SearchSkill extends Schema.Class<SearchSkill>("SearchSkill")({
   source: Schema.String,
 }) {}
 
-export class SearchResponse extends Schema.Class<SearchResponse>("SearchResponse")({
+export class SearchResponse extends Schema.Class<SearchResponse, { readonly brand: unique symbol }>(
+  "SearchResponse",
+)({
   query: Schema.String,
   skills: Schema.Array(SearchSkill),
   count: Schema.Finite,

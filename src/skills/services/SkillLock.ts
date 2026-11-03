@@ -2,7 +2,9 @@ import { DateTime, Effect, FileSystem, Layer, Option, Path, Schema, Context } fr
 import { SkillsError } from "../errors.js";
 import { SkillStore } from "./SkillStore.js";
 
-export class LockEntry extends Schema.Class<LockEntry>("LockEntry")({
+export class LockEntry extends Schema.Class<LockEntry, { readonly brand: unique symbol }>(
+  "LockEntry",
+)({
   source: Schema.String,
   skillPath: Schema.String,
   ref: Schema.optional(Schema.String),
@@ -11,10 +13,12 @@ export class LockEntry extends Schema.Class<LockEntry>("LockEntry")({
   updatedAt: Schema.String,
 }) {}
 
-export class LockFile extends Schema.Class<LockFile>("LockFile")({
-  version: Schema.Literal(1),
-  skills: Schema.Record(Schema.String, LockEntry),
-}) {}
+export class LockFile extends Schema.Class<LockFile, { readonly brand: unique symbol }>("LockFile")(
+  {
+    version: Schema.Literal(1),
+    skills: Schema.Record(Schema.String, LockEntry),
+  },
+) {}
 
 const decodeLockFileJson = Schema.decodeUnknownEffect(Schema.fromJsonString(LockFile));
 const encodeLockFileJson = Schema.encodeUnknownEffect(Schema.fromJsonString(LockFile));
