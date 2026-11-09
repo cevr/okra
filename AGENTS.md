@@ -45,6 +45,7 @@ Shared utilities in `src/shared/`: `Provider` schema, `resolveExecutable`, `isCo
 - `resolveExecutable` falls back to `~/.bun/bin`, `/usr/local/bin`, `~/.local/bin` when `Bun.which` fails (daemon PATH issue)
 - oxlint forbids `!` non-null assertions — use `as T` with existence guards
 - Skills' `GitHub.ts` uses `Bun.spawn`/`Bun.which` directly, not via Effect's `ChildProcessSpawner`
+- Skills' `fetchSkillDir` loads git trees lazily (`makeTreeIndex`): one recursive tree, and when GitHub truncates it (repos like openclaw/openclaw), only the trees on the skill's path. Never walk a whole truncated repo: it is thousands of sequential requests and made `skills update` hang. Every GitHub request times out after `REQUEST_TIMEOUT`, and gh runs with `GH_PROMPT_DISABLED`
 - Skills' `SkillStore` reads `$SKILLS_DIR` env var at layer construction time via `Config.option`
 - Skills has `lib/` subdirectory for non-service code (frontmatter, source parsing, search API, fs helpers)
 - Repo's `CacheService` creates `~/.cache/repo/` directory at layer construction time

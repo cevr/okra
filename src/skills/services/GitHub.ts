@@ -3,7 +3,9 @@ import * as ChildProcess from "effect/process/ChildProcess";
 import { ChildProcessSpawner } from "effect/process/ChildProcessSpawner";
 import { Config, Effect, Layer, Option, Schema, Stream, Context, Path } from "effect";
 import { SkillsError } from "../errors.js";
-import { DEFAULT_REF, SKILL_DIR_PREFIXES } from "../lib/constants.js";
+import { DEFAULT_REF, REQUEST_TIMEOUT, SKILL_DIR_PREFIXES } from "../lib/constants.js";
+
+const GH_NON_INTERACTIVE_ENV = { GH_PROMPT_DISABLED: "1", GH_NO_UPDATE_NOTIFIER: "1" };
 
 const GitHubContentEntrySchema = Schema.Struct({
   name: Schema.String,
@@ -132,37 +134,116 @@ const treeEndpoint = (owner: string, repo: string, ref: string, recursive: boole
   return endpoint;
 };
 
-const makeListTree = (
-  fetchTree: (
-    owner: string,
-    repo: string,
-    ref: string,
-    recursive: boolean,
-  ) => ReturnType<GitHubShape["listTree"]>,
-): GitHubShape["listTree"] =>
-  Effect.fn("GitHub.listTree")(function* (owner, repo, ref) {
-    const result = yield* fetchTree(owner, repo, ref, true);
-    if (!result.truncated) return result;
-    const tree: Array<GitHubTreeEntry> = [];
-    const walk = Effect.fn("GitHub.listSubtree")(function* (
-      treeRef: string,
-      prefix: string,
-    ): Effect.fn.Return<void, SkillsError> {
-      const subtree = yield* fetchTree(owner, repo, treeRef, false);
-      if (subtree.truncated)
-        return yield* fetchError(
-          `github:${owner}/${repo}/${prefix}`,
-          "Repository subtree is truncated",
-        );
-      for (const entry of subtree.tree) {
-        const fullPath = `${prefix}${entry.path}`;
-        tree.push({ ...entry, path: fullPath });
-        if (entry.type === "tree") yield* walk(entry.sha, `${fullPath}/`);
-      }
-    });
-    yield* walk(ref, "");
-    return { tree, truncated: false };
+const withTimeout =
+  (label: string) =>
+  <A, R>(effect: Effect.Effect<A, SkillsError, R>): Effect.Effect<A, SkillsError, R> =>
+    effect.pipe(
+      Effect.timeoutOrElse({
+        duration: REQUEST_TIMEOUT,
+        orElse: () => Effect.fail(fetchError(label, `timed out after ${REQUEST_TIMEOUT}`)),
+      }),
+    );
+
+const readBytes = <E, R>(
+  response: Effect.Effect<HttpClientResponse.HttpClientResponse, E, R>,
+  label: string,
+): Effect.Effect<Uint8Array, SkillsError, R> =>
+  response.pipe(
+    Effect.flatMap(HttpClientResponse.filterStatusOk),
+    Effect.flatMap((ok) => ok.arrayBuffer),
+    Effect.map((buffer) => new Uint8Array(buffer)),
+    Effect.mapError((cause) => fetchError(label, cause)),
+    withTimeout(label),
+  );
+
+type FetchTree = (
+  owner: string,
+  repo: string,
+  ref: string,
+  recursive: boolean,
+) => ReturnType<GitHubShape["listTree"]>;
+
+const makeListTree =
+  (fetchTree: FetchTree): GitHubShape["listTree"] =>
+  (owner, repo, ref) =>
+    fetchTree(owner, repo, ref, true);
+
+const parentDir = (path: string): string => {
+  const index = path.lastIndexOf("/");
+  if (index === -1) return "";
+  return path.slice(0, index);
+};
+
+const joinRepoPath = (dir: string, path: string): string => {
+  if (dir) return `${dir}/${path}`;
+  return path;
+};
+
+interface TreeIndex {
+  readonly lookup: (path: string) => Effect.Effect<GitHubTreeEntry | undefined, SkillsError>;
+  readonly listDir: (path: string) => Effect.Effect<ReadonlyArray<GitHubTreeEntry>, SkillsError>;
+}
+
+const makeTreeIndex = (
+  fetchTree: FetchTree,
+  owner: string,
+  repo: string,
+  ref: string,
+): TreeIndex => {
+  const entries = new Map<string, GitHubTreeEntry>([
+    ["", { path: "", type: "tree", mode: "040000", sha: ref }],
+  ]);
+  const children = new Map<string, Array<GitHubTreeEntry>>();
+
+  const record = (dir: string, tree: ReadonlyArray<GitHubTreeEntry>, recursive: boolean) => {
+    const listed = new Map<string, Array<GitHubTreeEntry>>([[dir, []]]);
+    const absolute = tree.map((entry) => ({ ...entry, path: joinRepoPath(dir, entry.path) }));
+    for (const entry of absolute) {
+      entries.set(entry.path, entry);
+      if (recursive && entry.type === "tree" && !listed.has(entry.path)) listed.set(entry.path, []);
+    }
+    for (const entry of absolute) {
+      const parent = parentDir(entry.path);
+      const siblings = listed.get(parent) ?? [];
+      siblings.push(entry);
+      listed.set(parent, siblings);
+    }
+    for (const [path, siblings] of listed) children.set(path, siblings);
+  };
+
+  const load = Effect.fn("GitHub.loadTree")(function* (dir: string, sha: string) {
+    const deep = yield* fetchTree(owner, repo, sha, true);
+    if (!deep.truncated) return record(dir, deep.tree, true);
+    const shallow = yield* fetchTree(owner, repo, sha, false);
+    if (shallow.truncated)
+      return yield* fetchError(`github:${owner}/${repo}/${dir}`, "Repository subtree is truncated");
+    record(dir, shallow.tree, false);
   });
+
+  const listDir = Effect.fn("GitHub.listDir")(function* (
+    path: string,
+  ): Effect.fn.Return<ReadonlyArray<GitHubTreeEntry>, SkillsError> {
+    const known = children.get(path);
+    if (known) return known;
+    const entry = yield* lookup(path);
+    if (entry?.type !== "tree") return [];
+    yield* load(path, entry.sha);
+    return children.get(path) ?? [];
+  });
+
+  const lookup = Effect.fn("GitHub.lookupPath")(function* (
+    path: string,
+  ): Effect.fn.Return<GitHubTreeEntry | undefined, SkillsError> {
+    const known = entries.get(path);
+    if (known) return known;
+    const parent = parentDir(path);
+    if (children.has(parent)) return undefined;
+    yield* listDir(parent);
+    return entries.get(path);
+  });
+
+  return { lookup, listDir };
+};
 
 const skillEntryRank = (entry: SkillEntry): number => {
   const segments = entry.skillDir.split("/");
@@ -398,7 +479,7 @@ export const makeDiscoverSkills = (
   });
 
 const makeFetchSkillDir = (
-  listTree: GitHubShape["listTree"],
+  fetchTree: FetchTree,
   fetchBlob: FetchBlob,
   fetchRaw: GitHubShape["fetchRaw"],
 ): GitHubShape["fetchSkillDir"] =>
@@ -409,24 +490,7 @@ const makeFetchSkillDir = (
     ref = DEFAULT_REF,
   ) {
     const path = yield* Path.Path;
-    const result = yield* listTree(owner, repo, ref);
-    if (result.truncated) {
-      return yield* fetchError(
-        `github:${owner}/${repo}/${dirPath}`,
-        "Repository tree is truncated",
-      );
-    }
-    const entries = new Map(result.tree.map((entry) => [entry.path, entry]));
-    const root: GitHubTreeEntry = { path: "", type: "tree", mode: "040000", sha: "" };
-    entries.set("", root);
-    const children = new Map<string, Array<GitHubTreeEntry>>();
-    for (const entry of result.tree) {
-      let parent = path.dirname(entry.path);
-      if (parent === ".") parent = "";
-      const siblings = children.get(parent) ?? [];
-      siblings.push(entry);
-      children.set(parent, siblings);
-    }
+    const index = makeTreeIndex(fetchTree, owner, repo, ref);
     const invalidLink = (link: string, reason: string) =>
       SkillsError.make({ code: "INVALID_SYMLINK", message: `Invalid symlink ${link}: ${reason}` });
 
@@ -438,7 +502,7 @@ const makeFetchSkillDir = (
       const parts = repoPath.split("/");
       for (let i = 1; i <= parts.length; i++) {
         const prefix = parts.slice(0, i).join("/");
-        const entry = entries.get(prefix);
+        const entry = yield* index.lookup(prefix);
         if (entry?.mode !== "120000") continue;
         const link = origin ?? prefix;
         if (links.has(prefix)) return yield* invalidLink(link, "cycle detected");
@@ -456,7 +520,7 @@ const makeFetchSkillDir = (
         if (resolvedPath === ".") resolvedPath = "";
         return yield* resolve(resolvedPath, new Set([...links, prefix]), link);
       }
-      const entry = entries.get(repoPath);
+      const entry = yield* index.lookup(repoPath);
       if (!entry) {
         if (origin)
           return yield* invalidLink(origin, `target missing from repository tree: ${repoPath}`);
@@ -489,7 +553,7 @@ const makeFetchSkillDir = (
       if (ancestors.has(entry.path))
         return yield* invalidLink(repoPath, "directory cycle detected");
       const nextAncestors = new Set([...ancestors, entry.path]);
-      for (const child of children.get(entry.path) ?? []) {
+      for (const child of yield* index.listDir(entry.path)) {
         yield* walk(child.path, path.join(installPath, path.basename(child.path)), nextAncestors);
       }
     });
@@ -514,14 +578,18 @@ export class GitHubCli extends Context.Service<GitHubCli, GitHubCliShape>()(
     Effect.gen(function* () {
       const spawner = yield* ChildProcessSpawner;
 
-      const run = Effect.fn("GitHubCli.run")(function* (args: ReadonlyArray<string>) {
-        const label = `gh:${args.join(" ")}`;
+      const exec = Effect.fn("GitHubCli.exec")(function* (
+        args: ReadonlyArray<string>,
+        label: string,
+      ) {
         const proc = yield* spawner
           .spawn(
             ChildProcess.make("gh", [...args], {
               stdin: "ignore",
               stdout: "pipe",
               stderr: "pipe",
+              env: GH_NON_INTERACTIVE_ENV,
+              extendEnv: true,
             }),
           )
           .pipe(Effect.mapError((cause) => fetchError(label, cause)));
@@ -542,12 +610,19 @@ export class GitHubCli extends Context.Service<GitHubCli, GitHubCliShape>()(
         return stdout;
       }, Effect.scoped);
 
+      const run = (args: ReadonlyArray<string>) => {
+        const label = `gh:${args.join(" ")}`;
+        return exec(args, label).pipe(withTimeout(label));
+      };
+
       const isInstalled = spawner
         .spawn(
           ChildProcess.make("gh", ["--version"], {
             stdin: "ignore",
             stdout: "ignore",
             stderr: "ignore",
+            env: GH_NON_INTERACTIVE_ENV,
+            extendEnv: true,
           }),
         )
         .pipe(
@@ -555,6 +630,7 @@ export class GitHubCli extends Context.Service<GitHubCli, GitHubCliShape>()(
           Effect.map((exitCode) => exitCode === 0),
           Effect.orElseSucceed(() => false),
           Effect.scoped,
+          Effect.timeoutOrElse({ duration: REQUEST_TIMEOUT, orElse: () => Effect.succeed(false) }),
         );
 
       const isAvailable = Effect.gen(function* () {
@@ -627,7 +703,7 @@ export class GitHubCli extends Context.Service<GitHubCli, GitHubCliShape>()(
 
       const listTree = makeListTree(fetchTree);
       const discoverSkills = makeDiscoverSkills(listContents, listTree);
-      const fetchSkillDirImpl = makeFetchSkillDir(listTree, fetchBlob, fetchRaw);
+      const fetchSkillDirImpl = makeFetchSkillDir(fetchTree, fetchBlob, fetchRaw);
 
       return GitHubCli.of({
         run,
@@ -673,9 +749,11 @@ export class GitHubHttp extends Context.Service<GitHubHttp, GitHubHttpShape>()(
             HttpClientRequest.setHeader("User-Agent", "@cvr/skills"),
           ),
         );
+        const label = `github:${owner}/${repo}/${path}`;
         return yield* jsonClient.execute(request).pipe(
           Effect.flatMap(decodeContents),
-          Effect.mapError((cause) => fetchError(`github:${owner}/${repo}/${path}`, cause)),
+          Effect.mapError((cause) => fetchError(label, cause)),
+          withTimeout(label),
           Effect.withSpan("GitHubHttp.listContents", { attributes: { owner, repo, path, ref } }),
         );
       });
@@ -690,13 +768,8 @@ export class GitHubHttp extends Context.Service<GitHubHttp, GitHubHttpShape>()(
         const request = withAuth(
           HttpClientRequest.get(url).pipe(HttpClientRequest.setHeader("User-Agent", "@cvr/skills")),
         );
-        const response = yield* client.execute(request).pipe(
-          Effect.flatMap(HttpClientResponse.filterStatusOk),
-          Effect.mapError((cause) => fetchError(`github:${owner}/${repo}/${path}`, cause)),
-        );
-        return yield* response.arrayBuffer.pipe(
-          Effect.map((buffer) => new Uint8Array(buffer)),
-          Effect.mapError((cause) => fetchError(`github:${owner}/${repo}/${path}`, cause)),
+        const label = `github:${owner}/${repo}/${path}`;
+        return yield* readBytes(client.execute(request), label).pipe(
           Effect.withSpan("GitHubHttp.fetchRaw", { attributes: { owner, repo, path, ref } }),
         );
       });
@@ -716,9 +789,11 @@ export class GitHubHttp extends Context.Service<GitHubHttp, GitHubHttpShape>()(
             HttpClientRequest.setHeader("User-Agent", "@cvr/skills"),
           ),
         );
+        const label = `github:${owner}/${repo}/tree/${ref}`;
         return yield* jsonClient.execute(request).pipe(
           Effect.flatMap(decodeTreeHttp),
-          Effect.mapError((cause) => fetchError(`github:${owner}/${repo}/tree/${ref}`, cause)),
+          Effect.mapError((cause) => fetchError(label, cause)),
+          withTimeout(label),
           Effect.withSpan("GitHubHttp.listTree", { attributes: { owner, repo, ref } }),
         );
       });
@@ -728,29 +803,19 @@ export class GitHubHttp extends Context.Service<GitHubHttp, GitHubHttpShape>()(
       const fetchBlob: FetchBlob = Effect.fn("GitHubHttp.fetchBlob")(
         function* (owner, repo, sha, path) {
           const url = `https://api.github.com/repos/${owner}/${repo}/git/blobs/${encodeURIComponent(sha)}`;
-          const response = yield* client
-            .execute(
-              withAuth(
-                HttpClientRequest.get(url).pipe(
-                  HttpClientRequest.setHeader("Accept", "application/vnd.github.raw"),
-                  HttpClientRequest.setHeader("User-Agent", "@cvr/skills"),
-                ),
-              ),
-            )
-            .pipe(
-              Effect.flatMap(HttpClientResponse.filterStatusOk),
-              Effect.mapError((cause) => fetchError(`github:${owner}/${repo}/${path}`, cause)),
-            );
-          return yield* response.arrayBuffer.pipe(
-            Effect.map((buffer) => new Uint8Array(buffer)),
-            Effect.mapError((cause) => fetchError(`github:${owner}/${repo}/${path}`, cause)),
+          const request = withAuth(
+            HttpClientRequest.get(url).pipe(
+              HttpClientRequest.setHeader("Accept", "application/vnd.github.raw"),
+              HttpClientRequest.setHeader("User-Agent", "@cvr/skills"),
+            ),
           );
+          return yield* readBytes(client.execute(request), `github:${owner}/${repo}/${path}`);
         },
       );
 
       const listTree = makeListTree(fetchTree);
       const discoverSkills = makeDiscoverSkills(listContents, listTree);
-      const fetchSkillDirImpl = makeFetchSkillDir(listTree, fetchBlob, fetchRaw);
+      const fetchSkillDirImpl = makeFetchSkillDir(fetchTree, fetchBlob, fetchRaw);
 
       return GitHubHttp.of({
         hasExplicitToken,
