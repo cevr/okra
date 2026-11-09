@@ -1,5 +1,11 @@
 # @cvr/okra
 
+## 0.13.3
+
+### Patch Changes
+
+- [`c30423b`](https://github.com/cevr/okra/commit/c30423b307a5477b43e1b2a74232bc2927f545e9) Thanks [@cevr](https://github.com/cevr)! - Fix `okra skills update` hanging on skills from very large repositories: a skill's files now load only the git trees on its own path instead of walking the whole repository one request at a time, and discovery falls back to directory listings. Every GitHub request (gh or HTTP) now times out after 30 seconds, and gh runs with prompts disabled.
+
 ## 0.13.2
 
 ### Patch Changes
