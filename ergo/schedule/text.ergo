@@ -1,0 +1,171 @@
+import strconv
+import strings
+import utf8
+
+// JavaScript's text rules where the output depends on them: trim's white
+// space, UTF-16 lengths and slices, JSON.stringify's string escapes and
+// TextDecoder's replacement of bytes that are not UTF-8.
+
+func jsSpace(c rune) bool {
+	c == 0x9 || c == 0xa || c == 0xb || c == 0xc || c == 0xd || c == 0x20 || c == 0xa0 || c == 0x1680 || (c >= 0x2000 && c <= 0x200a) || c == 0x2028 || c == 0x2029 || c == 0x202f || c == 0x205f || c == 0x3000 || c == 0xfeff
+}
+
+// Trim is String.prototype.trim.
+func Trim(s string) string {
+	let mut start = -1
+	let mut end = 0
+	for i, c in s {
+		if !jsSpace(c) {
+			if start < 0 { start = i }
+			end = i + utf8.DecodeRuneInString(s[i:]).Size
+		}
+	}
+	if start < 0 { "" } else { s[start:end] }
+}
+
+// TrimStart is String.prototype.trimStart.
+func TrimStart(s string) string {
+	for i, c in s { if !jsSpace(c) { return s[i:] } }
+	""
+}
+
+// Width is the length in UTF-16 code units, as length and padEnd count.
+func Width(s string) int {
+	let mut n = 0
+	for c in s { n = n + if c > 65535 { 2 } else { 1 } }
+	n
+}
+
+// PadEnd is padEnd(width) with spaces.
+func PadEnd(s string, width int) string {
+	let w = Width(s)
+	if w >= width { s } else { s + strings.Repeat(" ", width-w) }
+}
+
+// PadStart is padStart(width, "0").
+func PadZero(s string, width int) string {
+	let w = Width(s)
+	if w >= width { s } else { strings.Repeat("0", width-w) + s }
+}
+
+// Slice is slice(0, n) by UTF-16 code units. A pair cut in half leaves its
+// high surrogate, which output encodes as U+FFFD, as the reference's does.
+func Slice(s string, n int) string {
+	let mut units = 0
+	let mut out = ""
+	for c in s {
+		if units >= n { break }
+		if c > 65535 {
+			if units+1 == n { return out + "\uFFFD" }
+			units = units + 2
+		} else {
+			units = units + 1
+		}
+		out = out + utf8.RuneText(c)
+	}
+	out
+}
+
+// Truncate is the list's truncate: text longer than max ends in "...".
+func Truncate(text string, max int) string {
+	if Width(text) <= max { return text }
+	Slice(text, max-3) + "..."
+}
+
+// Quote is JSON.stringify of a string.
+func Quote(s string) string {
+	let mut out = "\""
+	for c in s {
+		match c {
+		case '"':
+			out = out + "\\\""
+		case '\\':
+			out = out + "\\\\"
+		case '\b':
+			out = out + "\\b"
+		case '\f':
+			out = out + "\\f"
+		case '\n':
+			out = out + "\\n"
+		case '\r':
+			out = out + "\\r"
+		case '\t':
+			out = out + "\\t"
+		case _:
+			out = out + if c < 32 { "\\u" + strings.PadLeft(strconv.FormatInt(int64(c), 16), 4, '0') } else { utf8.RuneText(c) }
+		}
+	}
+	out + "\""
+}
+
+// continuation is whether b is a UTF-8 continuation byte in [lo, hi].
+func within(b byte, lo byte, hi byte) bool { b >= lo && b <= hi }
+
+// Decode is TextDecoder's decode of bytes as UTF-8: each maximal part of a
+// sequence that is not UTF-8 becomes one U+FFFD.
+func DecodeUTF8(bytes string) string {
+	if utf8.ValidString(bytes) { return bytes }
+	let mut out = ""
+	let mut i = 0
+	let n = len(bytes)
+	for i < n {
+		let b = bytes[i]
+		if b < 0x80 {
+			out = out + bytes[i:i+1]
+			i = i + 1
+			continue
+		}
+		// need is the sequence length; lo and hi bound its second byte.
+		let mut need = 0
+		let mut lo = byte(0x80)
+		let mut hi = byte(0xBF)
+		if within(b, 0xC2, 0xDF) {
+			need = 2
+		} else if b == 0xE0 {
+			need = 3
+			lo = 0xA0
+		} else if within(b, 0xE1, 0xEC) || b == 0xEE || b == 0xEF {
+			need = 3
+		} else if b == 0xED {
+			need = 3
+			hi = 0x9F
+		} else if b == 0xF0 {
+			need = 4
+			lo = 0x90
+		} else if within(b, 0xF1, 0xF3) {
+			need = 4
+		} else if b == 0xF4 {
+			need = 4
+			hi = 0x8F
+		}
+		if need == 0 {
+			out = out + "\uFFFD"
+			i = i + 1
+			continue
+		}
+		let mut j = i + 1
+		let mut ok = true
+		for k in 1..need {
+			if j >= n {
+				ok = false
+				break
+			}
+			let c = bytes[j]
+			let first = k == 1
+			if (first && !within(c, lo, hi)) || (!first && !within(c, 0x80, 0xBF)) {
+				ok = false
+				break
+			}
+			j = j + 1
+		}
+		if ok { out = out + bytes[i:j] } else { out = out + "\uFFFD" }
+		i = j
+	}
+	out
+}
+
+// DecodeKeepsUTF8: text that is UTF-8 decodes to itself.
+law DecodeKeepsUTF8(s string) { !utf8.ValidString(s) || DecodeUTF8(s) == s }
+
+// DecodeIsUTF8: what Decode gives is always UTF-8.
+law DecodeIsUTF8(s string) { utf8.ValidString(DecodeUTF8(s)) }

@@ -1,0 +1,52 @@
+// Listed is one task file of a listing: a task, or a file that does not
+// read as one (its name and the port's cause).
+type Listed = Good{Task Task} | Corrupt{File string, Why string}
+
+// Tasks is where tasks are kept, one per id.
+type Tasks {
+	// Save writes t, over the task of its id.
+	Save(t Task) fails Failed,
+	// Load reads the task of id: NOT_FOUND when there is none,
+	// DECODE_FAILED when its file does not read as a task.
+	Load(id string) Task fails Failed,
+	// All is every task file, in name order.
+	All() []Listed fails Failed,
+	// Delete removes the task of id: REMOVE_FAILED when it cannot.
+	Delete(id string) fails Failed,
+
+	// LoadSeesSave: a task that was saved is the task loaded back.
+	law LoadSeesSave(prompt string, runs uint16, hour uint8) {
+		if !ValidUTF8(prompt) { return true }
+		let t = Task{ID: "law-task_1", Prompt: prompt, Provider: Claude, Schedule: Cron{Minute: At{N: 0.0}, Hour: At{N: float64(hour)}, DayOfMonth: Any, Month: Any, DayOfWeek: Days{Text: "1-5"}, Raw: prompt}, Cwd: prompt, CreatedAt: prompt, Status: Active, LastRun: None, RunCount: float64(runs), Context: None, Stops: None, When: Some[string]{Value: prompt}}
+		Save(t) catch {
+		case Failed:
+			return true
+		}
+		let back = Load(t.ID) catch {
+		case Failed:
+			return false
+		}
+		back == t
+	},
+
+	// DeleteThenNotFound: a task deleted is not found.
+	law DeleteThenNotFound(prompt string) {
+		if !ValidUTF8(prompt) { return true }
+		let t = Task{ID: "law-gone", Prompt: prompt, Provider: Codex, Schedule: Oneshot{At: prompt, Raw: prompt}, Cwd: "", CreatedAt: "", Status: Completed, LastRun: None, RunCount: 0.0, Context: None, Stops: None, When: None}
+		Save(t) catch {
+		case Failed:
+			return true
+		}
+		Delete(t.ID) catch {
+		case Failed:
+			return false
+		}
+		Load(t.ID) catch {
+		case Failed as f:
+			return f.Code == "NOT_FOUND"
+		}
+		false
+	},
+}
+
+func ValidUTF8(s string) bool { DecodeUTF8(s) == s }

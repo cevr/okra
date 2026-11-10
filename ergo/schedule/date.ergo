@@ -1,0 +1,219 @@
+import strconv
+import strings
+
+// Dates are JavaScript's: a Unix time in milliseconds, parsed by
+// Date.parse and printed by toISOString. The port reads the ECMAScript
+// date-time string format as Bun reads it (a lower-case T or Z, a zone
+// with or without its colon, a fraction of any length cut to
+// milliseconds, a day past the month's end that rolls over). Bun's other,
+// implementation-defined forms are refused (declared difference).
+
+let maxMillis = int64(8640000000000000)
+
+func digitsAt(s string, at int, n int) Option[int] {
+	if at+n > len(s) { return None }
+	let mut v = 0
+	for i in at..at+n {
+		let c = s[i]
+		if c < '0' || c > '9' { return None }
+		v = v*10 + int(c-'0')
+	}
+	Some[int]{Value: v}
+}
+
+func charAt(s string, at int) string { if at < len(s) { s[at : at+1] } else { "" } }
+
+// Millis is Date.parse(text); None is NaN. zone is the local zone's
+// offset east of UTC, in seconds, at a Unix time in milliseconds: what a
+// date-time with no zone is read in.
+func Millis(text string, zone func(ms int64) int) Option[int64] {
+	let s = text
+	let mut at = 0
+	let mut year = 0
+	let sign = charAt(s, 0)
+	if sign == "+" || sign == "-" {
+		let y = match digitsAt(s, 1, 6) {
+		case None:
+			return None
+		case Some[int] as d:
+			d.Value
+		}
+		if sign == "-" && y == 0 { return None }
+		year = if sign == "-" { -y } else { y }
+		at = 7
+	} else {
+		year = match digitsAt(s, 0, 4) {
+		case None:
+			return None
+		case Some[int] as d:
+			d.Value
+		}
+		at = 4
+	}
+	let mut month = 1
+	let mut day = 1
+	if charAt(s, at) == "-" {
+		month = match digitsAt(s, at+1, 2) {
+		case None:
+			return None
+		case Some[int] as d:
+			d.Value
+		}
+		at = at + 3
+		if charAt(s, at) == "-" {
+			day = match digitsAt(s, at+1, 2) {
+			case None:
+				return None
+			case Some[int] as d:
+				d.Value
+			}
+			at = at + 3
+		}
+	}
+	if month < 1 || month > 12 || day < 1 || day > 31 { return None }
+	let mut hour = 0
+	let mut minute = 0
+	let mut second = 0
+	let mut milli = 0
+	let mut local = false
+	let t = charAt(s, at)
+	if t == "T" || t == "t" {
+		local = true
+		hour = match digitsAt(s, at+1, 2) {
+		case None:
+			return None
+		case Some[int] as d:
+			d.Value
+		}
+		if charAt(s, at+3) != ":" { return None }
+		minute = match digitsAt(s, at+4, 2) {
+		case None:
+			return None
+		case Some[int] as d:
+			d.Value
+		}
+		at = at + 6
+		if charAt(s, at) == ":" {
+			second = match digitsAt(s, at+1, 2) {
+			case None:
+				return None
+			case Some[int] as d:
+				d.Value
+			}
+			at = at + 3
+			if charAt(s, at) == "." {
+				let start = at + 1
+				let mut end = start
+				for end < len(s) && s[end] >= '0' && s[end] <= '9' { end = end + 1 }
+				if end == start { return None }
+				let cut = s[start:end] + "00"
+				milli = match digitsAt(cut, 0, 3) {
+				case None:
+					return None
+				case Some[int] as d:
+					d.Value
+				}
+				at = end
+			}
+		}
+		if minute > 59 || second > 59 || hour > 24 || (hour == 24 && (minute > 0 || second > 0 || milli > 0)) { return None }
+	}
+	let mut offset = 0
+	let z = charAt(s, at)
+	if z == "Z" || z == "z" {
+		local = false
+		at = at + 1
+	} else if (z == "+" || z == "-") && t != "" {
+		let h = match digitsAt(s, at+1, 2) {
+		case None:
+			return None
+		case Some[int] as d:
+			d.Value
+		}
+		let colon = if charAt(s, at+3) == ":" { 1 } else { 0 }
+		let m = match digitsAt(s, at+3+colon, 2) {
+		case None:
+			return None
+		case Some[int] as d:
+			d.Value
+		}
+		if h > 23 || m > 59 { return None }
+		offset = (h*60 + m) * 60
+		if z == "-" { offset = -offset }
+		local = false
+		at = at + 5 + colon
+	}
+	if at != len(s) { return None }
+	let days = daysFromCivil(int64(year), int64(month), 1) + int64(day-1)
+	let wall = days*86400000 + int64(hour)*3600000 + int64(minute)*60000 + int64(second)*1000 + int64(milli)
+	let mut ms = wall - int64(offset)*1000
+	if local {
+		let first = zone(wall)
+		ms = wall - int64(first)*1000
+		let again = zone(ms)
+		if again != first { ms = wall - int64(again)*1000 }
+	}
+	if ms > maxMillis || ms < -maxMillis { return None }
+	Some[int64]{Value: ms}
+}
+
+// floorDiv is division rounded down.
+func floorDiv(a int64, b int64) int64 {
+	let q = a / b
+	if (a%b != 0) && ((a < 0) != (b < 0)) { q - 1 } else { q }
+}
+
+// daysFromCivil is the day number of a proleptic Gregorian date, 0 at
+// 1970-01-01 (Howard Hinnant's days_from_civil).
+func daysFromCivil(y0 int64, m int64, d int64) int64 {
+	let y = if m <= 2 { y0 - 1 } else { y0 }
+	let era = floorDiv(y, 400)
+	let yoe = y - era*400
+	let mp = if m > 2 { m - 3 } else { m + 9 }
+	let doy = (153*mp+2)/5 + d - 1
+	let doe = yoe*365 + yoe/4 - yoe/100 + doy
+	era*146097 + doe - 719468
+}
+
+// Civil is a UTC date and time of day.
+type Civil { Year int64, Month int64, Day int64, Hour int64, Minute int64, Second int64, Milli int64 }
+
+// CivilOf is the UTC parts of a time in milliseconds (DateTime.toParts).
+func CivilOf(ms int64) Civil {
+	let days = floorDiv(ms, 86400000)
+	let rest = ms - days*86400000
+	let z = days + 719468
+	let era = floorDiv(z, 146097)
+	let doe = z - era*146097
+	let yoe = (doe - doe/1460 + doe/36524 - doe/146096) / 365
+	let doy = doe - (365*yoe + yoe/4 - yoe/100)
+	let mp = (5*doy + 2) / 153
+	let d = doy - (153*mp+2)/5 + 1
+	let m = if mp < 10 { mp + 3 } else { mp - 9 }
+	let y = yoe + era*400 + if m <= 2 { int64(1) } else { int64(0) }
+	Civil{Year: y, Month: m, Day: d, Hour: rest / 3600000, Minute: rest % 3600000 / 60000, Second: rest % 60000 / 1000, Milli: rest % 1000}
+}
+
+func pad(n int64, width int) string { strings.PadLeft(strconv.FormatInt(n, 10), width, '0') }
+
+// Iso is toISOString: four year digits, or a sign and six outside 0..9999.
+func Iso(ms int64) string {
+	let c = CivilOf(ms)
+	let year = if c.Year >= 0 && c.Year <= 9999 { pad(c.Year, 4) } else if c.Year < 0 { "-" + pad(-c.Year, 6) } else { "+" + pad(c.Year, 6) }
+	year + "-" + pad(c.Month, 2) + "-" + pad(c.Day, 2) + "T" + pad(c.Hour, 2) + ":" + pad(c.Minute, 2) + ":" + pad(c.Second, 2) + "." + pad(c.Milli, 3) + "Z"
+}
+
+func utc(_ int64) int { 0 }
+
+// IsoParses: an ISO text of a valid time parses back to that time.
+law IsoParses(ms int64) {
+	let t = ms % maxMillis
+	Millis(Iso(t), utc) == Some[int64]{Value: t}
+}
+
+// CivilRoundTrips: a time's UTC parts give back its day number.
+law CivilRoundTrips(ms int64) {
+	let t = ms % maxMillis
+	let c = CivilOf(t)
+	daysFromCivil(c.Year, c.Month, c.Day) == floorDiv(t, 86400000)
+}

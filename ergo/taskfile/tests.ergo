@@ -1,0 +1,11 @@
+import fstest
+
+// NewMemory is a Store over an isolated in-memory file system: the laws
+// of schedule.Tasks run here, never against an owner's folder.
+func NewMemory() Store {
+	let memory = fstest.NewMemory()
+	memory.MkdirAll("tasks") catch {
+	case _:
+	}
+	New(memory, memory, "tasks")
+}

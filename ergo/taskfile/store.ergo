@@ -1,0 +1,100 @@
+import filepath
+import fs
+import okraport/schedule
+import strings
+
+// Store keeps each task as <id>.json in the tasks folder, as the
+// reference's StoreService does. Failures carry the reference's codes and
+// its platform text ("NotFound: FileSystem.readFile (<path>)").
+type Store { files fs.Files, writes fs.Writes, dir string }
+
+func New(files fs.Files, writes fs.Writes, dir string) Store { Store{files: files, writes: writes, dir: dir} }
+
+// Kind is the reference's platform error tag of a host failure reason.
+func Kind(reason string) string {
+	if reason == "is a directory" || reason == "not a directory" || reason == "too many levels of symbolic links" { return "BadResource" }
+	if reason == "file exists" { return "AlreadyExists" }
+	if reason == "device or resource busy" { return "Busy" }
+	"Unknown"
+}
+
+// Platform is the reference's text of a failed file operation.
+func Platform(kind string, method string, path string) string { kind + ": FileSystem." + method + " (" + path + ")" }
+
+func path(s Store, id string) string { filepath.Join([]string{s.dir, id + ".json"}) }
+
+func Save(s Store, t schedule.Task) fails schedule.Failed {
+	let file = path(s, t.ID)
+	s.writes.WriteFile(file, schedule.Encode(t)) catch {
+	case fs.NotFound:
+		return schedule.Fail("WRITE_FAILED", "Write failed: "+Platform("NotFound", "writeFile", file))
+	case fs.Denied:
+		return schedule.Fail("WRITE_FAILED", "Write failed: "+Platform("PermissionDenied", "writeFile", file))
+	case fs.Failed as e:
+		return schedule.Fail("WRITE_FAILED", "Write failed: "+Platform(Kind(e.Reason), "writeFile", file))
+	}
+}
+
+func Load(s Store, id string) schedule.Task fails schedule.Failed {
+	try schedule.CheckID(id)
+	let file = path(s, id)
+	let text = s.files.ReadFile(file) catch {
+	case fs.NotFound:
+		return schedule.Fail("NOT_FOUND", "Task not found: "+id+" ("+Platform("NotFound", "readFile", file)+")")
+	case fs.Denied:
+		return schedule.Fail("NOT_FOUND", "Task not found: "+id+" ("+Platform("PermissionDenied", "readFile", file)+")")
+	case fs.Failed as e:
+		return schedule.Fail("NOT_FOUND", "Task not found: "+id+" ("+Platform(Kind(e.Reason), "readFile", file)+")")
+	}
+	schedule.Decode(text) catch {
+	case schedule.Invalid as e:
+		return schedule.Fail("DECODE_FAILED", "Decode failed: "+e.Why)
+	}
+}
+
+func All(s Store) []schedule.Listed fails schedule.Failed {
+	let names = s.files.ReadDir(s.dir) catch {
+	case fs.NotFound:
+		return schedule.Fail("READ_FAILED", "Read dir failed: "+Platform("NotFound", "readDirectory", s.dir))
+	case fs.Denied:
+		return schedule.Fail("READ_FAILED", "Read dir failed: "+Platform("PermissionDenied", "readDirectory", s.dir))
+	case fs.Failed as e:
+		return schedule.Fail("READ_FAILED", "Read dir failed: "+Platform(Kind(e.Reason), "readDirectory", s.dir))
+	}
+	let mut out = []schedule.Listed{}
+	for name in names {
+		if !strings.HasSuffix(name, ".json") { continue }
+		let file = filepath.Join([]string{s.dir, name})
+		let text = s.files.ReadFile(file) catch {
+		case fs.NotFound:
+			out = out.Append(schedule.Corrupt{File: name, Why: Platform("NotFound", "readFile", file)})
+			continue
+		case fs.Denied:
+			out = out.Append(schedule.Corrupt{File: name, Why: Platform("PermissionDenied", "readFile", file)})
+			continue
+		case fs.Failed as e:
+			out = out.Append(schedule.Corrupt{File: name, Why: Platform(Kind(e.Reason), "readFile", file)})
+			continue
+		}
+		let t = schedule.Decode(text) catch {
+		case schedule.Invalid as e:
+			out = out.Append(schedule.Corrupt{File: name, Why: e.Why})
+			continue
+		}
+		out = out.Append(schedule.Good{Task: t})
+	}
+	out
+}
+
+func Delete(s Store, id string) fails schedule.Failed {
+	try schedule.CheckID(id)
+	let file = path(s, id)
+	s.writes.Remove(file) catch {
+	case fs.NotFound:
+		return schedule.Fail("REMOVE_FAILED", "Remove failed: "+Platform("NotFound", "remove", file))
+	case fs.Denied:
+		return schedule.Fail("REMOVE_FAILED", "Remove failed: "+Platform("PermissionDenied", "remove", file))
+	case fs.Failed as e:
+		return schedule.Fail("REMOVE_FAILED", "Remove failed: "+Platform(Kind(e.Reason), "remove", file))
+	}
+}

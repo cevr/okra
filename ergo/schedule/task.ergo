@@ -1,0 +1,374 @@
+import json
+import okraport/jsview
+import strings
+import utf8
+
+// Failed is a schedule failure: the reference's code and message. The
+// code is the CLI's printed contract ("[CODE] message").
+type Failed { Code string, Message string }
+
+func Fail(code string, message string) Failed { Failed{Code: code, Message: message} }
+
+// Provider is the agent that runs a task.
+type Provider = Claude{} | Codex{}
+
+func ProviderName(p Provider) string {
+	match p {
+	case Claude:
+		"claude"
+	case Codex:
+		"codex"
+	}
+}
+
+// Status is where a task is in its life.
+type Status = Active{} | Completed{} | Broken{}
+
+func StatusName(s Status) string {
+	match s {
+	case Active:
+		"active"
+	case Completed:
+		"completed"
+	case Broken:
+		"failed"
+	}
+}
+
+// Stop is a deterministic stop condition.
+type Stop = MaxRuns{Count float64} | AfterDate{Date string}
+
+// Context is what the creating folder's git and gh said, each when known.
+type Context {
+	GitBranch        Option[string],
+	GitRemoteURL     Option[string],
+	GitRepo          Option[string],
+	GitCommit        Option[string],
+	GitDefaultBranch Option[string],
+	PRNumber         Option[float64],
+	PRURL            Option[string],
+	IssueNumber      Option[float64],
+}
+
+// Task is one stored schedule, field for field the reference's Task.
+type Task {
+	ID        string,
+	Prompt    string,
+	Provider  Provider,
+	Schedule  Schedule,
+	Cwd       string,
+	CreatedAt string,
+	Status    Status,
+	LastRun   Option[string],
+	RunCount  float64,
+	Context   Option[Context],
+	Stops     Option[[]Stop],
+	When      Option[string],
+}
+
+// ValidID is the store's id rule: ASCII letters, digits, "-" and "_".
+func ValidID(id string) bool {
+	if id == "" { return false }
+	for c in id {
+		let ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_'
+		if !ok { return false }
+	}
+	true
+}
+
+func CheckID(id string) fails Failed {
+	if !ValidID(id) { return Fail("INVALID_ID", "Invalid task ID: \""+id+"\". Only alphanumeric, hyphens, and underscores allowed.") }
+}
+
+// Checked is whether Schema would encode t: every number finite.
+func Checked(t Task) bool {
+	if !Valid(t.Schedule) || !Finite(t.RunCount) { return false }
+	match t.Stops {
+	case None:
+	case Some[[]Stop] as stops:
+		for s in stops.Value {
+			match s {
+			case MaxRuns as m:
+				if !Finite(m.Count) { return false }
+			case AfterDate:
+			}
+		}
+	}
+	match t.Context {
+	case None:
+	case Some[Context] as c:
+		for n in []Option[float64]{c.Value.PRNumber, c.Value.IssueNumber} {
+			match n {
+			case None:
+			case Some[float64] as v:
+				if !Finite(v.Value) { return false }
+			}
+		}
+	}
+	true
+}
+
+// Writer builds a JSON object in member order, as JSON.stringify does.
+type Writer { members []string }
+
+func object() Writer { Writer{members: []string{}} }
+func member(w Writer, key string, text string) Writer { Writer{members: w.members.Append(Quote(key) + ":" + text)} }
+func maybe(w Writer, key string, v Option[string]) Writer {
+	match v {
+	case None:
+		w
+	case Some[string] as s:
+		member(w, key, Quote(s.Value))
+	}
+}
+func maybeNumber(w Writer, key string, v Option[float64]) Writer {
+	match v {
+	case None:
+		w
+	case Some[float64] as n:
+		member(w, key, Text(n.Value))
+	}
+}
+func close(w Writer) string { "{" + strings.Join(w.members, ",") + "}" }
+
+func encodeField(f Field) string {
+	match f {
+	case Any:
+		"\"*\""
+	case At as a:
+		Text(a.N)
+	}
+}
+
+func encodeSchedule(s Schedule) string {
+	match s {
+	case Cron as c:
+		let day = match c.DayOfWeek {
+		case Day as d:
+			Text(d.N)
+		case Days as d:
+			Quote(d.Text)
+		}
+		close(object().member("_tag", "\"Cron\"").member("minute", encodeField(c.Minute)).member("hour", encodeField(c.Hour)).member("dayOfMonth", encodeField(c.DayOfMonth)).member("month", encodeField(c.Month)).member("dayOfWeek", day).member("raw", Quote(c.Raw)))
+	case Oneshot as o:
+		close(object().member("_tag", "\"Oneshot\"").member("at", Quote(o.At)).member("raw", Quote(o.Raw)))
+	}
+}
+
+func encodeStop(s Stop) string {
+	match s {
+	case MaxRuns as m:
+		close(object().member("_tag", "\"MaxRuns\"").member("count", Text(m.Count)))
+	case AfterDate as a:
+		close(object().member("_tag", "\"AfterDate\"").member("date", Quote(a.Date)))
+	}
+}
+
+// Encode is the task's JSON text, as the store writes it and list --json
+// prints it.
+func Encode(t Task) string {
+	let mut w = object().member("id", Quote(t.ID)).member("prompt", Quote(t.Prompt)).member("provider", Quote(ProviderName(t.Provider))).member("schedule", encodeSchedule(t.Schedule)).member("cwd", Quote(t.Cwd)).member("createdAt", Quote(t.CreatedAt)).member("status", Quote(StatusName(t.Status)))
+	w = maybe(w, "lastRun", t.LastRun).member("runCount", Text(t.RunCount))
+	match t.Context {
+	case None:
+	case Some[Context] as c:
+		let x = c.Value
+		w = w.member("context", close(object().maybe("gitBranch", x.GitBranch).maybe("gitRemoteUrl", x.GitRemoteURL).maybe("gitRepo", x.GitRepo).maybe("gitCommit", x.GitCommit).maybe("gitDefaultBranch", x.GitDefaultBranch).maybeNumber("prNumber", x.PRNumber).maybe("prUrl", x.PRURL).maybeNumber("issueNumber", x.IssueNumber)))
+	}
+	match t.Stops {
+	case None:
+	case Some[[]Stop] as stops:
+		let mut items = []string{}
+		for s in stops.Value { items = items.Append(encodeStop(s)) }
+		w = w.member("stopConditions", "["+strings.Join(items, ",")+"]")
+	}
+	match t.When {
+	case None:
+	case Some[string] as c:
+		w = w.member("conditionalStop", close(object().member("condition", Quote(c.Value))))
+	}
+	close(w)
+}
+
+// EncodeAll is list --json: the tasks as one JSON array.
+func EncodeAll(tasks []Task) string {
+	let mut items = []string{}
+	for t in tasks { items = items.Append(Encode(t)) }
+	"[" + strings.Join(items, ",") + "]"
+}
+
+// Invalid is a task text Schema refuses; Why is the port's own cause
+// (declared difference: Effect Schema's message text is not reproduced).
+type Invalid { Why string }
+
+func need(v json.Value, key string) json.Value fails Invalid {
+	jsview.Required(v, key) catch {
+	case jsview.Invalid:
+		return Invalid{Why: "missing or wrong " + key}
+	}
+}
+
+func text(v json.Value, key string) string fails Invalid {
+	jsview.Text(try need(v, key)) catch {
+	case jsview.Invalid:
+		return Invalid{Why: "expected a string at " + key}
+	}
+}
+
+func optionalText(v json.Value, key string) Option[string] fails Invalid {
+	jsview.OptionalText(v, key) catch {
+	case jsview.Invalid:
+		return Invalid{Why: "expected a string at " + key}
+	}
+}
+
+func num(v json.Value, key string) float64 fails Invalid {
+	match try need(v, key) {
+	case json.Num as n:
+		let f = ParseFloatText(json.Wire(n))
+		if !Finite(f) { return Invalid{Why: "expected a finite number at " + key} }
+		f
+	case _:
+		Invalid{Why: "expected a number at " + key}
+	}
+}
+
+func optionalNumber(v json.Value, key string) Option[float64] fails Invalid {
+	let m = jsview.Member(v, key) catch {
+	case jsview.Invalid:
+		return Invalid{Why: "expected an object"}
+	}
+	match m {
+	case None:
+		None
+	case Some[json.Value]:
+		Some[float64]{Value: try num(v, key)}
+	}
+}
+
+func decodeField(v json.Value, key string) Field fails Invalid {
+	match try need(v, key) {
+	case json.Str as s:
+		if s.Value == "*" { Any } else { Invalid{Why: "expected \"*\" at " + key} }
+	case _:
+		At{N: try num(v, key)}
+	}
+}
+
+func decodeSchedule(v json.Value) Schedule fails Invalid {
+	let tag = try text(v, "_tag")
+	if tag == "Oneshot" { return Oneshot{At: try text(v, "at"), Raw: try text(v, "raw")} }
+	if tag != "Cron" { return Invalid{Why: "unknown schedule " + tag} }
+	let day = match try need(v, "dayOfWeek") {
+	case json.Str as s:
+		Days{Text: s.Value}
+	case _:
+		Day{N: try num(v, "dayOfWeek")}
+	}
+	Cron{Minute: try decodeField(v, "minute"), Hour: try decodeField(v, "hour"), DayOfMonth: try decodeField(v, "dayOfMonth"), Month: try decodeField(v, "month"), DayOfWeek: day, Raw: try text(v, "raw")}
+}
+
+func decodeStop(v json.Value) Stop fails Invalid {
+	let tag = try text(v, "_tag")
+	if tag == "MaxRuns" { return MaxRuns{Count: try num(v, "count")} }
+	if tag == "AfterDate" { return AfterDate{Date: try text(v, "date")} }
+	Invalid{Why: "unknown stop condition " + tag}
+}
+
+func present(v json.Value, key string) Option[json.Value] fails Invalid {
+	jsview.Member(v, key) catch {
+	case jsview.Invalid:
+		return Invalid{Why: "expected an object"}
+	}
+}
+
+func isObject(v json.Value) bool {
+	match v {
+	case json.Object:
+		true
+	case _:
+		false
+	}
+}
+
+// Decode reads a task file as Schema reads the Task class: unknown keys
+// are dropped, an optional key is absent (never null), and a value of the
+// wrong kind refuses the whole task.
+func Decode(source string) Task fails Invalid {
+	let v = jsview.Parse(source) catch {
+	case jsview.Invalid:
+		return Invalid{Why: "not JSON"}
+	}
+	if !isObject(v) { return Invalid{Why: "expected an object"} }
+	let providerText = try text(v, "provider")
+	let provider = if providerText == "claude" { Claude } else if providerText == "codex" { Codex } else { return Invalid{Why: "unknown provider"} }
+	let schedule = try need(v, "schedule")
+	if !isObject(schedule) { return Invalid{Why: "expected an object at schedule"} }
+	let statusText = try text(v, "status")
+	let status = if statusText == "active" { Active } else if statusText == "completed" { Completed } else if statusText == "failed" { Broken } else { return Invalid{Why: "unknown status"} }
+	let ctx = match try present(v, "context") {
+	case None:
+		None
+	case Some[json.Value] as c:
+		if !isObject(c.Value) { return Invalid{Why: "expected an object at context"} }
+		let x = c.Value
+		Some[Context]{Value: Context{
+			GitBranch:        try optionalText(x, "gitBranch"),
+			GitRemoteURL:     try optionalText(x, "gitRemoteUrl"),
+			GitRepo:          try optionalText(x, "gitRepo"),
+			GitCommit:        try optionalText(x, "gitCommit"),
+			GitDefaultBranch: try optionalText(x, "gitDefaultBranch"),
+			PRNumber:         try optionalNumber(x, "prNumber"),
+			PRURL:            try optionalText(x, "prUrl"),
+			IssueNumber:      try optionalNumber(x, "issueNumber"),
+		}}
+	}
+	let stops = match try present(v, "stopConditions") {
+	case None:
+		None
+	case Some[json.Value] as s:
+		let items = jsview.Items(s.Value) catch {
+		case jsview.Invalid:
+			return Invalid{Why: "expected an array at stopConditions"}
+		}
+		let mut out = []Stop{}
+		for item in items {
+			if !isObject(item) { return Invalid{Why: "expected an object in stopConditions"} }
+			out = out.Append(try decodeStop(item))
+		}
+		Some[[]Stop]{Value: out}
+	}
+	let when = match try present(v, "conditionalStop") {
+	case None:
+		None
+	case Some[json.Value] as c:
+		if !isObject(c.Value) { return Invalid{Why: "expected an object at conditionalStop"} }
+		Some[string]{Value: try text(c.Value, "condition")}
+	}
+	Task{
+		ID:        try text(v, "id"),
+		Prompt:    try text(v, "prompt"),
+		Provider:  provider,
+		Schedule:  try decodeSchedule(schedule),
+		Cwd:       try text(v, "cwd"),
+		CreatedAt: try text(v, "createdAt"),
+		Status:    status,
+		LastRun:   try optionalText(v, "lastRun"),
+		RunCount:  try num(v, "runCount"),
+		Context:   ctx,
+		Stops:     stops,
+		When:      when,
+	}
+}
+
+// EncodeDecodes: a checked task's text decodes to the task.
+law EncodeDecodes(id string, prompt string, count uint16, hour uint8, raw string) {
+	// JSON text is Unicode; a generated string that is not is out of scope.
+	if !utf8.ValidString(id + prompt + raw) { return true }
+	let t = Task{ID: id, Prompt: prompt, Provider: Codex, Schedule: Cron{Minute: Any, Hour: At{N: float64(hour)}, DayOfMonth: Any, Month: At{N: -1.5}, DayOfWeek: Days{Text: raw}, Raw: raw}, Cwd: raw, CreatedAt: id, Status: Completed, LastRun: Some[string]{Value: prompt}, RunCount: float64(count), Context: Some[Context]{Value: Context{GitBranch: None, GitRemoteURL: Some[string]{Value: id}, GitRepo: None, GitCommit: None, GitDefaultBranch: None, PRNumber: Some[float64]{Value: 0.25}, PRURL: None, IssueNumber: None}}, Stops: Some[[]Stop]{Value: []Stop{MaxRuns{Count: float64(count)}, AfterDate{Date: raw}}}, When: Some[string]{Value: raw}}
+	let decoded = Decode(Encode(t)) catch {
+	case Invalid:
+		return false
+	}
+	decoded == t
+}
