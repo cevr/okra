@@ -34,6 +34,13 @@ await chmod(join(root, "bin/okra"), 0o755);
 if (process.argv.includes("--ergo")) {
   await run(process.execPath, ["scripts/guides.ts"]);
   await run(process.env.ERGO ?? "ergo", ["build", "ergo/cmd/okra", "-o", "bin/okra-ergo"]);
+  // Offline parity entry: registry URLs go to a loopback fake only.
+  await run(process.env.ERGO ?? "ergo", [
+    "build",
+    "ergo/cmd/okra-parity",
+    "-o",
+    "bin/okra-ergo-parity",
+  ]);
 } else {
   const result = await Bun.build({
     entrypoints: [join(root, "src/main.ts")],

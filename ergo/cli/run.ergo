@@ -1,11 +1,16 @@
+import exec
 import flag
+import fs
+import http
 import io
 import okraport/how
 import okraport/keys
+import okraport/repo
 import os
 import strings
+import time
 
-type Request = Manage{Command keys.Command} | Guide{Topic Option[string]}
+type Request = Manage{Command keys.Command} | Guide{Topic Option[string]} | Repos{Command RepoCommand}
 let providerArg = flag.Arg("provider", "Provider name, e.g. openai")
 let keyArg = flag.OptionalArg("key", "API key value; use --stdin to avoid shell history")
 let topicArg = flag.OptionalArg("topic", "Topic to explain; omit to list topics")
@@ -35,10 +40,13 @@ func root() flag.Root[Request] {
 			command("rm", []flag.Flag{}, []flag.ArgSpec{providerArg}, func(v flag.Values) Request { Manage{Command: keys.RemoveKey{Provider: provider(v)}} }),
 		}),
 		command("how", []flag.Flag{}, []flag.ArgSpec{topicArg}, func(v flag.Values) Request { Guide{Topic: topicArg.Get(v)} }),
+		repoGroup(),
 	}}
 }
-func Run(args []string, topics []how.Topic) fails os.Exit needs keys.Store | os.Process | io.Stdin | io.Stdout | io.Stderr {
-	run(args, topics) catch {
+func Run(args []string, topics []how.Topic, setup RepoSetup) fails os.Exit needs keys.Store | repo.Catalog | os.Process | io.Stdin | io.Stdout | io.Stderr | fs.Files | fs.Writes | exec.Runner | http.Network | time.Clock | go.Foreign {
+	run(args, topics, setup) catch {
+	case RepoError as e:
+		return os.Exit{Code: 1, Message: "[" + e.Code + "] " + e.Message}
 	case os.Exit as e:
 		return e
 	case keys.InvalidInput as e:
@@ -53,9 +61,14 @@ func Run(args []string, topics []how.Topic) fails os.Exit needs keys.Store | os.
 		return os.Exit{Code: 1, Message: "[NOT_FOUND] Unknown topic '" + e.Name + "'. Available topics: " + strings.Join(e.Known, ", ")}
 	}
 }
-func run(args []string, topics []how.Topic) fails os.Exit | keys.InvalidInput | keys.NotFound | keys.StoreFailed | keys.InvalidEnvProvider | how.NotFound needs keys.Store | os.Process | io.Stdin | io.Stdout | io.Stderr {
+func run(args []string, topics []how.Topic, setup RepoSetup) fails os.Exit | keys.InvalidInput | keys.NotFound | keys.StoreFailed | keys.InvalidEnvProvider | how.NotFound | RepoError needs keys.Store | repo.Catalog | os.Process | io.Stdin | io.Stdout | io.Stderr | fs.Files | fs.Writes | exec.Runner | http.Network | time.Clock | go.Foreign {
 	if len(args) == 1 && args[0] == "keys" { return }
 	let r = root()
+	if len(args) == 1 && args[0] == "repo" {
+		// The reference prints the group's help for a bare group.
+		io.Stdout.Print(flag.RootUsage(r))
+		return
+	}
 	let request = flag.ParseRoot(r, args) catch {
 	case flag.Help as h:
 		io.Stdout.Print(h.Text)
@@ -72,5 +85,7 @@ func run(args []string, topics []how.Topic) fails os.Exit | keys.InvalidInput | 
 		try keys.Run(m.Command)
 	case Guide as g:
 		io.Stdout.Println(try how.Answer(topics, g.Topic))
+	case Repos as c:
+		try RunRepo(c.Command, setup)
 	}
 }

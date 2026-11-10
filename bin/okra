@@ -12,6 +12,6 @@ for arg do
   esac
 done
 impl=ts
-case ${1-} in keys|how) impl=ergo ;; esac
+case ${1-} in keys|how|repo) impl=ergo ;; esac
 if [ "$impl" = ergo ] && [ ! -x "$bindir/okra-ergo" ]; then impl=ts; fi
 exec "$bindir/okra-$impl" "$@"

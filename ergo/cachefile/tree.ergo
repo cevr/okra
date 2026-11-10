@@ -1,0 +1,106 @@
+import filepath
+import fs
+import go os
+import okraport/repo
+import strings
+
+// The cache tree. Removal goes through Go's os.RemoveAll, which removes a
+// symbolic link and never what it points at; std fs has no Lstat, and a
+// walk over Stat would follow a link out of the cache.
+
+func Exists(path string) bool needs fs.Files {
+	let _ = fs.Files.Stat(path) catch {
+	case _:
+		return false
+	}
+	true
+}
+
+// Locate is where a spec's source lives. A GitHub folder that differs from
+// the lower-case name only in case is reused.
+func Locate(dir string, spec repo.Spec) string needs fs.Files {
+	match spec.Registry {
+	case repo.GitHub:
+		let normalized = filepath.Join([]string{dir, spec.Name})
+		if Exists(normalized) { return normalized }
+		let parts = strings.Split(spec.Name, "/")
+		if len(parts) < 2 || !Exists(dir) { return normalized }
+		let entries = fs.Files.ReadDir(dir) catch {
+		case _:
+			return normalized
+		}
+		for entry in entries {
+			if repo.Lower(entry) == parts[0] {
+				let owner = filepath.Join([]string{dir, entry})
+				let info = fs.Files.Stat(owner) catch {
+				case _:
+					return normalized
+				}
+				if info.Dir {
+					let repos = fs.Files.ReadDir(owner) catch {
+					case _:
+						return normalized
+					}
+					for r in repos { if repo.Lower(r) == parts[1] { return filepath.Join([]string{owner, r}) } }
+				}
+			}
+		}
+		normalized
+	case _:
+		let version = match spec.Version {
+		case None:
+			"default"
+		case Some[string] as v:
+			v.Value
+		}
+		filepath.Join([]string{dir, repo.RegistryName(spec.Registry), spec.Name, version})
+	}
+}
+
+func sizeOf(path string) int needs fs.Files {
+	let info = fs.Files.Stat(path) catch {
+	case _:
+		return 0
+	}
+	if !info.Dir { return info.Size }
+	let entries = fs.Files.ReadDir(path) catch {
+	case _:
+		return 0
+	}
+	let mut total = 0
+	for e in entries { total = total + sizeOf(filepath.Join([]string{path, e})) }
+	total
+}
+
+// Size is the bytes of every file under path, links followed, as the
+// reference's stat walk counts them.
+func Size(path string) int needs fs.Files {
+	if !Exists(path) { return 0 }
+	sizeOf(path)
+}
+
+// RemoveFailed is a tree the host would not remove.
+type RemoveFailed { Path string }
+
+func Remove(path string) fails RemoveFailed needs fs.Files | go.Foreign {
+	if !Exists(path) { return }
+	os.RemoveAll(path) catch {
+	case go.Error:
+		return RemoveFailed{Path: path}
+	}
+}
+
+// Clear empties the cache folder and makes it again.
+func Clear(dir string) fails RemoveFailed needs fs.Files | fs.Writes | go.Foreign {
+	if !Exists(dir) { return }
+	try Remove(dir)
+	Ensure(dir)
+}
+
+// Ensure makes a folder and its parents; a failure is left to the step
+// that writes into it, as in the reference.
+func Ensure(dir string) needs fs.Writes {
+	fs.Writes.MkdirAll(dir) catch {
+	case _:
+	}
+}

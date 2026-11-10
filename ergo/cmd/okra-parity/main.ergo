@@ -1,0 +1,58 @@
+import exec
+import fs
+import http
+import io
+import okraport/cachefile
+import okraport/cli
+import okraport/how
+import okraport/keyfile
+import okraport/keys
+import okraport/registryhttp
+import okraport/repo
+import os
+import strconv
+import strings
+import time
+
+// loopback admits only a literal IPv4 loopback HTTP origin with a port.
+func loopback(value Option[string]) string fails os.Exit {
+	let refused = os.Exit{Code: 1, Message: "Parity requires a loopback registry origin"}
+	let origin = match value {
+	case Some[string] as o:
+		o.Value
+	case None:
+		return refused
+	}
+	let prefix = "http://127.0.0.1:"
+	if !strings.HasPrefix(origin, prefix) { return refused }
+	let port = strconv.Atoi(origin[len(prefix):]) catch {
+	case _:
+		return refused
+	}
+	if port < 1 || port > 65535 || origin != prefix+"\(port)" { return refused }
+	origin
+}
+
+// Offline entry for the parity harness: the same CLI, with every registry
+// URL sent to one loopback fake and no other origin reachable. The shipped
+// entry reads no such variable.
+func main() fails os.Exit needs Ambient | go.Foreign {
+	let process = os.NewHost()
+	let disk = fs.NewHost()
+	let home = process.Getenv("HOME")
+	let dir = cachefile.Dir(home)
+	let origin = try loopback(process.Getenv("OKRA_PARITY_ORIGIN"))
+	let network = http.NewNet(http.Origins{Values: []string{origin}}, http.Limits{MaxBodyBytes: 67108864, MaxHeaderBytes: 65536}, http.Follow{MaxHops: 20}) catch {
+	case http.InvalidClient:
+		return os.Exit{Code: 1, Message: "Parity requires a loopback registry origin"}
+	}
+	let transport = registryhttp.Rewriting([]registryhttp.Rewrite{
+		registryhttp.Rewrite{From: "https://registry.npmjs.org/", To: origin + "/npm/"},
+		registryhttp.Rewrite{From: "https://pypi.org/", To: origin + "/pypi/"},
+		registryhttp.Rewrite{From: "https://files.pythonhosted.org/", To: origin + "/files/"},
+		registryhttp.Rewrite{From: "https://crates.io/", To: origin + "/crates/"},
+	})
+	with context { keys.Store: keyfile.New(disk, disk, home), repo.Catalog: cachefile.New(disk, disk, dir), os.Process: process, io.Stdin: io.NewHost(), io.Stdout: io.NewHost(), io.Stderr: io.NewErrors(), fs.Files: disk, fs.Writes: disk, exec.Runner: exec.NewHost(), http.Network: network, time.Clock: time.NewHost() } {
+		try cli.Run(process.Args(), how.All(), cli.RepoSetup{Dir: dir, Transport: transport})
+	}
+}

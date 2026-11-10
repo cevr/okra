@@ -1,0 +1,64 @@
+import exec
+import strings
+
+// Git runs the host's git through exec.Runner. Each failure keeps the
+// reference's text: "Git <operation> failed on <target>: <cause>".
+type Failed { Message string }
+
+func failed(operation string, target string, cause string) Failed {
+	Failed{Message: "Git " + operation + " failed on " + target + ": " + cause}
+}
+
+func run(operation string, target string, args []string) int fails Failed needs exec.Runner {
+	let result = exec.Runner.Run(exec.New("git", args)) catch {
+	case exec.NotFound as e:
+		return failed(operation, target, "program not found: "+e.Name)
+	case exec.Denied as e:
+		return failed(operation, target, "permission denied: "+e.Name)
+	case exec.Failed as e:
+		return failed(operation, target, e.Reason)
+	}
+	result.Status
+}
+
+// Clone clones url into dest, shallow to depth, at ref when one is given.
+func Clone(url string, dest string, depth int, ref Option[string]) fails Failed needs exec.Runner {
+	let mut args = []string{"clone", "--depth", "\(depth)"}
+	match ref {
+	case None:
+	case Some[string] as r:
+		args = args.Append("--branch").Append(r.Value)
+	}
+	let status = try run("clone", url, args.Append(url).Append(dest))
+	if status != 0 { return failed("clone", url, "exit code \(status)") }
+}
+
+// Update fetches every remote and resets to origin/HEAD, or to the
+// upstream branch when origin/HEAD is unknown.
+func Update(path string) fails Failed needs exec.Runner {
+	let fetched = try run("fetch", path, []string{"-C", path, "fetch", "--all", "--prune"})
+	if fetched != 0 { return failed("fetch", path, "exit code \(fetched)") }
+	let reset = try run("reset", path, []string{"-C", path, "reset", "--hard", "origin/HEAD"})
+	if reset == 0 { return }
+	let upstream = try run("reset-upstream", path, []string{"-C", path, "reset", "--hard", "@{upstream}"})
+	if upstream != 0 { return failed("reset", path, "exit code \(upstream)") }
+}
+
+// IsRepo is whether path is inside a git work tree or git folder.
+func IsRepo(path string) bool needs exec.Runner {
+	let status = run("rev-parse", path, []string{"-C", path, "rev-parse", "--git-dir"}) catch {
+	case Failed:
+		return false
+	}
+	status == 0
+}
+
+// Describe is the nearest tag description, or "unknown".
+func Describe(path string) string needs exec.Runner {
+	let result = exec.Runner.Run(exec.New("git", []string{"-C", path, "describe", "--tags", "--always"})) catch {
+	case _:
+		return "unknown"
+	}
+	let ref = strings.TrimSpace(result.Stdout)
+	if ref == "" { "unknown" } else { ref }
+}

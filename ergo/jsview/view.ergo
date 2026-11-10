@@ -1,0 +1,102 @@
+import json
+import strconv
+
+// jsview reads a json.Value as JSON.parse and an Effect Schema struct see
+// it: a repeated key is its last value, a missing required member or a
+// value of the wrong kind is Invalid, and unknown members are ignored.
+
+type Invalid {}
+
+func Parse(text string) json.Value fails Invalid {
+	json.Decode(json.Codec[json.Value]{MaxBytes: 0, MaxDepth: 0}, text) catch {
+	case _:
+		return Invalid
+	}
+}
+
+// Member is the last value of key in an object; None when it is absent.
+func Member(v json.Value, key string) Option[json.Value] fails Invalid {
+	match v {
+	case json.Object as o:
+		let mut found Option[json.Value] = None
+		for m in o.Members { if m.Key == key { found = Some[json.Value]{Value: m.Value} } }
+		found
+	case _:
+		Invalid
+	}
+}
+
+// Keys are an object's keys once each, in first-seen order.
+func Keys(v json.Value) []string fails Invalid {
+	match v {
+	case json.Object as o:
+		let mut seen = Map[string, bool]{}
+		let mut keys = []string{}
+		for m in o.Members {
+			if seen.Get(m.Key) == None {
+				seen[m.Key] = true
+				keys = keys.Append(m.Key)
+			}
+		}
+		keys
+	case _:
+		Invalid
+	}
+}
+
+func Required(v json.Value, key string) json.Value fails Invalid {
+	match try Member(v, key) {
+	case None:
+		Invalid
+	case Some[json.Value] as m:
+		m.Value
+	}
+}
+
+func Text(v json.Value) string fails Invalid {
+	match v {
+	case json.Str as s:
+		s.Value
+	case _:
+		Invalid
+	}
+}
+
+// OptionalText is Schema.optional(Schema.String): absent is None, a string
+// is Some, anything else (null included) is Invalid.
+func OptionalText(v json.Value, key string) Option[string] fails Invalid {
+	match try Member(v, key) {
+	case None:
+		None
+	case Some[json.Value] as m:
+		Some[string]{Value: try Text(m.Value)}
+	}
+}
+
+func Items(v json.Value) []json.Value fails Invalid {
+	match v {
+	case json.Array as a:
+		a.Items
+	case _:
+		Invalid
+	}
+}
+
+// Integer is a finite JSON number with an integral value.
+func Integer(v json.Value) int fails Invalid {
+	match v {
+	case json.Num as n:
+		let spelled = json.Wire(n)
+		strconv.Atoi(spelled) catch {
+		case _:
+			let f = strconv.ParseFloat(spelled) catch {
+			case _:
+				return Invalid
+			}
+			if f != float64(int(f)) { return Invalid }
+			int(f)
+		}
+	case _:
+		Invalid
+	}
+}

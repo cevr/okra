@@ -1,0 +1,66 @@
+import flag
+
+let specArg = flag.Arg("spec", "Package spec: owner/repo, npm:package[@version], pypi:package, crates:crate")
+let forceFlag = flag.Bool("force", false, "Force re-clone (removes existing and clones fresh)").WithAlias("f").Repeated()
+let jsonFlag = flag.Bool("json", false, "Output as JSON").Repeated()
+let registryFlag = flag.Choice("registry", "github", []string{"github", "npm", "pypi", "crates"}, "Filter by registry").WithAlias("r").Repeated()
+let sortFlag = flag.Choice("sort", "date", []string{"date", "size", "name"}, "Sort by: date, size, name").WithAlias("s").Repeated()
+let allFlag = flag.Bool("all", false, "Remove all cached repositories").Repeated()
+let yesFlag = flag.Bool("yes", false, "Skip confirmation prompt").WithAlias("y").Repeated()
+let daysFlag = flag.Int("days", 0, "Remove repos not accessed in N days").WithAlias("d").Repeated()
+let maxSizeFlag = flag.String("max-size", "", "Remove repos larger than size (e.g., 100M, 1G)").Repeated()
+let dryRunFlag = flag.Bool("dry-run", false, "Show what would be removed without actually removing").Repeated()
+
+// once enforces the reference's rule that a flag is given at most once.
+func once(name string, count int) fails flag.Invalid {
+	if count > 1 { return flag.Invalid{Name: name, Text: "repeated", Reason: "at most 1 value"} }
+}
+
+func enabled(name string, items []bool) bool fails flag.Invalid {
+	try once(name, len(items))
+	len(items) > 0 && items[0]
+}
+
+func optionalText(name string, items []string) Option[string] fails flag.Invalid {
+	try once(name, len(items))
+	if len(items) == 0 { None } else { Some[string]{Value: items[0]} }
+}
+
+func spec(v flag.Values) string {
+	match specArg.Get(v) {
+	case None:
+		Unreachable("required spec was not parsed")
+	case Some[string] as s:
+		s.Value
+	}
+}
+
+func repoGroup() flag.Command[Request] {
+	flag.Group("repo", "Multi-registry source code cache manager", []flag.Command[Request]{
+		command("fetch", []flag.Flag{forceFlag, jsonFlag}, []flag.ArgSpec{specArg}, func(v flag.Values) Request fails flag.Invalid {
+			Repos{Command: FetchRepo{Spec: spec(v), Force: try enabled("force", forceFlag.Get(v)), Json: try enabled("json", jsonFlag.Get(v))}}
+		}),
+		command("list", []flag.Flag{registryFlag, jsonFlag, sortFlag}, []flag.ArgSpec{}, func(v flag.Values) Request fails flag.Invalid {
+			let sort = match try optionalText("sort", sortFlag.Get(v)) {
+			case None:
+				"date"
+			case Some[string] as s:
+				s.Value
+			}
+			Repos{Command: ListRepos{Registry: try optionalText("registry", registryFlag.Get(v)), Json: try enabled("json", jsonFlag.Get(v)), Sort: sort}}
+		}),
+		command("remove", []flag.Flag{}, []flag.ArgSpec{specArg}, func(v flag.Values) Request { Repos{Command: RemoveRepo{Spec: spec(v)}} }),
+		command("clean", []flag.Flag{allFlag, yesFlag, daysFlag, maxSizeFlag, dryRunFlag}, []flag.ArgSpec{}, func(v flag.Values) Request fails flag.Invalid {
+			let days = daysFlag.Get(v)
+			try once("days", len(days))
+			Repos{Command: CleanRepos{
+				All:     try enabled("all", allFlag.Get(v)),
+				Yes:     try enabled("yes", yesFlag.Get(v)),
+				Days:    if len(days) == 0 { None } else { Some[int]{Value: days[0]} },
+				MaxSize: try optionalText("max-size", maxSizeFlag.Get(v)),
+				DryRun:  try enabled("dry-run", dryRunFlag.Get(v)),
+			}}
+		}),
+		command("path", []flag.Flag{}, []flag.ArgSpec{specArg}, func(v flag.Values) Request { Repos{Command: RepoPath{Spec: spec(v)}} }),
+	})
+}

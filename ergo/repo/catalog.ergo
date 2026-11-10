@@ -1,0 +1,163 @@
+import json
+import okraport/jsview
+import strconv
+import strings
+import utf8
+
+// Entry is one cached package: where it is, when it was fetched and last
+// used (ISO text, as written), and its size in bytes.
+type Entry { Spec Spec, FetchedAt string, LastAccessedAt string, SizeBytes int, Path string }
+
+// Index is the cache's metadata file: a format version and the entries in
+// the order they were added.
+type Index { Version int, Entries []Entry }
+
+// SaveFailed is a metadata write the host refused. The command goes on, as
+// the reference's logged warning does.
+type SaveFailed { Reason string }
+
+// Catalog is where the index lives.
+type Catalog {
+	Load() Index,
+	Save(i Index) fails SaveFailed,
+	// LoadSeesSave: an index that was saved is the index loaded back.
+	law LoadSeesSave(names []string, versions []string, sizes []uint32) {
+		let i = NewIndex(names, versions, sizes)
+		Save(i) catch {
+		case SaveFailed:
+			return true
+		}
+		Load() == i
+	},
+}
+
+func EmptyIndex() Index { Index{Version: 1, Entries: []Entry{}} }
+
+func unicode(raw string) string {
+	let mut out = ""
+	for c in raw { out = out + utf8.RuneText(c) }
+	out
+}
+
+// NewIndex builds an index of npm entries from generated parts. Text is
+// normalized to Unicode: the file is JSON text, not arbitrary bytes.
+func NewIndex(names []string, versions []string, sizes []uint32) Index {
+	let mut entries = []Entry{}
+	for i, raw in names {
+		let name = unicode(raw)
+		let version = if i < len(versions) { Some[string]{Value: unicode(versions[i])} } else { None }
+		let size = if i < len(sizes) { int(sizes[i]) } else { 0 }
+		entries = entries.Append(Entry{Spec: Spec{Registry: Npm, Name: name, Version: version}, FetchedAt: name, LastAccessedAt: name, SizeBytes: size, Path: name})
+	}
+	Index{Version: 1, Entries: entries}
+}
+
+func Find(i Index, s Spec) Option[Entry] {
+	for e in i.Entries { if Matches(e.Spec, s) { return Some[Entry]{Value: e} } }
+	None
+}
+
+// Add replaces every entry of the spec with e, at the end.
+func Add(i Index, e Entry) Index {
+	let mut kept = []Entry{}
+	for x in i.Entries { if !Matches(x.Spec, e.Spec) { kept = kept.Append(x) } }
+	Index{Version: i.Version, Entries: kept.Append(e)}
+}
+
+// Without drops every entry of the spec. The bool says whether one went.
+func Without(i Index, s Spec) Index {
+	let mut kept = []Entry{}
+	for x in i.Entries { if !Matches(x.Spec, s) { kept = kept.Append(x) } }
+	Index{Version: i.Version, Entries: kept}
+}
+
+func Has(i Index, s Spec) bool { Find(i, s) != None }
+
+// Touch sets the last use of every entry of the spec.
+func Touch(i Index, s Spec, now string) Index {
+	let mut entries = []Entry{}
+	for x in i.Entries { entries = entries.Append(if Matches(x.Spec, s) { Entry{..x, LastAccessedAt: now} } else { x }) }
+	Index{Version: i.Version, Entries: entries}
+}
+
+// Quote is JSON.stringify of a string.
+func Quote(s string) string {
+	let mut out = "\""
+	for c in s {
+		match c {
+		case '"':
+			out = out + "\\\""
+		case '\\':
+			out = out + "\\\\"
+		case '\b':
+			out = out + "\\b"
+		case '\f':
+			out = out + "\\f"
+		case '\n':
+			out = out + "\\n"
+		case '\r':
+			out = out + "\\r"
+		case '\t':
+			out = out + "\\t"
+		case _:
+			out = out + if c < 32 { "\\u" + strings.PadLeft(strconv.FormatInt(int64(c), 16), 4, '0') } else { utf8.RuneText(c) }
+		}
+	}
+	out + "\""
+}
+
+// SpecJSON is the spec object; with null the absent version is written as
+// null (the list's form), otherwise it is left out (the file's form).
+func SpecJSON(s Spec, null bool) string {
+	let version = match s.Version {
+	case None:
+		if null { ",\"version\":null" } else { "" }
+	case Some[string] as v:
+		",\"version\":" + Quote(v.Value)
+	}
+	"{\"registry\":" + Quote(RegistryName(s.Registry)) + ",\"name\":" + Quote(s.Name) + version + "}"
+}
+
+func EntryJSON(e Entry, null bool) string {
+	"{\"spec\":" + SpecJSON(e.Spec, null) + ",\"fetchedAt\":" + Quote(e.FetchedAt) + ",\"lastAccessedAt\":" + Quote(e.LastAccessedAt) + ",\"sizeBytes\":\(e.SizeBytes),\"path\":" + Quote(e.Path) + "}"
+}
+
+func Encode(i Index) string {
+	let mut items = []string{}
+	for e in i.Entries { items = items.Append(EntryJSON(e, false)) }
+	"{\"version\":\(i.Version),\"repos\":[" + strings.Join(items, ",") + "]}"
+}
+
+func decodeEntry(v json.Value) Entry fails jsview.Invalid {
+	let spec = try jsview.Required(v, "spec")
+	let registry = match RegistryOf(try jsview.Text(try jsview.Required(spec, "registry"))) {
+	case None:
+		return jsview.Invalid
+	case Some[Registry] as r:
+		r.Value
+	}
+	Entry{
+		Spec:           Spec{Registry: registry, Name: try jsview.Text(try jsview.Required(spec, "name")), Version: try jsview.OptionalText(spec, "version")},
+		FetchedAt:      try jsview.Text(try jsview.Required(v, "fetchedAt")),
+		LastAccessedAt: try jsview.Text(try jsview.Required(v, "lastAccessedAt")),
+		SizeBytes:      try jsview.Integer(try jsview.Required(v, "sizeBytes")),
+		Path:           try jsview.Text(try jsview.Required(v, "path")),
+	}
+}
+
+func decodeIndex(text string) Index fails jsview.Invalid {
+	let v = try jsview.Parse(text)
+	let version = try jsview.Integer(try jsview.Required(v, "version"))
+	let mut entries = []Entry{}
+	for item in try jsview.Items(try jsview.Required(v, "repos")) { entries = entries.Append(try decodeEntry(item)) }
+	Index{Version: version, Entries: entries}
+}
+
+// Decode reads the file as the reference's schema does; any mismatch makes
+// the whole index empty. Declared difference: a size that is not an integer.
+func Decode(text string) Index {
+	decodeIndex(text) catch {
+	case jsview.Invalid:
+		EmptyIndex()
+	}
+}
