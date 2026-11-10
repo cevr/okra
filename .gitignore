@@ -2,6 +2,7 @@ node_modules/
 bin/*
 !bin/okra
 ergo/how/topics.ergo
+ergo/cli/version.ergo
 dist/
 .xp/
 *.log

@@ -1,4 +1,5 @@
 import exec
+import filepath
 import fs
 import http
 import io
@@ -14,6 +15,8 @@ import okraport/github
 import okraport/skillfile
 import okraport/skills
 import okraport/skillsh
+import okraport/schedule
+import okraport/taskfile
 import os
 import rand
 import strconv
@@ -72,7 +75,35 @@ func main() fails os.Exit needs Ambient | go.Foreign {
 		github.Rewrite{From: "https://raw.githubusercontent.com/", To: origin + "/raw/"},
 	}, process.Getenv("GITHUB_TOKEN"))
 	let kit = cli.SkillsSetup{Dir: skillfile.Dir(process.Getenv("SKILLS_DIR"), home), Home: homeText, Hub: hub, Search: []skillsh.Rewrite{skillsh.Rewrite{From: "https://skills.sh/", To: origin + "/search/"}}}
-	with context { keys.Store: keyfile.New(disk, disk, home), repo.Catalog: cachefile.New(disk, disk, dir), skills.Locks: skillfile.New(disk, disk, kit.Dir), term.Terminal: term.NewHost(), Scheduler: NewLiveScheduler(), Random: rand.NewHost(), os.Process: process, io.Stdin: io.NewStdin(), io.Stdout: io.NewHost(), io.Stderr: io.NewErrors(), fs.Files: disk, fs.Writes: disk, exec.Runner: exec.NewHost(), http.Network: network, time.Clock: time.NewHost() } {
-		try cli.Run(process.Args(), how.All(), cli.RepoSetup{Dir: dir, Transport: transport}, kit, imagehttp.Offline(origin))
+	let tasks = taskfile.New(disk, disk, filepath.Join([]string{homeText, ".okra", "schedule", "tasks"}))
+	with context { keys.Store: keyfile.New(disk, disk, home), repo.Catalog: cachefile.New(disk, disk, dir), skills.Locks: skillfile.New(disk, disk, kit.Dir), schedule.Tasks: tasks, term.Terminal: term.NewHost(), Scheduler: NewLiveScheduler(), Random: rand.NewHost(), os.Process: process, io.Stdin: io.NewStdin(), io.Stdout: io.NewHost(), io.Stderr: io.NewErrors(), fs.Files: disk, fs.Writes: disk, exec.Runner: exec.NewHost(), http.Network: network } {
+		// OKRA_PARITY_NOW (Unix milliseconds, whole seconds) freezes the
+		// clock, as the schedule reference's Date.now is frozen.
+		match try frozen(process.Getenv("OKRA_PARITY_NOW")) {
+		case Some[int64] as sec:
+			with context { time.Clock: time.NewManual(sec.Value) } {
+				try cli.Run(process.Args(), how.All(), cli.RepoSetup{Dir: dir, Transport: transport}, kit, imagehttp.Offline(origin))
+			}
+		case None:
+			with context { time.Clock: time.NewHost() } {
+				try cli.Run(process.Args(), how.All(), cli.RepoSetup{Dir: dir, Transport: transport}, kit, imagehttp.Offline(origin))
+			}
+		}
 	}
+}
+
+// frozen is OKRA_PARITY_NOW in seconds: whole-second milliseconds only.
+func frozen(value Option[string]) Option[int64] fails os.Exit {
+	let text = match value {
+	case None:
+		return None
+	case Some[string] as v:
+		v.Value
+	}
+	let ms = strconv.ParseInt(text, 10, 64) catch {
+	case _:
+		return os.Exit{Code: 1, Message: "OKRA_PARITY_NOW must be integer milliseconds"}
+	}
+	if ms % 1000 != 0 { return os.Exit{Code: 1, Message: "OKRA_PARITY_NOW must be whole seconds"} }
+	Some[int64]{Value: ms / 1000}
 }

@@ -1,0 +1,10 @@
+import go time
+
+// Offset is the local zone's offset east of UTC, in seconds, at a Unix
+// time in milliseconds, as JavaScript's Date reads a date-time with no
+// zone. std time has no local zone at the pin (ergo-gaps: local zone).
+func Offset(ms int64) int needs go.Foreign {
+	let sec = if ms < 0 && ms%1000 != 0 { ms/1000 - 1 } else { ms / 1000 }
+	let (_, offset) = time.Unix(sec, 0).Zone()
+	offset
+}

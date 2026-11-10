@@ -1,0 +1,71 @@
+import okraport/jsview
+import strings
+
+// Seen is what the creating folder's commands printed, each trimmed and
+// None when the command failed or printed nothing: git's branch, origin
+// URL, short commit and origin/HEAD, and gh's pull request JSON.
+type Seen { Branch Option[string], Remote Option[string], Commit Option[string], Head Option[string], PR Option[string] }
+
+// PullRequest is gh's `pr view --json number,url`, read as the reference's
+// Schema reads it: an object whose number, when present, is a finite
+// number and whose url, when present, is a string; other keys are dropped.
+type PullRequest { Number Option[float64], URL Option[string] }
+
+// ReadPullRequest is None when the text does not read as a PullRequest.
+func ReadPullRequest(text string) Option[PullRequest] {
+	let v = jsview.Parse(text) catch {
+	case jsview.Invalid:
+		return None
+	}
+	if !isObject(v) { return None }
+	let n = optionalNumber(v, "number") catch {
+	case Invalid:
+		return None
+	}
+	let url = optionalText(v, "url") catch {
+	case Invalid:
+		return None
+	}
+	Some[PullRequest]{Value: PullRequest{Number: n, URL: url}}
+}
+
+// ContextOf is the task's context: None when no branch, origin URL, pull
+// request number or commit is known.
+func ContextOf(s Seen) Option[Context] {
+	let pr = match s.PR {
+	case None:
+		PullRequest{Number: None, URL: None}
+	case Some[string] as text:
+		match ReadPullRequest(text.Value) {
+		case None:
+			PullRequest{Number: None, URL: None}
+		case Some[PullRequest] as p:
+			p.Value
+		}
+	}
+	if s.Branch == None && s.Remote == None && pr.Number == None && s.Commit == None { return None }
+	let repo = match s.Remote {
+	case None:
+		None
+	case Some[string] as r:
+		RepoName(r.Value)
+	}
+	let issue = match s.Branch {
+	case None:
+		None
+	case Some[string] as b:
+		IssueNumber(b.Value)
+	}
+	let head = match s.Head {
+	case None:
+		None
+	case Some[string] as h:
+		Some[string]{Value: strings.TrimPrefix(h.Value, "origin/")}
+	}
+	Some[Context]{Value: Context{GitBranch: s.Branch, GitRemoteURL: s.Remote, GitRepo: repo, GitCommit: s.Commit, GitDefaultBranch: head, PRNumber: pr.Number, PRURL: pr.URL, IssueNumber: issue}}
+}
+
+// NoSightNoContext: a folder where every command failed has no context.
+law NoSightNoContext(pr string) {
+	ContextOf(Seen{Branch: None, Remote: None, Commit: None, Head: None, PR: Some[string]{Value: "{\"url\":" + Quote(pr) + "}"}}) == None
+}

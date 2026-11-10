@@ -9,6 +9,7 @@ import okraport/keys
 import okraport/image
 import okraport/imagehttp
 import okraport/repo
+import okraport/schedule
 import okraport/skills
 import os
 import prompt
@@ -16,7 +17,7 @@ import strings
 import term
 import time
 
-type Request = Manage{Command keys.Command} | Guide{Topic Option[string]} | Repos{Command RepoCommand} | Skills{Command SkillsCommand} | Images{Command image.Command} | Counsel{Command CounselCommand}
+type Request = Manage{Command keys.Command} | Guide{Topic Option[string]} | Repos{Command RepoCommand} | Skills{Command SkillsCommand} | Images{Command image.Command} | Counsel{Command CounselCommand} | Schedules{Command ScheduleCommand}
 let providerArg = flag.Arg("provider", "Provider name, e.g. openai")
 let keyArg = flag.OptionalArg("key", "API key value; use --stdin to avoid shell history")
 let topicArg = flag.OptionalArg("topic", "Topic to explain; omit to list topics")
@@ -34,7 +35,8 @@ func command(name string, flags []flag.Flag, args []flag.ArgSpec, build escaping
 	flag.Command[Request]{Name: name, Usage: "", Set: flag.Set{Name: name, Usage: "", Flags: flags, Args: args}, Build: build, Commands: []flag.Command[Request]{}}
 }
 func root() flag.Root[Request] {
-	flag.Root[Request]{Name: "okra", Usage: "AI agent orchestration toolkit", Version: None, Commands: []flag.Command[Request]{
+	flag.Root[Request]{Name: "okra", Usage: "AI agent orchestration toolkit", Version: Some[string]{Value: versionLine}, Commands: []flag.Command[Request]{
+		scheduleGroup(),
 		flag.Group("keys", "Manage stored API keys", []flag.Command[Request]{
 			command("set", []flag.Flag{stdinFlag}, []flag.ArgSpec{providerArg, keyArg}, func(v flag.Values) Request fails flag.Invalid {
 				let occurrences = stdinFlag.Get(v)
@@ -52,8 +54,18 @@ func root() flag.Root[Request] {
 		counselCommand(),
 	}}
 }
-func Run(args []string, topics []how.Topic, setup RepoSetup, kit SkillsSetup, images imagehttp.Setup) fails os.Exit needs keys.Store | repo.Catalog | skills.Locks | os.Process | io.Stdin | io.Stdout | io.Stderr | fs.Files | fs.Writes | exec.Runner | http.Network | time.Clock | term.Terminal | Random | Scheduler | go.Foreign {
+// parse reads args as the root does; `okra schedule` with no subcommand
+// is the schedule group's own create leaf.
+func parse(r flag.Root[Request], args []string) Request fails flag.Version | flag.Help | flag.Unknown | flag.NeedsValue | flag.Invalid | flag.Missing | flag.Extra | flag.UnknownCommand {
+	if isScheduleCreate(args) { return try flag.ParseCommand("okra", r.Usage, []flag.Command[Request]{scheduleCreate()}, args) }
+	try flag.ParseRoot(r, args)
+}
+func Run(args []string, topics []how.Topic, setup RepoSetup, kit SkillsSetup, images imagehttp.Setup) fails os.Exit needs keys.Store | repo.Catalog | skills.Locks | schedule.Tasks | os.Process | io.Stdin | io.Stdout | io.Stderr | fs.Files | fs.Writes | exec.Runner | http.Network | time.Clock | term.Terminal | Random | Scheduler | go.Foreign {
 	run(args, topics, setup, kit, images) catch {
+	case schedule.Failed as e:
+		// The reference adds a recovery hint to two codes.
+		let hint = if e.Code == "NOT_FOUND" { "\nRun 'okra schedule list' to see available tasks." } else if e.Code == "INVALID_SCHEDULE" { "\nSee 'okra schedule --help' for schedule formats." } else { "" }
+		return os.Exit{Code: 1, Message: "[" + e.Code + "] " + e.Message + hint}
 	case counsel.Failed as e:
 		return os.Exit{Code: 1, Message: "[" + e.Code + "] " + e.Message}
 	case BadFileFlag as e:
@@ -87,7 +99,17 @@ func Run(args []string, topics []how.Topic, setup RepoSetup, kit SkillsSetup, im
 		return os.Exit{Code: 1, Message: "[NOT_FOUND] Unknown topic '" + e.Name + "'. Available topics: " + strings.Join(e.Known, ", ")}
 	}
 }
-func run(args []string, topics []how.Topic, setup RepoSetup, kit SkillsSetup, images imagehttp.Setup) fails os.Exit | keys.InvalidInput | keys.NotFound | keys.StoreFailed | keys.InvalidEnvProvider | how.NotFound | RepoError | skills.Failed | prompt.NotInteractive | prompt.Cancelled | io.ReadFailed | image.Failed | counsel.Failed | BadFileFlag needs keys.Store | repo.Catalog | skills.Locks | os.Process | io.Stdin | io.Stdout | io.Stderr | fs.Files | fs.Writes | exec.Runner | http.Network | time.Clock | term.Terminal | Random | Scheduler | go.Foreign {
+func run(args []string, topics []how.Topic, setup RepoSetup, kit SkillsSetup, images imagehttp.Setup) fails os.Exit | keys.InvalidInput | keys.NotFound | keys.StoreFailed | keys.InvalidEnvProvider | how.NotFound | RepoError | skills.Failed | prompt.NotInteractive | prompt.Cancelled | io.ReadFailed | image.Failed | counsel.Failed | schedule.Failed | BadFileFlag needs keys.Store | repo.Catalog | skills.Locks | schedule.Tasks | os.Process | io.Stdin | io.Stdout | io.Stderr | fs.Files | fs.Writes | exec.Runner | http.Network | time.Clock | term.Terminal | Random | Scheduler | go.Foreign {
+	// The reference's root does nothing with no arguments, and prints the
+	// version for --version or -v anywhere before "--".
+	if len(args) == 0 { return }
+	for a in args {
+		if a == "--" { break }
+		if a == "--version" || a == "-v" {
+			io.Stdout.Println(versionLine)
+			return
+		}
+	}
 	if len(args) == 1 && args[0] == "keys" { return }
 	if len(args) == 1 && args[0] == "skills" {
 		try RunSkills(ListSkills, kit)
@@ -99,7 +121,7 @@ func run(args []string, topics []how.Topic, setup RepoSetup, kit SkillsSetup, im
 		io.Stdout.Print(flag.RootUsage(r))
 		return
 	}
-	let request = flag.ParseRoot(r, args) catch {
+	let request = parse(r, args) catch {
 	case flag.Help as h:
 		io.Stdout.Print(h.Text)
 		return
@@ -123,5 +145,7 @@ func run(args []string, topics []how.Topic, setup RepoSetup, kit SkillsSetup, im
 		try RunImage(i.Command, images)
 	case Counsel as c:
 		try RunCounsel(c.Command, images)
+	case Schedules as s:
+		try RunSchedule(s.Command)
 	}
 }
