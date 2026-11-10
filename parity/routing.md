@@ -1,6 +1,6 @@
 # Parity table
 
-`bin/okra` execs `okra-ergo` for keys, how, repo (O2) and skills (O3); all other subcommands
+`bin/okra` execs `okra-ergo` for keys, how, repo (O2), skills (O3) and image (O4); all other subcommands
 still exec `okra-ts`. `OKRA_IMPL=ts` or `OKRA_IMPL=ergo` explicitly selects either
 sibling for all argv. Unknown override values fail with status 1. Effect-only
 global flags and version use TS by default. A TS-only build falls back when the
@@ -25,6 +25,8 @@ Publishing is not changed.
   are compared byte for byte. Permission-denied paths are not yet in the corpus.
 - No image, counsel or other paid/credentialed service has been invoked. All
   parity runs get an isolated HOME and explicit synthetic environment only.
+  Image parity (`parity/image.ts`) runs a compiled offline reference against
+  one loopback peer; it shows no live-provider compatibility.
 - The reference's environment-name table inherits Object.prototype. `keys get`
   for prototype names (such as constructor) has a stable internal-error line.
   Native preserves those bytes with a typed failure rather than calling a

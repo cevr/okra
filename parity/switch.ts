@@ -4,7 +4,9 @@ import { run } from "./process";
 
 const source = await readFile(join(import.meta.dir, "../bin/okra"), "utf8");
 async function verify(script: string) {
-  const dir = await mkdtemp("/tmp/opencode/linear-port/okra-switch-");
+  const dir = await mkdtemp(
+    join(process.env.OKRA_PARITY_SCRATCH ?? "/tmp/opencode/linear-port", "okra-switch-"),
+  );
   const shim = join(dir, "okra");
   await writeFile(shim, script, { mode: 0o755 });
   for (const impl of ["ts", "ergo"])
@@ -18,12 +20,12 @@ async function verify(script: string) {
     if (got.code !== 23 || got.err !== "" || got.out !== `${[impl, ...args].join("\n")}\n`)
       throw new Error(`route/argv mismatch: ${JSON.stringify({ args, impl, override, got })}`);
   }
-  for (const command of ["keys", "how", "repo", "skills"]) {
+  for (const command of ["keys", "how", "repo", "skills", "image"]) {
     await expect([command], "ergo");
     await expect([command, "--help"], "ergo");
     await expect([command, "--log-level=debug"], "ts");
   }
-  for (const command of ["image", "counsel", "schedule", "unknown", "--version"])
+  for (const command of ["counsel", "schedule", "unknown", "--version"])
     await expect([command], "ts");
   await expect([], "ts");
   const args = ["keys", "get", "two words", "", "--", "$opaque", "λ", "line\nbreak"];
@@ -39,12 +41,13 @@ async function verify(script: string) {
 }
 await verify(source);
 if (process.argv.includes("--mutants")) {
-  const from = "keys|how|repo|skills) impl=ergo";
+  const from = "keys|how|repo|skills|image) impl=ergo";
   if (source.split(from).length !== 2) throw new Error("switch edit is not unique");
   for (const [name, to] of [
-    ["shim-keys-to-ts", "how|repo|skills) impl=ergo"],
-    ["shim-repo-to-ts", "keys|how|skills) impl=ergo"],
-    ["shim-skills-to-ts", "keys|how|repo) impl=ergo"],
+    ["shim-keys-to-ts", "how|repo|skills|image) impl=ergo"],
+    ["shim-repo-to-ts", "keys|how|skills|image) impl=ergo"],
+    ["shim-skills-to-ts", "keys|how|repo|image) impl=ergo"],
+    ["shim-image-to-ts", "keys|how|repo|skills) impl=ergo"],
   ] as const) {
     let killed = false;
     try {

@@ -1,0 +1,238 @@
+import base64
+import fs
+import http
+import json
+import okraport/image
+import okraport/jsview
+import okraport/keys
+import strings
+import utf8
+
+// Setup is chosen in main. Only the offline main changes these origins.
+type Setup { API string, Codex string, Catalog string }
+func Direct() Setup               { Setup{API: "https://api.openai.com/v1", Codex: "https://chatgpt.com/backend-api/codex", Catalog: "https://models.dev/api.json"} }
+func Offline(origin string) Setup { Setup{API: origin + "/openai", Codex: origin + "/codex", Catalog: origin + "/catalog/api.json"} }
+func origin(url string) string {
+	let end = strings.Index(url, "://") + 3
+	let slash = strings.Index(url[end:], "/")
+	if slash < 0 { url } else { url[:end+slash] }
+}
+func credentials(url string, fields []http.Field) []http.Credential fails image.Failed {
+	let mut out = []http.Credential{}
+	for f in fields {
+		let c = http.ForOrigin(origin(url), f) catch {
+		case _:
+			let _ = try image.Fail("GENERATION_FAILED", "Invalid image service origin")
+			return []http.Credential{}
+		}
+		out = out.Append(c)
+	}
+	out
+}
+// Owner q100: after the reference's failure prefix, the text for a response
+// that fails its schema or for a failed transport is the port's own wording.
+// The code, prefix, model, status and any server-given detail stay the reference's.
+let SchemaMismatch = "response does not match the expected schema"
+let TransportFailed = "request transport failed"
+
+func send(prefix string, url string, body string, fields []http.Field, header []http.Field) http.Response fails image.Failed needs http.Network {
+	http.Fetch(http.URLRequest{URL: url, Method: "POST", Header: header, Credentials: try credentials(url, fields), Body: body}) catch {
+	case _:
+		let _ = try image.Fail("GENERATION_FAILED", prefix+TransportFailed)
+		return http.Response{Status: 0, Header: []http.Field{}, Body: ""}
+	}
+}
+func maybeRead(path string) Option[string] needs fs.Files {
+	let text = fs.Files.ReadFile(path) catch {
+	case _:
+		return None
+	}
+	Some[string]{Value: text}
+}
+func detail(text string) string {
+	apiMessage(text) catch {
+	case _:
+		if text == "" { "no error detail in response" } else { if len(text) > 300 { text[:300] } else { text } }
+	}
+}
+func apiMessage(text string) string fails jsview.Invalid {
+	let v = try jsview.Parse(text)
+	try jsview.Text(try jsview.Required(try jsview.Required(v, "error"), "message"))
+}
+func encoded(v json.Value) string { json.Encode(json.Codec[json.Value]{MaxBytes: 0, MaxDepth: 0}, v) }
+func decode64(text string, codex bool) string fails image.Failed {
+	// Uint8Array.fromBase64 uses loose last-chunk handling and skips ASCII
+	// whitespace. std base64 is deliberately padded, so adapt at this boundary.
+	let mut normalized = ""
+	for c in text { if c != ' ' && c != '\t' && c != '\n' && c != '\r' && c != '\f' { normalized = normalized + utf8.RuneText(c) } }
+	if !strings.Contains(normalized, "=") {
+		if len(normalized)%4 == 2 { normalized = normalized + "==" }
+		if len(normalized)%4 == 3 { normalized = normalized + "=" }
+	}
+	base64.Decode(base64.StdEncoding, normalized) catch {
+	case _:
+		return image.Fail("DECODE_FAILED", (if codex { "Backend" } else { "OpenAI" })+" returned invalid base64 image data")
+	}
+}
+func key(env Option[string]) string fails image.Failed needs keys.Store {
+	match env {
+	case Some[string] as e:
+		if e.Value != "" { return e.Value }
+	case None:
+	}
+	let k = keys.Store.Load() catch {
+	case _:
+		return image.Fail("AUTH_MISSING", "No OpenAI API key. Set OPENAI_API_KEY or run `okra keys set openai`.")
+	}
+	match keys.Lookup(k, "openai") {
+	case Some[string] as e:
+		if e.Value != "" { return e.Value }
+	case None:
+	}
+	return image.Fail("AUTH_MISSING", "No OpenAI API key. Set OPENAI_API_KEY or run `okra keys set openai`.")
+}
+func add(members []json.Member, name string, value Option[string]) []json.Member {
+	match value {
+	case None:
+		members
+	case Some[string] as v:
+		members.Append(json.Member{Key: name, Value: json.Str{Value: v.Value}})
+	}
+}
+func scalarFields(input image.Input) []json.Member {
+	let mut out = []json.Member{
+		json.Member{Key: "prompt", Value: json.Str{Value: input.Prompt}},
+		json.Member{Key: "model", Value: json.Str{Value: input.Model}},
+		json.Member{Key: "size", Value: json.Str{Value: input.Size}},
+		json.Member{Key: "output_format", Value: json.Str{Value: input.Format}},
+	}
+	out = add(add(out, "quality", input.Quality), "background", input.Background)
+	match input.Count {
+	case None:
+	case Some[int] as n:
+		out = out.Append(json.Member{Key: "n", Value: json.IntNumber(int64(n.Value))})
+	}
+	out
+}
+func formValue(boundary string, name string, value string) string {
+	"--" + boundary + "\r\nContent-Disposition: form-data; name=\"" + name + "\"\r\n\r\n" + value + "\r\n"
+}
+func formFile(boundary string, name string, file string, part image.Part) string {
+	let ext = if part.Media == "image/jpeg" { "jpg" } else { if part.Media == "image/webp" { "webp" } else { "png" } }
+	"--" + boundary + "\r\nContent-Disposition: form-data; name=\"" + name + "\"; filename=\"" + file + "." + ext + "\"\r\nContent-Type: " + part.Media + "\r\n\r\n" + part.Data + "\r\n"
+}
+func multipart(input image.Input, boundary string) string {
+	let mut out = ""
+	let fields = add(scalarFields(input), "input_fidelity", input.Fidelity)
+	for field in fields {
+		let text = match field.Value {
+		case json.Str as s:
+			s.Value
+		case other:
+			encoded(other)
+		}
+		out = out + formValue(boundary, field.Key, text)
+	}
+	for i, part in input.Refs { out = out + formFile(boundary, if len(input.Refs) == 1 { "image" } else { "image[]" }, "image-\(i)", part) }
+	match input.Mask {
+	case None:
+	case Some[image.Part] as m:
+		out = out + formFile(boundary, "mask", "mask", m.Value)
+	}
+	out + "--" + boundary + "--\r\n"
+}
+func images(text string) []string fails jsview.Invalid | image.Failed {
+	let v = try jsview.Parse(text)
+	let _ = try jsview.Integer(try jsview.Required(v, "created"))
+	try responseOptions(v)
+	let mut out = []string{}
+	match try jsview.Member(v, "data") {
+	case None:
+	case Some[json.Value] as d:
+		for item in try jsview.Items(d.Value) {
+			let _ = try jsview.OptionalText(item, "url")
+			let _ = try jsview.OptionalText(item, "revised_prompt")
+			match try jsview.OptionalText(item, "b64_json") {
+			case None:
+			case Some[string] as b:
+				out = out.Append(try decode64(b.Value, false))
+			}
+		}
+	}
+	if len(out) == 0 { let _ = try image.Fail("NO_IMAGE", "OpenAI returned no image data. Try rephrasing the prompt.") }
+	out
+}
+func optionalChoice(v json.Value, key string, allowed []string) fails jsview.Invalid {
+	match try jsview.OptionalText(v, key) {
+	case None:
+	case Some[string] as s:
+		let mut valid = false
+		for a in allowed { if a == s.Value { valid = true } }
+		if !valid { return jsview.Invalid }
+	}
+}
+func tokenCounts(v json.Value, names []string) fails jsview.Invalid {
+	for name in names { let _ = try jsview.Integer(try jsview.Required(v, name)) }
+}
+func responseOptions(v json.Value) fails jsview.Invalid {
+	let _ = try jsview.OptionalText(v, "size")
+	try optionalChoice(v, "background", []string{"transparent", "opaque"})
+	try optionalChoice(v, "output_format", []string{"png", "webp", "jpeg"})
+	try optionalChoice(v, "quality", []string{"auto", "low", "medium", "high", "xhigh", "max"})
+	match try jsview.Member(v, "usage") {
+	case None:
+	case Some[json.Value] as u:
+		try tokenCounts(u.Value, []string{"input_tokens", "total_tokens", "output_tokens"})
+		try tokenCounts(try jsview.Required(u.Value, "input_tokens_details"), []string{"text_tokens", "image_tokens"})
+		match try jsview.Member(u.Value, "output_tokens_details") {
+		case None:
+		case Some[json.Value] as o:
+			try tokenCounts(o.Value, []string{"text_tokens", "image_tokens"})
+		}
+	}
+}
+func OpenAI(setup Setup, input image.Input, editing bool, env Option[string]) []string fails image.Failed needs http.Network | keys.Store {
+	let apiKey = try key(env)
+	if !editing {
+		match input.Count {
+		case None:
+		case Some[int] as n:
+			if n.Value < 1 || n.Value > 10 { let _ = try image.Invalid("Invalid image request: ") }
+		}
+	}
+	let mut body = encoded(json.Object{Members: scalarFields(input)})
+	let mut contentType = "application/json"
+	if editing {
+		// The boundary must not occur in any scalar or image bytes. Growing a
+		// fixed candidate is deterministic and cannot collide with a finite body.
+		let mut boundary = "okra-image-boundary"
+		for {
+			let candidate = multipart(input, boundary)
+			let mut collision = false
+			for p in input.Refs { if strings.Contains(p.Data, boundary) { collision = true } }
+			match input.Mask {
+			case None:
+			case Some[image.Part] as m:
+				if strings.Contains(m.Value.Data, boundary) { collision = true }
+			}
+			for f in add(scalarFields(input), "input_fidelity", input.Fidelity) { if strings.Contains(encoded(f.Value), boundary) { collision = true } }
+			if !collision {
+				body = candidate
+				contentType = "multipart/form-data; boundary=" + boundary
+				break
+			}
+			boundary = boundary + "x"
+		}
+	}
+	let verb = if editing { "edit" } else { "generation" }
+	let r = try send("Image "+verb+" failed ("+input.Model+"): ", setup.API+(if editing { "/images/edits" } else { "/images/generations" }), body, []http.Field{http.Field{Name: "Authorization", Value: "Bearer " + apiKey}}, []http.Field{http.Field{Name: "Content-Type", Value: contentType}})
+	if r.Status < 200 || r.Status >= 300 {
+		if r.Status == 401 || r.Status == 403 { let _ = try image.Fail("AUTH_EXPIRED", "OpenAI API key was rejected ("+detail(r.Body)+"). Set OPENAI_API_KEY or run `okra keys set openai`.") }
+		let _ = try image.Fail("GENERATION_FAILED", "Image "+verb+" failed ("+input.Model+", HTTP \(r.Status)): "+detail(r.Body))
+	}
+	try images(r.Body) catch {
+	case jsview.Invalid:
+		let _ = try image.Fail("GENERATION_FAILED", "OpenAI returned an unexpected response ("+input.Model+"): "+SchemaMismatch)
+		return []string{}
+	}
+}

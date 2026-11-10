@@ -3,7 +3,8 @@ import { cp, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { run } from "./process";
 const root = join(import.meta.dir, "..");
-const compiler = "/tmp/opencode/linear-port/ergo";
+const scratch = process.env.OKRA_PARITY_SCRATCH ?? "/tmp/opencode/linear-port";
+const compiler = join(scratch, "ergo");
 const mutants = [
   {
     name: "inherited-remove-treated-as-missing",
@@ -87,7 +88,7 @@ const mutants = [
   },
 ];
 for (const mutant of mutants) {
-  const dir = await mkdtemp("/tmp/opencode/linear-port/okra-mutant-");
+  const dir = await mkdtemp(join(scratch, "okra-mutant-"));
   const module = join(dir, "ergo");
   await cp(join(root, "ergo"), module, { recursive: true });
   const path = join(module, mutant.file);

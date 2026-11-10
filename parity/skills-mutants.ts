@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { run } from "./process";
 
 const root = join(import.meta.dir, "..");
-const compiler = "/tmp/opencode/linear-port/ergo";
+const scratch = process.env.OKRA_PARITY_SCRATCH ?? "/tmp/opencode/linear-port";
+const compiler = join(scratch, "ergo");
 const only = process.argv.find((a) => a.startsWith("--only="))?.slice(7);
 type Mutant = {
   name: string;
@@ -76,7 +77,7 @@ const mutants: Mutant[] = [
 // Every selected mutant runs; a surviving, unbuildable or uneditable mutant
 // is reported and the run goes on, so one run names every failure.
 async function judge(mutant: Mutant): Promise<string | undefined> {
-  const dir = await mkdtemp("/tmp/opencode/linear-port/skills-mutant-");
+  const dir = await mkdtemp(join(scratch, "skills-mutant-"));
   const module = join(dir, "ergo");
   await cp(join(root, "ergo"), module, { recursive: true });
   const path = join(module, mutant.file);

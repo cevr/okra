@@ -9,7 +9,7 @@ import { join, resolve as resolvePath } from "node:path";
 import { build, fixtureSkill, fixtureToken, seed, type World } from "./skills-world";
 
 const root = resolvePath(import.meta.dir, "..");
-const scratch = "/tmp/opencode/linear-port";
+const scratch = process.env.OKRA_PARITY_SCRATCH ?? "/tmp/opencode/linear-port";
 await mkdir(scratch, { recursive: true });
 const arg = (name: string) =>
   process.argv.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3);

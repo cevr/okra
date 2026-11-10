@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
-const scratch = "/tmp/opencode/linear-port";
+const scratch = process.env.OKRA_PARITY_SCRATCH ?? "/tmp/opencode/linear-port";
 export async function run(
   command: string,
   args: string[],

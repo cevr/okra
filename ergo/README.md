@@ -47,6 +47,20 @@ NotInteractive and Cancelled failures sit in the row of the function that
 asks, so a run without a person is a typed failure, not an interrupt. The
 SkillsError tag becomes one Failed record with the printed code.
 
+Image (O4): the domain package image owns the command, the route (Codex,
+Generate or Edit, a union matched in full), option checks, media types, output
+names and image dimensions, and the Failed record with the printed code.
+imagehttp sends the OpenAI JSON and multipart requests and the Codex stream
+request through http.Network, reads the Codex credentials file and ranks the
+cached model catalogue. Only main chooses the origins (`Direct` or the
+parity entry's `Offline`). Image bytes arrive as base64 in JSON or in a
+finite stream, so no file download is needed.
+
+Effect intent (image): the service layers become one Setup value and std
+contracts bound in main; Schema decoding becomes jsview with Schema's rules;
+the ImageError tag becomes image.Failed. Effect Schema's diagnostic text is
+not copied (owner q100, `parity/declared-differences.md`).
+
 Build and routing: `parity/routing.md`. Run `bun parity/run.ts --record-check` for
 two isolated TypeScript runs, or `bun parity/run.ts --seed=42` for TS/native
 sessions. The reference always runs from current source with a network-denying

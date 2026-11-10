@@ -5,7 +5,7 @@ import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { join, resolve as resolvePath } from "node:path";
 
 const root = resolvePath(import.meta.dir, "..");
-const scratch = "/tmp/opencode/linear-port";
+const scratch = process.env.OKRA_PARITY_SCRATCH ?? "/tmp/opencode/linear-port";
 await mkdir(scratch, { recursive: true });
 const candidate =
   process.argv.find((a) => a.startsWith("--binary="))?.slice(9) ?? join(root, "bin/okra-ergo");

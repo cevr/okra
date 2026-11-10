@@ -7,6 +7,7 @@ import okraport/cli
 import okraport/how
 import okraport/keyfile
 import okraport/keys
+import okraport/imagehttp
 import okraport/registryhttp
 import okraport/repo
 import okraport/github
@@ -71,6 +72,6 @@ func main() fails os.Exit needs Ambient | go.Foreign {
 	}, process.Getenv("GITHUB_TOKEN"))
 	let kit = cli.SkillsSetup{Dir: skillfile.Dir(process.Getenv("SKILLS_DIR"), home), Home: homeText, Hub: hub, Search: []skillsh.Rewrite{skillsh.Rewrite{From: "https://skills.sh/", To: origin + "/search/"}}}
 	with context { keys.Store: keyfile.New(disk, disk, home), repo.Catalog: cachefile.New(disk, disk, dir), skills.Locks: skillfile.New(disk, disk, kit.Dir), term.Terminal: term.NewHost(), Scheduler: NewLiveScheduler(), os.Process: process, io.Stdin: io.NewStdin(), io.Stdout: io.NewHost(), io.Stderr: io.NewErrors(), fs.Files: disk, fs.Writes: disk, exec.Runner: exec.NewHost(), http.Network: network, time.Clock: time.NewHost() } {
-		try cli.Run(process.Args(), how.All(), cli.RepoSetup{Dir: dir, Transport: transport}, kit)
+		try cli.Run(process.Args(), how.All(), cli.RepoSetup{Dir: dir, Transport: transport}, kit, imagehttp.Offline(origin))
 	}
 }
