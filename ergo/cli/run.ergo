@@ -3,6 +3,7 @@ import flag
 import fs
 import http
 import io
+import okraport/counsel
 import okraport/how
 import okraport/keys
 import okraport/image
@@ -15,7 +16,7 @@ import strings
 import term
 import time
 
-type Request = Manage{Command keys.Command} | Guide{Topic Option[string]} | Repos{Command RepoCommand} | Skills{Command SkillsCommand} | Images{Command image.Command}
+type Request = Manage{Command keys.Command} | Guide{Topic Option[string]} | Repos{Command RepoCommand} | Skills{Command SkillsCommand} | Images{Command image.Command} | Counsel{Command CounselCommand}
 let providerArg = flag.Arg("provider", "Provider name, e.g. openai")
 let keyArg = flag.OptionalArg("key", "API key value; use --stdin to avoid shell history")
 let topicArg = flag.OptionalArg("topic", "Topic to explain; omit to list topics")
@@ -48,10 +49,16 @@ func root() flag.Root[Request] {
 		repoGroup(),
 		skillsGroup(),
 		imageCommand(),
+		counselCommand(),
 	}}
 }
-func Run(args []string, topics []how.Topic, setup RepoSetup, kit SkillsSetup, images imagehttp.Setup) fails os.Exit needs keys.Store | repo.Catalog | skills.Locks | os.Process | io.Stdin | io.Stdout | io.Stderr | fs.Files | fs.Writes | exec.Runner | http.Network | time.Clock | term.Terminal | Scheduler | go.Foreign {
+func Run(args []string, topics []how.Topic, setup RepoSetup, kit SkillsSetup, images imagehttp.Setup) fails os.Exit needs keys.Store | repo.Catalog | skills.Locks | os.Process | io.Stdin | io.Stdout | io.Stderr | fs.Files | fs.Writes | exec.Runner | http.Network | time.Clock | term.Terminal | Random | Scheduler | go.Foreign {
 	run(args, topics, setup, kit, images) catch {
+	case counsel.Failed as e:
+		return os.Exit{Code: 1, Message: "[" + e.Code + "] " + e.Message}
+	case BadFileFlag as e:
+		io.Stdout.Print(flag.RootUsage(root()))
+		return os.Exit{Code: 1, Message: "ERROR\n  Invalid value for flag --file: \"" + e.Text + "\". Expected: " + e.Reason}
 	case image.Failed as e:
 		return os.Exit{Code: 1, Message: "[" + e.Code + "] " + e.Message}
 	case RepoError as e:
@@ -80,7 +87,7 @@ func Run(args []string, topics []how.Topic, setup RepoSetup, kit SkillsSetup, im
 		return os.Exit{Code: 1, Message: "[NOT_FOUND] Unknown topic '" + e.Name + "'. Available topics: " + strings.Join(e.Known, ", ")}
 	}
 }
-func run(args []string, topics []how.Topic, setup RepoSetup, kit SkillsSetup, images imagehttp.Setup) fails os.Exit | keys.InvalidInput | keys.NotFound | keys.StoreFailed | keys.InvalidEnvProvider | how.NotFound | RepoError | skills.Failed | prompt.NotInteractive | prompt.Cancelled | io.ReadFailed | image.Failed needs keys.Store | repo.Catalog | skills.Locks | os.Process | io.Stdin | io.Stdout | io.Stderr | fs.Files | fs.Writes | exec.Runner | http.Network | time.Clock | term.Terminal | Scheduler | go.Foreign {
+func run(args []string, topics []how.Topic, setup RepoSetup, kit SkillsSetup, images imagehttp.Setup) fails os.Exit | keys.InvalidInput | keys.NotFound | keys.StoreFailed | keys.InvalidEnvProvider | how.NotFound | RepoError | skills.Failed | prompt.NotInteractive | prompt.Cancelled | io.ReadFailed | image.Failed | counsel.Failed | BadFileFlag needs keys.Store | repo.Catalog | skills.Locks | os.Process | io.Stdin | io.Stdout | io.Stderr | fs.Files | fs.Writes | exec.Runner | http.Network | time.Clock | term.Terminal | Random | Scheduler | go.Foreign {
 	if len(args) == 1 && args[0] == "keys" { return }
 	if len(args) == 1 && args[0] == "skills" {
 		try RunSkills(ListSkills, kit)
@@ -114,5 +121,7 @@ func run(args []string, topics []how.Topic, setup RepoSetup, kit SkillsSetup, im
 		try RunSkills(s.Command, kit)
 	case Images as i:
 		try RunImage(i.Command, images)
+	case Counsel as c:
+		try RunCounsel(c.Command, images)
 	}
 }
