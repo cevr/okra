@@ -1,0 +1,10 @@
+import go os
+
+// Cwd is the working folder, as process.cwd() gives it ("." when it is
+// gone). std os has no working directory at the pin (ergo-gaps G-L6-2).
+func Cwd() string needs go.Foreign {
+	os.Getwd() catch {
+	case go.Error:
+		"."
+	}
+}

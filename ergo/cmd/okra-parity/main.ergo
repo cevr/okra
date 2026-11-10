@@ -15,6 +15,7 @@ import okraport/skillfile
 import okraport/skills
 import okraport/skillsh
 import os
+import rand
 import strconv
 import strings
 import term
@@ -71,7 +72,7 @@ func main() fails os.Exit needs Ambient | go.Foreign {
 		github.Rewrite{From: "https://raw.githubusercontent.com/", To: origin + "/raw/"},
 	}, process.Getenv("GITHUB_TOKEN"))
 	let kit = cli.SkillsSetup{Dir: skillfile.Dir(process.Getenv("SKILLS_DIR"), home), Home: homeText, Hub: hub, Search: []skillsh.Rewrite{skillsh.Rewrite{From: "https://skills.sh/", To: origin + "/search/"}}}
-	with context { keys.Store: keyfile.New(disk, disk, home), repo.Catalog: cachefile.New(disk, disk, dir), skills.Locks: skillfile.New(disk, disk, kit.Dir), term.Terminal: term.NewHost(), Scheduler: NewLiveScheduler(), os.Process: process, io.Stdin: io.NewStdin(), io.Stdout: io.NewHost(), io.Stderr: io.NewErrors(), fs.Files: disk, fs.Writes: disk, exec.Runner: exec.NewHost(), http.Network: network, time.Clock: time.NewHost() } {
+	with context { keys.Store: keyfile.New(disk, disk, home), repo.Catalog: cachefile.New(disk, disk, dir), skills.Locks: skillfile.New(disk, disk, kit.Dir), term.Terminal: term.NewHost(), Scheduler: NewLiveScheduler(), Random: rand.NewHost(), os.Process: process, io.Stdin: io.NewStdin(), io.Stdout: io.NewHost(), io.Stderr: io.NewErrors(), fs.Files: disk, fs.Writes: disk, exec.Runner: exec.NewHost(), http.Network: network, time.Clock: time.NewHost() } {
 		try cli.Run(process.Args(), how.All(), cli.RepoSetup{Dir: dir, Transport: transport}, kit, imagehttp.Offline(origin))
 	}
 }
