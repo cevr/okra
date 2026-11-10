@@ -1,0 +1,417 @@
+import exec
+import fs
+import os
+import http
+import io
+import okraport/github
+import okraport/repo
+import okraport/skillfile
+import okraport/skills
+import okraport/skillsh
+import prompt
+import strings
+import tasks
+import term
+import time
+
+// SkillsCommand is one parsed `okra skills` command.
+type SkillsCommand = ListSkills{} | SearchSkills{Query string} | AddSkills{Sources []string} | RemoveSkills{Names []string} | UpdateSkills{DryRun bool, Json bool, Force bool}
+
+// SkillsSetup is what main decides for the skills commands: the skills
+// folder, HOME as the reference reads it, the GitHub transport and the
+// search URL rewrites (none in production).
+type SkillsSetup { Dir string, Home string, Hub github.Hub, Search []skillsh.Rewrite }
+
+// RunSkills runs one skills command.
+func RunSkills(c SkillsCommand, setup SkillsSetup) fails skills.Failed | prompt.NotInteractive | prompt.Cancelled | io.ReadFailed needs skills.Locks | fs.Files | fs.Writes | http.Network | exec.Runner | Scheduler | time.Clock | os.Process | io.Stdout | io.Stderr | term.Terminal | go.Foreign {
+	match c {
+	case ListSkills:
+		try listSkills(setup)
+	case SearchSkills as s:
+		try searchSkills(setup, s.Query)
+	case AddSkills as a:
+		try addSkills(setup, a.Sources)
+	case RemoveSkills as r:
+		try removeSkills(setup, r.Names)
+	case UpdateSkills as u:
+		try updateSkills(setup, u)
+	}
+}
+
+func lockOrFail() skills.Lock fails skills.Failed needs skills.Locks {
+	skills.Locks.Load() catch {
+	case skills.LockFailed:
+		return skills.LockError()
+	}
+}
+
+func saveOrFail(l skills.Lock) fails skills.Failed needs skills.Locks {
+	skills.Locks.Save(l) catch {
+	case skills.LockFailed:
+		return skills.LockError()
+	}
+}
+
+func isoNow() string needs time.Clock { repo.Iso(time.Clock.Now()) }
+
+func cwd() string needs go.Foreign { skillfile.Cwd() }
+
+func readText(path string) Option[string] needs fs.Files {
+	let text = fs.Files.ReadFile(path) catch {
+	case _:
+		return None
+	}
+	Some[string]{Value: strings.ToValidUTF8(text, "\uFFFD")}
+}
+
+func frontmatterOf(path string) Option[skills.Frontmatter] needs fs.Files {
+	match readText(path) {
+	case None:
+		None
+	case Some[string] as t:
+		skills.ParseFrontmatter(t.Value)
+	}
+}
+
+// ---- list
+
+func wrap(code string, s string, color bool) string { if color { "\x1b[" + code + "m" + s + "\x1b[0m" } else { s } }
+
+func listSkills(setup SkillsSetup) fails skills.Failed needs skills.Locks | fs.Files | os.Process | io.Stdout {
+	let color = io.Stdout.IsTerminal() && os.Process.Getenv("NO_COLOR") == None
+	let found = skillfile.List(setup.Dir)
+	let lock = try lockOrFail()
+	let mut managed = []skillfile.Installed{}
+	for s in found { if skills.Has(lock, s.Folder) { managed = managed.Append(s) } }
+	let unmanaged = len(found) - len(managed)
+	if len(managed) == 0 && unmanaged == 0 {
+		io.Stdout.Println("No skills installed.")
+		io.Stdout.Println("")
+		io.Stdout.Println("Install skills:")
+		io.Stdout.Println("  okra skills add <owner/repo>")
+		io.Stdout.Println("  okra skills add <owner/repo@skill-name>")
+		io.Stdout.Println("  okra skills search <query>")
+		return
+	}
+	if len(managed) == 0 {
+		io.Stdout.Println("No managed skills.")
+	} else {
+		io.Stdout.Println(wrap("1", "\(len(managed)) skill(s) managed", color) + "\n")
+		for s in managed {
+			io.Stdout.Println("  " + wrap("1", s.Name, color))
+			if s.Description != "" { io.Stdout.Println("  " + wrap("2", skills.Truncate(s.Description, 80), color)) }
+			io.Stdout.Println("")
+		}
+	}
+	if unmanaged > 0 { io.Stdout.Println(wrap("2", "(\(unmanaged) unmanaged)", color)) }
+}
+
+// ---- search
+
+func searchSkills(setup SkillsSetup, query string) fails skills.Failed needs http.Network | io.Stdout {
+	let answer = try skillsh.Search(setup.Search, query)
+	if len(answer.Hits) == 0 { return skills.NoSkills("No skills found for \"" + query + "\"") }
+	io.Stdout.Println("Found \(answer.Count) skill(s) for \"" + query + "\":\n")
+	for hit in answer.Hits {
+		io.Stdout.Println("  " + hit.Name)
+		io.Stdout.Println("    source: " + hit.Source)
+		io.Stdout.Println("    installs: " + skills.Grouped(hit.Installs))
+		io.Stdout.Println("")
+	}
+	io.Stdout.Println("Install with:")
+	io.Stdout.Println("  okra skills add <source>@<skill-name>")
+}
+
+// ---- local folders
+
+type localCandidate { Path string, Name string }
+
+func isDir(path string) bool needs fs.Files {
+	let info = fs.Files.Stat(path) catch {
+	case _:
+		return false
+	}
+	info.Dir
+}
+
+// localCandidates is the reference's local discovery: the folder itself
+// when it holds SKILL.md, else the first of skills/, skill/ and the folder
+// whose child folders hold one. Declared difference: children are read in
+// name order, where the reference reads directory order.
+func localCandidates(setup SkillsSetup, input string) []localCandidate fails skills.Failed needs fs.Files | go.Foreign {
+	let abs = skills.Resolve(cwd(), skills.ExpandHome(input, setup.Home))
+	if !skillfile.Exists(abs) { return skills.NoSkills("Path not found: " + abs) }
+	let root = abs + "/SKILL.md"
+	if skillfile.Exists(root) {
+		let name = match frontmatterOf(root) {
+		case None:
+			skills.Basename(abs)
+		case Some[skills.Frontmatter] as fm:
+			skills.Kebab(fm.Value.Name)
+		}
+		return []localCandidate{localCandidate{Path: abs, Name: name}}
+	}
+	for prefix in []string{"skills", "skill", "."} {
+		let dir = if prefix == "." { abs } else { skills.Join([]string{abs, prefix}) }
+		if !skillfile.Exists(dir) { continue }
+		let entries = fs.Files.ReadDir(dir) catch {
+		case _:
+			continue
+		}
+		let mut found = []localCandidate{}
+		for entry in entries {
+			if strings.HasPrefix(entry, ".") { continue }
+			let path = skills.Join([]string{dir, entry})
+			if !isDir(path) { continue }
+			let md = skills.Join([]string{path, "SKILL.md"})
+			if !skillfile.Exists(md) { continue }
+			let name = match frontmatterOf(md) {
+			case None:
+				entry
+			case Some[skills.Frontmatter] as fm:
+				skills.Kebab(fm.Value.Name)
+			}
+			found = found.Append(localCandidate{Path: path, Name: name})
+		}
+		if len(found) > 0 { return found }
+	}
+	return skills.NoSkills("No skills found in " + abs)
+}
+
+// ---- remove
+
+func removeByName(setup SkillsSetup, name string) fails skills.Failed needs skills.Locks | fs.Files | io.Stdout | io.Stderr | go.Foreign {
+	let folder = skills.Join([]string{setup.Dir, name})
+	if skillfile.Exists(folder) {
+		skillfile.RemoveTree(folder)
+	} else {
+		io.Stderr.Eprintln("  Directory already removed, cleaning lock entry")
+	}
+	try saveOrFail(skills.Without(try lockOrFail(), name))
+	io.Stdout.Println("  Removed: " + name)
+}
+
+func removeOne(setup SkillsSetup, input string) fails skills.Failed needs skills.Locks | fs.Files | io.Stdout | io.Stderr | go.Foreign {
+	match skills.ParseSource(input) {
+	case skills.LocalPath as l:
+		let names = try localCandidates(setup, l.Path)
+		let mut installed = []string{}
+		for s in skillfile.List(setup.Dir) { installed = installed.Append(s.Folder) }
+		let mut chosen = []string{}
+		for c in names { if contains(installed, c.Name) { chosen = chosen.Append(c.Name) } }
+		if len(chosen) == 0 {
+			io.Stdout.Println("No matching installed skills found.")
+			return
+		}
+		for n in chosen { try removeByName(setup, n) }
+		io.Stdout.Println("\n\(len(chosen)) skill(s) removed.")
+	case _:
+		try removeByName(setup, input)
+	}
+}
+
+func contains(xs []string, x string) bool {
+	for y in xs { if y == x { return true } }
+	false
+}
+
+func removeSkills(setup SkillsSetup, names []string) fails skills.Failed needs skills.Locks | fs.Files | io.Stdout | io.Stderr | go.Foreign {
+	for n in names {
+		if len(names) > 1 { io.Stdout.Println("\n— " + n + " —") }
+		try removeOne(setup, n)
+	}
+}
+
+// ---- update
+
+type incoming { Files []skills.File, Moved Option[string] }
+
+// notFetched is an update that could not read its source; the reason is
+// the report's text.
+type notFetched { Reason string }
+
+func skillDirOf(skillPath string) string {
+	if skillPath == "SKILL.md" { return "" }
+	let parts = strings.Split(skillPath, "/")
+	strings.Join(parts[:len(parts)-1], "/")
+}
+
+type repoSource { Owner string, Repo string, Ref string }
+
+func orDefault(ref Option[string]) string {
+	match ref {
+	case None:
+		"main"
+	case Some[string] as r:
+		r.Value
+	}
+}
+
+func repoSourceOf(e skills.Entry) Option[repoSource] {
+	match skills.ParseSource(e.Source) {
+	case skills.GitHubRepo as g:
+		let ref = if g.Ref != None { g.Ref } else { e.Ref }
+		Some[repoSource]{Value: repoSource{Owner: g.Owner, Repo: g.Repo, Ref: orDefault(ref)}}
+	case skills.RepoSkill as s:
+		Some[repoSource]{Value: repoSource{Owner: s.Owner, Repo: s.Repo, Ref: orDefault(e.Ref)}}
+	case _:
+		None
+	}
+}
+
+func movedDir(h github.Hub, src repoSource, current string) Option[string] needs http.Network | exec.Runner | Scheduler {
+	let parts = strings.Split(current, "/")
+	let target = parts[len(parts)-1]
+	if target == "" { return None }
+	let found = github.Discover(h, src.Owner, src.Repo, Some[string]{Value: src.Ref}) catch {
+	case skills.Failed:
+		return None
+	}
+	for f in found { if f.DirName == target && f.SkillDir != current { return Some[string]{Value: f.SkillDir} } }
+	None
+}
+
+func fetchIncoming(setup SkillsSetup, e skills.Entry) incoming fails notFetched needs fs.Files | http.Network | exec.Runner | Scheduler {
+	if strings.HasPrefix(e.Source, "local:") {
+		let path = skills.ExpandHome(e.Source[len("local:"):], setup.Home)
+		if !skillfile.Exists(path) { return notFetched{Reason: "local source not found: " + path} }
+		return incoming{Files: skillfile.Walk(path, false), Moved: None}
+	}
+	let src = match repoSourceOf(e) {
+	case None:
+		return notFetched{Reason: "invalid source \"" + e.Source + "\""}
+	case Some[repoSource] as s:
+		s.Value
+	}
+	let current = skillDirOf(e.SkillPath)
+	let files = github.FetchSkillDir(setup.Hub, src.Owner, src.Repo, current, src.Ref) catch {
+	case skills.Failed as f:
+		if f.Code == "INVALID_SYMLINK" { return notFetched{Reason: f.Message} }
+		match movedDir(setup.Hub, src, current) {
+		case None:
+			return notFetched{Reason: f.Message}
+		case Some[string] as dir:
+			let moved = github.FetchSkillDir(setup.Hub, src.Owner, src.Repo, dir.Value, src.Ref) catch {
+			case skills.Failed as again:
+				return notFetched{Reason: again.Message}
+			}
+			return incoming{Files: moved, Moved: Some[string]{Value: dir.Value + "/SKILL.md"}}
+		}
+	}
+	incoming{Files: files, Moved: None}
+}
+
+func updateOne(setup SkillsSetup, named skills.Named, dryRun bool, force bool) skills.Outcome needs fs.Files | fs.Writes | http.Network | exec.Runner | Scheduler | go.Foreign {
+	let folder = skills.Join([]string{setup.Dir, named.Name})
+	let installed = if skillfile.Exists(folder) { skillfile.Walk(folder, true) } else { []skills.File{} }
+	let current = skills.Hash(installed)
+	match named.Entry.Hash {
+	case Some[string] as h:
+		if !force && h.Value != current { return skills.Modified }
+	case None:
+	}
+	let got = fetchIncoming(setup, named.Entry) catch {
+	case notFetched as n:
+		return skills.NotUpdated{Reason: n.Reason}
+	}
+	let same = skills.SameFiles(got.Files, installed)
+	if same && got.Moved == None { return skills.Unchanged{Hash: current} }
+	if !dryRun && !same { skillfile.Sync(setup.Dir, named.Name, got.Files) }
+	skills.Changed{Moved: got.Moved, Hash: skills.Hash(got.Files), NoBaseline: named.Entry.Hash == None && !same}
+}
+
+func printJSON(r skills.Report) needs io.Stdout { io.Stdout.Println(skills.ReportJSON(r)) }
+
+func updateSkills(setup SkillsSetup, c UpdateSkills) fails skills.Failed needs skills.Locks | fs.Files | fs.Writes | http.Network | exec.Runner | Scheduler | time.Clock | io.Stdout | io.Stderr | go.Foreign {
+	let lock = try lockOrFail()
+	let entries = skills.Entries(lock)
+	if len(entries) == 0 {
+		if c.Json {
+			printJSON(skills.BuildReport([]skills.Result{}, c.DryRun))
+			return
+		}
+		io.Stdout.Println("No skills to update. Lock file is empty.")
+		return
+	}
+	io.Stderr.Eprintln("Checking \(len(entries)) skill(s)...\n")
+	let results = tasks.Transform(entries, 5, func(n skills.Named) skills.Result needs fs.Files | fs.Writes | http.Network | exec.Runner | Scheduler | io.Stderr | go.Foreign {
+		let outcome = updateOne(setup, n, c.DryRun, c.Force)
+		io.Stderr.Eprintln(skills.ProgressLine(n.Name, skills.Status(outcome, c.DryRun)))
+		skills.Result{Name: n.Name, Entry: n.Entry, Outcome: outcome}
+	})
+	let report = skills.BuildReport(results, c.DryRun)
+	for o in report.Outdated { if o.Moved { io.Stderr.Eprintln("  " + o.Name + ": source moved to " + o.SkillPath) } }
+	for p in report.Failed { io.Stderr.Eprintln("  Failed to update " + p.Name + ": " + p.Reason) }
+	for p in report.Modified { io.Stderr.Eprintln("  Modified " + p.Name + ": " + p.Reason) }
+	for r in results {
+		match r.Outcome {
+		case skills.Changed as ch:
+			if ch.NoBaseline { io.Stderr.Eprintln("  Warning " + r.Name + ": no hash baseline existed; local edits cannot be detected for this update.") }
+		case _:
+		}
+	}
+	if !c.DryRun {
+		let mut updates = []skills.Result{}
+		for r in results {
+			match r.Outcome {
+			case skills.Unchanged as u:
+				if r.Entry.Hash != (Some[string]{Value: u.Hash}) { updates = updates.Append(r) }
+			case skills.Changed:
+				updates = updates.Append(r)
+			case _:
+			}
+		}
+		if len(updates) > 0 {
+			let now = isoNow()
+			let mut current = try lockOrFail()
+			for r in updates {
+				match skills.Get(current, r.Name) {
+				case None:
+				case Some[skills.Entry] as e:
+					let mut path = e.Value.SkillPath
+					let mut hash = e.Value.Hash
+					match r.Outcome {
+					case skills.Unchanged as u:
+						hash = Some[string]{Value: u.Hash}
+					case skills.Changed as ch:
+						hash = Some[string]{Value: ch.Hash}
+						match ch.Moved {
+						case None:
+						case Some[string] as m:
+							path = m.Value
+						}
+					case _:
+					}
+					current = skills.Put(current, r.Name, skills.Entry{..e.Value, SkillPath: path, Hash: hash, UpdatedAt: now})
+				}
+			}
+			try saveOrFail(current)
+		}
+	}
+	if c.Json {
+		printJSON(report)
+		return
+	}
+	if c.DryRun {
+		for o in report.Outdated { io.Stdout.Println(o.Name) }
+		let mut parts = []string{"\(len(report.Outdated)) outdated", "\(report.Unchanged) unchanged"}
+		if len(report.Failed) > 0 { parts = parts.Append("\(len(report.Failed)) failed") }
+		if len(report.Modified) > 0 { parts = parts.Append("\(len(report.Modified)) modified") }
+		io.Stderr.Eprintln("\n" + strings.Join(parts, ", ") + ". Nothing was written.")
+		return
+	}
+	let mut moved = 0
+	for o in report.Outdated { if o.Moved { moved = moved + 1 } }
+	let updated = len(report.Outdated) - moved
+	let mut parts = []string{}
+	if updated > 0 { parts = parts.Append("\(updated) updated") }
+	if moved > 0 { parts = parts.Append("\(moved) moved") }
+	if report.Unchanged > 0 { parts = parts.Append("\(report.Unchanged) unchanged") }
+	if len(report.Failed) > 0 { parts = parts.Append("\(len(report.Failed)) failed") }
+	if len(report.Modified) > 0 { parts = parts.Append("\(len(report.Modified)) modified") }
+	if len(report.Outdated) == 0 && len(report.Failed) == 0 && len(report.Modified) == 0 {
+		io.Stdout.Println("All skills up to date.")
+	} else {
+		io.Stdout.Println("\n" + strings.Join(parts, ", ") + ".")
+	}
+}

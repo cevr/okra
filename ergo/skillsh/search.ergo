@@ -1,0 +1,64 @@
+import http
+import json
+import okraport/github
+import okraport/jsview
+import okraport/skills
+import strings
+
+// The skills.sh search API. No credential is ever attached.
+
+type Hit { Id string, SkillId string, Name string, Installs int, Source string }
+type Answer { Count int, Hits []Hit }
+
+// Rewrite sends a URL that starts with From to To instead; only an offline
+// parity entry passes one.
+type Rewrite { From string, To string }
+
+func target(rewrites []Rewrite, url string) string {
+	for r in rewrites { if strings.HasPrefix(url, r.From) { return r.To + url[len(r.From):] } }
+	url
+}
+
+// number is a finite JSON number. Declared difference: a fractional count
+// or install total is outside the corpus and fails the decode.
+func whole(v json.Value) int fails jsview.Invalid { try jsview.Integer(v) }
+
+func readAnswer(text string) Answer fails jsview.Invalid {
+	let v = try jsview.Parse(text)
+	let _ = try jsview.Text(try jsview.Required(v, "query"))
+	let mut hits = []Hit{}
+	for item in try jsview.Items(try jsview.Required(v, "skills")) {
+		hits = hits.Append(Hit{
+			Id:       try jsview.Text(try jsview.Required(item, "id")),
+			SkillId:  try jsview.Text(try jsview.Required(item, "skillId")),
+			Name:     try jsview.Text(try jsview.Required(item, "name")),
+			Installs: try whole(try jsview.Required(item, "installs")),
+			Source:   try jsview.Text(try jsview.Required(item, "source")),
+		})
+	}
+	Answer{Count: try whole(try jsview.Required(v, "count")), Hits: hits}
+}
+
+func fetch(url string) Option[http.Response] needs http.Network {
+	let r = http.Fetch(http.URLRequest{URL: url, Method: "GET", Header: []http.Field{}, Credentials: []http.Credential{}, Body: ""}) catch {
+	case _:
+		return None
+	}
+	Some[http.Response]{Value: r}
+}
+
+// Search asks skills.sh for query; any failure is SEARCH_FAILED.
+func Search(rewrites []Rewrite, query string) Answer fails skills.Failed needs http.Network {
+	let failed = skills.Failed{Code: "SEARCH_FAILED", Message: "Search failed for: " + query}
+	let url = target(rewrites, "https://skills.sh/api/search?q="+github.URIComponent(query))
+	match fetch(url) {
+	case None:
+		failed
+	case Some[http.Response] as r:
+		// The reference decodes the body whatever the status.
+		readAnswer(r.Value.Body) catch {
+		case jsview.Invalid:
+			return failed
+		}
+	}
+}

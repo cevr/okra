@@ -1,6 +1,6 @@
 # Parity table
 
-`bin/okra` execs `okra-ergo` for keys, how and repo (O2); all other subcommands
+`bin/okra` execs `okra-ergo` for keys, how, repo (O2) and skills (O3); all other subcommands
 still exec `okra-ts`. `OKRA_IMPL=ts` or `OKRA_IMPL=ergo` explicitly selects either
 sibling for all argv. Unknown override values fail with status 1. Effect-only
 global flags and version use TS by default. A TS-only build falls back when the
@@ -52,3 +52,22 @@ Publishing is not changed.
   two case spellings is found in sorted order, not directory order.
 - Paths are the reference's: a spec name with ".." is joined as given. This is
   the reference's behaviour, kept for parity; see the follow-up in state.md.
+
+## Skills: declared differences
+
+- `skills add` with several candidates opens a multi-select (std prompt) on
+  standard error. Installed skills show as `name (installed)` and are never
+  installed; while one is not installed, an empty answer asks again. Escape,
+  Ctrl-C or Ctrl-D cancel with status 130. When standard input is not a
+  terminal, the reference draws its prompt on stdout and ends as an interrupt
+  (status 130); the port writes nothing and fails with status 1 and the line
+  `[NOT_INTERACTIVE] choosing skills needs a terminal on standard input; name
+one skill (owner/repo@skill)`. `parity/skills.ts` checks that shape on every
+  case where the reference ends with 130. The prompt frames are std prompt's,
+  not effect/cli's.
+- A network failure prints `HttpClientError: Transport error (GET <url>)` for
+  any transport failure. A GitHub response whose shape does not match prints
+  `unexpected response shape` in place of Effect's schema text. A `gh` that
+  answers `--version` but then cannot start is named without the platform text.
+- Two concurrent installs of one skill name race in the reference; the corpus
+  does not hold such a pair.

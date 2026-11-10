@@ -1,0 +1,61 @@
+import strings
+
+// Node's posix path rules, where they differ from Go's path.Clean: an
+// empty path is ".", and a trailing "/" stays.
+
+func Normalize(p string) string {
+	if p == "" { return "." }
+	let absolute = strings.HasPrefix(p, "/")
+	let trailing = strings.HasSuffix(p, "/")
+	let mut parts = []string{}
+	for seg in strings.Split(p, "/") {
+		if seg == "" || seg == "." { continue }
+		if seg == ".." {
+			if len(parts) > 0 && parts[len(parts)-1] != ".." {
+				parts = parts[:len(parts)-1]
+			} else if !absolute {
+				parts = parts.Append("..")
+			}
+			continue
+		}
+		parts = parts.Append(seg)
+	}
+	let mut out = strings.Join(parts, "/")
+	if out == "" && !absolute { out = "." }
+	if out != "" && trailing { out = out + "/" }
+	if absolute { "/" + out } else { out }
+}
+
+func Join(parts []string) string {
+	let mut kept = []string{}
+	for p in parts { if p != "" { kept = kept.Append(p) } }
+	if len(kept) == 0 { return "." }
+	Normalize(strings.Join(kept, "/"))
+}
+
+// Resolve is path.resolve(p) from the folder cwd: absolute, normalized,
+// with no trailing "/".
+func Resolve(cwd string, p string) string {
+	let joined = if strings.HasPrefix(p, "/") { p } else { cwd + "/" + p }
+	let out = Normalize(joined)
+	if len(out) > 1 && strings.HasSuffix(out, "/") { out[:len(out)-1] } else { out }
+}
+
+func Dirname(p string) string {
+	if p == "" { return "." }
+	let mut end = len(p)
+	for end > 1 && p[end-1] == '/' { end = end - 1 }
+	let trimmed = p[:end]
+	let slash = strings.LastIndex(trimmed, "/")
+	if slash < 0 { return "." }
+	if slash == 0 { return "/" }
+	trimmed[:slash]
+}
+
+func Basename(p string) string {
+	let mut end = len(p)
+	for end > 0 && p[end-1] == '/' { end = end - 1 }
+	let trimmed = p[:end]
+	let slash = strings.LastIndex(trimmed, "/")
+	if slash < 0 { trimmed } else { trimmed[slash+1:] }
+}

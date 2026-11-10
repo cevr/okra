@@ -1,0 +1,88 @@
+import strings
+
+// Source is what `skills add` and a lock entry name: a GitHub repo (with an
+// optional ref and sub-path), one skill of a repo, a local folder, or a
+// search query. ParseSource is the only way to read one from text.
+type Source = GitHubRepo{Owner string, Repo string, Ref Option[string], Subpath Option[string]} | RepoSkill{Owner string, Repo string, Skill string} | LocalPath{Path string} | SearchQuery{Query string}
+
+func nameChar(c rune) bool {
+	(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '.' || c == '-'
+}
+
+// name is the longest prefix of s in [a-zA-Z0-9_.-]; the pattern classes
+// are ASCII, so bytes are characters here.
+func name(s string) string {
+	let mut i = 0
+	for i < len(s) && nameChar(rune(s[i])) { i = i + 1 }
+	s[:i]
+}
+
+// any is `.+` or `.*` to the end of the input: no line terminator.
+func any(s string, atLeastOne bool) bool {
+	if atLeastOne && s == "" { return false }
+	for c in s { if LineEnd(c) { return false } }
+	true
+}
+
+func some(s string) Option[string] { Some[string]{Value: s} }
+
+// pair reads `owner/repo` at the start of s and gives the rest.
+func pair(s string) Option[[]string] {
+	let owner = name(s)
+	if owner == "" || !strings.HasPrefix(s[len(owner):], "/") { return None }
+	let after = s[len(owner)+1:]
+	let repo = name(after)
+	if repo == "" { return None }
+	Some[[]string]{Value: []string{owner, repo, after[len(repo):]}}
+}
+
+// ParseSource is the reference's parseSource, its regular expressions read by
+// hand: each class is greedy and the next token can never be one of its
+// characters, so no backtracking changes a match.
+func ParseSource(input string) Source {
+	if strings.HasPrefix(input, ".") || strings.HasPrefix(input, "/") || strings.HasPrefix(input, "~") { return LocalPath{Path: input} }
+	match pair(input) {
+	case Some[[]string] as p:
+		let rest = p.Value[2]
+		if strings.HasPrefix(rest, "@") && any(rest[1:], true) { return RepoSkill{Owner: p.Value[0], Repo: p.Value[1], Skill: rest[1:]} }
+	case None:
+	}
+	for scheme in []string{"https://github.com/", "http://github.com/"} {
+		if strings.HasPrefix(input, scheme) {
+			match pair(input[len(scheme):]) {
+			case Some[[]string] as p:
+				let mut rest = p.Value[2]
+				if strings.HasPrefix(rest, "/") { rest = rest[1:] }
+				if any(rest, false) {
+					for kind in []string{"tree/", "blob/"} {
+						if strings.HasPrefix(rest, kind) {
+							let tail = rest[len(kind):]
+							let slash = strings.Index(tail, "/")
+							if slash < 0 && tail != "" { return GitHubRepo{Owner: p.Value[0], Repo: p.Value[1], Ref: some(tail), Subpath: None} }
+							if slash > 0 && tail[slash+1:] != "" { return GitHubRepo{Owner: p.Value[0], Repo: p.Value[1], Ref: some(tail[:slash]), Subpath: some(tail[slash+1:])} }
+						}
+					}
+					return GitHubRepo{Owner: p.Value[0], Repo: p.Value[1], Ref: None, Subpath: None}
+				}
+			case None:
+			}
+		}
+	}
+	match pair(input) {
+	case Some[[]string] as p:
+		let mut rest = p.Value[2]
+		let mut ref Option[string] = None
+		if strings.HasPrefix(rest, "#") {
+			let mut i = 1
+			for i < len(rest) && (nameChar(rune(rest[i])) || rest[i] == '+') { i = i + 1 }
+			if i > 1 {
+				ref = some(rest[1:i])
+				rest = rest[i:]
+			}
+		}
+		if rest == "" { return GitHubRepo{Owner: p.Value[0], Repo: p.Value[1], Ref: ref, Subpath: None} }
+		if strings.HasPrefix(rest, "/") && any(rest[1:], true) { return GitHubRepo{Owner: p.Value[0], Repo: p.Value[1], Ref: ref, Subpath: some(rest[1:])} }
+	case None:
+	}
+	SearchQuery{Query: input}
+}

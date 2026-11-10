@@ -6,11 +6,14 @@ import io
 import okraport/how
 import okraport/keys
 import okraport/repo
+import okraport/skills
 import os
+import prompt
 import strings
+import term
 import time
 
-type Request = Manage{Command keys.Command} | Guide{Topic Option[string]} | Repos{Command RepoCommand}
+type Request = Manage{Command keys.Command} | Guide{Topic Option[string]} | Repos{Command RepoCommand} | Skills{Command SkillsCommand}
 let providerArg = flag.Arg("provider", "Provider name, e.g. openai")
 let keyArg = flag.OptionalArg("key", "API key value; use --stdin to avoid shell history")
 let topicArg = flag.OptionalArg("topic", "Topic to explain; omit to list topics")
@@ -24,7 +27,7 @@ func provider(v flag.Values) string {
 		p.Value
 	}
 }
-func command(name string, flags []flag.Flag, args []flag.ArgSpec, build escaping func(v flag.Values) Request fails flag.Invalid) flag.Command[Request] {
+func command(name string, flags []flag.Flag, args []flag.ArgSpec, build escaping func(v flag.Values) Request fails flag.Invalid | flag.Missing) flag.Command[Request] {
 	flag.Command[Request]{Name: name, Usage: "", Set: flag.Set{Name: name, Usage: "", Flags: flags, Args: args}, Build: build, Commands: []flag.Command[Request]{}}
 }
 func root() flag.Root[Request] {
@@ -41,12 +44,23 @@ func root() flag.Root[Request] {
 		}),
 		command("how", []flag.Flag{}, []flag.ArgSpec{topicArg}, func(v flag.Values) Request { Guide{Topic: topicArg.Get(v)} }),
 		repoGroup(),
+		skillsGroup(),
 	}}
 }
-func Run(args []string, topics []how.Topic, setup RepoSetup) fails os.Exit needs keys.Store | repo.Catalog | os.Process | io.Stdin | io.Stdout | io.Stderr | fs.Files | fs.Writes | exec.Runner | http.Network | time.Clock | go.Foreign {
-	run(args, topics, setup) catch {
+func Run(args []string, topics []how.Topic, setup RepoSetup, kit SkillsSetup) fails os.Exit needs keys.Store | repo.Catalog | skills.Locks | os.Process | io.Stdin | io.Stdout | io.Stderr | fs.Files | fs.Writes | exec.Runner | http.Network | time.Clock | term.Terminal | Scheduler | go.Foreign {
+	run(args, topics, setup, kit) catch {
 	case RepoError as e:
 		return os.Exit{Code: 1, Message: "[" + e.Code + "] " + e.Message}
+	case skills.Failed as e:
+		return os.Exit{Code: 1, Message: "[" + e.Code + "] " + e.Message}
+	case prompt.NotInteractive:
+		// Declared difference: the reference draws its prompt and ends as
+		// an interrupt (130) when standard input is not a terminal.
+		return os.Exit{Code: 1, Message: "[NOT_INTERACTIVE] choosing skills needs a terminal on standard input; name one skill (owner/repo@skill)"}
+	case prompt.Cancelled:
+		return os.Exit{Code: 130, Message: ""}
+	case io.ReadFailed as e:
+		return os.Exit{Code: 1, Message: "[INPUT] " + e.Reason}
 	case os.Exit as e:
 		return e
 	case keys.InvalidInput as e:
@@ -61,8 +75,12 @@ func Run(args []string, topics []how.Topic, setup RepoSetup) fails os.Exit needs
 		return os.Exit{Code: 1, Message: "[NOT_FOUND] Unknown topic '" + e.Name + "'. Available topics: " + strings.Join(e.Known, ", ")}
 	}
 }
-func run(args []string, topics []how.Topic, setup RepoSetup) fails os.Exit | keys.InvalidInput | keys.NotFound | keys.StoreFailed | keys.InvalidEnvProvider | how.NotFound | RepoError needs keys.Store | repo.Catalog | os.Process | io.Stdin | io.Stdout | io.Stderr | fs.Files | fs.Writes | exec.Runner | http.Network | time.Clock | go.Foreign {
+func run(args []string, topics []how.Topic, setup RepoSetup, kit SkillsSetup) fails os.Exit | keys.InvalidInput | keys.NotFound | keys.StoreFailed | keys.InvalidEnvProvider | how.NotFound | RepoError | skills.Failed | prompt.NotInteractive | prompt.Cancelled | io.ReadFailed needs keys.Store | repo.Catalog | skills.Locks | os.Process | io.Stdin | io.Stdout | io.Stderr | fs.Files | fs.Writes | exec.Runner | http.Network | time.Clock | term.Terminal | Scheduler | go.Foreign {
 	if len(args) == 1 && args[0] == "keys" { return }
+	if len(args) == 1 && args[0] == "skills" {
+		try RunSkills(ListSkills, kit)
+		return
+	}
 	let r = root()
 	if len(args) == 1 && args[0] == "repo" {
 		// The reference prints the group's help for a bare group.
@@ -87,5 +105,7 @@ func run(args []string, topics []how.Topic, setup RepoSetup) fails os.Exit | key
 		io.Stdout.Println(try how.Answer(topics, g.Topic))
 	case Repos as c:
 		try RunRepo(c.Command, setup)
+	case Skills as s:
+		try RunSkills(s.Command, kit)
 	}
 }

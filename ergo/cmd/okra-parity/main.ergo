@@ -9,9 +9,14 @@ import okraport/keyfile
 import okraport/keys
 import okraport/registryhttp
 import okraport/repo
+import okraport/github
+import okraport/skillfile
+import okraport/skills
+import okraport/skillsh
 import os
 import strconv
 import strings
+import term
 import time
 
 // loopback admits only a literal IPv4 loopback HTTP origin with a port.
@@ -52,7 +57,20 @@ func main() fails os.Exit needs Ambient | go.Foreign {
 		registryhttp.Rewrite{From: "https://files.pythonhosted.org/", To: origin + "/files/"},
 		registryhttp.Rewrite{From: "https://crates.io/", To: origin + "/crates/"},
 	})
-	with context { keys.Store: keyfile.New(disk, disk, home), repo.Catalog: cachefile.New(disk, disk, dir), os.Process: process, io.Stdin: io.NewStdin(), io.Stdout: io.NewHost(), io.Stderr: io.NewErrors(), fs.Files: disk, fs.Writes: disk, exec.Runner: exec.NewHost(), http.Network: network, time.Clock: time.NewHost() } {
-		try cli.Run(process.Args(), how.All(), cli.RepoSetup{Dir: dir, Transport: transport})
+	let homeText = match home {
+	case None:
+		""
+	case Some[string] as h:
+		h.Value
+	}
+	// GitHub REST, raw files and skills.sh go to the loopback fake; the
+	// token is bound to the rewritten origin (github.credentials).
+	let hub = github.New([]github.Rewrite{
+		github.Rewrite{From: "https://api.github.com/", To: origin + "/api/"},
+		github.Rewrite{From: "https://raw.githubusercontent.com/", To: origin + "/raw/"},
+	}, process.Getenv("GITHUB_TOKEN"))
+	let kit = cli.SkillsSetup{Dir: skillfile.Dir(process.Getenv("SKILLS_DIR"), home), Home: homeText, Hub: hub, Search: []skillsh.Rewrite{skillsh.Rewrite{From: "https://skills.sh/", To: origin + "/search/"}}}
+	with context { keys.Store: keyfile.New(disk, disk, home), repo.Catalog: cachefile.New(disk, disk, dir), skills.Locks: skillfile.New(disk, disk, kit.Dir), term.Terminal: term.NewHost(), Scheduler: NewLiveScheduler(), os.Process: process, io.Stdin: io.NewStdin(), io.Stdout: io.NewHost(), io.Stderr: io.NewErrors(), fs.Files: disk, fs.Writes: disk, exec.Runner: exec.NewHost(), http.Network: network, time.Clock: time.NewHost() } {
+		try cli.Run(process.Args(), how.All(), cli.RepoSetup{Dir: dir, Transport: transport}, kit)
 	}
 }

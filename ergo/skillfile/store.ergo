@@ -1,0 +1,176 @@
+import filepath
+import fs
+import go os
+import okraport/repo
+import okraport/skills
+import strings
+
+// The skills folder: installed skill folders and .skill-lock.json.
+
+// Dir is SKILLS_DIR, or the dotfiles skills folder under HOME.
+func Dir(skillsDir Option[string], home Option[string]) string {
+	match skillsDir {
+	case Some[string] as d:
+		d.Value
+	case None:
+		let h = match home {
+		case None:
+			""
+		case Some[string] as v:
+			v.Value
+		}
+		h + "/Developer/personal/dotfiles/skills"
+	}
+}
+
+// Store keeps the lock in .skill-lock.json of the skills folder.
+type Store { files fs.Files, writes fs.Writes, dir string }
+
+func New(files fs.Files, writes fs.Writes, dir string) Store { Store{files: files, writes: writes, dir: dir} }
+
+func lockPath(s Store) string { filepath.Join([]string{s.dir, ".skill-lock.json"}) }
+
+func Load(s Store) skills.Lock fails skills.LockFailed {
+	let path = lockPath(s)
+	let _ = s.files.Stat(path) catch {
+	case fs.NotFound:
+		return skills.EmptyLock()
+	case _:
+		return skills.LockFailed
+	}
+	let text = s.files.ReadFile(path) catch {
+	case _:
+		return skills.LockFailed
+	}
+	try skills.Decode(text)
+}
+
+func Save(s Store, l skills.Lock) fails skills.LockFailed {
+	s.writes.MkdirAll(filepath.Dir(lockPath(s))) catch {
+	case _:
+		return skills.LockFailed
+	}
+	s.writes.WriteFile(lockPath(s), skills.Encode(l)) catch {
+	case _:
+		return skills.LockFailed
+	}
+}
+
+// Exists is whether path names anything, links followed.
+func Exists(path string) bool needs fs.Files {
+	let _ = fs.Files.Stat(path) catch {
+	case _:
+		return false
+	}
+	true
+}
+
+func isDir(path string) bool needs fs.Files {
+	let info = fs.Files.Stat(path) catch {
+	case _:
+		return false
+	}
+	info.Dir
+}
+
+// Installed is a skill folder of the skills folder.
+type Installed { Name string, Description string, Folder string }
+
+// List is the skills folder's skills: each folder (not hidden) with a
+// SKILL.md, named by its front matter or else its folder, in the
+// reference's localeCompare order. Ties keep folder-name order.
+func List(dir string) []Installed needs fs.Files {
+	if !Exists(dir) { return []Installed{} }
+	let names = fs.Files.ReadDir(dir) catch {
+	case _:
+		return []Installed{}
+	}
+	let mut found = []Installed{}
+	for entry in names {
+		if strings.HasPrefix(entry, ".") { continue }
+		let folder = filepath.Join([]string{dir, entry})
+		if !isDir(folder) { continue }
+		let md = filepath.Join([]string{folder, "SKILL.md"})
+		if !Exists(md) { continue }
+		let content = fs.Files.ReadFile(md) catch {
+		case _:
+			continue
+		}
+		match skills.ParseFrontmatter(content) {
+		case None:
+			found = found.Append(Installed{Name: entry, Description: "", Folder: entry})
+		case Some[skills.Frontmatter] as fm:
+			found = found.Append(Installed{Name: fm.Value.Name, Description: fm.Value.Description, Folder: entry})
+		}
+	}
+	repo.SortLike(found, func(a Installed, b Installed) Option[int64] { Some[int64]{Value: int64(repo.Collate(a.Name, b.Name))} })
+}
+
+// Walk is every file under path with its path inside it, links followed.
+// Hidden entries are kept only when hidden is true.
+func Walk(path string, hidden bool) []skills.File needs fs.Files {
+	walkInto(path, "", hidden)
+}
+
+func walkInto(path string, prefix string, hidden bool) []skills.File needs fs.Files {
+	let names = fs.Files.ReadDir(path) catch {
+	case _:
+		return []skills.File{}
+	}
+	let mut out = []skills.File{}
+	for entry in names {
+		if !hidden && strings.HasPrefix(entry, ".") { continue }
+		let full = filepath.Join([]string{path, entry})
+		let relative = if prefix == "" { entry } else { prefix + "/" + entry }
+		if isDir(full) {
+			for f in walkInto(full, relative, hidden) { out = out.Append(f) }
+		} else {
+			let content = fs.Files.ReadFile(full) catch {
+			case _:
+				continue
+			}
+			out = out.Append(skills.File{Path: relative, Content: content})
+		}
+	}
+	out
+}
+
+// RemoveTree removes path and everything under it through Go's
+// os.RemoveAll, which removes a link and never what it points at.
+func RemoveTree(path string) needs go.Foreign {
+	os.RemoveAll(path) catch {
+	case go.Error:
+	}
+}
+
+// Cwd is the working folder through Go's os.Getwd, "." when it fails.
+func Cwd() string needs go.Foreign {
+	os.Getwd() catch {
+	case go.Error:
+		"."
+	}
+}
+
+// Install writes files into dir/name, making folders as needed.
+func Install(dir string, name string, files []skills.File) needs fs.Writes {
+	let folder = filepath.Join([]string{dir, name})
+	fs.Writes.MkdirAll(folder) catch {
+	case _:
+	}
+	for f in files {
+		let path = filepath.Join([]string{folder, f.Path})
+		fs.Writes.MkdirAll(filepath.Dir(path)) catch {
+		case _:
+		}
+		fs.Writes.WriteFile(path, f.Content) catch {
+		case _:
+		}
+	}
+}
+
+// Sync replaces dir/name with files.
+func Sync(dir string, name string, files []skills.File) needs fs.Files | fs.Writes | go.Foreign {
+	let folder = filepath.Join([]string{dir, name})
+	if Exists(folder) { RemoveTree(folder) }
+	Install(dir, name, files)
+}

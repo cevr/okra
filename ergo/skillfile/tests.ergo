@@ -1,0 +1,8 @@
+import fstest
+
+// A row-free constructor for the real Store over an isolated in-memory file
+// system. Locks.LoadSeesSave runs here, never against an owner's skills.
+func NewMemory() Store {
+	let memory = fstest.NewMemory()
+	New(memory, memory, "skills")
+}

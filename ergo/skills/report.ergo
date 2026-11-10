@@ -1,0 +1,108 @@
+import strings
+
+// Failed is a skills failure with the reference's code: the CLI prints
+// "[CODE] message" and exits 1 when one ends a command.
+type Failed { Code string, Message string }
+
+func NotFound(message string) Failed { Failed{Code: "SKILL_NOT_FOUND", Message: message} }
+func NoSkills(message string) Failed { Failed{Code: "NO_SKILLS_FOUND", Message: message} }
+func FetchFailed(label string, cause string) Failed {
+	Failed{Code: "FETCH_FAILED", Message: "Failed to fetch: " + label + (if cause == "" { "" } else { " (" + cause + ")" })}
+}
+func InvalidLink(link string, reason string) Failed { Failed{Code: "INVALID_SYMLINK", Message: "Invalid symlink " + link + ": " + reason} }
+let lockMessage = "Failed to read or write skill lock file"
+func LockError() Failed { Failed{Code: "LOCK_FILE", Message: lockMessage} }
+
+// Raise fails with f. Callers in other packages raise Failed through it,
+// so the declaring package raises its own failure type (workaround for
+// the compiler gap G-L5-2: a failure type raised only by an importing
+// package lowers without its Error method).
+func Raise(f Failed) fails Failed { return f }
+
+// Outcome is what an update did, or would do, to one skill.
+type Outcome = Unchanged{Hash string} | Changed{Moved Option[string], Hash string, NoBaseline bool} | Modified{} | NotUpdated{Reason string}
+
+// Result is one skill's outcome.
+type Result { Name string, Entry Entry, Outcome Outcome }
+
+let ModifiedReason = "installed files changed since okra last wrote them; move the edit to the source, or pass --force to overwrite"
+
+type Outdated { Name string, Source string, SkillPath string, Moved bool }
+type Problem { Name string, Source string, Reason string }
+
+// Report is the update's JSON report.
+type Report { DryRun bool, Outdated []Outdated, Failed []Problem, Modified []Problem, Unchanged int }
+
+func BuildReport(results []Result, dryRun bool) Report {
+	let mut outdated = []Outdated{}
+	let mut failed = []Problem{}
+	let mut modified = []Problem{}
+	let mut unchanged = 0
+	for r in results {
+		match r.Outcome {
+		case NotUpdated as n:
+			failed = failed.Append(Problem{Name: r.Name, Source: r.Entry.Source, Reason: n.Reason})
+		case Unchanged:
+			unchanged = unchanged + 1
+		case Modified:
+			modified = modified.Append(Problem{Name: r.Name, Source: r.Entry.Source, Reason: ModifiedReason})
+		case Changed as c:
+			let path = match c.Moved {
+			case None:
+				r.Entry.SkillPath
+			case Some[string] as m:
+				m.Value
+			}
+			outdated = outdated.Append(Outdated{Name: r.Name, Source: r.Entry.Source, SkillPath: path, Moved: c.Moved != None})
+		}
+	}
+	Report{DryRun: dryRun, Outdated: outdated, Failed: failed, Modified: modified, Unchanged: unchanged}
+}
+
+func flag(b bool) string { if b { "true" } else { "false" } }
+
+func problems(ps []Problem) string {
+	let mut items = []string{}
+	for p in ps { items = items.Append("{\"name\":" + Quote(p.Name) + ",\"source\":" + Quote(p.Source) + ",\"reason\":" + Quote(p.Reason) + "}") }
+	"[" + strings.Join(items, ",") + "]"
+}
+
+// ReportJSON is the report as the reference's schema encodes it.
+func ReportJSON(r Report) string {
+	let mut items = []string{}
+	for o in r.Outdated { items = items.Append("{\"name\":" + Quote(o.Name) + ",\"source\":" + Quote(o.Source) + ",\"skillPath\":" + Quote(o.SkillPath) + ",\"moved\":" + flag(o.Moved) + "}") }
+	"{\"dryRun\":" + flag(r.DryRun) + ",\"outdated\":[" + strings.Join(items, ",") + "],\"failed\":" + problems(r.Failed) + ",\"modified\":" + problems(r.Modified) + ",\"unchanged\":\(r.Unchanged)}"
+}
+
+// Status is the progress word of an outcome.
+func Status(o Outcome, dryRun bool) string {
+	match o {
+	case NotUpdated:
+		"failed"
+	case Unchanged:
+		"unchanged"
+	case Modified:
+		"modified"
+	case Changed as c:
+		if dryRun { "outdated" } else if c.Moved != None { "moved" } else { "updated" }
+	}
+}
+
+// ProgressLine is a finished skill's line on standard error, without color.
+func ProgressLine(name string, status string) string {
+	let symbol = match status {
+	case "updated", "installed":
+		"✓"
+	case "outdated":
+		"↑"
+	case "moved":
+		"→"
+	case "unchanged":
+		"·"
+	case "removed":
+		"↻"
+	case _:
+		"✗"
+	}
+	"  " + symbol + " " + strings.PadRight(status, 10, ' ') + " " + name
+}

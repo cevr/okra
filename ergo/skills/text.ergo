@@ -1,0 +1,132 @@
+import okraport/repo
+import strconv
+import strings
+import utf8
+
+// JavaScript text rules the skills output depends on: UTF-16 code units for
+// order and length, toLowerCase before the kebab rule, and object key order.
+
+// Units is s as UTF-16 code units.
+func Units(s string) []int {
+	let mut out = []int{}
+	for c in s {
+		if c > 65535 {
+			let n = int(c) - 65536
+			out = out.Append(55296 + n/1024).Append(56320 + n%1024)
+		} else {
+			out = out.Append(int(c))
+		}
+	}
+	out
+}
+
+// Before is JavaScript's `a < b` on strings: UTF-16 code unit order.
+func Before(a string, b string) bool {
+	let x = Units(a)
+	let y = Units(b)
+	let n = if len(x) < len(y) { len(x) } else { len(y) }
+	for i in 0..n { if x[i] != y[i] { return x[i] < y[i] } }
+	len(x) < len(y)
+}
+
+// Lower is toLowerCase where it differs from Go's simple mapping in a way
+// the kebab rule can see: U+0130 lowers to "i" and a combining dot.
+func Lower(s string) string { strings.ToLower(strings.ReplaceAll(s, "\u0130", "i\u0307")) }
+
+// Kebab is the reference's toKebab: lower case, every UTF-16 unit outside
+// [a-z0-9-] becomes "-", runs of "-" collapse, and the ends lose one "-".
+func Kebab(s string) string {
+	let mut out = ""
+	let mut dash = false
+	for c in Lower(s) {
+		let keep = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+		if keep {
+			out = out + utf8.RuneText(c)
+			dash = false
+		} else if !dash {
+			out = out + "-"
+			dash = true
+		}
+	}
+	if strings.HasPrefix(out, "-") { out = out[1:] }
+	if strings.HasSuffix(out, "-") { out = out[:len(out)-1] }
+	out
+}
+
+// Truncate is the list's truncate: at most max UTF-16 units, the last one an
+// ellipsis. A pair cut in half prints as U+FFFD, as the runtime writes a
+// lone surrogate.
+func Truncate(s string, max int) string {
+	if len(Units(s)) <= max { return s }
+	let mut out = ""
+	let mut at = 0
+	for c in s {
+		let size = if c > 65535 { 2 } else { 1 }
+		if at+size <= max-1 {
+			out = out + utf8.RuneText(c)
+		} else if at < max-1 {
+			out = out + "\uFFFD"
+		}
+		at = at + size
+	}
+	out + "…"
+}
+
+// Space is JavaScript's white space (\s and trim's set).
+func Space(c rune) bool {
+	c == 0x9 || c == 0xa || c == 0xb || c == 0xc || c == 0xd || c == 0x20 || c == 0xa0 || c == 0x1680 || (c >= 0x2000 && c <= 0x200a) || c == 0x2028 || c == 0x2029 || c == 0x202f || c == 0x205f || c == 0x3000 || c == 0xfeff
+}
+
+func Trim(s string) string { repo.Trim(s) }
+
+// LineEnd is a character that "." does not match in a JavaScript regular
+// expression.
+func LineEnd(c rune) bool { c == '\n' || c == '\r' || c == 0x2028 || c == 0x2029 }
+
+// ArrayIndex is a key that JavaScript objects list first, in numeric order.
+func ArrayIndex(name string) Option[int] {
+	if name == "" || len(name) > 10 || (len(name) > 1 && name[0] == '0') { return None }
+	for c in name { if c < '0' || c > '9' { return None } }
+	let n = strconv.Atoi(name) catch {
+	case _:
+		return None
+	}
+	if n >= 4294967295 { None } else { Some[int]{Value: n} }
+}
+
+// prototypeNames are Object.prototype's members: `name in object` holds for
+// them in the reference even when the object has no such own key.
+let prototypeNames = []string{"constructor", "toString", "toLocaleString", "valueOf", "hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable", "__defineGetter__", "__defineSetter__", "__lookupGetter__", "__lookupSetter__", "__proto__"}
+
+func Inherited(name string) bool {
+	for p in prototypeNames { if p == name { return true } }
+	false
+}
+
+// ExpandHome and CollapseHome are the reference's home rules.
+func ExpandHome(path string, home string) string {
+	if path == "~" { return home }
+	if strings.HasPrefix(path, "~/") { return home + path[1:] }
+	path
+}
+
+func CollapseHome(path string, home string) string {
+	if home == "" || home == "/" { return path }
+	if path == home { return "~" }
+	if strings.HasPrefix(path, home+"/") { return "~" + path[len(home):] }
+	path
+}
+
+// Quote is JSON.stringify of a string.
+func Quote(s string) string { repo.Quote(s) }
+
+// Grouped is toLocaleString of an integer: digits in groups of three.
+func Grouped(n int) string {
+	let digits = strconv.Itoa(if n < 0 { -n } else { n })
+	let mut out = ""
+	for i, c in digits {
+		if i > 0 && (len(digits)-i)%3 == 0 { out = out + "," }
+		out = out + utf8.RuneText(c)
+	}
+	if n < 0 { "-" + out } else { out }
+}

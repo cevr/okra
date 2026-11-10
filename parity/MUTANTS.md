@@ -38,3 +38,19 @@ repo commands, so each session is the first guard of its seam.
 - `pinned-fetch-updates` (github-pinned): a pinned cached repo is not updated.
 - `quote-drops-control-escape` (law LoadSeesSave on cachefile): control characters in generated names survive a save and load.
 - `shim-repo-to-ts` (`bun parity/switch.ts --mutants`): repo routes to the native binary.
+
+## O3: skills (`bun parity/skills-mutants.ts`; every mutant runs, all failures are listed at the end)
+
+No earlier test reaches the skills commands. The three prompt mutants are
+killed by the scripted-key tests in `ergo/cli/skills_add_test.ergo`; a process
+case cannot reach them, because a process case has no terminal.
+
+- `installed-choice-installs` (test AddMarksOnlyWhatIsNotInstalled): an installed skill marked in the multi-select is not installed again.
+- `installed-not-labelled` (test AddMarksOnlyWhatIsNotInstalled): an installed option shows `(installed)`.
+- `empty-answer-accepted` (test AddAsksAgainUntilOneIsChosen): an empty answer asks again while an option is not installed.
+- `prompt-skipped` (local): several candidates never install silently; the reference's 130 case keeps the declared shape (status 1, nothing written).
+- `dry-run-writes` (http): `update --dry-run` writes no skill files.
+- `local-edit-overwritten` (http): a skill whose files changed since the last write is reported as modified, not overwritten, without `--force`.
+- `kebab-drops-capitals` (local; frontmatter-42 at seed 42 reads no name with a description, so it misses this): front matter names map to the reference's kebab case, lower-cased first.
+- `lock-drops-ref` (law LoadSeesSave on skillfile): a lock entry's ref survives a save and load.
+- `shim-skills-to-ts` (`bun parity/switch.ts --mutants`): skills routes to the native binary.

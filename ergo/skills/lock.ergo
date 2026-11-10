@@ -1,0 +1,183 @@
+import json
+import okraport/jsview
+import strings
+import utf8
+
+// Entry is one managed skill in the lock file: where it came from, the
+// SKILL.md path in that source, the ref it was asked at, the hash of the
+// files okra last wrote, and when.
+type Entry { Source string, SkillPath string, Ref Option[string], Hash Option[string], InstalledAt string, UpdatedAt string }
+
+// Named is an entry with its skill name.
+type Named { Name string, Entry Entry }
+
+// Lock is the lock file's skills in the order the reference's object keeps
+// them: first written first, and a rewritten name keeps its place.
+type Lock { entries []Named }
+
+// LockFailed is a lock file that could not be read, decoded or written.
+type LockFailed {}
+
+// Locks is where the lock lives.
+type Locks {
+	Load() Lock fails LockFailed,
+	Save(l Lock) fails LockFailed,
+	// LoadSeesSave: a lock that was saved is the lock loaded back.
+	law LoadSeesSave(names []string, sources []string, refs []string) {
+		let l = Generated(names, sources, refs)
+		try Save(l)
+		try Load() == l
+	},
+}
+
+func EmptyLock() Lock { Lock{entries: []Named{}} }
+
+func Entries(l Lock) []Named { l.entries }
+
+func Get(l Lock, name string) Option[Entry] {
+	for n in l.entries { if n.Name == name { return Some[Entry]{Value: n.Entry} } }
+	None
+}
+
+// Has is the reference's `name in lock.skills`: an own name, or a member
+// every object inherits.
+func Has(l Lock, name string) bool { Get(l, name) != None || Inherited(name) }
+
+// Put sets name's entry; a name already there keeps its place.
+func Put(l Lock, name string, e Entry) Lock {
+	let mut out = []Named{}
+	let mut placed = false
+	for n in l.entries {
+		if n.Name == name {
+			out = out.Append(Named{Name: name, Entry: e})
+			placed = true
+		} else {
+			out = out.Append(n)
+		}
+	}
+	if !placed { out = out.Append(Named{Name: name, Entry: e}) }
+	Lock{entries: out}
+}
+
+func Without(l Lock, name string) Lock {
+	let mut out = []Named{}
+	for n in l.entries { if n.Name != name { out = out.Append(n) } }
+	Lock{entries: out}
+}
+
+func unicode(raw string) string {
+	let mut out = ""
+	for c in raw { out = out + utf8.RuneText(c) }
+	out
+}
+
+// Generated builds a lock from generated parts, normalized to Unicode: the
+// file is JSON text. Ordered gives the file's order, as Load does.
+func Generated(names []string, sources []string, refs []string) Lock {
+	let mut l = EmptyLock()
+	for i, raw in names {
+		let name = unicode(raw)
+		let source = if i < len(sources) { unicode(sources[i]) } else { "" }
+		let ref = if i < len(refs) { Some[string]{Value: unicode(refs[i])} } else { None }
+		l = Put(l, name, Entry{Source: source, SkillPath: source + "/SKILL.md", Ref: ref, Hash: ref, InstalledAt: name, UpdatedAt: source})
+	}
+	Ordered(l)
+}
+
+// Ordered is the lock in the reference's key order: array-index names
+// first, by number, then the rest as they were added.
+func Ordered(l Lock) Lock {
+	let mut indexed = []Named{}
+	let mut rest = []Named{}
+	for n in l.entries {
+		match ArrayIndex(n.Name) {
+		case None:
+			rest = rest.Append(n)
+		case Some[int] as i:
+			let mut at = 0
+			for at < len(indexed) {
+				match ArrayIndex(indexed[at].Name) {
+				case Some[int] as j:
+					if j.Value > i.Value { break }
+				case None:
+				}
+				at = at + 1
+			}
+			let mut next = []Named{}
+			for k, x in indexed {
+				if k == at { next = next.Append(n) }
+				next = next.Append(x)
+			}
+			if at == len(indexed) { next = next.Append(n) }
+			indexed = next
+		}
+	}
+	let mut all = indexed
+	for n in rest { all = all.Append(n) }
+	Lock{entries: all}
+}
+
+func optionalMember(key string, v Option[string]) string {
+	match v {
+	case None:
+		""
+	case Some[string] as s:
+		"," + Quote(key) + ":" + Quote(s.Value)
+	}
+}
+
+// Encode is the file's text: JSON.stringify of the lock, then a newline.
+func Encode(l Lock) string {
+	let mut members = []string{}
+	for n in Ordered(l).entries {
+		let e = n.Entry
+		members = members.Append(Quote(n.Name) + ":{\"source\":" + Quote(e.Source) + ",\"skillPath\":" + Quote(e.SkillPath) + optionalMember("ref", e.Ref) + optionalMember("hash", e.Hash) + ",\"installedAt\":" + Quote(e.InstalledAt) + ",\"updatedAt\":" + Quote(e.UpdatedAt) + "}")
+	}
+	"{\"version\":1,\"skills\":{" + strings.Join(members, ",") + "}}\n"
+}
+
+func decodeEntry(v json.Value) Entry fails jsview.Invalid {
+	Entry{
+		Source:      try jsview.Text(try jsview.Required(v, "source")),
+		SkillPath:   try jsview.Text(try jsview.Required(v, "skillPath")),
+		Ref:         try jsview.OptionalText(v, "ref"),
+		Hash:        try jsview.OptionalText(v, "hash"),
+		InstalledAt: try jsview.Text(try jsview.Required(v, "installedAt")),
+		UpdatedAt:   try jsview.Text(try jsview.Required(v, "updatedAt")),
+	}
+}
+
+// isOne is Schema.Literal(1) on a parsed JSON number.
+func isOne(v json.Value) bool {
+	match v {
+	case json.Num:
+		let n = jsview.Integer(v) catch {
+		case jsview.Invalid:
+			return false
+		}
+		n == 1
+	case _:
+		false
+	}
+}
+
+// Decode reads the file as the reference's schema does: version 1, and
+// every skill an object with the string members; unknown members are
+// ignored. Any mismatch fails the whole file.
+func Decode(text string) Lock fails LockFailed {
+	decodeLock(text) catch {
+	case jsview.Invalid:
+		return LockFailed
+	}
+}
+
+func decodeLock(text string) Lock fails jsview.Invalid {
+	let v = try jsview.Parse(text)
+	if !isOne(try jsview.Required(v, "version")) { return jsview.Invalid }
+	let skills = try jsview.Required(v, "skills")
+	let mut l = EmptyLock()
+	for name in try jsview.Keys(skills) {
+		l = Put(l, name, try decodeEntry(try jsview.Required(skills, name)))
+	}
+	Ordered(l)
+}

@@ -1,0 +1,37 @@
+import hex
+import sha256
+import slices
+import strings
+
+// File is one file of a skill folder: its path inside the folder (with "/")
+// and its bytes.
+type File { Path string, Content string }
+
+// Hash is the reference's hashFiles: SHA-256 over the files in UTF-16 path
+// order, each framed as path, NUL, byte length, NUL, bytes.
+func Hash(files []File) string {
+	let sorted = slices.SortStableFunc(slices.Clone(files), func(a File, b File) int {
+		if Before(a.Path, b.Path) { -1 } else if Before(b.Path, a.Path) { 1 } else { 0 }
+	})
+	let mut parts = []string{}
+	for f in sorted { parts = parts.Append(f.Path + "\x00\(len(f.Content))\x00" + f.Content) }
+	"sha256:" + hex.Encode(sha256.Sum(strings.Join(parts, "")))
+}
+
+// SameFiles is the reference's filesEqual: the same count, and each
+// installed path has the same bytes incoming (the last incoming file of a
+// path counts).
+func SameFiles(incoming []File, installed []File) bool {
+	if len(incoming) != len(installed) { return false }
+	let mut byPath = Map[string, string]{}
+	for f in incoming { byPath[f.Path] = f.Content }
+	for f in installed {
+		match byPath.Get(f.Path) {
+		case None:
+			return false
+		case Some[string] as c:
+			if c.Value != f.Content { return false }
+		}
+	}
+	true
+}

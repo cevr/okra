@@ -33,6 +33,20 @@ last repeated key wins); RepoError's string code stays a record with the code,
 because the code is the CLI's printed contract. Not copied: Effect.orDie on a
 cache-folder read, and the temporary tarball file (tar reads standard input).
 
+Skills (O3): the domain package skills owns sources, front matter, the lock
+with its Locks contract and LoadSeesSave law, file hashing and the update
+report. skillfile implements Locks over .skill-lock.json and owns the skills
+folder. github reads GitHub over HTTP, or through gh when no token is set and
+gh is signed in; the token is bound to the GitHub origins only. skillsh
+searches skills.sh with no credential. cli/skills.ergo and skills_add.ergo run
+list, search, add, remove and update; add's multi-select is std prompt's
+MultiSelect machine on term.Terminal, so cli tests drive it with scripted keys.
+
+Effect intent (skills): Prompt.MultiSelect becomes a prompt machine whose
+NotInteractive and Cancelled failures sit in the row of the function that
+asks, so a run without a person is a typed failure, not an interrupt. The
+SkillsError tag becomes one Failed record with the printed code.
+
 Build and routing: `parity/routing.md`. Run `bun parity/run.ts --record-check` for
 two isolated TypeScript runs, or `bun parity/run.ts --seed=42` for TS/native
 sessions. The reference always runs from current source with a network-denying

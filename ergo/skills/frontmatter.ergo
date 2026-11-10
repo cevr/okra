@@ -1,0 +1,88 @@
+import strings
+import utf8
+
+// Frontmatter is the name and description of a SKILL.md.
+type Frontmatter { Name string, Description string }
+
+// block is the text between the opening `---` line and the first later
+// line that starts with `---`: /^---\r?\n([\s\S]*?)\r?\n---/.
+func block(content string) Option[string] {
+	let body = if strings.HasPrefix(content, "---\n") {
+		content[4:]
+	} else if strings.HasPrefix(content, "---\r\n") {
+		content[5:]
+	} else {
+		return None
+	}
+	let end = strings.Index(body, "\n---")
+	if end < 0 { return None }
+	let inner = if end > 0 && body[end-1] == '\r' { body[:end-1] } else { body[:end] }
+	if inner == "" { None } else { Some[string]{Value: inner} }
+}
+
+// flush stores a finished folded block.
+func flush(into Map[string, string], blockKey Option[string], blockLines []string) Map[string, string] {
+	match blockKey {
+	case None:
+		into
+	case Some[string] as k:
+		if len(blockLines) == 0 { return into }
+		let mut next = into
+		next[k.Value] = Trim(strings.Join(blockLines, " "))
+		next
+	}
+}
+
+func leadingSpace(s string) bool {
+	if s == "" { return false }
+	Space(utf8.DecodeRuneInString(s).Rune)
+}
+
+// ParseFrontmatter is the reference's tryParseFrontmatter: `key: value` lines, folded
+// `>` and `|` blocks joined by spaces, the last value of a key winning. It
+// is None unless both name and description were read.
+func ParseFrontmatter(content string) Option[Frontmatter] {
+	let text = match block(content) {
+	case None:
+		return None
+	case Some[string] as b:
+		b.Value
+	}
+	let mut record = Map[string, string]{}
+	let mut key Option[string] = None
+	let mut lines = []string{}
+	let mut inBlock = false
+	for line in strings.Split(text, "\n") {
+		if inBlock && leadingSpace(line) {
+			lines = lines.Append(Trim(line))
+			continue
+		}
+		let colon = strings.Index(line, ":")
+		if colon < 0 { continue }
+		record = flush(record, key, lines)
+		key = None
+		lines = []string{}
+		inBlock = false
+		let k = Trim(line[:colon])
+		let v = Trim(line[colon+1:])
+		if k == "" || v == "" { continue }
+		if v == ">" || v == "|" {
+			key = Some[string]{Value: k}
+			inBlock = true
+			continue
+		}
+		record[k] = v
+	}
+	record = flush(record, key, lines)
+	match record.Get("name") {
+	case None:
+		None
+	case Some[string] as n:
+		match record.Get("description") {
+		case None:
+			None
+		case Some[string] as d:
+			Some[Frontmatter]{Value: Frontmatter{Name: n.Value, Description: d.Value}}
+		}
+	}
+}
