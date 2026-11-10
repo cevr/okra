@@ -59,7 +59,7 @@ func Run(command Command) fails InvalidInput | NotFound | StoreFailed | InvalidE
 		return NotFound{Message: "No key for \"" + c.Provider + "\". Set " + env + " or run `okra keys set " + c.Provider + "`."}
 	case RemoveKey as c:
 		let current = try Store.Load()
-		if Lookup(current, c.Provider) == None { return NotFound{Message: "No stored key for \"" + c.Provider + "\"."} }
+		if Lookup(current, c.Provider) == None && !prototypeName(c.Provider) { return NotFound{Message: "No stored key for \"" + c.Provider + "\"."} }
 		let _ = try Store.Save(Remove(current, c.Provider))
 		io.Stderr.Eprintln("Removed \"" + c.Provider + "\" key.")
 	}

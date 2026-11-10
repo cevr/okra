@@ -26,3 +26,5 @@ generates guide assets then builds `okra-ergo`. Publishing is not changed.
   for prototype names (such as constructor) has a stable internal-error line.
   Native preserves those bytes with a typed failure rather than calling a
   dynamic non-string as configuration. This is compatibility, not a new API.
+  Removal also preserves the reference's inherited-name existence policy;
+  it does not put prototype values into the native store.

@@ -10,6 +10,7 @@ key, token, HOME or paid peer is part of a test.
 - `decode-validates-shadowed-value`: object session has a non-string member shadowed by a later string. JSON.parse collapses it before the schema runs; no previous malformed-store fixture covers that distinction.
 - `env-loses-precedence`: sessions with both fixture env and stored values.
 - `prototype-env-name-treated-as-ordinary`: the generated constructor-provider session must retain the reference's process-visible failure without executing a dynamic prototype value.
+- `inherited-remove-treated-as-missing`: removing an inherited prototype name from an empty store succeeds in the reference's `name in current` policy; the smallest compatibility session covers that otherwise-unseen branch.
 - `utf16-mask-uses-bytes`: sessions with non-ASCII synthetic values, beyond prior ASCII examples.
 - `trim-removes-U0085`: generated boundary whitespace sessions distinguish JS trim from Go TrimSpace.
 - `index-order-is-insertion`: numeric provider names in generated sessions check file bytes, not just parsed JSON.

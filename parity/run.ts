@@ -17,6 +17,10 @@ type Session = { name: string; initial?: string; steps: Step[] };
 const step = (...args: string[]): Step => ({ args });
 const sessions: Session[] = [
   {
+    name: "inherited-remove",
+    steps: [step("keys", "rm", "constructor"), step("keys", "rm", "__proto__")],
+  },
+  {
     name: "empty",
     steps: [
       step("keys"),

@@ -6,6 +6,14 @@ const root = join(import.meta.dir, "..");
 const compiler = "/tmp/opencode/linear-port/ergo";
 const mutants = [
   {
+    name: "inherited-remove-treated-as-missing",
+    file: "keys/run.ergo",
+    from: "Lookup(current, c.Provider) == None && !prototypeName(c.Provider)",
+    to: "Lookup(current, c.Provider) == None",
+    pkg: "",
+    session: "inherited-remove",
+  },
+  {
     name: "decode-validates-shadowed-value",
     file: "keys/store.ergo",
     from: "last[member.Key] = member.Value",
@@ -48,8 +56,8 @@ const mutants = [
   {
     name: "env-loses-precedence",
     file: "keys/run.ergo",
-    from: 'if value.Value != "" { io.Stdout.Println(Mask(value.Value)',
-    to: 'if value.Value == "" { io.Stdout.Println(Mask(value.Value)',
+    from: "match os.Process.Getenv(env) {",
+    to: 'match os.Process.Getenv("O1_UNSET_FIXTURE") {',
     pkg: "",
     session: "env",
   },
