@@ -25,13 +25,15 @@ The native stream driver guards the timeout without a wall-clock wait:
 an injected Scheduler waits for the fake agent's FIFO event, checks both
 partial sink files while it runs, then expires. The agent's TERM trap exits 37. New mutants in counsel-mutants.ts use this driver:
 
-| Mutant                  | Guard            | What it shows                                            |
-| ----------------------- | ---------------- | -------------------------------------------------------- |
-| live-stdout-discarded   | stream-lifecycle | stdout bytes reach the file before exit                  |
-| live-stderr-discarded   | stream-lifecycle | stderr bytes reach the file before exit                  |
-| timeout-grace-lost      | stream-lifecycle | TERM gets its 15-second grace, not immediate KILL        |
-| timeout-status-invented | stream-lifecycle | the manifest input is the actual post-termination status |
+| Mutant                      | Guard            | What it shows                                            |
+| --------------------------- | ---------------- | -------------------------------------------------------- |
+| live-stdout-discarded       | stream-lifecycle | stdout bytes reach the file before exit                  |
+| live-stderr-discarded       | stream-lifecycle | stderr bytes reach the file before exit                  |
+| timeout-grace-lost          | stream-lifecycle | TERM gets its 15-second grace, not immediate KILL        |
+| timeout-status-invented     | stream-lifecycle | the manifest input is the actual post-termination status |
+| failed-spawn-publishes-sink | spawn-failed     | no stream file is published by a spawn that fails        |
 
-The switch guard also kills shim-counsel-to-ts. No live agent, real key,
+The switch guard also kills shim-counsel-to-ts, shim-counsel-flag-to-ts and
+shim-missing-native-to-ts. No live agent, real key,
 live model catalogue or paid service is used. Managed exec's own lifecycle
 property guards group cleanup; this driver exercises the consumer contract.

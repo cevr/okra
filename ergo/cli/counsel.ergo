@@ -8,6 +8,7 @@ import okraport/counsel
 import okraport/imagehttp
 import okraport/jsonl
 import os
+import scope
 import strings
 import time
 import timeout
@@ -194,17 +195,37 @@ func millis(t time.Time) int { int(time.UnixSeconds(t))*1000 + int(time.Nanoseco
 // the agent outside the timeout: its catch can end it and record the real
 // post-termination status. limit is explicit so an offline lifecycle driver
 // can replace Scheduler without adding a shipped environment override.
-func ExecuteAgent(inv counsel.Invocation, events string, errors string, limit duration) Executed fails counsel.Failed needs exec.Runner | time.Clock | Scheduler {
+func ExecuteAgent(inv counsel.Invocation, events string, errors string, limit duration) Executed fails counsel.Failed needs exec.Runner | fs.Writes | time.Clock | Scheduler {
 	let started = millis(time.Clock.Now())
 	let command = exec.WithDir(exec.New(inv.Cmd, inv.Args), inv.Cwd).WithGrace(15s)
 	let display = counsel.Display(concat([]string{inv.Cmd}, inv.Args))
-	let running = exec.Runner.Start(command, exec.Streams{Stdout: exec.ToFile{Path: events, Append: false}, Stderr: exec.ToFile{Path: errors, Append: false}}) catch {
+	// Start opens its sinks before spawning. Publish their paths only
+	// after a successful spawn, as the reference does. Renaming an open
+	// sink keeps streaming through the same fd, without buffering output
+	// or truncating a previous fallback attempt when the next spawn fails.
+	let eventSink = events + ".starting"
+	let errorSink = errors + ".starting"
+	scope.OnExit() {
+		fs.Writes.Remove(eventSink) catch {
+		case _:
+		}
+		fs.Writes.Remove(errorSink) catch {
+		case _:
+		}
+	}
+	let running = exec.Runner.Start(command, exec.Streams{Stdout: exec.ToFile{Path: eventSink, Append: false}, Stderr: exec.ToFile{Path: errorSink, Append: false}}) catch {
 	case exec.NotFound:
 		return fail("SPAWN_FAILED", "NotFound: ChildProcess.spawn ("+display+")")
 	case exec.Denied:
 		return fail("SPAWN_FAILED", "PermissionDenied: ChildProcess.spawn ("+display+")")
 	case exec.Failed:
 		return fail("SPAWN_FAILED", "Unknown: ChildProcess.spawn ("+display+")")
+	}
+	fs.Writes.Rename(eventSink, events) catch {
+	case _:
+	}
+	fs.Writes.Rename(errorSink, errors) catch {
+	case _:
 	}
 	let status = timeout.After(limit) { running.Wait() } catch {
 	case timeout.Expired:

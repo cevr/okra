@@ -33,7 +33,7 @@ func main() needs Ambient | Console {
 	let runner = exec.NewHost()
 	let disk = fs.NewHost()
 	let deadline = ReadyDeadline{Runner: runner, Files: disk, FIFO: dir + "/ready", Events: dir + "/events", Errors: dir + "/errors"}
-	let result = with context { exec.Runner: runner, Scheduler: deadline, time.Clock: time.NewHost() } {
+	let result = with context { exec.Runner: runner, fs.Writes: disk, Scheduler: deadline, time.Clock: time.NewHost() } {
 		cli.ExecuteAgent(counsel.Invocation{Cmd: dir + "/agent", Args: []string{}, Cwd: dir, Model: "fixture"}, dir+"/events", dir+"/errors", 3600s)
 	} catch {
 	case counsel.Failed as e:

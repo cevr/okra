@@ -23,7 +23,8 @@ async function verify(script: string) {
   for (const command of ["keys", "how", "repo", "skills", "image", "counsel"]) {
     await expect([command], "ergo");
     await expect([command, "--help"], "ergo");
-    await expect([command, "--log-level=debug"], "ts");
+    for (const flag of ["--log-level=debug", "--wizard", "--completions", "--version"])
+      await expect([command, flag], "ergo");
   }
   for (const command of ["schedule", "unknown", "--version"]) await expect([command], "ts");
   await expect([], "ts");
@@ -34,7 +35,8 @@ async function verify(script: string) {
   if (invalid.code !== 1 || invalid.out !== "" || invalid.err !== "OKRA_IMPL must be ts or ergo\n")
     throw new Error("invalid override accepted");
   await chmod(join(dir, "okra-ergo"), 0o644);
-  await expect(["keys"], "ts");
+  const absent = await run(shim, ["counsel"], dir, { HOME: dir, OKRA_IMPL: "" });
+  if (absent.code === 23 || absent.out !== "") throw new Error("missing native binary fell back");
   const missing = await run(shim, ["keys"], dir, { HOME: dir, OKRA_IMPL: "ergo" });
   if (missing.code === 23 || missing.out !== "") throw new Error("explicit ergo fell back");
 }
@@ -55,6 +57,34 @@ if (process.argv.includes("--mutants")) {
     } catch (error) {
       if (!(error instanceof Error) || !error.message.startsWith("route/argv mismatch:"))
         throw error;
+      killed = true;
+    }
+    if (!killed) throw new Error(`${name} survived`);
+    console.log(`killed ${name}`);
+  }
+  for (const [name, mutated, message] of [
+    [
+      "shim-counsel-flag-to-ts",
+      source.replace(
+        "impl=ts",
+        'case ${1-} in counsel) for arg do case $arg in --log-level=*) exec "$bindir/okra-ts" "$@" ;; esac; done ;; esac\nimpl=ts',
+      ),
+      "route/argv mismatch:",
+    ],
+    [
+      "shim-missing-native-to-ts",
+      source.replace(
+        'exec "$bindir/okra-$impl" "$@"',
+        'if [ "$impl" = ergo ] && [ ! -x "$bindir/okra-ergo" ]; then impl=ts; fi\nexec "$bindir/okra-$impl" "$@"',
+      ),
+      "missing native binary fell back",
+    ],
+  ] as const) {
+    let killed = false;
+    try {
+      await verify(mutated);
+    } catch (error) {
+      if (!(error instanceof Error) || !error.message.startsWith(message)) throw error;
       killed = true;
     }
     if (!killed) throw new Error(`${name} survived`);

@@ -3,9 +3,10 @@
 `bin/okra` execs `okra-ergo` for keys, how, repo (O2), skills (O3), image (O4)
 and counsel (O5); schedule is the remaining command on `okra-ts`.
 `OKRA_IMPL=ts` or `OKRA_IMPL=ergo` explicitly selects either
-sibling for all argv. Unknown override values fail with status 1. Effect-only
-global flags and version use TS by default. A TS-only build falls back when the
-native binary is absent; an explicit ergo override never falls back.
+sibling for all argv. Unknown override values fail with status 1. Ported
+commands never fall back for flags or a missing native binary. Effect-only
+global flags are dropped (owner q95), not sent to TS. Root/unknown argv and
+root version still await O6's final all-native switch.
 
 No installed link is changed. `scripts/build.ts` no longer links HOME/.bun/bin.
 `bun run build` builds `okra-ts`; `ERGO=/path/to/pinned/ergo bun run build:ergo`

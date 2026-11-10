@@ -6,12 +6,6 @@ case ${OKRA_IMPL-} in
   '') ;;
   *) printf '%s\n' 'OKRA_IMPL must be ts or ergo' >&2; exit 1 ;;
 esac
-for arg do
-  case $arg in
-    --wizard|--wizard=*|--completions|--completions=*|--log-level|--log-level=*|--version) exec "$bindir/okra-ts" "$@" ;;
-  esac
-done
 impl=ts
 case ${1-} in keys|how|repo|skills|image|counsel) impl=ergo ;; esac
-if [ "$impl" = ergo ] && [ ! -x "$bindir/okra-ergo" ]; then impl=ts; fi
 exec "$bindir/okra-$impl" "$@"

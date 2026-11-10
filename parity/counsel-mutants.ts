@@ -12,16 +12,23 @@ await mkdir(scratch, { recursive: true });
 type Mutant = { name: string; file: string; from: string; to: string; guard: string };
 const mutants: Mutant[] = [
   {
+    name: "failed-spawn-publishes-sink",
+    file: "cli/counsel.ergo",
+    from: "Stdout: exec.ToFile{Path: eventSink, Append: false}",
+    to: "Stdout: exec.ToFile{Path: events, Append: false}",
+    guard: "spawn-failed",
+  },
+  {
     name: "live-stdout-discarded",
     file: "cli/counsel.ergo",
-    from: "Stdout: exec.ToFile{Path: events, Append: false}",
+    from: "Stdout: exec.ToFile{Path: eventSink, Append: false}",
     to: "Stdout: exec.Discard",
     guard: "stream-lifecycle",
   },
   {
     name: "live-stderr-discarded",
     file: "cli/counsel.ergo",
-    from: "Stderr: exec.ToFile{Path: errors, Append: false}",
+    from: "Stderr: exec.ToFile{Path: errorSink, Append: false}",
     to: "Stderr: exec.Discard",
     guard: "stream-lifecycle",
   },
@@ -153,7 +160,9 @@ for (const m of mutants.filter((x) => !only || x.name === only)) {
     root,
     { OKRA_PARITY_SCRATCH: scratch },
   );
-  const mismatch = stream ? "counsel stream mismatch:" : `counsel parity mismatch: ${m.guard}`;
+  let mismatch = `counsel parity mismatch: ${m.guard}`;
+  if (stream) mismatch = "counsel stream mismatch:";
+  if (m.name === "failed-spawn-publishes-sink") mismatch = "port lost agent output: spawn-failed";
   if (guard.code === 0 || !guard.err.includes(mismatch))
     throw new Error(`mutant survived or guard broke ${m.name}: ${guard.out}\n${guard.err}`);
   console.log(`killed ${m.name}: ${m.guard}`);
