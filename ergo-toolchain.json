@@ -1,0 +1,5 @@
+{
+  "go": "go1.27.0",
+  "ergo": "ec6f1be273114f8bda42d559b0cd4083532dd88d",
+  "repository": "https://github.com/cevr/ergo"
+}

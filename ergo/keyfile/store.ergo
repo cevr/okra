@@ -1,0 +1,41 @@
+import filepath
+import fs
+import okraport/keys
+
+type Home { files fs.Files, writes fs.Writes, home Option[string] }
+func New(files fs.Files, writes fs.Writes, home Option[string]) Home { Home{files: files, writes: writes, home: home} }
+func path(h Home) string fails keys.StoreFailed {
+	match h.home {
+	case None:
+		keys.StoreFailed{Message: "HOME environment variable is not set"}
+	case Some[string] as home:
+		filepath.Join([]string{home.Value, ".okra", "keys.json"})
+	}
+}
+func Load(h Home) keys.Keys fails keys.StoreFailed {
+	let file = try path(h)
+	let text = h.files.ReadFile(file) catch {
+	case _:
+		return keys.Empty()
+	}
+	keys.Decode(text)
+}
+func Save(h Home, k keys.Keys) string fails keys.StoreFailed {
+	let file = try path(h)
+	let dir = filepath.Dir(file)
+	h.writes.MkdirAllMode(dir, fs.PrivateDir()) catch {
+	case fs.Denied:
+		return keys.StoreFailed{Message: "Cannot create " + dir + ": permission denied"}
+	case fs.Failed as e:
+		return keys.StoreFailed{Message: "Cannot create " + dir + ": " + e.Reason}
+	}
+	h.writes.WriteFileMode(file, keys.Encode(k)+"\n", fs.Private()) catch {
+	case fs.NotFound:
+		return keys.StoreFailed{Message: "Cannot write " + file + ": no such file or directory"}
+	case fs.Denied:
+		return keys.StoreFailed{Message: "Cannot write " + file + ": permission denied"}
+	case fs.Failed as e:
+		return keys.StoreFailed{Message: "Cannot write " + file + ": " + e.Reason}
+	}
+	file
+}

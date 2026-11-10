@@ -41,6 +41,23 @@
   "ignorePatterns": ["**/dist/**", "**/node_modules/**", "**/*.d.ts", "**/bin/**", "**/scripts/**"],
   "overrides": [
     {
+      "files": ["parity/**/*.ts", "scripts/build.ts", "scripts/guides.ts"],
+      "rules": {
+        "no-await-in-loop": "off",
+        "node/no-process-env": "off",
+        "typescript/no-non-null-assertion": "off",
+        "effect/noAsyncFunction": "off",
+        "effect/noComments": "off",
+        "effect/noGlobals": "off",
+        "effect/noNewError": "off",
+        "effect/noNewPromise": "off",
+        "effect/noNodeBuiltinImport": "off",
+        "effect/noTernary": "off",
+        "effect/noThrowStatement": "off",
+        "effect/noTryCatch": "off"
+      }
+    },
+    {
       "files": ["**/*.test.ts", "**/tests/**"],
       "rules": {
         "typescript/no-explicit-any": "off",

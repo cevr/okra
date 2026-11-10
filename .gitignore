@@ -1,5 +1,7 @@
 node_modules/
-bin/
+bin/*
+!bin/okra
+ergo/how/topics.ergo
 dist/
 .xp/
 *.log

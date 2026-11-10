@@ -1,0 +1,17 @@
+import fs
+import io
+import okraport/cli
+import okraport/how
+import okraport/keyfile
+import okraport/keys
+import os
+
+func main() fails os.Exit needs Ambient {
+	let process = os.NewHost()
+	let disk = fs.NewHost()
+	let home = process.Getenv("HOME")
+	with context { keys.Store: keyfile.New(disk, disk, home), os.Process: process, io.Stdin: io.NewHost(), io.Stdout: io.NewHost(), io.Stderr: io.NewErrors() } {
+		let args = os.Process.Args()
+		try cli.Run(args, how.All())
+	}
+}

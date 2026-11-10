@@ -1,0 +1,76 @@
+import flag
+import io
+import okraport/how
+import okraport/keys
+import os
+import strings
+
+type Request = Manage{Command keys.Command} | Guide{Topic Option[string]}
+let providerArg = flag.Arg("provider", "Provider name, e.g. openai")
+let keyArg = flag.OptionalArg("key", "API key value; use --stdin to avoid shell history")
+let topicArg = flag.OptionalArg("topic", "Topic to explain; omit to list topics")
+let stdinFlag = flag.Bool("stdin", false, "Read the key from stdin").Repeated()
+
+func provider(v flag.Values) string {
+	match providerArg.Get(v) {
+	case None:
+		Unreachable("required provider was not parsed")
+	case Some[string] as p:
+		p.Value
+	}
+}
+func command(name string, flags []flag.Flag, args []flag.ArgSpec, build escaping func(v flag.Values) Request fails flag.Invalid) flag.Command[Request] {
+	flag.Command[Request]{Name: name, Usage: "", Set: flag.Set{Name: name, Usage: "", Flags: flags, Args: args}, Build: build, Commands: []flag.Command[Request]{}}
+}
+func root() flag.Root[Request] {
+	flag.Root[Request]{Name: "okra", Usage: "AI agent orchestration toolkit", Version: None, Commands: []flag.Command[Request]{
+		flag.Group("keys", "Manage stored API keys", []flag.Command[Request]{
+			command("set", []flag.Flag{stdinFlag}, []flag.ArgSpec{providerArg, keyArg}, func(v flag.Values) Request fails flag.Invalid {
+				let occurrences = stdinFlag.Get(v)
+				if len(occurrences) > 1 { return flag.Invalid{Name: "stdin", Text: "repeated", Reason: "at most 1 value"} }
+				Manage{Command: keys.SetKey{Provider: provider(v), Key: keyArg.Get(v), Stdin: len(occurrences) > 0 && occurrences[0]}}
+			}),
+			command("list", []flag.Flag{}, []flag.ArgSpec{}, func(_ flag.Values) Request { Manage{Command: keys.ListKeys} }),
+			command("get", []flag.Flag{}, []flag.ArgSpec{providerArg}, func(v flag.Values) Request { Manage{Command: keys.GetKey{Provider: provider(v)}} }),
+			command("rm", []flag.Flag{}, []flag.ArgSpec{providerArg}, func(v flag.Values) Request { Manage{Command: keys.RemoveKey{Provider: provider(v)}} }),
+		}),
+		command("how", []flag.Flag{}, []flag.ArgSpec{topicArg}, func(v flag.Values) Request { Guide{Topic: topicArg.Get(v)} }),
+	}}
+}
+func Run(args []string, topics []how.Topic) fails os.Exit needs keys.Store | os.Process | io.Stdin | io.Stdout | io.Stderr {
+	run(args, topics) catch {
+	case os.Exit as e:
+		return e
+	case keys.InvalidInput as e:
+		return os.Exit{Code: 1, Message: "[INVALID_INPUT] " + e.Message}
+	case keys.NotFound as e:
+		return os.Exit{Code: 1, Message: "[NOT_FOUND] " + e.Message}
+	case keys.InvalidEnvProvider:
+		return os.Exit{Code: 1, Message: "Internal error: TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function"}
+	case keys.StoreFailed as e:
+		return os.Exit{Code: 1, Message: "[STORE_FAILED] " + e.Message}
+	case how.NotFound as e:
+		return os.Exit{Code: 1, Message: "[NOT_FOUND] Unknown topic '" + e.Name + "'. Available topics: " + strings.Join(e.Known, ", ")}
+	}
+}
+func run(args []string, topics []how.Topic) fails os.Exit | keys.InvalidInput | keys.NotFound | keys.StoreFailed | keys.InvalidEnvProvider | how.NotFound needs keys.Store | os.Process | io.Stdin | io.Stdout | io.Stderr {
+	if len(args) == 1 && args[0] == "keys" { return }
+	let r = root()
+	let request = flag.ParseRoot(r, args) catch {
+	case flag.Help as h:
+		io.Stdout.Print(h.Text)
+		return
+	case flag.Version as v:
+		io.Stdout.Println(v.Text)
+		return
+	case err:
+		io.Stdout.Print(flag.RootUsage(r))
+		return os.Exit{Code: 1, Message: "ERROR\n  " + flag.Describe(err)}
+	}
+	match request {
+	case Manage as m:
+		try keys.Run(m.Command)
+	case Guide as g:
+		io.Stdout.Println(try how.Answer(topics, g.Topic))
+	}
+}

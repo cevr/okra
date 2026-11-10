@@ -1,0 +1,8 @@
+import fstest
+
+// A row-free constructor for the real keyfile provider, backed by an isolated
+// in-memory filesystem. Store.LoadSeesSave runs here, not against the owner disk.
+func NewHome() Home {
+	let memory = fstest.NewMemory()
+	New(memory, memory, Some[string]{Value: "."})
+}

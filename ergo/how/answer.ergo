@@ -1,0 +1,25 @@
+import strings
+
+type Topic { Name string, Summary string, Body string }
+type NotFound { Name string, Known []string }
+func Answer(topics []Topic, name Option[string]) string fails NotFound {
+	match name {
+	case None:
+		let mut width = 0
+		for t in topics { if len(t.Name) > width { width = len(t.Name) } }
+		let mut lines = []string{"okra — AI agent orchestration toolkit", "", "Topics:"}
+		for t in topics { lines = lines.Append("  " + strings.PadRight(t.Name, width, ' ') + "  " + t.Summary) }
+		strings.Join(lines, "\n") + "\n\nRun `okra how <topic>` for the full guide."
+	case Some[string] as n:
+		let mut known = []string{}
+		for t in topics {
+			known = known.Append(t.Name)
+			if t.Name == n.Value {
+				let mut subs = []string{}
+				for child in topics { if strings.HasPrefix(child.Name, t.Name+"-") { subs = subs.Append(child.Name) } }
+				return t.Body + if len(subs) == 0 { "" } else { "\n\nSubtopics: " + strings.Join(subs, ", ") + " — run `okra how <subtopic>` for details." }
+			}
+		}
+		NotFound{Name: n.Value, Known: known}
+	}
+}

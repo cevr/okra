@@ -12,6 +12,7 @@
   "scripts": {
     "dev": "bun run src/main.ts",
     "build": "bun run scripts/build.ts",
+    "build:ergo": "bun run scripts/build.ts --ergo",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",

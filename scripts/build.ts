@@ -1,58 +1,47 @@
-import { mkdirSync, lstatSync, unlinkSync, symlinkSync, readFileSync } from "fs";
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
-import * as os from "node:os";
+// Local build only: never create or replace an installed link.
+import { spawn } from "node:child_process";
+import { chmod, mkdir } from "node:fs/promises";
+import { join } from "node:path";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const rootDir = join(__dirname, "..");
-
-const pkg = JSON.parse(readFileSync(join(rootDir, "package.json"), "utf-8"));
-
-console.log("Building okra...");
-
-const binDir = join(rootDir, "bin");
-mkdirSync(binDir, { recursive: true });
-
-const platform =
-  process.platform === "darwin" ? "darwin" : process.platform === "win32" ? "windows" : "linux";
-const arch = process.arch === "arm64" ? "arm64" : "x64";
-
-const buildResult = await Bun.build({
-  entrypoints: [join(rootDir, "src/main.ts")],
-  target: "bun",
-  minify: false,
-  define: {
-    __VERSION__: JSON.stringify(pkg.version),
-  },
-  compile: {
-    target: `bun-${platform}-${arch}`,
-    outfile: join(binDir, "okra"),
-    autoloadBunfig: false,
-  },
-});
-
-if (!buildResult.success) {
-  console.error("Build failed:");
-  for (const log of buildResult.logs) {
-    console.error(log);
-  }
-  process.exit(1);
-}
-
-console.log(`Binary built: ${join(binDir, "okra")}`);
-
-const home = process.env["HOME"] ?? os.homedir();
-const bunBin = join(home, ".bun", "bin", "okra");
-try {
+const root = join(import.meta.dir, "..");
+await mkdir(join(root, "bin"), { recursive: true });
+async function run(command: string, args: string[]) {
+  const child = spawn(command, args, { cwd: root, stdio: "inherit", detached: true });
+  let active = true;
+  const stop = () => {
+    if (active && child.pid) {
+      try {
+        process.kill(-child.pid, "SIGTERM");
+      } catch {
+        /* already exited */
+      }
+    }
+  };
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) process.on(signal, stop);
   try {
-    lstatSync(bunBin);
-    unlinkSync(bunBin);
-  } catch {
-    // doesn't exist
+    const code = await new Promise<number>((resolve, reject) => {
+      child.once("error", reject);
+      child.once("close", (status) => resolve(status ?? 1));
+    });
+    if (code !== 0) throw new Error(`${command} exited ${code}`);
+  } finally {
+    stop();
+    active = false;
+    for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) process.off(signal, stop);
   }
-  symlinkSync(join(binDir, "okra"), bunBin);
-  console.log(`Symlinked to: ${bunBin}`);
-} catch (e) {
-  console.log(`Could not symlink to ${bunBin}: ${e}`);
+}
+await chmod(join(root, "bin/okra"), 0o755);
+if (process.argv.includes("--ergo")) {
+  await run(process.execPath, ["scripts/guides.ts"]);
+  await run(process.env.ERGO ?? "ergo", ["build", "ergo/cmd/okra", "-o", "bin/okra-ergo"]);
+} else {
+  const result = await Bun.build({
+    entrypoints: [join(root, "src/main.ts")],
+    target: "bun",
+    compile: { outfile: join(root, "bin/okra-ts"), autoloadBunfig: false },
+    define: {
+      __VERSION__: JSON.stringify((await Bun.file(join(root, "package.json")).json()).version),
+    },
+  });
+  if (!result.success) throw new Error(`TypeScript build failed: ${result.logs.join("\n")}`);
 }
