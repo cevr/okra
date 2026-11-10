@@ -190,23 +190,15 @@ type Executed { ExitCode int, TimedOut bool, DurationMs int }
 
 func millis(t time.Time) int { int(time.UnixSeconds(t))*1000 + int(time.Nanosecond(t))/1000000 }
 
-// execute runs inv to its end and writes its standard output to events and
-// its standard error to errors. The reference streams both files while the
-// agent runs; the pin has no streaming exec, so they are written when it
-// ends (parity/declared-differences.md, counsel).
-func execute(inv counsel.Invocation, events string, errors string) Executed fails counsel.Failed needs exec.Runner | fs.Writes | time.Clock | Scheduler {
+// ExecuteAgent streams both files while inv runs. The caller's scope owns
+// the agent outside the timeout: its catch can end it and record the real
+// post-termination status. limit is explicit so an offline lifecycle driver
+// can replace Scheduler without adding a shipped environment override.
+func ExecuteAgent(inv counsel.Invocation, events string, errors string, limit duration) Executed fails counsel.Failed needs exec.Runner | time.Clock | Scheduler {
 	let started = millis(time.Clock.Now())
-	let command = exec.WithDir(exec.New(inv.Cmd, inv.Args), inv.Cwd)
+	let command = exec.WithDir(exec.New(inv.Cmd, inv.Args), inv.Cwd).WithGrace(15s)
 	let display = counsel.Display(concat([]string{inv.Cmd}, inv.Args))
-	let result = timeout.After(3600s) { exec.Runner.Run(command) } catch {
-	case timeout.Expired:
-		fs.Writes.WriteFile(events, "") catch {
-		case _:
-		}
-		fs.Writes.WriteFile(errors, "") catch {
-		case _:
-		}
-		return Executed{ExitCode: 137, TimedOut: true, DurationMs: millis(time.Clock.Now()) - started}
+	let running = exec.Runner.Start(command, exec.Streams{Stdout: exec.ToFile{Path: events, Append: false}, Stderr: exec.ToFile{Path: errors, Append: false}}) catch {
 	case exec.NotFound:
 		return fail("SPAWN_FAILED", "NotFound: ChildProcess.spawn ("+display+")")
 	case exec.Denied:
@@ -214,13 +206,12 @@ func execute(inv counsel.Invocation, events string, errors string) Executed fail
 	case exec.Failed:
 		return fail("SPAWN_FAILED", "Unknown: ChildProcess.spawn ("+display+")")
 	}
-	fs.Writes.WriteFile(events, result.Stdout) catch {
-	case _:
+	let status = timeout.After(limit) { running.Wait() } catch {
+	case timeout.Expired:
+		let stopped = running.Stop()
+		return Executed{ExitCode: stopped, TimedOut: true, DurationMs: millis(time.Clock.Now()) - started}
 	}
-	fs.Writes.WriteFile(errors, result.Stderr) catch {
-	case _:
-	}
-	Executed{ExitCode: result.Status, TimedOut: false, DurationMs: millis(time.Clock.Now()) - started}
+	Executed{ExitCode: status, TimedOut: false, DurationMs: millis(time.Clock.Now()) - started}
 }
 
 func concat(xs []string, ys []string) []string {
@@ -298,7 +289,7 @@ func RunCounsel(c CounselCommand, setup imagehttp.Setup) fails counsel.Failed | 
 	let eventsFile = outputDir + "/events.jsonl"
 	let stderrFile = outputDir + "/" + name + ".stderr"
 	let mut attempted = first
-	let mut executed = try execute(first, eventsFile, stderrFile)
+	let mut executed = try ExecuteAgent(first, eventsFile, stderrFile, 3600s)
 	let mut events = jsonl.Parse(try readEvents(eventsFile)) catch {
 	case jsonl.Unparsable:
 		return internal
@@ -307,7 +298,7 @@ func RunCounsel(c CounselCommand, setup imagehttp.Setup) fails counsel.Failed | 
 	for fallback in runs[1:] {
 		if !counsel.Rejected(target, outcome) { break }
 		attempted = fallback
-		executed = try execute(fallback, eventsFile, stderrFile)
+		executed = try ExecuteAgent(fallback, eventsFile, stderrFile, 3600s)
 		events = jsonl.Parse(try readEvents(eventsFile)) catch {
 		case jsonl.Unparsable:
 			return internal

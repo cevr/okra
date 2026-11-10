@@ -42,39 +42,3 @@ All other fields compare byte for byte. Every other case compares stderr byte
 for byte. Mutants `schema-suffix-undeclared`, `transport-prefix-dropped` and
 `codex-transport-is-openai` (`IMAGE-MUTANTS.md`) show that a different wording
 or prefix fails.
-
-## Counsel (O5): no streamed exec yet (waits for the owner, q1)
-
-Status: not approved. `bin/okra` keeps sending `counsel` to `okra-ts`;
-`OKRA_IMPL=ergo` selects the port. The pinned compiler has no streamed exec
-(unit CU4, after batch 16), so the port runs each agent with the buffered
-`exec.Runner.Run`. Each difference below comes only from that, and goes away
-when the port moves to CU4's streams.
-
-- While the agent runs, `events.jsonl` and `<agent>.stderr` do not exist yet.
-  The reference writes them as the agent writes. The port writes them, whole,
-  when the agent ends. After the run, the files hold the same bytes. The port
-  holds the agent's output in memory until it ends.
-- The reference forks its two file sinks and ends them when the agent exits,
-  so it can lose the tail of the agent's output (measured: in record runs it
-  lost whole files, more than ten times in a row for one case). The port never
-  loses output. `parity/counsel.ts` reruns only the reference until its files
-  are complete; a port run is never rerun.
-- After one hour, the reference sends SIGTERM, then SIGKILL after 15 s, and
-  records the exit code that the agent then gives. The port's `exec.Run`
-  sends SIGKILL to the agent's process group at once; the port records exit
-  code 137 and writes the two files empty. The status (`timeout`), the failure
-  line and exit status 124 are the same. No parity case runs for an hour; this
-  is inferred from the source of both (`InvocationRunner.ts`,
-  `runtime/v1/exec.go` at the pin).
-- The port's `exec.Run` starts the agent in a process group of its own and
-  kills what is left of that group when the agent exits. The reference leaves
-  an agent's background children running. An interrupt of `okra counsel`
-  sends SIGTERM to the agent in the reference; in the port the agent's group
-  gets SIGKILL when the run is stopped. Not in the corpus (inferred from the
-  source).
-
-Everything else (dry-run JSON, the run folder's files and modes, the
-manifest, stdout, failure lines, exit status and the agents' argv) is compared
-byte for byte by `parity/counsel.ts`, with the slug, timestamp and duration
-checked for form and then normalized.

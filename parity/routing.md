@@ -1,9 +1,8 @@
 # Parity table
 
-`bin/okra` execs `okra-ergo` for keys, how, repo (O2), skills (O3) and image (O4); all other subcommands
-still exec `okra-ts`. Counsel (O5) is ported but stays on `okra-ts` until
-streamed exec lands (`declared-differences.md`, counsel); `OKRA_IMPL=ergo`
-runs the port. `OKRA_IMPL=ts` or `OKRA_IMPL=ergo` explicitly selects either
+`bin/okra` execs `okra-ergo` for keys, how, repo (O2), skills (O3), image (O4)
+and counsel (O5); schedule is the remaining command on `okra-ts`.
+`OKRA_IMPL=ts` or `OKRA_IMPL=ergo` explicitly selects either
 sibling for all argv. Unknown override values fail with status 1. Effect-only
 global flags and version use TS by default. A TS-only build falls back when the
 native binary is absent; an explicit ergo override never falls back.

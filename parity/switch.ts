@@ -20,13 +20,12 @@ async function verify(script: string) {
     if (got.code !== 23 || got.err !== "" || got.out !== `${[impl, ...args].join("\n")}\n`)
       throw new Error(`route/argv mismatch: ${JSON.stringify({ args, impl, override, got })}`);
   }
-  for (const command of ["keys", "how", "repo", "skills", "image"]) {
+  for (const command of ["keys", "how", "repo", "skills", "image", "counsel"]) {
     await expect([command], "ergo");
     await expect([command, "--help"], "ergo");
     await expect([command, "--log-level=debug"], "ts");
   }
-  for (const command of ["counsel", "schedule", "unknown", "--version"])
-    await expect([command], "ts");
+  for (const command of ["schedule", "unknown", "--version"]) await expect([command], "ts");
   await expect([], "ts");
   const args = ["keys", "get", "two words", "", "--", "$opaque", "λ", "line\nbreak"];
   await expect(args, "ts", "ts");
@@ -41,13 +40,14 @@ async function verify(script: string) {
 }
 await verify(source);
 if (process.argv.includes("--mutants")) {
-  const from = "keys|how|repo|skills|image) impl=ergo";
+  const from = "keys|how|repo|skills|image|counsel) impl=ergo";
   if (source.split(from).length !== 2) throw new Error("switch edit is not unique");
   for (const [name, to] of [
-    ["shim-keys-to-ts", "how|repo|skills|image) impl=ergo"],
-    ["shim-repo-to-ts", "keys|how|skills|image) impl=ergo"],
-    ["shim-skills-to-ts", "keys|how|repo|image) impl=ergo"],
-    ["shim-image-to-ts", "keys|how|repo|skills) impl=ergo"],
+    ["shim-keys-to-ts", "how|repo|skills|image|counsel) impl=ergo"],
+    ["shim-repo-to-ts", "keys|how|skills|image|counsel) impl=ergo"],
+    ["shim-skills-to-ts", "keys|how|repo|image|counsel) impl=ergo"],
+    ["shim-image-to-ts", "keys|how|repo|skills|counsel) impl=ergo"],
+    ["shim-counsel-to-ts", "keys|how|repo|skills|image) impl=ergo"],
   ] as const) {
     let killed = false;
     try {

@@ -61,6 +61,16 @@ contracts bound in main; Schema decoding becomes jsview with Schema's rules;
 the ImageError tag becomes image.Failed. Effect Schema's diagnostic text is
 not copied (owner q100, `parity/declared-differences.md`).
 
+Counsel (O5): counsel owns route/profile/invocation data, event interpretation
+and the manifest codec. cli uses managed exec.Start with direct file sinks,
+Wait inside the one-hour timeout, and consuming Stop in its catch. Shutdown
+allows 15 seconds after TERM and records the actual trap/exit status. The
+scope still owns the agent on every exit. No raw pid or detached kill fiber
+is kept in application code. `parity/counsel-stream.ts` gates an injected
+Scheduler on a fake agent's readiness FIFO, checks both partial files while
+the child runs, then checks its TERM trap's status 37. The reference's sink
+race may require a reference-only retry; a port run is never retried.
+
 Build and routing: `parity/routing.md`. Run `bun parity/run.ts --record-check` for
 two isolated TypeScript runs, or `bun parity/run.ts --seed=42` for TS/native
 sessions. The reference always runs from current source with a network-denying

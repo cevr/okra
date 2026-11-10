@@ -12,6 +12,34 @@ await mkdir(scratch, { recursive: true });
 type Mutant = { name: string; file: string; from: string; to: string; guard: string };
 const mutants: Mutant[] = [
   {
+    name: "live-stdout-discarded",
+    file: "cli/counsel.ergo",
+    from: "Stdout: exec.ToFile{Path: events, Append: false}",
+    to: "Stdout: exec.Discard",
+    guard: "stream-lifecycle",
+  },
+  {
+    name: "live-stderr-discarded",
+    file: "cli/counsel.ergo",
+    from: "Stderr: exec.ToFile{Path: errors, Append: false}",
+    to: "Stderr: exec.Discard",
+    guard: "stream-lifecycle",
+  },
+  {
+    name: "timeout-grace-lost",
+    file: "cli/counsel.ergo",
+    from: ".WithGrace(15s)",
+    to: ".WithGrace(0s)",
+    guard: "stream-lifecycle",
+  },
+  {
+    name: "timeout-status-invented",
+    file: "cli/counsel.ergo",
+    from: "let stopped = running.Stop()",
+    to: "let _ = running.Stop(); let stopped = 137",
+    guard: "stream-lifecycle",
+  },
+  {
     name: "jsonl-opener-ends-member",
     file: "jsonl/jsonl.ergo",
     from: "i = space(text, i+1)\n\t\tif i < len(text) && closer(text[i])",
@@ -113,15 +141,20 @@ for (const m of mutants.filter((x) => !only || x.name === only)) {
   if (text.split(m.from).length !== 2) throw new Error(`mutant edit not unique: ${m.name}`);
   await writeFile(file, text.replace(m.from, m.to));
   const binary = join(dir, "mutant");
-  const build = await run(compiler, ["build", "ergo/cmd/okra-parity", "-o", binary], dir);
+  const stream = m.guard === "stream-lifecycle";
+  const target = stream ? "ergo/cmd/counsel-probe" : "ergo/cmd/okra-parity";
+  const build = await run(compiler, ["build", target, "-o", binary], dir);
   if (build.code !== 0) throw new Error(`mutant did not compile ${m.name}: ${build.err}`);
   const guard = await run(
     process.execPath,
-    ["parity/counsel.ts", `--binary=${binary}`, `--case=${m.guard}`],
+    stream
+      ? ["parity/counsel-stream.ts", `--binary=${binary}`]
+      : ["parity/counsel.ts", `--binary=${binary}`, `--case=${m.guard}`],
     root,
     { OKRA_PARITY_SCRATCH: scratch },
   );
-  if (guard.code === 0 || !guard.err.includes(`counsel parity mismatch: ${m.guard}`))
+  const mismatch = stream ? "counsel stream mismatch:" : `counsel parity mismatch: ${m.guard}`;
+  if (guard.code === 0 || !guard.err.includes(mismatch))
     throw new Error(`mutant survived or guard broke ${m.name}: ${guard.out}\n${guard.err}`);
   console.log(`killed ${m.name}: ${m.guard}`);
   count++;
