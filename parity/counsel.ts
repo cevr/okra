@@ -8,7 +8,17 @@
 // never rerun and must be complete on its first run.
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmod, lstat, mkdir, mkdtemp, readdir, readFile, rename, symlink, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rename,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
@@ -98,7 +108,10 @@ const cases: Case[] = [
   { name: "dry-codex-to-claude-deep", args: ["--from", "codex", "--deep", "--dry-run", "x"] },
   { name: "dry-codex-deep", args: ["--from", "claude", "--deep", "--dry-run", "x"] },
   { name: "dry-relative-out", args: ["--from", "codex", "--dry-run", "-o", "a/../b/./c/", "x"] },
-  { name: "dry-absolute-out", args: ["--from", "codex", "--dry-run", "--output-dir=/var/tmp/x//y", "x"] },
+  {
+    name: "dry-absolute-out",
+    args: ["--from", "codex", "--dry-run", "--output-dir=/var/tmp/x//y", "x"],
+  },
   { name: "dry-empty-out", args: ["--from", "codex", "--dry-run", "-o", "", "x"] },
   { name: "dry-empty-prompt", args: ["--from", "codex", "--dry-run", ""] },
   { name: "marker-claudecode", args: ["--dry-run", "x"], env: { CLAUDECODE: "1" } },
@@ -112,7 +125,11 @@ const cases: Case[] = [
   { name: "prompt-file", args: ["--from", "codex", "--dry-run", "-f", "prompt.md"] },
   { name: "prompt-file-eq", args: ["--from", "codex", "--dry-run", "--file=sub/../prompt.md"] },
   { name: "prompt-stdin", args: ["--from", "codex", "--dry-run"], stdin: "  piped prompt \n" },
-  { name: "prompt-stdin-blank", args: ["--from", "codex", "--dry-run"], stdin: " \t\n\u3000\ufeff" },
+  {
+    name: "prompt-stdin-blank",
+    args: ["--from", "codex", "--dry-run"],
+    stdin: " \t\n\u3000\ufeff",
+  },
   { name: "prompt-stdin-nel", args: ["--from", "codex", "--dry-run"], stdin: "\u0085" },
   { name: "prompt-stdin-ignored", args: ["--from", "codex", "--dry-run", "inline"], stdin: "x" },
   { name: "conflict-file", args: ["--from", "codex", "--dry-run", "-f", "prompt.md", "x"] },
@@ -133,8 +150,17 @@ const cases: Case[] = [
   { name: "codex-models-fresh", args: ["--from", "claude", "--dry-run", "x"], models: "fresh" },
   { name: "codex-models-fetch", args: ["--from", "claude", "--dry-run", "x"], models: "fetch" },
   { name: "claude-ok", args: ["--from", "codex", "-o", "out", "review"], reply: claudeOk },
-  { name: "claude-deep-file", args: ["--from", "codex", "--deep", "-o", "out", "-f", "prompt.md"], reply: claudeOk },
-  { name: "claude-stdin", args: ["--from", "codex", "-o", "out"], stdin: "λ prompt\n", reply: claudeOk },
+  {
+    name: "claude-deep-file",
+    args: ["--from", "codex", "--deep", "-o", "out", "-f", "prompt.md"],
+    reply: claudeOk,
+  },
+  {
+    name: "claude-stdin",
+    args: ["--from", "codex", "-o", "out"],
+    stdin: "λ prompt\n",
+    reply: claudeOk,
+  },
   {
     name: "claude-error-subtype",
     args: ["--from", "codex", "-o", "out", "x"],
@@ -150,13 +176,21 @@ const cases: Case[] = [
     args: ["--from", "codex", "-o", "out", "x"],
     reply: {
       out:
-        '{"type":"result","subtype":5}\n{"type":"result","subtype":"success","is_error":null}\n' +
+        '{"type":"result","subtype":5}\n{"type":"result","subtype":"success","is_error":null,"result":"null flag"}\n' +
         '{"type":"result","subtype":"success","result":7}\n[1]\n"result"\n{"type":"result","subtype":"success"}\n' +
         '{"type":"result","subtype":"success","result":"late"}\n',
     },
   },
-  { name: "claude-silent", args: ["--from", "codex", "-o", "out", "x"], reply: { err: "no output\n", status: 3 } },
-  { name: "claude-garbage", args: ["--from", "codex", "-o", "out", "x"], reply: { out: "Error: offline\n" } },
+  {
+    name: "claude-silent",
+    args: ["--from", "codex", "-o", "out", "x"],
+    reply: { err: "no output\n", status: 3 },
+  },
+  {
+    name: "claude-garbage",
+    args: ["--from", "codex", "-o", "out", "x"],
+    reply: { out: "Error: offline\n" },
+  },
   { name: "claude-cut", args: ["--from", "codex", "-o", "out", "x"], reply: { out: "hello" } },
   {
     name: "claude-later-garbage",
@@ -166,7 +200,9 @@ const cases: Case[] = [
   {
     name: "claude-crlf-blank",
     args: ["--from", "codex", "-o", "out", "x"],
-    reply: { out: '\r\n\n  {"type":"system","subtype":"init","model":"m2"}\t\r\n{"type":"result","subtype":"success","result":"b"}' },
+    reply: {
+      out: '\r\n\n  {"type":"system","subtype":"init","model":"m2"}\t\r\n{"type":"result","subtype":"success","result":"b"}',
+    },
   },
   {
     name: "claude-exit-with-answer",
@@ -176,7 +212,9 @@ const cases: Case[] = [
   {
     name: "claude-duplicate-keys",
     args: ["--from", "codex", "-o", "out", "x"],
-    reply: { out: '{"type":"x","type":"result","subtype":"success","result":"first","result":"second"}\n' },
+    reply: {
+      out: '{"type":"x","type":"result","subtype":"success","result":"first","result":"second"}\n',
+    },
   },
   {
     name: "claude-nested",
@@ -217,10 +255,23 @@ const cases: Case[] = [
       "gpt-6-sol": codexOk,
     },
   },
-  { name: "codex-fallback-all", args: run("x"), models: "fresh", by: { "gpt-6.2-sol": rejected, "gpt-6.1-sol": rejected, "gpt-6-sol": rejected } },
-  { name: "write-under-file", args: ["--from", "codex", "-o", "prompt.md/sub", "x"], reply: claudeOk },
+  {
+    name: "codex-fallback-all",
+    args: run("x"),
+    models: "fresh",
+    by: { "gpt-6.2-sol": rejected, "gpt-6.1-sol": rejected, "gpt-6-sol": rejected },
+  },
+  {
+    name: "write-under-file",
+    args: ["--from", "codex", "-o", "prompt.md/sub", "x"],
+    reply: claudeOk,
+  },
   { name: "write-denied", args: ["--from", "codex", "-o", "locked/out", "x"], reply: claudeOk },
-  { name: "spawn-failed", args: ["--from", "codex", "-o", "out", "it's a \\ test"], agents: "badshebang" },
+  {
+    name: "spawn-failed",
+    args: ["--from", "codex", "-o", "out", "it's a \\ test"],
+    agents: "badshebang",
+  },
   {
     name: "bucket-names",
     args: ["--from", "codex", "-o", "out", "x"],
@@ -234,7 +285,7 @@ const cases: Case[] = [
 // and wrong lines), flags and working folders.
 let state = seed >>> 0;
 const next = () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0);
-const pick = <T,>(xs: readonly T[]) => xs[next() % xs.length]!;
+const pick = <T>(xs: readonly T[]) => xs[next() % xs.length]!;
 const lines = [
   '{"type":"result","subtype":"success","result":"ok ${n}"}',
   '{"type":"result","subtype":"error_during_execution","is_error":true}',
@@ -273,8 +324,15 @@ for (let i = 0; i < 24; i++) {
   if (next() % 2 === 0) args.push("--deep");
   if (next() % 5 === 0) args.push("--dry-run");
   args.push(`prompt ${n}`);
-  const cwd = Array.from({ length: 1 + (next() % 3) }, () => pick(segments) + pick(segments)).join("/");
-  cases.push({ name: `seed-${seed}-${i}`, args, cwd, reply: { out, err: next() % 2 ? "e\n" : "", status: pick([0, 0, 1, 5]) } });
+  const cwd = Array.from({ length: 1 + (next() % 3) }, () => pick(segments) + pick(segments)).join(
+    "/",
+  );
+  cases.push({
+    name: `seed-${seed}-${i}`,
+    args,
+    cwd,
+    reply: { out, err: next() % 2 ? "e\n" : "", status: pick([0, 0, 1, 5]) },
+  });
 }
 
 function script(c: Case, fixture: string) {
@@ -303,7 +361,8 @@ async function setup(c: Case, dir: string, fixture: string) {
   await mkdir(fixture, { recursive: true });
   await writeFile(join(fixture, "agent.log"), "");
   await writeReply(fixture, "reply", c.reply ?? claudeOk);
-  for (const [model, r] of Object.entries(c.by ?? {})) await writeReply(fixture, `reply.${model}`, r);
+  for (const [model, r] of Object.entries(c.by ?? {}))
+    await writeReply(fixture, `reply.${model}`, r);
   await mkdir(join(dir, "bin"));
   const agents = c.agents ?? "both";
   for (const name of ["claude", "codex"]) {
@@ -311,7 +370,8 @@ async function setup(c: Case, dir: string, fixture: string) {
     if (agents === "none") continue;
     if (agents === "dir") await mkdir(file);
     else if (agents === "plain") await writeFile(file, script(c, fixture), { mode: 0o644 });
-    else if (agents === "badshebang") await writeFile(file, "#!/nonexistent/interpreter\n", { mode: 0o755 });
+    else if (agents === "badshebang")
+      await writeFile(file, "#!/nonexistent/interpreter\n", { mode: 0o755 });
     else await writeFile(file, script(c, fixture), { mode: 0o755 });
   }
   await writeFile(join(dir, "prompt.md"), "Prompt from a file.\n");
@@ -326,7 +386,10 @@ async function setup(c: Case, dir: string, fixture: string) {
     await writeFile(
       join(dir, ".codex/models_cache.json"),
       JSON.stringify({
-        models: ["gpt-6-sol", "gpt-6.1-sol", "gpt-6.2-sol", "gpt-9-sol"].map((slug) => ({ slug, visibility: "list" })),
+        models: ["gpt-6-sol", "gpt-6.1-sol", "gpt-6.2-sol", "gpt-9-sol"].map((slug) => ({
+          slug,
+          visibility: "list",
+        })),
       }),
     );
     if (c.models === "fresh") {
@@ -356,7 +419,8 @@ async function snapshot(dir: string, slugs: Set<string>, rel = ""): Promise<stri
   for (const name of (await readdir(join(dir, rel))).sort()) {
     const path = join(rel, name);
     const info = await lstat(join(dir, path));
-    if (path === "bin" || path === "locked" || path === "secret.md" || path.startsWith("loop")) continue;
+    if (path === "bin" || path === "locked" || path === "secret.md" || path.startsWith("loop"))
+      continue;
     if (info.isDirectory()) {
       out.push(`${normalize(path, slugs)}/ ${info.mode & 0o777}`);
       out.push(...(await snapshot(dir, slugs, path)));
@@ -365,19 +429,28 @@ async function snapshot(dir: string, slugs: Set<string>, rel = ""): Promise<stri
     let text = (await readFile(join(dir, path))).toString("latin1");
     if (path.endsWith("manifest.json")) {
       const m = JSON.parse(Buffer.from(text, "latin1").toString()) as Record<string, unknown>;
-      if (typeof m.timestamp !== "string" || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(m.timestamp))
+      if (
+        typeof m.timestamp !== "string" ||
+        !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(m.timestamp)
+      )
         throw new Error(`bad timestamp ${String(m.timestamp)}`);
       const t = m.timestamp.replace(/[-:]/g, "");
       if (typeof m.slug !== "string" || !m.slug.startsWith(`${t.slice(0, 8)}-${t.slice(9, 15)}-`))
         throw new Error(`slug ${String(m.slug)} is not the run's time ${m.timestamp}`);
       if (typeof m.durationMs !== "number" || !Number.isInteger(m.durationMs) || m.durationMs < 0)
         throw new Error(`bad duration ${String(m.durationMs)}`);
-      text = text.replace(/"timestamp":"[^"]*"/, '"timestamp":"<TIME>"').replace(/"durationMs":\d+/, '"durationMs":"<MS>"');
+      text = text
+        .replace(/"timestamp":"[^"]*"/, '"timestamp":"<TIME>"')
+        .replace(/"durationMs":\d+/, '"durationMs":"<MS>"');
     }
-    if (path === ".okra/models.json") text = text.replace(/"fetchedAt":\d+/, '"fetchedAt":"<CLOCK>"');
-    if (path.endsWith(".stderr") || path.endsWith("/events.jsonl")) agentFiles.push(Buffer.from(text, "latin1").toString());
+    if (path === ".okra/models.json")
+      text = text.replace(/"fetchedAt":\d+/, '"fetchedAt":"<CLOCK>"');
+    if (path.endsWith(".stderr") || path.endsWith("/events.jsonl"))
+      agentFiles.push(Buffer.from(text, "latin1").toString());
     const shown = normalize(text, slugs);
-    out.push(`${normalize(path, slugs)} ${info.mode & 0o777} ${createHash("sha256").update(shown).digest("hex").slice(0, 16)} ${shown.length < 400 ? JSON.stringify(shown) : ""}`);
+    out.push(
+      `${normalize(path, slugs)} ${info.mode & 0o777} ${createHash("sha256").update(shown).digest("hex").slice(0, 16)} ${shown.length < 400 ? JSON.stringify(shown) : ""}`,
+    );
   }
   return out;
 }
@@ -421,10 +494,10 @@ async function execute(program: string, c: Case, dir: string) {
   };
   const timer = setTimeout(stop, 120_000); // only stops a hung counsel case
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) process.on(signal, stop);
-  child.stdout.on("data", (s) => {
+  child.stdout!.on("data", (s) => {
     out += s;
   });
-  child.stderr.on("data", (s) => {
+  child.stderr!.on("data", (s) => {
     err += s;
   });
   let code: number;
@@ -483,9 +556,10 @@ function complete(c: Case, log: string, files: string[]) {
 let lost = 0;
 async function settled(program: string, c: Case, dir: string, port: boolean) {
   for (let attempt = 1; ; attempt++) {
-    const run = await execute(program, c, dir);
-    if (run.complete || c.usage) return run.result;
-    if (port) throw new Error(`port lost agent output: ${c.name} ${JSON.stringify(run.result)}`);
+    const attemptRun = await execute(program, c, dir);
+    if (attemptRun.complete || c.usage) return attemptRun.result;
+    if (port)
+      throw new Error(`port lost agent output: ${c.name} ${JSON.stringify(attemptRun.result)}`);
     if (attempt === 100) throw new Error(`reference never kept the agent output: ${c.name}`);
     console.log(`counsel ${c.name}: reference lost agent output, run ${attempt} repeated`);
     const aside = `${dir}.lost${++lost}`;
@@ -517,7 +591,13 @@ try {
     if (!isDeepStrictEqual(want, got)) {
       console.error(
         JSON.stringify(
-          { seed, case: c, want, got, replay: `bun parity/counsel.ts --seed=${seed} --case=${c.name}` },
+          {
+            seed,
+            case: c,
+            want,
+            got,
+            replay: `bun parity/counsel.ts --seed=${seed} --case=${c.name}`,
+          },
           null,
           2,
         ),
