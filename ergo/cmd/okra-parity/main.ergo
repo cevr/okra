@@ -52,7 +52,7 @@ func main() fails os.Exit needs Ambient | go.Foreign {
 		registryhttp.Rewrite{From: "https://files.pythonhosted.org/", To: origin + "/files/"},
 		registryhttp.Rewrite{From: "https://crates.io/", To: origin + "/crates/"},
 	})
-	with context { keys.Store: keyfile.New(disk, disk, home), repo.Catalog: cachefile.New(disk, disk, dir), os.Process: process, io.Stdin: io.NewHost(), io.Stdout: io.NewHost(), io.Stderr: io.NewErrors(), fs.Files: disk, fs.Writes: disk, exec.Runner: exec.NewHost(), http.Network: network, time.Clock: time.NewHost() } {
+	with context { keys.Store: keyfile.New(disk, disk, home), repo.Catalog: cachefile.New(disk, disk, dir), os.Process: process, io.Stdin: io.NewStdin(), io.Stdout: io.NewHost(), io.Stderr: io.NewErrors(), fs.Files: disk, fs.Writes: disk, exec.Runner: exec.NewHost(), http.Network: network, time.Clock: time.NewHost() } {
 		try cli.Run(process.Args(), how.All(), cli.RepoSetup{Dir: dir, Transport: transport})
 	}
 }

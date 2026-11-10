@@ -27,7 +27,7 @@ func main() fails os.Exit needs Ambient | go.Foreign {
 	case http.InvalidClient as e:
 		return os.Exit{Code: 1, Message: "[NETWORK] " + e.Reason}
 	}
-	with context { keys.Store: keyfile.New(disk, disk, home), repo.Catalog: cachefile.New(disk, disk, dir), os.Process: process, io.Stdin: io.NewHost(), io.Stdout: io.NewHost(), io.Stderr: io.NewErrors(), fs.Files: disk, fs.Writes: disk, exec.Runner: exec.NewHost(), http.Network: network, time.Clock: time.NewHost() } {
+	with context { keys.Store: keyfile.New(disk, disk, home), repo.Catalog: cachefile.New(disk, disk, dir), os.Process: process, io.Stdin: io.NewStdin(), io.Stdout: io.NewHost(), io.Stderr: io.NewErrors(), fs.Files: disk, fs.Writes: disk, exec.Runner: exec.NewHost(), http.Network: network, time.Clock: time.NewHost() } {
 		let args = os.Process.Args()
 		try cli.Run(args, how.All(), cli.RepoSetup{Dir: dir, Transport: registryhttp.Direct()})
 	}
