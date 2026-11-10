@@ -1,0 +1,82 @@
+import exec
+import fs
+import io
+import okraport/counsel
+import okraport/schedule
+import strings
+
+// agentexec runs a task's agent (claude or codex) through std exec, as the
+// reference's AgentPlatformService does.
+
+// Command is the agent's command for a prompt, run in cwd.
+func Command(p schedule.Provider, program string, prompt string, cwd string) exec.Command {
+	let args = match p {
+	case schedule.Claude:
+		[]string{"-p", prompt, "--dangerously-skip-permissions", "--model", "sonnet", "--no-session-persistence"}
+	case schedule.Codex:
+		[]string{"exec", "-C", cwd, "--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check", prompt}
+	}
+	exec.WithDir(exec.New(program, args), cwd)
+}
+
+func words(c exec.Command) []string {
+	let mut out = []string{c.Name}
+	for a in c.Args { out = out.Append(a) }
+	out
+}
+
+func spawnText(kind string, c exec.Command) string { kind + ": ChildProcess.spawn (" + counsel.Display(words(c)) + ")" }
+
+// folder fails as the reference's spawner does when the working folder
+// cannot be reached.
+func folder(c exec.Command, failure string) fails schedule.Failed needs fs.Files {
+	fs.Files.Stat(c.Dir) catch {
+	case fs.NotFound:
+		return schedule.Fail("SPAWN_FAILED", failure+"NotFound: FileSystem.access ("+c.Dir+")")
+	case fs.Denied:
+		return schedule.Fail("SPAWN_FAILED", failure+"PermissionDenied: FileSystem.access ("+c.Dir+")")
+	case fs.Failed:
+	}
+}
+
+// Invoke runs the agent. Each chunk of its standard output reaches this
+// process's standard output as it is read, byte for byte (a last line with
+// no line feed included), and is kept; its standard error is this
+// process's. The kept bytes are decoded as UTF-8 text, as TextDecoder
+// does. Its exit status does not matter.
+func Invoke(name string, c exec.Command) string fails schedule.Failed needs exec.Runner | fs.Files | io.Stdout {
+	let failure = name + " invocation failed: "
+	try folder(c, failure)
+	let running = exec.Runner.Start(c, exec.Streams{Stdout: exec.ToCaller, Stderr: exec.Inherit}) catch {
+	case exec.NotFound:
+		return schedule.Fail("SPAWN_FAILED", failure+spawnText("NotFound", c))
+	case exec.Denied:
+		return schedule.Fail("SPAWN_FAILED", failure+spawnText("PermissionDenied", c))
+	case exec.Failed:
+		return schedule.Fail("SPAWN_FAILED", failure+spawnText("Unknown", c))
+	}
+	let mut kept = []string{}
+	for chunk in running.Chunks() {
+		if chunk.Stderr { continue }
+		io.Stdout.Print(chunk.Text)
+		kept = kept.Append(chunk.Text)
+	}
+	let _ = running.Wait()
+	schedule.DecodeUTF8(strings.Join(kept, ""))
+}
+
+// Capture runs the agent to its end and gives its standard output as
+// text; its standard error is read and dropped.
+func Capture(name string, c exec.Command) string fails schedule.Failed needs exec.Runner | fs.Files {
+	let failure = name + " capture failed: "
+	try folder(c, failure)
+	let result = exec.Runner.Run(c) catch {
+	case exec.NotFound:
+		return schedule.Fail("SPAWN_FAILED", failure+spawnText("NotFound", c))
+	case exec.Denied:
+		return schedule.Fail("SPAWN_FAILED", failure+spawnText("PermissionDenied", c))
+	case exec.Failed:
+		return schedule.Fail("SPAWN_FAILED", failure+spawnText("Unknown", c))
+	}
+	schedule.DecodeUTF8(result.Stdout)
+}
