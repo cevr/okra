@@ -259,8 +259,10 @@ func ReadGo(text string) Option[Written] {
 		case time.ParseError:
 			continue
 		}
+		// A layout whose rules refuse the text leaves it to the next one:
+		// Go reads "+0000" as UnixDate's zone name, and RubyDate as an offset.
 		let fields = strings.Fields(text)
-		if !writtenYear(fields, l) { return None }
+		if !writtenYear(fields, l) { continue }
 		let ms = time.UnixSeconds(t)*1000 + time.Nanosecond(t)/1000000
 		match l.Zone {
 		case noZone:
@@ -269,10 +271,10 @@ func ReadGo(text string) Option[Written] {
 			return Some[Written]{Value: Instant{Millis: ms}}
 		case namedZone as n:
 			// Go read the abbreviation as UTC, so ms is the wall clock.
-			if n.Field >= len(fields) { return None }
+			if n.Field >= len(fields) { continue }
 			match namedOffset(fields[n.Field]) {
 			case None:
-				return None
+				continue
 			case Some[int] as o:
 				return Some[Written]{Value: Instant{Millis: ms - int64(o.Value)*1000}}
 			}

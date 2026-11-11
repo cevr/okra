@@ -150,6 +150,7 @@ const mutants: Mutant[] = [
     ["go-no-zone-read-as-utc", "schedule/date.ergo", "return Some[Written]{Value: LocalTime{Wall: ms}}", "return Some[Written]{Value: Instant{Millis: ms}}"],
     ["go-named-offset-wrong", "schedule/date.ergo", 'name == "EDT" { -4 }', 'name == "EDT" { -5 }'],
     ["go-unknown-zone-as-utc", "schedule/date.ergo", "} else { 99 }", "} else { 0 }"],
+    ["go-unread-zone-ends-search", "schedule/date.ergo", "\t\t\tcase None:\n\t\t\t\tcontinue\n", "\t\t\tcase None:\n\t\t\t\treturn None\n"],
     ["go-short-year-pivot-dropped", "schedule/date.ergo", "(n < 50 || n > 68)", "true"],
     ["go-low-year-accepted", "schedule/date.ergo", "n >= 100 }", "true }"],
     ["local-overlap-later", "localzone/zone.ergo", "if early < late { early } else { late }", "late"],

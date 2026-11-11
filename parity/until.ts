@@ -120,6 +120,24 @@ for (let i = 0; i < 110; i++) {
   const text = esText(e);
   add(text, esValid(e) ? "es" : "near", "ecmascript");
 }
+// The edges of each production, each on a random date: hour 24, the
+// largest offset, signed years, the last day of a month.
+const date = () => `${pick(["2026", "1999", "+002026", "0001"])}-${two(1 + below(12))}-${two(1 + below(28))}`;
+for (const [text, kind] of [
+  [`${date()}T24:${two(1 + below(59))}`, "near"],
+  [`${date()}T24:00:${two(1 + below(59))}`, "near"],
+  [`${date()}T24:00:00.${1 + below(999)}`, "near"],
+  [`${date()}T24:00${pick(["", ":00", ":00.000"])}${pick(["Z", "", "+01:00"])}`, "es"],
+  [`${date()}T23:59:59.${"9".repeat(1 + below(9))}Z`, "es"],
+  [`${date()}T${two(below(24))}:${two(below(60))}${pick(["+", "-"])}23:59`, "es"],
+  [`${date()}T${two(below(24))}:${two(below(60))}${pick(["+", "-"])}24:00`, "near"],
+  [`${date()}T${two(below(24))}:${two(below(60))}${pick(["+", "-"])}${two(below(24))}:60`, "near"],
+  [`-000000-${two(1 + below(12))}-${two(1 + below(28))}T${two(below(24))}:00Z`, "near"],
+  [`+000000-${two(1 + below(12))}-${two(1 + below(28))}T${two(below(24))}:00Z`, "es"],
+  [`${pick(["2026", "2027"])}-${pick(["01", "03", "05", "07", "08", "10", "12"])}-31T${two(below(24))}:00Z`, "es"],
+  [`${pick(["2026", "2027"])}-${pick(["04", "06", "09", "11", "02"])}-31`, "es"],
+] as const)
+  add(text, kind, "edge");
 // The edges of the range a Date holds (8.64e15 ms either side of 1970).
 for (const text of ["+275760-09-13T00:00:00.000Z", "+275760-09-13T00:00:00.001Z", "-271821-04-20T00:00:00.000Z", "-271821-04-19T23:59:59.999Z", "+275760-09-13T00:00", "-271821-04-20T00:00:00+00:01", "+275760-09-13T00:01+00:01"])
   add(text, "es", "range");
@@ -189,6 +207,12 @@ for (let i = 0; i < 4; i++) {
     // text in the Layout form: what Go still reads there is port-only.
     if (near !== text) add(near, why === "comma fraction" ? "go" : "near", `go ${l.name} ${why}`, why === "comma fraction" || l.portOnly === true);
   }
+}
+{
+  // An offset under an hour: Go's UnixDate takes "+0012" as a zone name
+  // before RubyDate reads it as an offset.
+  const w = randomWall(1970, 2100);
+  add(`${shortDays[w.wd]} ${months[w.mo]} ${two(w.d)} ${hms(w, "")} ${pick(["+", "-"])}00${two(below(24))} ${y4(w)}`, "go", "go RubyDate offset under an hour");
 }
 function esValidText(text: string) {
   const m = /^([+-]\d{6}|\d{4})-(\d\d)-(\d\d)([Tt])([\d:.]+)(.*)$/.exec(text);

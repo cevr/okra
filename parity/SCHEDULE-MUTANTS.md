@@ -53,6 +53,7 @@ the two local-time mutants.
 | go-no-zone-read-as-utc      | a Go layout with no zone is local time                               |
 | go-named-offset-wrong       | `EDT` is UTC-4                                                       |
 | go-unknown-zone-as-utc      | an abbreviation outside RFC 822's is refused                         |
+| go-unread-zone-ends-search  | `+0012` is RubyDate's offset, after UnixDate refuses it as a name    |
 | go-short-year-pivot-dropped | two-digit years 50 to 68 are refused                                 |
 | go-low-year-accepted        | a four-digit year below 100 is refused in a Go layout                |
 | local-overlap-later         | a repeated wall time is the earlier instant                          |
