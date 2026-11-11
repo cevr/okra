@@ -33,7 +33,9 @@ if (!(await Bun.file(reference).exists()))
 
 let state = seed >>> 0;
 const next = () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0);
-const below = (n: number) => next() % n;
+// The high bits: an LCG's low bits repeat with a short period (the lowest
+// alternates), which would tie one choice to the next.
+const below = (n: number) => Math.floor((next() / 4294967296) * n);
 const pick = <T>(xs: readonly T[]) => xs[below(xs.length)]!;
 const two = (n: number) => String(n).padStart(2, "0");
 

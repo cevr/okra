@@ -177,6 +177,7 @@ for (const m of mutants.filter((x) => !only || x.name === only)) {
         : ["parity/schedule.ts", `--binary=${binary}`, `--case=${m.guard}`],
     root,
     { OKRA_PARITY_SCRATCH: scratch },
+    m.guard === until ? 3_600_000 : 120_000, // the property runs ~740 programs
   );
   const mismatch =
     m.guard === stream

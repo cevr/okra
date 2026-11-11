@@ -5,6 +5,7 @@ export async function run(
   args: string[],
   cwd: string,
   extra: Record<string, string> = {},
+  hung = 120_000, // milliseconds after which the child counts as hung
 ) {
   const child = spawn(command, args, {
     cwd,
@@ -34,7 +35,7 @@ export async function run(
       }
     }
   };
-  const timer = setTimeout(stop, 120_000); // only a hung child is stopped
+  const timer = setTimeout(stop, hung); // only a hung child is stopped
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) process.on(signal, stop);
   child.stdout.on("data", (data) => {
     out += data;
