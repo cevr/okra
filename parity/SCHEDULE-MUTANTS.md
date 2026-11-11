@@ -30,8 +30,11 @@ and requires `schedule parity mismatch: <guard>` (or
 The `--until` readers (`schedule/date.ergo`, `localzone/zone.ergo`) have one
 guard, the until property `parity/until.ts --seed=42` (seeded texts in the
 ECMAScript format, in Go's named layouts, at both edges of daylight-saving
-changes in nine zones, local wall clocks at both edges of the Date range,
-TZ values that name no zone, and near misses; reference against port, rule in
+changes in nine zones, local wall clocks at both edges of the Date range
+(and the exact edge walls in zones whose offset there changes between the
+equivalent years), TZ values that name no zone and TZ values drawn from
+the carried, ICU and host zone name lists in the forms ICU reads, and near
+misses; reference against port, rule in
 `routing.md`, Schedule). `schedule-mutants.ts` requires
 `until parity mismatch:`. The first ten are the round-1 verifier's parser
 mutants; the old two-pass local offset is gone, and its place is taken by
@@ -61,7 +64,15 @@ the two local-time mutants.
 | local-gap-after-offset      | a skipped wall time reads in the offset before the change            |
 | equivalent-wall-dropped     | a wall clock outside the Date range takes an equivalent year's offset |
 | unnamed-zone-read-as-utc    | a local time under a TZ that names no zone is refused, not UTC       |
-| path-zone-read-as-file      | a path in TZ names no zone (Bun reads UTC, Go the file)              |
+| zone-any-host-file          | a host zoneinfo file that is no zone id (posixrules) names no zone   |
+| zone-colon-kept             | `:America/New_York` is New York, as Bun reads it                     |
+| zone-prefix-kept            | `posix/America/New_York` is New York, as Bun reads it                |
+| zone-prefix-twice           | `posix/right/America/New_York` names no zone (Bun reads UTC)         |
+| zone-alias-ignored          | an ICU alias (`PST`) is its carried zone (`America/Los_Angeles`)     |
+| zone-case-fold-dropped      | `america/new_york` is New York, as Bun reads it                      |
+| zone-fold-mark-ignored      | `pst` names no zone: ICU reads its Java-style ids only as written    |
+| zone-olson-check-dropped    | `:EST5EDT` names no zone: ICU's id check fails on the whole TZ       |
+| eq-leap-base-1960           | a leap year outside the range takes 2008's offset family, not 2012's |
 | zone-data-not-carried       | built without `-tags=timetzdata`, a zone the host lacks fails        |
 
 `zone-data-not-carried` edits no source: it builds with `GOFLAGS=-p=1`. It

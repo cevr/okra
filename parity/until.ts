@@ -5,8 +5,8 @@
 // compiled reference (Bun's Date.parse) and by the port, with TZ set per
 // text. The rule (owner, O6 q1/q2; parity/routing.md, Schedule):
 //   - a text in the ECMAScript format: the same bytes, status and stored stop,
-//     except a local time under a TZ that names no zone, which the port
-//     refuses (Bun reads it as UTC; declared);
+//     except a local time under a TZ that names no carried zone, which the
+//     port refuses where Bun reads it as UTC (declared);
 //   - a text in a Go named layout: the port reads it; the reference gives
 //     the same instant, or refuses a form declared port-only;
 //   - any other text: the same result, or the port refuses one that only
@@ -20,6 +20,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { chmod, mkdir, mkdtemp, readdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
+import { carriedNames, hostZoneFiles, icuNames } from "./zones";
 
 const root = resolve(import.meta.dir, "..");
 const scratch = process.env.OKRA_PARITY_SCRATCH ?? "/tmp/opencode/okra-o6";
@@ -42,7 +43,10 @@ const pick = <T>(xs: readonly T[]) => xs[below(xs.length)]!;
 const two = (n: number) => String(n).padStart(2, "0");
 
 type Kind = "es" | "go" | "near";
-type Item = { text: string; zone: string; kind: Kind; portOnly?: boolean; unnamed?: boolean; why: string };
+// unnamed: a TZ that names no zone, where the port refuses a local time;
+// tzName: a TZ drawn from the zone name lists, where the port reads Bun's
+// instant or refuses where Bun reads UTC.
+type Item = { text: string; zone: string; kind: Kind; portOnly?: boolean; unnamed?: boolean; tzName?: boolean; why: string };
 const items: Item[] = [];
 const zones = [
   "UTC",
@@ -334,6 +338,103 @@ for (const zone of ["Nowhere/Unknown", "/usr/share/zoneinfo/America/Toronto", "E
   add(`${y4(w)}-${two(w.mo + 1)}-${two(w.d)}T${two(w.h)}:${two(w.mi)}${pick(["Z", "+05:30", "-03:00"])}`, "es", "TZ names no zone, text with a zone", false, zone);
 }
 
+// TZ values drawn from three lists: the names of the tzdata Go carries,
+// ICU's zone ids (its aliases PST, IST, US/Pacific-New, SystemV/EST5 and
+// Etc/Unknown among them), and the host's zoneinfo files (posixrules,
+// localtime and *.tab among them, which are no zone id), each written in a
+// form Bun's ICU may read: as is, after ":", "posix/" or "right/", in
+// another case, or doubled prefixes. The port must give Bun's instant, or
+// refuse ("TZ names no time zone") where Bun reads the TZ as UTC
+// (declared). The wall clock is in July of 1997-2025, where the carried,
+// host and ICU data agree for every zone (routing.md, Schedule: the
+// measured differences end in 1996, and the future rules start in 2026),
+// and where most zones are not at UTC's offset.
+const carried = carriedNames();
+const icuIds = icuNames();
+const hostFiles = hostZoneFiles();
+const carriedSet = new Set(carried);
+const hostOnly = hostFiles.filter((n) => !carriedSet.has(n));
+const icuOnly = icuIds.filter((n) => !carriedSet.has(n));
+// Names with a digit before their end, or three digits: ICU's id check
+// (isValidOlsonID) takes them only as written (EST5EDT), or never.
+const digitShaped = [...new Set([...carried, ...icuIds])].filter((n) => /\d\D|\d{3}/.test(n)).concat(["Etc/GMT+100", "EST5EDT,M3.2.0,M11.1.0"]);
+const mixedCase = (s: string) => [...s].map((c) => (below(2) ? c.toUpperCase() : c.toLowerCase())).join("");
+const tzForms: [string, (s: string) => string][] = [
+  ["as is", (s) => s],
+  ["colon", (s) => `:${s}`],
+  ["posix", (s) => `posix/${s}`],
+  ["right", (s) => `right/${s}`],
+  ["colon posix", (s) => `:posix/${s}`],
+  ["lower", (s) => s.toLowerCase()],
+  ["upper", (s) => s.toUpperCase()],
+  ["mixed case", mixedCase],
+  ["posix lower", (s) => `posix/${s.toLowerCase()}`],
+  ["two colons", (s) => `::${s}`],
+  ["two prefixes", (s) => `posix/right/${s}`],
+];
+for (const [source, list, count] of [
+  ["carried", carried, 22],
+  ["icu", icuIds, 11],
+  ["icu only", icuOnly, 22],
+  ["digit-shaped", digitShaped, 11],
+  ["host only", hostOnly, Math.max(11, hostOnly.length)], // each once at least
+  ["host", hostFiles, 6],
+] as const) {
+  if (list.length === 0) continue;
+  const order = [...list];
+  for (let i = 0; i < count; i++) {
+    const [form, write] = tzForms[i % tzForms.length]!;
+    // Each name once before any twice, in a seeded order.
+    const name = order.length > 0 ? order.splice(below(order.length), 1)[0]! : pick(list);
+    const w = randomWall(1997, 2025);
+    const text = `${y4(w)}-07-${two(w.d)}T${two(w.h)}:${two(w.mi)}`;
+    items.push({ text, zone: write(name), kind: "es", tzName: true, why: `TZ from ${source} (${name}, ${form})` });
+  }
+}
+
+// The exact edges of the range a Date holds, in local time: the last wall
+// clock Bun reads and the first it refuses, in zones whose offset on the
+// edge's day changes between the years JavaScriptCore may take as the
+// equivalent year (2008-2035), so that a wrong equivalent year moves the
+// edge. Bun gives each zone's edge walls (parity/edge-walls.ts). Only walls
+// outside the range are drawn (east of UTC at the high edge, west at the
+// low), where the equivalent year applies; the zones with future rules
+// that differ between the data sets (routing.md) are left out.
+const futureRules = new Set(["Africa/Casablanca", "Africa/El_Aaiun", "America/Edmonton", "America/Vancouver", "America/Yellowknife", "Canada/Mountain", "Canada/Pacific"]);
+function edgeSensitive(month: number, days: number[]) {
+  const out: string[] = [];
+  for (const zone of carried) {
+    if (futureRules.has(zone)) continue;
+    try {
+      offsetAt(zone, 0);
+    } catch {
+      continue; // a name ICU has no data for (Factory)
+    }
+    const seen = new Set<number>();
+    for (let y = 2008; y <= 2035; y++) for (const d of days) for (const h of [0, 12]) seen.add(offsetAt(zone, Date.UTC(y, month, d, h)));
+    if (seen.size > 1) out.push(zone);
+  }
+  return out;
+}
+function edgeWalls(zone: string) {
+  const r = spawnSync(process.execPath, [join(root, "parity/edge-walls.ts")], { env: { PATH: process.env.PATH, TZ: zone }, encoding: "utf8" });
+  if (r.status !== 0) throw new Error(`edge-walls under TZ=${zone}: ${r.stderr}`);
+  return JSON.parse(r.stdout) as { low: number; high: number };
+}
+for (const [edge, month, days] of [["high", 8, [12, 13]], ["low", 3, [19, 20]]] as const) {
+  const pool = edgeSensitive(month, [...days]);
+  let drawn = 0;
+  while (drawn < 10 && pool.length > 0) {
+    const zone = pool.splice(below(pool.length), 1)[0]!;
+    const walls = edgeWalls(zone);
+    const last = edge === "high" ? walls.high : walls.low;
+    if (edge === "high" ? last <= maxWall : last >= -maxWall) continue; // the edge wall is inside the range
+    drawn++;
+    add(esLocal(last), "es", `local range ${edge} exact edge`, false, zone);
+    add(esLocal(edge === "high" ? last + 1 : last - 1), "es", `local range ${edge} exact edge, 1 ms beyond`, false, zone);
+  }
+}
+
 // The forms okra's help and docs show, and the reference time.
 for (const text of ["2026-03-20", "2026-03-20T10:00:00Z", "2026-03-20T10:00", "Mon Jan  2 15:04:05 MST 2006", "Mon, 02 Jan 2006 15:04:05 MST", "2006-01-02 15:04:05"])
   add(text, text.includes("Jan") || text.includes(" ") ? "go" : "es", "docs");
@@ -428,6 +529,14 @@ try {
       ok = refused(got) && got.err.includes("TZ names no time zone");
       if (ok && want.code === 0) tally.bunOnly++;
       else if (ok) tally.bothRefuse++;
+    } else if (item.tzName) {
+      // Bun's instant, or a refusal where Bun reads the TZ as UTC (declared).
+      const utc = new Date(Date.parse(`${item.text}Z`)).toISOString();
+      const bunUtc = want.code === 0 && want.stops.includes(JSON.stringify(utc));
+      ok = same || (bunUtc && refused(got) && got.err.includes("TZ names no time zone"));
+      if (ok && !same) tally.bunOnly++;
+      else if (ok && refused(got)) tally.bothRefuse++;
+      else if (ok) tally.equal++;
     } else if (same) {
       // A Go layout text is one the port reads.
       ok = item.kind !== "go" || got.code === 0;

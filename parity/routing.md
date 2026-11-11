@@ -124,9 +124,32 @@ argv and folder, and each launchctl call compare byte for byte, except:
   `Canada/Mountain`, `Canada/Pacific`; inferred: ICU's tz release is
   older). This host's zoneinfo (Ubuntu 2026c) differs in 121 of the 497
   names it has: history up to 1996 (`WET`), and the same future rules. The
-  zones `until.ts` draws agree. A TZ that names no zone (an unknown name, a path, a POSIX rule)
-  makes a local time fail (`TZ names no time zone`); Bun reads it as UTC
-  (declared, port refuses).
+  zones `until.ts` draws agree.
+  TZ names a zone only by a name of the carried tzdata (Go 2026c's 598
+  names), never by any file of the host's zoneinfo; the data of that name
+  is then read host first, as above. The port reads TZ as Bun's ICU does
+  (measured on Bun 1.4.4, ICU 78.3; `scripts/zone-names.ts`): one leading
+  `:` and then one `posix/` or `right/` are dropped
+  (`:posix/America/New_York` is New York); a name may be in any case
+  (`america/new_york`); and ICU's 27 aliases that the carried data lacks
+  read as the carried zone ICU maps them to, with the same instants:
+  `ACT AET AGT ART AST BET BST CAT CNT CST CTT EAT ECT IET IST JST MIT NET
+  NST PLT PNT PRT PST SST VST` (as written only: `pst` is not a zone) and
+  `US/Pacific-New`, `Canada/East-Saskatchewan` (in any case). ICU's id check
+  applies to the whole TZ: letters, then at most two digits at the end, or
+  exactly `EST5EDT`, `CST6CDT`, `MST7MDT` or `PST8PDT`.
+  Bun reads every other TZ as UTC, and there the port makes a local time
+  fail (`TZ names no time zone`; declared, port refuses): an unknown name,
+  a path (`/usr/share/zoneinfo/America/Toronto`), a POSIX rule, a host
+  zoneinfo file that is no zone id (`posixrules`, `localtime`,
+  `zone.tab` and the other `*.tab`, `tzdata.zi`, `leapseconds`,
+  `leap-seconds.list`), ICU ids with no data (`Etc/Unknown`, the 13
+  `SystemV/…` ids), a Java-style alias in another case (`pst`), a prefix
+  in another case or twice (`Posix/…`, `posix/right/…`, `::…`), and a
+  digit-named zone in any other form (`:EST5EDT`, `est5edt`). No ICU alias
+  that Bun reads as a zone lacks a carried equivalent (measured over ICU's
+  639 ids, each in 6 forms). `until.ts` draws TZ values from all three
+  name lists in these forms.
   Texts only one side reads (declared):
   - only the port: Go's `Layout` form (`01/02 03:04:05PM '06 -0700`) and a
     comma before the fraction of seconds (`15:04:05,5`), which Go reads and
