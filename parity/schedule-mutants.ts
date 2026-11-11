@@ -12,6 +12,7 @@ const compiler = process.env.ERGO ?? join(scratch, "ergo");
 await mkdir(scratch, { recursive: true });
 type Mutant = { name: string; file: string; from: string; to: string; guard: string };
 const stream = "stream";
+const until = "until";
 const mutants: Mutant[] = [
   {
     name: "tee-after-exit",
@@ -132,6 +133,28 @@ const mutants: Mutant[] = [
     to: "if t.RunCount > m.Count {",
     guard: "run-max-runs-pre",
   },
+  // The --until readers: each is killed by the until property (seed 42).
+  ...([
+    ["offset-sign-dropped", "schedule/date.ergo", 'if z == "-" { offset = -offset }', "if false { offset = -offset }"],
+    ["colon-less-offset-refused", "schedule/date.ergo", 'let colon = if charAt(s, at+3) == ":" { 1 } else { 0 }', "let colon = 1"],
+    ["lower-t-refused", "schedule/date.ergo", 'if t == "T" || t == "t" {', 'if t == "T" {'],
+    ["lower-z-refused", "schedule/date.ergo", 'if (z == "Z" || z == "z") && local {', 'if z == "Z" && local {'],
+    ["zone-after-date-alone", "schedule/date.ergo", 'if (z == "Z" || z == "z") && local {', 'if z == "Z" || z == "z" {'],
+    ["hour-24-any-minute", "schedule/date.ergo", "(hour == 24 && (minute > 0 || second > 0 || milli > 0))", "(hour == 24 && false)"],
+    ["day-31-refused", "schedule/date.ergo", "day < 1 || day > 31", "day < 1 || day > 30"],
+    ["minus-zero-year-accepted", "schedule/date.ergo", 'if sign == "-" && y == 0 { return None }', ""],
+    ["offset-hour-24-accepted", "schedule/date.ergo", "if h > 23 || m > 59 { return None }", "if h > 24 || m > 59 { return None }"],
+    ["range-check-dropped", "schedule/date.ergo", "if ms > maxMillis || ms < -maxMillis { None }", "if false { None }"],
+    ["go-layouts-skipped", "schedule/date.ergo", "\tcase None:\n\t\tReadGo(text)\n", "\tcase None:\n\t\tNone\n"],
+    ["go-layout-rfc1123-dropped", "schedule/date.ergo", '\t\tgoLayout{Text: "Mon, 02 Jan 2006 15:04:05 MST", Zone: namedZone{Field: 5}, YearField: 3, ShortYear: false},\n', ""],
+    ["go-no-zone-read-as-utc", "schedule/date.ergo", "return Some[Written]{Value: LocalTime{Wall: ms}}", "return Some[Written]{Value: Instant{Millis: ms}}"],
+    ["go-named-offset-wrong", "schedule/date.ergo", 'name == "EDT" { -4 }', 'name == "EDT" { -5 }'],
+    ["go-unknown-zone-as-utc", "schedule/date.ergo", "} else { 99 }", "} else { 0 }"],
+    ["go-short-year-pivot-dropped", "schedule/date.ergo", "(n < 50 || n > 68)", "true"],
+    ["go-low-year-accepted", "schedule/date.ergo", "n >= 100 }", "true }"],
+    ["local-overlap-later", "localzone/zone.ergo", "if early < late { early } else { late }", "late"],
+    ["local-gap-after-offset", "localzone/zone.ergo", "\t} else {\n\t\tearly\n\t}", "\t} else {\n\t\tlate\n\t}"],
+  ] as const).map(([name, file, from, to]) => ({ name, file, from, to, guard: until })),
 ];
 let count = 0;
 const only = process.argv.find((a) => a.startsWith("--only="))?.slice(7);
@@ -149,11 +172,18 @@ for (const m of mutants.filter((x) => !only || x.name === only)) {
     process.execPath,
     m.guard === stream
       ? ["parity/schedule-stream.ts", `--binary=${binary}`]
-      : ["parity/schedule.ts", `--binary=${binary}`, `--case=${m.guard}`],
+      : m.guard === until
+        ? ["parity/until.ts", `--binary=${binary}`, "--seed=42", "--first"]
+        : ["parity/schedule.ts", `--binary=${binary}`, `--case=${m.guard}`],
     root,
     { OKRA_PARITY_SCRATCH: scratch },
   );
-  const mismatch = m.guard === stream ? "schedule stream mismatch:" : `schedule parity mismatch: ${m.guard}`;
+  const mismatch =
+    m.guard === stream
+      ? "schedule stream mismatch:"
+      : m.guard === until
+        ? "until parity mismatch:"
+        : `schedule parity mismatch: ${m.guard}`;
   if (guard.code === 0 || !guard.err.includes(mismatch))
     throw new Error(`mutant survived or guard broke ${m.name}: ${guard.out}\n${guard.err.slice(-2000)}`);
   console.log(`killed ${m.name}: ${m.guard}`);

@@ -27,9 +27,43 @@ and requires `schedule parity mismatch: <guard>` (or
 | empty-argv-is-usage        | root-empty               | no arguments: no output, status 0                                 |
 | max-runs-off-by-one        | run-max-runs-pre         | a task stops when its runs reach the maximum                      |
 
+The `--until` readers (`schedule/date.ergo`, `localzone/zone.ergo`) have one
+guard, the until property `parity/until.ts --seed=42` (seeded texts in the
+ECMAScript format, in Go's named layouts, at both edges of daylight-saving
+changes in eight zones, and near misses; reference against port, rule in
+`routing.md`, Schedule). `schedule-mutants.ts` requires
+`until parity mismatch:`. The first ten are the round-1 verifier's parser
+mutants; the old two-pass local offset is gone, and its place is taken by
+the two local-time mutants.
+
+| Mutant                      | What it shows                                                        |
+| --------------------------- | -------------------------------------------------------------------- |
+| offset-sign-dropped         | a `-hh:mm` offset is west of UTC                                     |
+| colon-less-offset-refused   | `+0530` reads as `+05:30`                                            |
+| lower-t-refused             | a lower-case `t` separates the time                                  |
+| lower-z-refused             | a lower-case `z` is UTC                                              |
+| zone-after-date-alone       | `0001Z` is refused (Bun reads 2001)                                  |
+| hour-24-any-minute          | `24:00` is the only hour-24 time                                     |
+| day-31-refused              | day 31 is in the format                                              |
+| minus-zero-year-accepted    | `-000000` is refused                                                 |
+| offset-hour-24-accepted     | an offset hour above 23 is refused                                   |
+| range-check-dropped         | an instant past 8.64e15 ms is refused                                |
+| go-layouts-skipped          | Go's named layouts are read                                          |
+| go-layout-rfc1123-dropped   | RFC1123 is one of them                                               |
+| go-no-zone-read-as-utc      | a Go layout with no zone is local time                               |
+| go-named-offset-wrong       | `EDT` is UTC-4                                                       |
+| go-unknown-zone-as-utc      | an abbreviation outside RFC 822's is refused                         |
+| go-short-year-pivot-dropped | two-digit years 50 to 68 are refused                                 |
+| go-low-year-accepted        | a four-digit year below 100 is refused in a Go layout                |
+| local-overlap-later         | a repeated wall time is the earlier instant                          |
+| local-gap-after-offset      | a skipped wall time reads in the offset before the change            |
+
 The switch guard (`parity/switch.ts --mutants`) kills shim-default-to-ts,
 shim-schedule-to-ts, shim-empty-to-ts, shim-unknown-to-ts,
 shim-root-flag-to-ts, shim-counsel-flag-to-ts and shim-missing-native-to-ts:
-nothing reaches TypeScript unless `OKRA_IMPL=ts` asks for it.
+nothing reaches TypeScript unless `OKRA_IMPL=ts` asks for it. It also kills
+shim-link-unresolved and shim-relative-link-from-cwd: the shim runs through
+an absolute link in another folder and a relative link to that link (bun and
+npm install `bin/okra` as a link; `~/.bun/bin/okra` is one).
 
 No real agent, key, model, scheduler or network is used.
