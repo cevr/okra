@@ -3,9 +3,9 @@
 // process effects. The agents are fake executables in each case folder that
 // replay fixed text (recorded against the TS reference); the model catalog is
 // one loopback peer. No real agent, model, key or paid service is reached.
-// Reruns: only the TS reference side is rerun, when its forked file sinks
-// lost agent output (a race in the reference, see `complete`); a port run is
-// never rerun and must be complete on its first run.
+// No run is repeated: a fake agent exits only after the CLI's events and
+// stderr files hold all it wrote, so the reference's forked sinks (which
+// end at the agent's exit) cannot lose output; `complete` checks both sides.
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
@@ -347,6 +347,21 @@ r="$d/reply"
 [ -n "$model" ] && [ -f "$d/reply.$model.out" ] && r="$d/reply.$model"
 [ -f "$r.out" ] && cat "$r.out"
 [ -f "$r.err" ] && cat "$r.err" >&2
+# Exit only once the CLI's events and stderr files hold all this agent
+# wrote (a missing file counts as empty when nothing was written): a CLI
+# whose sinks lag the exit (the reference's forked sinks) then reads whole
+# files. Only the exit time moves; no compared byte changes.
+last=
+for a do last=$a; done
+case $last in
+  "Read the file at "*"/prompt.md and follow the instructions within it.")
+    out=\${last#Read the file at }
+    out=\${out%/prompt.md and follow the instructions within it.}
+    name=\${0##*/}
+    same() { if [ -s "$1" ]; then cmp -s "$1" "$2"; else [ ! -s "$2" ]; fi; }
+    until same "$r.out" "$out/events.jsonl" && same "$r.err" "$out/$name.stderr"; do sleep 0.01; done
+    ;;
+esac
 exit $(cat "$r.status" 2>/dev/null || echo 0)
 `;
 }
@@ -540,10 +555,9 @@ async function execute(program: string, c: Case, dir: string) {
 
 // complete is whether the run's events.jsonl and agent stderr hold all that
 // the last agent run wrote. The reference forks its two file sinks and ends
-// them when the agent exits, so it can lose output (a race; it lost the
-// whole second attempt in one record run). The port writes all of it, so a
-// port run must be complete; a reference run is repeated until it is
-// (declared-differences.md, counsel).
+// them when the agent exits, so it could lose output (a race); the fake
+// agent now exits only after both files hold its bytes, so every run of
+// either side must be complete, and none is repeated.
 function complete(c: Case, log: string, files: string[]) {
   const runs = log.split("\n--\n").filter((s) => s !== "");
   if (runs.length === 0) return files.length === 0;
@@ -553,19 +567,10 @@ function complete(c: Case, log: string, files: string[]) {
   return files.length === 2 && files[0] === (reply.err ?? "") && files[1] === (reply.out ?? "");
 }
 
-let lost = 0;
 async function settled(program: string, c: Case, dir: string, port: boolean) {
-  for (let attempt = 1; ; attempt++) {
-    const attemptRun = await execute(program, c, dir);
-    if (attemptRun.complete || c.usage) return attemptRun.result;
-    if (port)
-      throw new Error(`port lost agent output: ${c.name} ${JSON.stringify(attemptRun.result)}`);
-    if (attempt === 100) throw new Error(`reference never kept the agent output: ${c.name}`);
-    console.log(`counsel ${c.name}: reference lost agent output, run ${attempt} repeated`);
-    const aside = `${dir}.lost${++lost}`;
-    await rename(dir, aside);
-    await rename(`${dir}.fixture`, `${aside}.fixture`);
-  }
+  const once = await execute(program, c, dir);
+  if (once.complete || c.usage) return once.result;
+  throw new Error(`${port ? "port" : "reference"} lost agent output: ${c.name} ${JSON.stringify(once.result)}`);
 }
 
 let count = 0;
