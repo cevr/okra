@@ -176,7 +176,9 @@ func untilDate(input string) string fails schedule.Failed needs go.Foreign {
 		case schedule.Instant as i:
 			schedule.InRange(i.Millis)
 		case schedule.LocalTime as l:
-			schedule.InRange(localzone.Instant(l.Wall))
+			// The offset of the wall clock JavaScriptCore reads it by.
+			let at = schedule.EquivalentWall(l.Wall)
+			schedule.InRange(l.Wall - (at - localzone.Instant(at)))
 		}
 	}
 	let ms = match read {

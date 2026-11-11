@@ -301,6 +301,24 @@ func daysFromCivil(y0 int64, m int64, d int64) int64 {
 	era*146097 + doe - 719468
 }
 
+// EquivalentWall is the wall clock whose zone offset JavaScriptCore (Bun)
+// reads a local wall clock by. Inside the range a Date holds it is the
+// wall clock itself; outside it, the same month, day and time of day in
+// the year of 2008..2035 with the same leap-ness and the same weekday on
+// January 1 (ES5 15.9.1.8's equivalent year; WTF::equivalentTime). ECMA-262
+// leaves the offset there to the host, and the port takes Bun's, so a
+// local text near the range's edge gives Bun's instant or Bun's refusal.
+func EquivalentWall(wall int64) int64 {
+	if wall >= -maxMillis && wall <= maxMillis { return wall }
+	let c = CivilOf(wall)
+	let jan1 = daysFromCivil(c.Year, 1, 1)
+	let weekday = jan1 + 4 - floorDiv(jan1+4, 7)*7
+	let leap = c.Year%4 == 0 && (c.Year%100 != 0 || c.Year%400 == 0)
+	let recent = if leap { 1956 + (weekday*12)%28 } else { 1967 + (weekday*12)%28 }
+	let year = 2008 + (recent+3*28-2008)%28
+	daysFromCivil(year, c.Month, c.Day)*86400000 + wall - floorDiv(wall, 86400000)*86400000
+}
+
 // Civil is a UTC date and time of day.
 type Civil { Year int64, Month int64, Day int64, Hour int64, Minute int64, Second int64, Milli int64 }
 
