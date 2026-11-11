@@ -422,14 +422,12 @@ function edgeWalls(zone: string) {
   return JSON.parse(r.stdout) as { low: number; high: number };
 }
 for (const [edge, month, days] of [["high", 8, [12, 13]], ["low", 3, [19, 20]]] as const) {
-  const pool = edgeSensitive(month, [...days]);
-  let drawn = 0;
-  while (drawn < 10 && pool.length > 0) {
-    const zone = pool.splice(below(pool.length), 1)[0]!;
+  // Every such zone: a wrong equivalent year moves the edge in only some of
+  // them (a seeded sample of ten let eq-leap-base-1960 live at 2 of 5 seeds).
+  for (const zone of edgeSensitive(month, [...days])) {
     const walls = edgeWalls(zone);
     const last = edge === "high" ? walls.high : walls.low;
     if (edge === "high" ? last <= maxWall : last >= -maxWall) continue; // the edge wall is inside the range
-    drawn++;
     add(esLocal(last), "es", `local range ${edge} exact edge`, false, zone);
     add(esLocal(edge === "high" ? last + 1 : last - 1), "es", `local range ${edge} exact edge, 1 ms beyond`, false, zone);
   }
