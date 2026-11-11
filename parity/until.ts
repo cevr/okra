@@ -221,7 +221,8 @@ const layouts: Layout[] = [
 const goNear: [string, (t: string, w: Wall) => string][] = [
   ["lower case", (t) => t.toLowerCase()],
   ["other zone", (t) => t.replace(/\b(UTC|GMT|[ECMP][SD]T)\b/, pick(["CET", "JST", "GMT+3", "Z", "UT", "AEST"]))],
-  ["year below 100", (t, w) => t.replace(String(w.y).padStart(4, "0"), pick(["0099", "0049", "0050", "0000", "0100"]))],
+  ["year below 100", (t, w) => t.replace(String(w.y).padStart(4, "0"), pick(["0099", "0049", "0050", "0000"]))],
+  ["year 100", (t, w) => t.replace(String(w.y).padStart(4, "0"), "0100")],
   ["two-digit year 50-68", (t, w) => t.replace(new RegExp(`([ '-])${yy(w)}( |$)`), `$1${50 + below(19)}$2`)],
   ["day past the month", (t, w) => t.replace(new RegExp(`\\b${two(w.d)}\\b`), pick(["31", "30", "00", "32"])).replace(months[w.mo]!, "Feb")],
   ["hour 24 or 25", (t, w) => t.replace(`${two(w.h)}:`, pick(["24:", "25:"]))],
@@ -244,6 +245,15 @@ for (let i = 0; i < 4; i++) {
     if (near !== text) add(near, why === "comma fraction" ? "go" : "near", `go ${l.name} ${why}`, why === "comma fraction" || l.portOnly === true);
   }
 }
+// Each near miss on each layout it changes, once per seed: the random pick
+// above can miss a pair, and a parser mutant then lives a seed.
+for (const [why, change] of goNear)
+  for (const l of layouts) {
+    const w = l.short ? randomWall(2000, 2049) : randomWall(1970, 2100);
+    const text = l.write(w, l.name === "RFC822" || l.name === "RFC822Z" ? "" : frac());
+    const near = change(text, w);
+    if (near !== text) add(near, why === "comma fraction" ? "go" : "near", `go ${l.name} ${why} (each)`, why === "comma fraction" || l.portOnly === true);
+  }
 {
   // An offset under an hour: Go's UnixDate takes "+0012" as a zone name
   // before RubyDate reads it as an offset.
