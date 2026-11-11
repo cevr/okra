@@ -1,7 +1,19 @@
 #!/bin/sh
 # Every command runs in Ergo. OKRA_IMPL=ts is the way back to the
 # TypeScript build for all argv (owner q96); it is never a default route.
-bindir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) || exit 1
+
+# Resolve this file through symlinks (bun and npm link bin/okra into PATH,
+# and ~/.bun/bin/okra is a link). `readlink` without -f exists on Linux
+# and every macOS.
+self=$0
+while [ -L "$self" ]; do
+  link=$(readlink -- "$self") || exit 1
+  case $link in
+    /*) self=$link ;;
+    *) self=$(dirname -- "$self")/$link ;;
+  esac
+done
+bindir=$(CDPATH= cd -- "$(dirname -- "$self")" && pwd -P) || exit 1
 case ${OKRA_IMPL-} in
   ts) exec "$bindir/okra-ts" "$@" ;;
   ergo|'') exec "$bindir/okra-ergo" "$@" ;;

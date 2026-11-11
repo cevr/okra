@@ -1,4 +1,4 @@
-import { chmod, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { run } from "./process";
 
@@ -35,6 +35,18 @@ async function verify(script: string) {
   await expect(args, "ts", "ts");
   await expect(args, "ergo", "ergo");
   await expect(["schedule", "list"], "ts", "ts");
+  // Installed as a link (bun and npm bin entries, ~/.bun/bin/okra): an
+  // absolute link in another folder, and a relative link to that link.
+  const links = await mkdtemp(join(dir, "links-"));
+  const elsewhere = await mkdtemp(join(dir, "cwd-"));
+  await symlink(shim, join(links, "okra"));
+  await symlink("okra", join(links, "okra-again"));
+  for (const link of [join(links, "okra"), join(links, "okra-again")])
+    for (const [args, impl, override] of [[["schedule", "list"], "ergo", ""], [[], "ergo", ""], [["keys"], "ts", "ts"]] as const) {
+      const got = await run(link, [...args], elsewhere, { HOME: dir, OKRA_IMPL: override });
+      if (got.code !== 23 || got.err !== "" || got.out !== `${[impl, ...args].join("\n")}\n`)
+        throw new Error(`linked shim mismatch: ${JSON.stringify({ link, args, impl, got })}`);
+    }
   const invalid = await run(shim, ["keys"], dir, { HOME: dir, OKRA_IMPL: "bad" });
   if (invalid.code !== 1 || invalid.out !== "" || invalid.err !== "OKRA_IMPL must be ts or ergo\n")
     throw new Error("invalid override accepted");
@@ -50,7 +62,9 @@ await verify(source);
 if (process.argv.includes("--mutants")) {
   const route = "ergo|'') exec \"$bindir/okra-ergo\" \"$@\" ;;";
   const pick = 'case ${OKRA_IMPL-} in';
-  for (const text of [route, pick])
+  const resolve = 'while [ -L "$self" ]; do';
+  const relative = '*) self=$(dirname -- "$self")/$link ;;';
+  for (const text of [route, pick, resolve, relative])
     if (source.split(text).length !== 2) throw new Error("switch edit is not unique");
   const toTs = (cond: string) =>
     source.replace(pick, `[ -z "\${OKRA_IMPL-}" ] && ${cond} && exec "$bindir/okra-ts" "$@"\n${pick}`);
@@ -69,6 +83,8 @@ if (process.argv.includes("--mutants")) {
       ),
       "missing native binary fell back",
     ],
+    ["shim-link-unresolved", source.replace(resolve, 'while false; do'), "linked shim mismatch:"],
+    ["shim-relative-link-from-cwd", source.replace(relative, "*) self=$link ;;"), "linked shim mismatch:"],
   ] as const) {
     let killed = false;
     try {
