@@ -1,5 +1,6 @@
 import strconv
 import strings
+import time
 
 // Dates are JavaScript's: a Unix time in milliseconds, parsed by
 // Date.parse and printed by toISOString. The port reads the ECMAScript
@@ -23,10 +24,51 @@ func digitsAt(s string, at int, n int) Option[int] {
 
 func charAt(s string, at int) string { if at < len(s) { s[at : at+1] } else { "" } }
 
-// Millis is Date.parse(text); None is NaN. zone is the local zone's
-// offset east of UTC, in seconds, at a Unix time in milliseconds: what a
-// date-time with no zone is read in.
+// Written is a date as its text gives it: an instant (the text names UTC,
+// an offset or a known zone), or a wall clock time with no zone, which is
+// local time (Wall is its fields counted as UTC milliseconds).
+type Instant { Millis int64 }
+type LocalTime { Wall int64 }
+type Written = Instant | LocalTime
+
+// InRange is ms when a JavaScript Date can hold it (TimeClip), else None.
+func InRange(ms int64) Option[int64] {
+	if ms > maxMillis || ms < -maxMillis { None } else { Some[int64]{Value: ms} }
+}
+
+// Millis is Date.parse(text) for the ECMAScript format; None is NaN. zone
+// is the local zone's offset east of UTC, in seconds, at a Unix time in
+// milliseconds; callers pass a fixed zone.
 func Millis(text string, zone func(ms int64) int) Option[int64] {
+	match ReadES(text) {
+	case None:
+		None
+	case Some[Written] as w:
+		match w.Value {
+		case Instant as i:
+			InRange(i.Millis)
+		case LocalTime as l:
+			InRange(l.Wall - int64(zone(l.Wall))*1000)
+		}
+	}
+}
+
+// ReadUntil reads an --until text: the ECMAScript format first, then Go's
+// named time layouts (owner, O6 q1/q2). The range check is the caller's,
+// on the instant.
+func ReadUntil(text string) Option[Written] {
+	match ReadES(text) {
+	case None:
+		ReadGo(text)
+	case Some[Written] as w:
+		w
+	}
+}
+
+// ReadES reads the ECMAScript date-time string format. A zone (Z or an
+// offset) is read only after a time: "0001Z" is outside the format, and
+// Bun's legacy parser reads it as the year 2001.
+func ReadES(text string) Option[Written] {
 	let s = text
 	let mut at = 0
 	let mut year = 0
@@ -120,10 +162,10 @@ func Millis(text string, zone func(ms int64) int) Option[int64] {
 	}
 	let mut offset = 0
 	let z = charAt(s, at)
-	if z == "Z" || z == "z" {
+	if (z == "Z" || z == "z") && local {
 		local = false
 		at = at + 1
-	} else if (z == "+" || z == "-") && t != "" {
+	} else if (z == "+" || z == "-") && local {
 		let h = match digitsAt(s, at+1, 2) {
 		case None:
 			return None
@@ -146,15 +188,97 @@ func Millis(text string, zone func(ms int64) int) Option[int64] {
 	if at != len(s) { return None }
 	let days = daysFromCivil(int64(year), int64(month), 1) + int64(day-1)
 	let wall = days*86400000 + int64(hour)*3600000 + int64(minute)*60000 + int64(second)*1000 + int64(milli)
-	let mut ms = wall - int64(offset)*1000
-	if local {
-		let first = zone(wall)
-		ms = wall - int64(first)*1000
-		let again = zone(ms)
-		if again != first { ms = wall - int64(again)*1000 }
+	if local { Some[Written]{Value: LocalTime{Wall: wall}} } else { Some[Written]{Value: Instant{Millis: wall - int64(offset)*1000}} }
+}
+
+// Go's named layouts (time.Layout to time.DateTime). Kitchen, TimeOnly
+// and the Stamp layouts write no year (Go reads year 0, Bun reads 2001),
+// so they are refused. RFC3339Nano reads as RFC3339 does, and DateOnly is
+// the ECMAScript date form, read before these.
+type noZone {}
+type numericZone {}
+type namedZone { Field int }
+type goZone = noZone | numericZone | namedZone
+
+// goLayout is a layout, where its zone is, and where its year is: the
+// field of strings.Fields (the part after the last "-" for RFC850's
+// 02-Jan-06, the part before the first "-" for a date written 2006-01-02).
+type goLayout { Text string, Zone goZone, YearField int, ShortYear bool }
+
+func goLayouts() []goLayout {
+	[]goLayout{
+		goLayout{Text: "01/02 03:04:05PM '06 -0700", Zone: numericZone, YearField: 2, ShortYear: true},
+		goLayout{Text: "Mon Jan _2 15:04:05 2006", Zone: noZone, YearField: 4, ShortYear: false},
+		goLayout{Text: "Mon Jan _2 15:04:05 MST 2006", Zone: namedZone{Field: 4}, YearField: 5, ShortYear: false},
+		goLayout{Text: "Mon Jan 02 15:04:05 -0700 2006", Zone: numericZone, YearField: 5, ShortYear: false},
+		goLayout{Text: "02 Jan 06 15:04 MST", Zone: namedZone{Field: 4}, YearField: 2, ShortYear: true},
+		goLayout{Text: "02 Jan 06 15:04 -0700", Zone: numericZone, YearField: 2, ShortYear: true},
+		goLayout{Text: "Monday, 02-Jan-06 15:04:05 MST", Zone: namedZone{Field: 3}, YearField: 1, ShortYear: true},
+		goLayout{Text: "Mon, 02 Jan 2006 15:04:05 MST", Zone: namedZone{Field: 5}, YearField: 3, ShortYear: false},
+		goLayout{Text: "Mon, 02 Jan 2006 15:04:05 -0700", Zone: numericZone, YearField: 3, ShortYear: false},
+		goLayout{Text: "2006-01-02T15:04:05Z07:00", Zone: numericZone, YearField: 0, ShortYear: false},
+		goLayout{Text: "2006-01-02 15:04:05", Zone: noZone, YearField: 0, ShortYear: false},
 	}
-	if ms > maxMillis || ms < -maxMillis { return None }
-	Some[int64]{Value: ms}
+}
+
+// namedOffset is the offset of a zone abbreviation, east of UTC in
+// seconds: the RFC 822 names, which Bun reads too. Go reads another
+// abbreviation by the host's zone or as UTC, and Bun reads none, so the
+// others are refused.
+func namedOffset(name string) Option[int] {
+	let h = if name == "UTC" || name == "GMT" { 0 } else if name == "EDT" { -4 } else if name == "EST" || name == "CDT" { -5 } else if name == "CST" || name == "MDT" { -6 } else if name == "MST" || name == "PDT" { -7 } else if name == "PST" { -8 } else { 99 }
+	if h == 99 { None } else { Some[int]{Value: h * 3600} }
+}
+
+// writtenYear is the year as the text writes it, when Bun reads that
+// number as Go does: Bun reads a year below 100 as two digits (0099 is
+// 1999), and two digits 50 to 68 as 1950 to 1968, where Go reads 2050 to
+// 2068. Those texts are refused.
+func writtenYear(fields []string, l goLayout) bool {
+	if l.YearField >= len(fields) { return false }
+	let field = fields[l.YearField]
+	let parts = strings.Split(strings.TrimPrefix(field, "'"), "-")
+	let token = if l.YearField == 0 { parts[0] } else { parts[len(parts)-1] }
+	if len(token) == 0 { return false }
+	let mut n = 0
+	for i in 0..len(token) {
+		let c = token[i]
+		if c < '0' || c > '9' { return false }
+		n = n*10 + int(c-'0')
+	}
+	if l.ShortYear { len(token) == 2 && (n < 50 || n > 68) } else { len(token) == 4 && n >= 100 }
+}
+
+// ReadGo reads text in the first of Go's named layouts that takes it, as
+// Go's time.Parse does, with two rules for Bun's sake: a text with no zone
+// is local time (as the ECMAScript format reads a date-time), and a zone
+// abbreviation is one of namedOffset's, read at its fixed offset.
+func ReadGo(text string) Option[Written] {
+	for l in goLayouts() {
+		let t = time.Parse(time.Custom{Text: l.Text}, text) catch {
+		case time.ParseError:
+			continue
+		}
+		let fields = strings.Fields(text)
+		if !writtenYear(fields, l) { return None }
+		let ms = time.UnixSeconds(t)*1000 + time.Nanosecond(t)/1000000
+		match l.Zone {
+		case noZone:
+			return Some[Written]{Value: LocalTime{Wall: ms}}
+		case numericZone:
+			return Some[Written]{Value: Instant{Millis: ms}}
+		case namedZone as n:
+			// Go read the abbreviation as UTC, so ms is the wall clock.
+			if n.Field >= len(fields) { return None }
+			match namedOffset(fields[n.Field]) {
+			case None:
+				return None
+			case Some[int] as o:
+				return Some[Written]{Value: Instant{Millis: ms - int64(o.Value)*1000}}
+			}
+		}
+	}
+	None
 }
 
 // floorDiv is division rounded down.

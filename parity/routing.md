@@ -92,10 +92,32 @@ argv and folder, and each launchctl call compare byte for byte, except:
   `Decode failed: ` and `Warning: skipping corrupt task file <name>: `; the
   line, its code and its status compare.
 - `--until` accepts the ECMAScript date-time format (date only, with time,
-  `Z` or an offset, fractions) as Bun reads it, which covers every form okra's
-  help, docs and tests show. Other strings that Bun's legacy parser happens to
-  accept fail with `[INVALID_DATE] ... Use ISO 8601 or YYYY-MM-DD.`
-  (orchestrator, O6 q1). A date-time with no zone is local time at that date.
+  `Z` or an offset, fractions) as Bun reads it, and Go's named time layouts
+  that write a date and a year (`Layout`, `ANSIC`, `UnixDate`, `RubyDate`,
+  `RFC822`, `RFC822Z`, `RFC850`, `RFC1123`, `RFC1123Z`, `RFC3339`,
+  `RFC3339Nano`, `DateTime`, `DateOnly`) as Go's `time.Parse` reads them
+  (owner, O6 q1/q2). Where the port and Bun both read a text, they give the
+  same instant; any other text fails with
+  `[INVALID_DATE] ... Use ISO 8601 or YYYY-MM-DD.` A date-time with no zone
+  is local time, in both formats, by ECMA-262's rule: in a daylight-saving
+  gap the offset from before the change, in an overlap the earlier instant.
+  `parity/until.ts` holds this rule over seeded texts in eight zones.
+  Texts only one side reads (declared):
+  - only the port: Go's `Layout` form (`01/02 03:04:05PM '06 -0700`) and a
+    comma before the fraction of seconds (`15:04:05,5`), which Go reads and
+    Bun refuses;
+  - only Bun: its legacy forms outside both formats (a zone after a date
+    alone such as `0001Z`, which Bun reads as 2001; leading or trailing
+    space; a day past the month's end, `Feb 30`; a one-digit day where Go
+    writes two; an unknown weekday name; `GMT+3`; a lower-case or one-letter
+    zone; second 60); the `Stamp` layouts, which write no year (Bun reads
+    2001, Go year 0); and in a Go layout a year Bun reads another way (a
+    four-digit year below 100, which Bun reads as two digits, and the two
+    digits 50 to 68, which Go reads as 2050 to 2068 and Bun as 1950 to
+    1968). A zone abbreviation is one of `UTC`, `GMT`, `EST`, `EDT`, `CST`,
+    `CDT`, `MST`, `MDT`, `PST` and `PDT` (RFC 822's names), at its fixed
+    offset; Go would read the others by the host's zone, and it does not
+    read RFC 822's `UT`, which Bun reads.
 - `--max-runs` reads a Go integer (std flag); Effect reads a JavaScript number
   and then requires an integer.
 - Usage errors (a bad `--provider`, extra or missing arguments) print the

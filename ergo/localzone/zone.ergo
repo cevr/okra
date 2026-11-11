@@ -8,3 +8,29 @@ func Offset(ms int64) int needs go.Foreign {
 	let (_, offset) = time.Unix(sec, 0).Zone()
 	offset
 }
+
+let day = int64(86400000)
+
+// Instant is the Unix time in milliseconds of a local wall clock time
+// (its fields counted as UTC milliseconds), by ECMA-262's UTC(t): of the
+// instants that show this wall time, the earliest (a time the clocks
+// repeat when they go back); when none does (the clocks went forward over
+// it), the wall time read in the offset from before the change. Go's
+// time.Date leaves both cases unspecified, so the rule is written here.
+// The offsets a day before and after are the candidates: a zone changes
+// its offset at most once in two days.
+func Instant(wall int64) int64 needs go.Foreign {
+	let before = Offset(wall - day)
+	let after = Offset(wall + day)
+	let early = wall - int64(before)*1000
+	let late = wall - int64(after)*1000
+	let earlyShows = Offset(early) == before
+	let lateShows = Offset(late) == after
+	if earlyShows && lateShows {
+		if early < late { early } else { late }
+	} else if lateShows {
+		late
+	} else {
+		early
+	}
+}

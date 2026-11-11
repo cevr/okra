@@ -163,22 +163,27 @@ func captureContext(dir string) Option[schedule.Context] needs exec.Runner {
 }
 
 // untilDate is the --until stop: the instant as ISO text, and the day's
-// last millisecond for a date alone (YYYY-MM-DD). A date-time with no
-// zone is local time.
-func untilDate(input string, now int64) string fails schedule.Failed needs go.Foreign {
-	let first = localzone.Offset(now)
-	let guess = schedule.Millis(input, func(_ int64) int { first })
-	let ms = match guess {
+// last millisecond for a date alone (YYYY-MM-DD). The text is the
+// ECMAScript format or one of Go's named layouts; one with no zone is
+// local time.
+func untilDate(input string) string fails schedule.Failed needs go.Foreign {
+	let invalid = schedule.Failed{Code: "INVALID_DATE", Message: "Invalid --until date: \"" + input + "\". Use ISO 8601 or YYYY-MM-DD."}
+	let read = match schedule.ReadUntil(input) {
 	case None:
-		return schedule.Fail("INVALID_DATE", "Invalid --until date: \""+input+"\". Use ISO 8601 or YYYY-MM-DD.")
-	case Some[int64] as g:
-		let second = localzone.Offset(g.Value)
-		match schedule.Millis(input, func(_ int64) int { second }) {
-		case None:
-			g.Value
-		case Some[int64] as m:
-			m.Value
+		return invalid
+	case Some[schedule.Written] as w:
+		match w.Value {
+		case schedule.Instant as i:
+			schedule.InRange(i.Millis)
+		case schedule.LocalTime as l:
+			schedule.InRange(localzone.Instant(l.Wall))
 		}
+	}
+	let ms = match read {
+	case None:
+		return invalid
+	case Some[int64] as m:
+		m.Value
 	}
 	if isDateOnly(schedule.Trim(input)) { schedule.Iso(ms + 86400000 - 1) } else { schedule.Iso(ms) }
 }
@@ -230,7 +235,7 @@ func createTask(c CreateTask, p Paths) fails schedule.Failed | os.Exit needs sch
 	match c.Until {
 	case None:
 	case Some[string] as u:
-		stops = stops.Append(schedule.AfterDate{Date: try untilDate(u.Value, now)})
+		stops = stops.Append(schedule.AfterDate{Date: try untilDate(u.Value)})
 	}
 	let condition = match c.StopWhen {
 	case None:
