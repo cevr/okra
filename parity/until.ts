@@ -328,13 +328,26 @@ function randomWallMs(year: number) {
   return yearMs(year) + below(365) * 86400000 + below(86400) * 1000;
 }
 
-// A TZ that names no zone (an unknown name, a path, a POSIX rule): Bun
-// reads each as UTC, and Go too (a path as that file). The port refuses a
-// local text there, never UTC in silence, and reads a text with a zone as
-// Bun does.
+// ICU's id check (isValidOlsonID, ICU's putil.cpp), written here apart from
+// the port: up to the first digit or comma no digit, then at most two
+// digits, then the end; or exactly one of the four digit-named zones. ICU
+// reads a TZ that fails it as the host's own zone (/etc/localtime), so
+// there the port must give Bun's instant on every host.
+function icuIdShaped(tz: string) {
+  if (["PST8PDT", "MST7MDT", "CST6CDT", "EST5EDT"].includes(tz)) return true;
+  return /^[^0-9,]*[0-9]{0,2}$/.test(tz);
+}
+
+// A TZ that names no zone (an unknown name, a path): Bun reads each as UTC,
+// and Go too (a path as that file). The port refuses a local text there,
+// never UTC in silence, and reads a text with a zone as Bun does. A POSIX
+// rule fails ICU's id check: Bun reads the host's zone, and so must the port
+// (in July of 1997-2025, where the host's and ICU's data agree, as below).
 for (const zone of ["Nowhere/Unknown", "/usr/share/zoneinfo/America/Toronto", "EST+5EDT,M3.2.0/2,M11.1.0/2", ":Etc/Nowhere"]) {
   const w = randomWall(1970, 2100);
-  items.push({ text: `${y4(w)}-${two(w.mo + 1)}-${two(w.d)}T${two(w.h)}:${two(w.mi)}`, zone, kind: "es", unnamed: true, why: "TZ names no zone" });
+  const unnamed = icuIdShaped(zone);
+  const local = unnamed ? `${y4(w)}-${two(w.mo + 1)}` : `${1997 + (w.y % 29)}-07`;
+  items.push({ text: `${local}-${two(w.d)}T${two(w.h)}:${two(w.mi)}`, zone, kind: "es", unnamed, tzName: !unnamed, why: unnamed ? "TZ names no zone" : "TZ fails ICU's id check" });
   add(`${y4(w)}-${two(w.mo + 1)}-${two(w.d)}T${two(w.h)}:${two(w.mi)}${pick(["Z", "+05:30", "-03:00"])}`, "es", "TZ names no zone, text with a zone", false, zone);
 }
 
@@ -344,8 +357,10 @@ for (const zone of ["Nowhere/Unknown", "/usr/share/zoneinfo/America/Toronto", "E
 // localtime and *.tab among them, which are no zone id), each written in a
 // form Bun's ICU may read: as is, after ":", "posix/" or "right/", in
 // another case, or doubled prefixes. The port must give Bun's instant, or
-// refuse ("TZ names no time zone") where Bun reads the TZ as UTC
-// (declared). The wall clock is in July of 1997-2025, where the carried,
+// refuse ("TZ names no time zone") where the TZ passes ICU's id check and
+// Bun reads it as UTC (declared). A TZ that fails the check is the host's
+// zone on both sides: the same instant only, which a host whose zone is not
+// UTC tells apart from UTC (the gate runs this property on one). The wall clock is in July of 1997-2025, where the carried,
 // host and ICU data agree for every zone (routing.md, Schedule: the
 // measured differences end in 1996, and the future rules start in 2026),
 // and where most zones are not at UTC's offset.
@@ -528,10 +543,11 @@ try {
       if (ok && want.code === 0) tally.bunOnly++;
       else if (ok) tally.bothRefuse++;
     } else if (item.tzName) {
-      // Bun's instant, or a refusal where Bun reads the TZ as UTC (declared).
+      // Bun's instant, or a refusal where the TZ passes ICU's id check and
+      // Bun reads it as UTC (declared).
       const utc = new Date(Date.parse(`${item.text}Z`)).toISOString();
       const bunUtc = want.code === 0 && want.stops.includes(JSON.stringify(utc));
-      ok = same || (bunUtc && refused(got) && got.err.includes("TZ names no time zone"));
+      ok = same || (icuIdShaped(item.zone) && bunUtc && refused(got) && got.err.includes("TZ names no time zone"));
       if (ok && !same) tally.bunOnly++;
       else if (ok && refused(got)) tally.bothRefuse++;
       else if (ok) tally.equal++;

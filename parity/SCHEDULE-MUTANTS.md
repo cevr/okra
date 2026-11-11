@@ -71,12 +71,18 @@ the two local-time mutants.
 | zone-alias-ignored          | an ICU alias (`PST`) is its carried zone (`America/Los_Angeles`)     |
 | zone-case-fold-dropped      | `america/new_york` is New York, as Bun reads it                      |
 | zone-fold-mark-ignored      | `pst` names no zone: ICU reads its Java-style ids only as written    |
-| zone-olson-check-dropped    | `:EST5EDT` names no zone: ICU's id check fails on the whole TZ       |
+| zone-olson-check-dropped    | `:EST5EDT` is not EST5EDT: ICU's id check fails on the whole TZ      |
+| host-zone-read-as-utc       | a TZ that fails ICU's id check is the host's zone, not UTC           |
 | eq-leap-base-1960           | a leap year outside the range takes 2008's offset family, not 2012's |
 | zone-data-not-carried       | built without `-tags=timetzdata`, a zone the host lacks fails        |
 
 `zone-data-not-carried` edits no source: it builds with `GOFLAGS=-p=1`. It
 dies only on a host whose zoneinfo lacks `America/Godthab` (this one).
+`host-zone-read-as-utc` dies only on a host whose own zone is not UTC (on
+a UTC host the two readings are the same instants), so the ledger runs it
+only there: on the owner's Mac, or on Linux in a private mount namespace
+whose `/etc/localtime` names another zone (`unshare -rm` and a bind-mounted
+copy of `/etc`).
 
 The switch guard (`parity/switch.ts --mutants`) kills shim-default-to-ts,
 shim-schedule-to-ts, shim-empty-to-ts, shim-unknown-to-ts,

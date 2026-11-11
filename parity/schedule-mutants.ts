@@ -2,6 +2,7 @@
 // the live-tee driver parity/schedule-stream.ts), named in
 // SCHEDULE-MUTANTS.md. Mutant copies and binaries stay in this lane's
 // scratch, never the original source.
+import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { cp, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
@@ -158,7 +159,7 @@ const mutants: Mutant[] = [
     ["local-overlap-later", "localzone/zone.ergo", "if early < late { early } else { late }", "late"],
     ["local-gap-after-offset", "localzone/zone.ergo", "\t} else {\n\t\tearly\n\t}", "\t} else {\n\t\tlate\n\t}"],
     ["equivalent-wall-dropped", "schedule/date.ergo", "if wall >= -maxMillis && wall <= maxMillis { return wall }", "if true { return wall }"],
-    ["unnamed-zone-read-as-utc", "localzone/zone.ergo", "\t\tcase None:\n\t\t\treturn None\n\t\tcase Some[string] as c:", "\t\tcase None:\n\t\t\t\"UTC\"\n\t\tcase Some[string] as c:"],
+    ["unnamed-zone-read-as-utc", "localzone/zone.ergo", "\tcase None:\n\t\treturn None\n\tcase Some[string] as c:", "\tcase None:\n\t\t\"UTC\"\n\tcase Some[string] as c:"],
     ["zone-any-host-file", "localzone/zone.ergo", "\t\tcase None:\n\t\t\treturn None\n\t\tcase Some[int] as a:", "\t\tcase None:\n\t\t\treturn Some[string]{Value: name}\n\t\tcase Some[int] as a:"],
     ["zone-colon-kept", "localzone/zone.ergo", 'let bare = strings.TrimPrefix(tz, ":")', "let bare = tz"],
     ["zone-prefix-kept", "localzone/zone.ergo", 'if strings.HasPrefix(bare, "posix/") || strings.HasPrefix(bare, "right/") { bare[6:] } else { bare }', "bare"],
@@ -166,17 +167,31 @@ const mutants: Mutant[] = [
     ["zone-alias-ignored", "localzone/zone.ergo", 'if at < 0 { at = strings.Index(table, "\\n"+name+">") }', ""],
     ["zone-case-fold-dropped", "localzone/zone.ergo", "match find(strings.ToLower(names), strings.ToLower(name)) {", "match find(names, name) {"],
     ["zone-fold-mark-ignored", "localzone/zone.ergo", "if names[a.Value+len(name)] == '>' { return None }", ""],
-    ["zone-olson-check-dropped", "localzone/zone.ergo", "if !olsonShaped(tz) { return None }", ""],
+    ["zone-olson-check-dropped", "localzone/zone.ergo", "if !set || !olsonShaped(tz) { return Host() }", "if !set { return Host() }"],
+    ["host-zone-read-as-utc", "localzone/zone.ergo", "if !set || !olsonShaped(tz) { return Host() }", 'if !set { return Host() }\n\tif !olsonShaped(tz) { return time.FixedZone("UTC", 0) }'],
     ["eq-leap-base-1960", "schedule/date.ergo", "if leap { 1956 + (weekday*12)%28 }", "if leap { 1960 + (weekday*12)%28 }"],
   ] as const).map(([name, file, from, to]) => ({ name, file, from, to, guard: until })),
   // The build without Go's tzdata: a zone the host lacks no longer loads.
   { name: "zone-data-not-carried", file: "cmd/okra-parity/main.ergo", from: "", to: "", guard: until, env: { GOFLAGS: "-p=1" } },
 ];
+// The host's own zone (TZ unset) reads January and July noon as UTC: only
+// then can no run tell the host's zone from UTC.
+function hostZoneIsUtc() {
+  const env = { ...process.env };
+  delete env.TZ;
+  const r = spawnSync(process.execPath, ["-e", 'console.log(new Date("2020-01-01T12:00").getTimezoneOffset() === 0 && new Date("2020-07-01T12:00").getTimezoneOffset() === 0)'], { env, encoding: "utf8" });
+  if (r.status !== 0) throw new Error(`host zone probe: ${r.stderr}`);
+  return r.stdout.trim() === "true";
+}
 let count = 0;
 const only = process.argv.find((a) => a.startsWith("--only="))?.slice(7);
 for (const m of mutants.filter((x) => !only || x.name === only)) {
   if (m.name === "zone-data-not-carried" && existsSync("/usr/share/zoneinfo/America/Godthab")) {
     console.log(`not run ${m.name}: this host's zoneinfo has America/Godthab`);
+    continue;
+  }
+  if (m.name === "host-zone-read-as-utc" && hostZoneIsUtc()) {
+    console.log(`not run ${m.name}: this host's zone is UTC (run it where /etc/localtime is not)`);
     continue;
   }
   const dir = await mkdtemp(join(scratch, "schedule-mutant-"));
