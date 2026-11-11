@@ -1,4 +1,25 @@
+import go os
+import go strings
 import go time
+
+// Named is false when TZ is set but names no zone the zone data has: an
+// unknown name, a path or a POSIX rule. Go reads each of these as UTC
+// without a word (a path as that file), and Bun's ICU reads all as UTC; the
+// port says so instead of reading a local time there. TZ unset (the host's
+// /etc/localtime) and TZ empty (UTC) are named. The zone data is the
+// host's zoneinfo, then the tzdata the binary carries (the build's
+// timetzdata tag; ergo-gaps: carried zone data).
+func Named() bool needs go.Foreign {
+	let (tz, set) = os.LookupEnv("TZ")
+	let name = strings.TrimPrefix(tz, ":")
+	if !set || name == "" { return true }
+	if strings.HasPrefix(name, "/") { return false }
+	let _ = time.LoadLocation(name) catch {
+	case go.Error:
+		return false
+	}
+	true
+}
 
 // Offset is the local zone's offset east of UTC, in seconds, at a Unix
 // time in milliseconds, as JavaScript's Date reads a date-time with no

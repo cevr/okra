@@ -16,7 +16,7 @@ export async function run(
       HOME: scratch,
       GOMAXPROCS: "1",
       GOMEMLIMIT: "6GiB",
-      GOFLAGS: "-p=1",
+      GOFLAGS: "-p=1 -tags=timetzdata", // as scripts/build.ts: the port carries Go's tzdata
       GOPATH: `${scratch}/go`,
       GOMODCACHE: `${scratch}/go/pkg/mod`,
       GOCACHE: `${scratch}/gocache`,
