@@ -4,7 +4,9 @@
 // run through `okra schedule x -s "every day at 9am" --until <text>` by the
 // compiled reference (Bun's Date.parse) and by the port, with TZ set per
 // text. The rule (owner, O6 q1/q2; parity/routing.md, Schedule):
-//   - a text in the ECMAScript format: the same bytes, status and stored stop;
+//   - a text in the ECMAScript format: the same bytes, status and stored stop,
+//     except a local time under a TZ that names no zone, which the port
+//     refuses (Bun reads it as UTC; declared);
 //   - a text in a Go named layout: the port reads it; the reference gives
 //     the same instant, or refuses a form declared port-only;
 //   - any other text: the same result, or the port refuses one that only
@@ -40,7 +42,7 @@ const pick = <T>(xs: readonly T[]) => xs[below(xs.length)]!;
 const two = (n: number) => String(n).padStart(2, "0");
 
 type Kind = "es" | "go" | "near";
-type Item = { text: string; zone: string; kind: Kind; portOnly?: boolean; why: string };
+type Item = { text: string; zone: string; kind: Kind; portOnly?: boolean; unnamed?: boolean; why: string };
 const items: Item[] = [];
 const zones = [
   "UTC",
@@ -51,6 +53,7 @@ const zones = [
   "Europe/London",
   "Pacific/Chatham",
   "America/St_Johns",
+  "America/Godthab", // a backward name some hosts' zoneinfo lacks: the port's carried tzdata has it
 ];
 const add = (text: string, kind: Kind, why: string, portOnly = false, zone = pick(zones)) =>
   items.push({ text, zone, kind, portOnly, why });
@@ -141,6 +144,39 @@ for (const [text, kind] of [
 // The edges of the range a Date holds (8.64e15 ms either side of 1970).
 for (const text of ["+275760-09-13T00:00:00.000Z", "+275760-09-13T00:00:00.001Z", "-271821-04-20T00:00:00.000Z", "-271821-04-19T23:59:59.999Z", "+275760-09-13T00:00", "-271821-04-20T00:00:00+00:01", "+275760-09-13T00:01+00:01"])
   add(text, "es", "range");
+// Local wall clocks at both edges of that range, in every zone of the
+// corpus (west and east of UTC), within 15 hours outside and inside each
+// bound. Outside, Bun reads the zone's offset in an equivalent year
+// (schedule.EquivalentWall); the instant may still be in the range. Fields
+// from the day count, since a Date cannot hold such a wall clock.
+function civil(ms: number) {
+  const days = Math.floor(ms / 86400000);
+  const rest = ms - days * 86400000;
+  const z = days + 719468; // civil_from_days (H. Hinnant)
+  const era = Math.floor(z / 146097);
+  const doe = z - era * 146097;
+  const yoe = Math.floor((doe - Math.floor(doe / 1460) + Math.floor(doe / 36524) - Math.floor(doe / 146096)) / 365);
+  const doy = doe - (365 * yoe + Math.floor(yoe / 4) - Math.floor(yoe / 100));
+  const mp = Math.floor((5 * doy + 2) / 153);
+  const mo = mp < 10 ? mp + 3 : mp - 9;
+  const y = yoe + era * 400 + (mo <= 2 ? 1 : 0);
+  return { y, mo, d: doy - Math.floor((153 * mp + 2) / 5) + 1, h: Math.floor(rest / 3600000), mi: Math.floor(rest / 60000) % 60, s: Math.floor(rest / 1000) % 60, milli: rest % 1000 };
+}
+function esLocal(ms: number) {
+  const c = civil(ms);
+  const year = c.y >= 0 && c.y <= 9999 ? String(c.y).padStart(4, "0") : `${c.y < 0 ? "-" : "+"}${String(Math.abs(c.y)).padStart(6, "0")}`;
+  const seconds = c.milli !== 0 ? `:${two(c.s)}.${String(c.milli).padStart(3, "0")}` : c.s !== 0 || below(2) ? `:${two(c.s)}` : "";
+  return `${year}-${two(c.mo)}-${two(c.d)}${pick(["T", "T", "t"])}${two(c.h)}:${two(c.mi)}${seconds}`;
+}
+const maxWall = 8.64e15;
+for (const zone of zones)
+  for (const bound of [-maxWall, maxWall])
+    for (const outside of [true, false])
+      for (let i = 0; i < 2; i++) {
+        const away = pick([outside ? 1 : 0, 1000 * (1 + below(59)), 60000 * (1 + below(900)), 3600000 * (1 + below(15))]);
+        const wall = bound + ((bound < 0) === outside ? -away : away);
+        add(esLocal(wall), "es", `local range ${bound < 0 ? "low" : "high"} ${outside ? "outside" : "inside"}`, false, zone);
+      }
 
 // Go's named layouts, written from a random wall time.
 const shortDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -278,6 +314,16 @@ function randomWallMs(year: number) {
   return yearMs(year) + below(365) * 86400000 + below(86400) * 1000;
 }
 
+// A TZ that names no zone (an unknown name, a path, a POSIX rule): Bun
+// reads each as UTC, and Go too (a path as that file). The port refuses a
+// local text there, never UTC in silence, and reads a text with a zone as
+// Bun does.
+for (const zone of ["Nowhere/Unknown", "/usr/share/zoneinfo/America/Toronto", "EST+5EDT,M3.2.0/2,M11.1.0/2", ":Etc/Nowhere"]) {
+  const w = randomWall(1970, 2100);
+  items.push({ text: `${y4(w)}-${two(w.mo + 1)}-${two(w.d)}T${two(w.h)}:${two(w.mi)}`, zone, kind: "es", unnamed: true, why: "TZ names no zone" });
+  add(`${y4(w)}-${two(w.mo + 1)}-${two(w.d)}T${two(w.h)}:${two(w.mi)}${pick(["Z", "+05:30", "-03:00"])}`, "es", "TZ names no zone, text with a zone", false, zone);
+}
+
 // The forms okra's help and docs show, and the reference time.
 for (const text of ["2026-03-20", "2026-03-20T10:00:00Z", "2026-03-20T10:00", "Mon Jan  2 15:04:05 MST 2006", "Mon, 02 Jan 2006 15:04:05 MST", "2006-01-02 15:04:05"])
   add(text, text.includes("Jan") || text.includes(" ") ? "go" : "es", "docs");
@@ -367,7 +413,12 @@ try {
     const same = want.code === got.code && want.out === got.out && want.err === got.err && want.stops === got.stops;
     const refused = (r: Result) => r.code === 1 && r.stops === "" && r.err.includes("[INVALID_DATE]");
     let ok: boolean;
-    if (same) {
+    if (item.unnamed) {
+      // Declared: the port refuses a local time under a TZ naming no zone.
+      ok = refused(got) && got.err.includes("TZ names no time zone");
+      if (ok && want.code === 0) tally.bunOnly++;
+      else if (ok) tally.bothRefuse++;
+    } else if (same) {
       // A Go layout text is one the port reads.
       ok = item.kind !== "go" || got.code === 0;
       if (ok && refused(got)) tally.bothRefuse++;

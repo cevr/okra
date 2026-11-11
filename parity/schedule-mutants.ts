@@ -2,6 +2,7 @@
 // the live-tee driver parity/schedule-stream.ts), named in
 // SCHEDULE-MUTANTS.md. Mutant copies and binaries stay in this lane's
 // scratch, never the original source.
+import { existsSync } from "node:fs";
 import { cp, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { run } from "./process";
@@ -10,7 +11,8 @@ const root = resolve(import.meta.dir, "..");
 const scratch = process.env.OKRA_PARITY_SCRATCH ?? "/tmp/opencode/okra-o6";
 const compiler = process.env.ERGO ?? join(scratch, "ergo");
 await mkdir(scratch, { recursive: true });
-type Mutant = { name: string; file: string; from: string; to: string; guard: string };
+// env: build environment of a build mutant (from "" edits no source).
+type Mutant = { name: string; file: string; from: string; to: string; guard: string; env?: Record<string, string> };
 const stream = "stream";
 const until = "until";
 const mutants: Mutant[] = [
@@ -155,19 +157,30 @@ const mutants: Mutant[] = [
     ["go-low-year-accepted", "schedule/date.ergo", "n >= 100 }", "true }"],
     ["local-overlap-later", "localzone/zone.ergo", "if early < late { early } else { late }", "late"],
     ["local-gap-after-offset", "localzone/zone.ergo", "\t} else {\n\t\tearly\n\t}", "\t} else {\n\t\tlate\n\t}"],
+    ["equivalent-wall-dropped", "schedule/date.ergo", "if wall >= -maxMillis && wall <= maxMillis { return wall }", "if true { return wall }"],
+    ["unnamed-zone-read-as-utc", "cli/schedule.ergo", "if !localzone.Named() {", "if false {"],
+    ["path-zone-read-as-file", "localzone/zone.ergo", 'if strings.HasPrefix(name, "/") { return false }', 'if strings.HasPrefix(name, "/") { return true }'],
   ] as const).map(([name, file, from, to]) => ({ name, file, from, to, guard: until })),
+  // The build without Go's tzdata: a zone the host lacks no longer loads.
+  { name: "zone-data-not-carried", file: "cmd/okra-parity/main.ergo", from: "", to: "", guard: until, env: { GOFLAGS: "-p=1" } },
 ];
 let count = 0;
 const only = process.argv.find((a) => a.startsWith("--only="))?.slice(7);
 for (const m of mutants.filter((x) => !only || x.name === only)) {
+  if (m.name === "zone-data-not-carried" && existsSync("/usr/share/zoneinfo/America/Godthab")) {
+    console.log(`not run ${m.name}: this host's zoneinfo has America/Godthab`);
+    continue;
+  }
   const dir = await mkdtemp(join(scratch, "schedule-mutant-"));
   await cp(join(root, "ergo"), join(dir, "ergo"), { recursive: true });
   const file = join(dir, "ergo", m.file);
   const text = await readFile(file, "utf8");
-  if (text.split(m.from).length !== 2) throw new Error(`mutant edit not unique: ${m.name}`);
-  await writeFile(file, text.replace(m.from, m.to));
+  if (m.from !== "") {
+    if (text.split(m.from).length !== 2) throw new Error(`mutant edit not unique: ${m.name}`);
+    await writeFile(file, text.replace(m.from, m.to));
+  } else if (m.env === undefined) throw new Error(`mutant changes nothing: ${m.name}`);
   const binary = join(dir, "mutant");
-  const build = await run(compiler, ["build", "ergo/cmd/okra-parity", "-o", binary], dir);
+  const build = await run(compiler, ["build", "ergo/cmd/okra-parity", "-o", binary], dir, m.env);
   if (build.code !== 0) throw new Error(`mutant did not compile ${m.name}: ${build.err}`);
   const guard = await run(
     process.execPath,

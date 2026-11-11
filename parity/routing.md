@@ -101,7 +101,32 @@ argv and folder, and each launchctl call compare byte for byte, except:
   `[INVALID_DATE] ... Use ISO 8601 or YYYY-MM-DD.` A date-time with no zone
   is local time, in both formats, by ECMA-262's rule: in a daylight-saving
   gap the offset from before the change, in an overlap the earlier instant.
-  `parity/until.ts` holds this rule over seeded texts in eight zones.
+  A local wall clock outside the range a Date holds (within hours of
+  `-271821-04-20` or `+275760-09-13`) takes the zone's offset in an
+  equivalent year, as Bun's JavaScriptCore does (the year of 2008 to 2035
+  with the same leap-ness and the same weekday on January 1; ES5 15.9.1.8),
+  so the port gives Bun's instant or Bun's refusal there too.
+  `parity/until.ts` holds these rules over seeded texts in nine zones,
+  including local wall clocks within 15 hours of both edges of the range.
+  Zone data: the port reads the host's zoneinfo first, then the tzdata the
+  binary carries (Go 2026c, built with `-tags=timetzdata`), so a zone the
+  host lacks (`America/Godthab` on hosts without backward names) still
+  loads; Bun reads ICU's data (ICU 78.3). The same instant holds where the
+  two data sets agree. Measured on this host (`O6/r3-tzcmp-*.txt` in the run
+  notes; each Go offset interval's ends and the first of each month,
+  1800-2040, against Bun's `Intl`): Go's carried data differs from ICU in
+  102 of 598 zone names: in 95, history only, all of it before 1970 (among
+  them many zones of Africa and the Caribbean, `Europe/Amsterdam`,
+  `Atlantic/Reykjavik`, `Pacific/Majuro`, `America/Creston`; inferred: zones
+  that tzdata links to another zone where ICU keeps their own history); in
+  7, future rules from 2026 (`Africa/Casablanca`, `Africa/El_Aaiun`,
+  `America/Edmonton`, `America/Vancouver`, `America/Yellowknife`,
+  `Canada/Mountain`, `Canada/Pacific`; inferred: ICU's tz release is
+  older). This host's zoneinfo (Ubuntu 2026c) differs in 121 of the 497
+  names it has: history up to 1996 (`WET`), and the same future rules. The
+  zones `until.ts` draws agree. A TZ that names no zone (an unknown name, a path, a POSIX rule)
+  makes a local time fail (`TZ names no time zone`); Bun reads it as UTC
+  (declared, port refuses).
   Texts only one side reads (declared):
   - only the port: Go's `Layout` form (`01/02 03:04:05PM '06 -0700`) and a
     comma before the fraction of seconds (`15:04:05,5`), which Go reads and

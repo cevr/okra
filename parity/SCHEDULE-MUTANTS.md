@@ -30,7 +30,8 @@ and requires `schedule parity mismatch: <guard>` (or
 The `--until` readers (`schedule/date.ergo`, `localzone/zone.ergo`) have one
 guard, the until property `parity/until.ts --seed=42` (seeded texts in the
 ECMAScript format, in Go's named layouts, at both edges of daylight-saving
-changes in eight zones, and near misses; reference against port, rule in
+changes in nine zones, local wall clocks at both edges of the Date range,
+TZ values that name no zone, and near misses; reference against port, rule in
 `routing.md`, Schedule). `schedule-mutants.ts` requires
 `until parity mismatch:`. The first ten are the round-1 verifier's parser
 mutants; the old two-pass local offset is gone, and its place is taken by
@@ -58,6 +59,13 @@ the two local-time mutants.
 | go-low-year-accepted        | a four-digit year below 100 is refused in a Go layout                |
 | local-overlap-later         | a repeated wall time is the earlier instant                          |
 | local-gap-after-offset      | a skipped wall time reads in the offset before the change            |
+| equivalent-wall-dropped     | a wall clock outside the Date range takes an equivalent year's offset |
+| unnamed-zone-read-as-utc    | a local time under a TZ that names no zone is refused, not UTC       |
+| path-zone-read-as-file      | a path in TZ names no zone (Bun reads UTC, Go the file)              |
+| zone-data-not-carried       | built without `-tags=timetzdata`, a zone the host lacks fails        |
+
+`zone-data-not-carried` edits no source: it builds with `GOFLAGS=-p=1`. It
+dies only on a host whose zoneinfo lacks `America/Godthab` (this one).
 
 The switch guard (`parity/switch.ts --mutants`) kills shim-default-to-ts,
 shim-schedule-to-ts, shim-empty-to-ts, shim-unknown-to-ts,
