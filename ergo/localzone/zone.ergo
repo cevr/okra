@@ -2,31 +2,113 @@ import go os
 import go strings
 import go time
 
-// Named is false when TZ is set but names no zone the zone data has: an
-// unknown name, a path or a POSIX rule. Go reads each of these as UTC
-// without a word (a path as that file), and Bun's ICU reads all as UTC; the
-// port says so instead of reading a local time there. TZ unset (the host's
-// /etc/localtime) and TZ empty (UTC) are named. The zone data is the
-// host's zoneinfo, then the tzdata the binary carries (the build's
-// timetzdata tag; ergo-gaps: carried zone data).
-func Named() bool needs go.Foreign {
+// Read is the Unix time in milliseconds of a local wall clock time (its
+// fields counted as UTC milliseconds) in the zone TZ names (Zone, Instant),
+// or None when TZ names no carried zone.
+func Read(wall int64) Option[int64] needs go.Foreign {
+	match Zone() {
+	case None:
+		None
+	case Some[go.Ref[time.Location]] as z:
+		Some[int64]{Value: Instant(z.Value, wall)}
+	}
+}
+
+// Zone is the location a local time is read in, as Bun reads TZ: TZ unset
+// is the host's /etc/localtime, TZ empty is UTC, and any other TZ must name
+// a zone of the tzdata the binary carries, as Carried reads it. None is a
+// TZ that names no carried zone: an unknown name, a path, a POSIX rule, a
+// host zoneinfo file that is not a zone id (posixrules, localtime), or an
+// ICU id with no data (SystemV/EST5). Bun reads each of these as UTC; the
+// port refuses a local time there (declared). The data of a carried name
+// is read from the host's zoneinfo first, then from the carried tzdata
+// (time.LoadLocation; the build's timetzdata tag; ergo-gaps: carried zone
+// data).
+func Zone() Option[go.Ref[time.Location]] needs go.Foreign {
 	let (tz, set) = os.LookupEnv("TZ")
-	let name = strings.TrimPrefix(tz, ":")
-	if !set || name == "" { return true }
-	if strings.HasPrefix(name, "/") { return false }
-	let _ = time.LoadLocation(name) catch {
+	let mut name = "Local"
+	if set {
+		name = match Carried(tz) {
+		case None:
+			return None
+		case Some[string] as c:
+			c.Value
+		}
+	}
+	let loc = time.LoadLocation(name) catch {
 	case go.Error:
-		return false
+		return None
+	}
+	Some[go.Ref[time.Location]]{Value: loc}
+}
+
+// Carried is the carried tzdata name that Bun's ICU reads TZ as, or None
+// when Bun reads TZ as no zone (UTC). Measured rules (scripts/zone-names.ts,
+// parity/until.ts): the whole TZ passes ICU's id check (letters, then at
+// most two digits at the end; or exactly EST5EDT, CST6CDT, MST7MDT or
+// PST8PDT); one leading ":" and then one "posix/" or "right/" are dropped;
+// the rest is a name of the table, as written or, unless the table marks
+// it ">", in any case. TZ empty (or ":") is UTC, as Go reads it.
+func Carried(tz string) Option[string] {
+	let bare = strings.TrimPrefix(tz, ":")
+	if bare == "" { return Some[string]{Value: "UTC"} }
+	if !olsonShaped(tz) { return None }
+	let name = if strings.HasPrefix(bare, "posix/") || strings.HasPrefix(bare, "right/") { bare[6:] } else { bare }
+	if name == "" { return None }
+	for i in 0..len(name) {
+		if name[i] == '\n' || name[i] > '~' { return None }
+	}
+	// at: where the name starts in the table.
+	let at = match find(names, name) {
+	case Some[int] as a:
+		a.Value
+	case None:
+		// Another case: ICU folds it, unless the table marks the name ">".
+		match find(strings.ToLower(names), strings.ToLower(name)) {
+		case None:
+			return None
+		case Some[int] as a:
+			if names[a.Value+len(name)] == '>' { return None }
+			a.Value
+		}
+	}
+	let end = at + len(name)
+	if names[end] == '\n' { return Some[string]{Value: names[at:end]} }
+	let stop = end + strings.Index(names[end:], "\n")
+	Some[string]{Value: names[end+1 : stop]}
+}
+
+// find is where name starts in the table, as a whole line or before a mark.
+func find(table string, name string) Option[int] {
+	let mut at = strings.Index(table, "\n"+name+"\n")
+	if at < 0 { at = strings.Index(table, "\n"+name+"=") }
+	if at < 0 { at = strings.Index(table, "\n"+name+">") }
+	if at < 0 { None } else { Some[int]{Value: at + 1} }
+}
+
+// olsonShaped is ICU's isValidOlsonID (putil.cpp), which ICU applies to the
+// whole TZ before it drops a prefix: Bun reads a TZ that fails it as UTC.
+func olsonShaped(tz string) bool {
+	if tz == "EST5EDT" || tz == "CST6CDT" || tz == "MST7MDT" || tz == "PST8PDT" { return true }
+	let mut digits = 0
+	for i in 0..len(tz) {
+		let c = tz[i]
+		if c >= '0' && c <= '9' {
+			digits = digits + 1
+			if digits > 2 { return false }
+		} else if digits > 0 || c == ',' {
+			return false
+		}
 	}
 	true
 }
 
-// Offset is the local zone's offset east of UTC, in seconds, at a Unix
-// time in milliseconds, as JavaScript's Date reads a date-time with no
-// zone. std time has no local zone at the pin (ergo-gaps: local zone).
-func Offset(ms int64) int needs go.Foreign {
+// Offset is the zone's offset east of UTC, in seconds, at a Unix time in
+// milliseconds, as JavaScript's Date reads a date-time with no zone. std
+// time has no local zone at the pin (ergo-gaps: local zone).
+func Offset(loc go.Ref[time.Location], ms int64) int needs go.Foreign {
 	let sec = if ms < 0 && ms%1000 != 0 { ms/1000 - 1 } else { ms / 1000 }
-	let (_, offset) = time.Unix(sec, 0).Zone()
+	let (_, offset) = time.Unix(sec, 0).In(loc).Zone()
 	offset
 }
 
@@ -40,13 +122,13 @@ let day = int64(86400000)
 // time.Date leaves both cases unspecified, so the rule is written here.
 // The offsets a day before and after are the candidates: a zone changes
 // its offset at most once in two days.
-func Instant(wall int64) int64 needs go.Foreign {
-	let before = Offset(wall - day)
-	let after = Offset(wall + day)
+func Instant(loc go.Ref[time.Location], wall int64) int64 needs go.Foreign {
+	let before = Offset(loc, wall - day)
+	let after = Offset(loc, wall + day)
 	let early = wall - int64(before)*1000
 	let late = wall - int64(after)*1000
-	let earlyShows = Offset(early) == before
-	let lateShows = Offset(late) == after
+	let earlyShows = Offset(loc, early) == before
+	let lateShows = Offset(loc, late) == after
 	if earlyShows && lateShows {
 		if early < late { early } else { late }
 	} else if lateShows {

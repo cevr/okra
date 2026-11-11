@@ -176,12 +176,14 @@ func untilDate(input string) string fails schedule.Failed needs go.Foreign {
 		case schedule.Instant as i:
 			schedule.InRange(i.Millis)
 		case schedule.LocalTime as l:
-			if !localzone.Named() {
-				return schedule.Failed{Code: "INVALID_DATE", Message: "Invalid --until date: \"" + input + "\". TZ names no time zone, so a local time cannot be read; add Z or an offset."}
-			}
 			// The offset of the wall clock JavaScriptCore reads it by.
 			let at = schedule.EquivalentWall(l.Wall)
-			schedule.InRange(l.Wall - (at - localzone.Instant(at)))
+			match localzone.Read(at) {
+			case None:
+				return schedule.Failed{Code: "INVALID_DATE", Message: "Invalid --until date: \"" + input + "\". TZ names no time zone, so a local time cannot be read; add Z or an offset."}
+			case Some[int64] as t:
+				schedule.InRange(l.Wall - (at - t.Value))
+			}
 		}
 	}
 	let ms = match read {
