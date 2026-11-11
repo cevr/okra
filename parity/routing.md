@@ -138,15 +138,25 @@ argv and folder, and each launchctl call compare byte for byte, except:
   `US/Pacific-New`, `Canada/East-Saskatchewan` (in any case). ICU's id check
   applies to the whole TZ: letters, then at most two digits at the end, or
   exactly `EST5EDT`, `CST6CDT`, `MST7MDT` or `PST8PDT`.
-  Bun reads every other TZ as UTC, and there the port makes a local time
-  fail (`TZ names no time zone`; declared, port refuses): an unknown name,
-  a path (`/usr/share/zoneinfo/America/Toronto`), a POSIX rule, a host
-  zoneinfo file that is no zone id (`posixrules`, `localtime`,
-  `zone.tab` and the other `*.tab`, `tzdata.zi`, `leapseconds`,
-  `leap-seconds.list`), ICU ids with no data (`Etc/Unknown`, the 13
-  `SystemV/…` ids), a Java-style alias in another case (`pst`), a prefix
-  in another case or twice (`Posix/…`, `posix/right/…`, `::…`), and a
-  digit-named zone in any other form (`:EST5EDT`, `est5edt`). No ICU alias
+  A TZ that fails that check is the host's own zone, on both sides, as TZ
+  unset is (measured on hosts whose `/etc/localtime` is Toronto, a link,
+  or Kolkata, a copy: ICU then reads `/etc/localtime`, and the port reads
+  that file's zone data): a POSIX rule (`EST5EDT,M3.2.0,M11.1.0`), a
+  digit-named zone in any other form (`:EST5EDT`, `est5edt`,
+  `posix/EST5EDT`), three digits or more (`Etc/GMT+100`, `-0330`), an
+  offset with a colon (`+05:00`, `GMT+05:00`), and a name with a digit
+  before its end (`zone1970.tab`, `iso3166.tab`). On a UTC host that is
+  UTC.
+  Bun reads every other TZ that names no zone as UTC, on every host, and
+  there the port makes a local time fail (`TZ names no time zone`;
+  declared, port refuses): an unknown name (`FOO`, `+05`, `UTC+5`), a
+  path (`/usr/share/zoneinfo/America/Toronto`), a host zoneinfo file that
+  is no zone id and passes the check (`posixrules`, `localtime`,
+  `zone.tab`, `tzdata.zi`, `leapseconds`, `leap-seconds.list`), ICU ids
+  with no data (`Etc/Unknown`, and the `SystemV/…` ids whose digits end
+  them, `SystemV/EST5`; `SystemV/EST5EDT` fails the check),
+  a Java-style alias in another case (`pst`), and a prefix in another case
+  or twice (`Posix/…`, `posix/right/…`, `::…`). No ICU alias
   that Bun reads as a zone lacks a carried equivalent (measured over ICU's
   639 ids, each in 6 forms). `until.ts` draws TZ values from all three
   name lists in these forms.

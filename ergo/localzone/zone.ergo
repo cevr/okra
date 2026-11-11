@@ -14,26 +14,28 @@ func Read(wall int64) Option[int64] needs go.Foreign {
 	}
 }
 
-// Zone is the location a local time is read in, as Bun reads TZ: TZ unset
-// is the host's /etc/localtime, TZ empty is UTC, and any other TZ must name
-// a zone of the tzdata the binary carries, as Carried reads it. None is a
-// TZ that names no carried zone: an unknown name, a path, a POSIX rule, a
-// host zoneinfo file that is not a zone id (posixrules, localtime), or an
-// ICU id with no data (SystemV/EST5). Bun reads each of these as UTC; the
-// port refuses a local time there (declared). The data of a carried name
-// is read from the host's zoneinfo first, then from the carried tzdata
-// (time.LoadLocation; the build's timetzdata tag; ergo-gaps: carried zone
-// data).
+// Zone is the location a local time is read in, as Bun's ICU reads TZ:
+//   - TZ unset, or a TZ that fails ICU's id check (olsonShaped: a POSIX
+//     rule, `:EST5EDT`, `est5edt`, `Etc/GMT+100`, `+05:00`, `zone1970.tab`):
+//     the host's own zone (Host), as ICU then reads /etc/localtime;
+//   - TZ empty or ":": UTC;
+//   - any other TZ: a zone of the tzdata the binary carries, as Carried
+//     reads it. None is a TZ that names no carried zone: an unknown name, a
+//     path, a host zoneinfo file that is not a zone id (posixrules,
+//     localtime), or an ICU id with no data (SystemV/EST5). Bun reads each
+//     of these as UTC, on every host; the port refuses a local time there
+//     (declared).
+// The data of a carried name is read from the host's zoneinfo first, then
+// from the carried tzdata (time.LoadLocation; the build's timetzdata tag;
+// ergo-gaps: carried zone data).
 func Zone() Option[go.Ref[time.Location]] needs go.Foreign {
 	let (tz, set) = os.LookupEnv("TZ")
-	let mut name = "Local"
-	if set {
-		name = match Carried(tz) {
-		case None:
-			return None
-		case Some[string] as c:
-			c.Value
-		}
+	if !set || !olsonShaped(tz) { return Host() }
+	let name = match Carried(tz) {
+	case None:
+		return None
+	case Some[string] as c:
+		c.Value
 	}
 	let loc = time.LoadLocation(name) catch {
 	case go.Error:
@@ -42,17 +44,30 @@ func Zone() Option[go.Ref[time.Location]] needs go.Foreign {
 	Some[go.Ref[time.Location]]{Value: loc}
 }
 
+// Host is the host's own zone: the zone data in the file /etc/localtime,
+// read here because Go's time.Local reads TZ first. It is UTC when that
+// file is missing or holds no zone data, as Go's time.Local is.
+func Host() Option[go.Ref[time.Location]] needs go.Foreign {
+	let data = os.ReadFile("/etc/localtime") catch {
+	case go.Error:
+		return time.FixedZone("UTC", 0)
+	}
+	let loc = time.LoadLocationFromTZData("Local", data) catch {
+	case go.Error:
+		return time.FixedZone("UTC", 0)
+	}
+	Some[go.Ref[time.Location]]{Value: loc}
+}
+
 // Carried is the carried tzdata name that Bun's ICU reads TZ as, or None
-// when Bun reads TZ as no zone (UTC). Measured rules (scripts/zone-names.ts,
-// parity/until.ts): the whole TZ passes ICU's id check (letters, then at
-// most two digits at the end; or exactly EST5EDT, CST6CDT, MST7MDT or
-// PST8PDT); one leading ":" and then one "posix/" or "right/" are dropped;
-// the rest is a name of the table, as written or, unless the table marks
-// it ">", in any case. TZ empty (or ":") is UTC, as Go reads it.
+// when Bun reads TZ as no zone (UTC). TZ must pass ICU's id check first
+// (Zone). Measured rules (scripts/zone-names.ts, parity/until.ts): one
+// leading ":" and then one "posix/" or "right/" are dropped; the rest is a
+// name of the table, as written or, unless the table marks it ">", in any
+// case. TZ empty (or ":") is UTC, as Go and Bun read it.
 func Carried(tz string) Option[string] {
 	let bare = strings.TrimPrefix(tz, ":")
 	if bare == "" { return Some[string]{Value: "UTC"} }
-	if !olsonShaped(tz) { return None }
 	let name = if strings.HasPrefix(bare, "posix/") || strings.HasPrefix(bare, "right/") { bare[6:] } else { bare }
 	if name == "" { return None }
 	for i in 0..len(name) {
@@ -87,7 +102,8 @@ func find(table string, name string) Option[int] {
 }
 
 // olsonShaped is ICU's isValidOlsonID (putil.cpp), which ICU applies to the
-// whole TZ before it drops a prefix: Bun reads a TZ that fails it as UTC.
+// whole TZ before it drops a prefix. ICU reads a TZ that fails it as the
+// host's own zone (uprv_tzname: /etc/localtime), so Zone reads Host there.
 func olsonShaped(tz string) bool {
 	if tz == "EST5EDT" || tz == "CST6CDT" || tz == "MST7MDT" || tz == "PST8PDT" { return true }
 	let mut digits = 0
