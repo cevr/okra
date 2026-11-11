@@ -2,6 +2,8 @@ import { chmod, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { run } from "./process";
 
+// Every argv runs okra-ergo by default; OKRA_IMPL=ts is the explicit way
+// back for all argv (owner q96). Nothing routes to TypeScript by default.
 const source = await readFile(join(import.meta.dir, "../bin/okra"), "utf8");
 async function verify(script: string) {
   const dir = await mkdtemp(
@@ -20,62 +22,50 @@ async function verify(script: string) {
     if (got.code !== 23 || got.err !== "" || got.out !== `${[impl, ...args].join("\n")}\n`)
       throw new Error(`route/argv mismatch: ${JSON.stringify({ args, impl, override, got })}`);
   }
-  for (const command of ["keys", "how", "repo", "skills", "image", "counsel"]) {
+  for (const command of ["keys", "how", "repo", "skills", "image", "counsel", "schedule"]) {
     await expect([command], "ergo");
     await expect([command, "--help"], "ergo");
     for (const flag of ["--log-level=debug", "--wizard", "--completions", "--version"])
       await expect([command, flag], "ergo");
   }
-  for (const command of ["schedule", "unknown", "--version"]) await expect([command], "ts");
-  await expect([], "ts");
+  for (const sub of ["list", "logs", "remove", "run"]) await expect(["schedule", sub, "x"], "ergo");
+  for (const root of ["unknown", "--version", "-v", "--help", "--completions"]) await expect([root], "ergo");
+  await expect([], "ergo");
   const args = ["keys", "get", "two words", "", "--", "$opaque", "λ", "line\nbreak"];
   await expect(args, "ts", "ts");
   await expect(args, "ergo", "ergo");
+  await expect(["schedule", "list"], "ts", "ts");
   const invalid = await run(shim, ["keys"], dir, { HOME: dir, OKRA_IMPL: "bad" });
   if (invalid.code !== 1 || invalid.out !== "" || invalid.err !== "OKRA_IMPL must be ts or ergo\n")
     throw new Error("invalid override accepted");
   await chmod(join(dir, "okra-ergo"), 0o644);
-  const absent = await run(shim, ["counsel"], dir, { HOME: dir, OKRA_IMPL: "" });
-  if (absent.code === 23 || absent.out !== "") throw new Error("missing native binary fell back");
+  for (const argv of [["counsel"], ["schedule"], []]) {
+    const absent = await run(shim, argv, dir, { HOME: dir, OKRA_IMPL: "" });
+    if (absent.code === 23 || absent.out !== "") throw new Error("missing native binary fell back");
+  }
   const missing = await run(shim, ["keys"], dir, { HOME: dir, OKRA_IMPL: "ergo" });
   if (missing.code === 23 || missing.out !== "") throw new Error("explicit ergo fell back");
 }
 await verify(source);
 if (process.argv.includes("--mutants")) {
-  const from = "keys|how|repo|skills|image|counsel) impl=ergo";
-  if (source.split(from).length !== 2) throw new Error("switch edit is not unique");
-  for (const [name, to] of [
-    ["shim-keys-to-ts", "how|repo|skills|image|counsel) impl=ergo"],
-    ["shim-repo-to-ts", "keys|how|skills|image|counsel) impl=ergo"],
-    ["shim-skills-to-ts", "keys|how|repo|image|counsel) impl=ergo"],
-    ["shim-image-to-ts", "keys|how|repo|skills|counsel) impl=ergo"],
-    ["shim-counsel-to-ts", "keys|how|repo|skills|image) impl=ergo"],
-  ] as const) {
-    let killed = false;
-    try {
-      await verify(source.replace(from, to));
-    } catch (error) {
-      if (!(error instanceof Error) || !error.message.startsWith("route/argv mismatch:"))
-        throw error;
-      killed = true;
-    }
-    if (!killed) throw new Error(`${name} survived`);
-    console.log(`killed ${name}`);
-  }
+  const route = "ergo|'') exec \"$bindir/okra-ergo\" \"$@\" ;;";
+  const pick = 'case ${OKRA_IMPL-} in';
+  for (const text of [route, pick])
+    if (source.split(text).length !== 2) throw new Error("switch edit is not unique");
+  const toTs = (cond: string) =>
+    source.replace(pick, `[ -z "\${OKRA_IMPL-}" ] && ${cond} && exec "$bindir/okra-ts" "$@"\n${pick}`);
   for (const [name, mutated, message] of [
-    [
-      "shim-counsel-flag-to-ts",
-      source.replace(
-        "impl=ts",
-        'case ${1-} in counsel) for arg do case $arg in --log-level=*) exec "$bindir/okra-ts" "$@" ;; esac; done ;; esac\nimpl=ts',
-      ),
-      "route/argv mismatch:",
-    ],
+    ["shim-default-to-ts", source.replace(route, 'ergo) exec "$bindir/okra-ergo" "$@" ;;\n  \'\') exec "$bindir/okra-ts" "$@" ;;'), "route/argv mismatch:"],
+    ["shim-schedule-to-ts", toTs('[ "${1-}" = schedule ]'), "route/argv mismatch:"],
+    ["shim-empty-to-ts", toTs("[ $# -eq 0 ]"), "route/argv mismatch:"],
+    ["shim-unknown-to-ts", toTs('[ "${1-}" = unknown ]'), "route/argv mismatch:"],
+    ["shim-root-flag-to-ts", toTs('case ${1-} in -*) true ;; *) false ;; esac'), "route/argv mismatch:"],
+    ["shim-counsel-flag-to-ts", toTs('[ "${1-}" = counsel ] && [ "${2-}" = --log-level=debug ]'), "route/argv mismatch:"],
     [
       "shim-missing-native-to-ts",
       source.replace(
-        'exec "$bindir/okra-$impl" "$@"',
-        'if [ "$impl" = ergo ] && [ ! -x "$bindir/okra-ergo" ]; then impl=ts; fi\nexec "$bindir/okra-$impl" "$@"',
+        route,
+        'ergo|\'\') [ -x "$bindir/okra-ergo" ] || exec "$bindir/okra-ts" "$@"; exec "$bindir/okra-ergo" "$@" ;;',
       ),
       "missing native binary fell back",
     ],

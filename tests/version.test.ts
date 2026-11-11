@@ -3,8 +3,8 @@ import packageJson from "../package.json" with { type: "json" };
 import { resolveVersion } from "../src/version.js";
 
 describe("package executable", () => {
-  test("maps okra to the Bun entry point", () => {
-    expect(packageJson.bin).toEqual({ okra: "src/main.ts" });
+  test("maps okra to the all-Ergo shim", () => {
+    expect(packageJson.bin).toEqual({ okra: "bin/okra" });
   });
 
   test("uses the package version when no compiled version exists", () => {

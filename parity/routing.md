@@ -1,17 +1,18 @@
 # Parity table
 
-`bin/okra` execs `okra-ergo` for keys, how, repo (O2), skills (O3), image (O4)
-and counsel (O5); schedule is the remaining command on `okra-ts`.
-`OKRA_IMPL=ts` or `OKRA_IMPL=ergo` explicitly selects either
-sibling for all argv. Unknown override values fail with status 1. Ported
-commands never fall back for flags or a missing native binary. Effect-only
-global flags are dropped (owner q95), not sent to TS. Root/unknown argv and
-root version still await O6's final all-native switch.
+`bin/okra` execs `okra-ergo` for every argv: keys, how, repo (O2), skills
+(O3), image (O4), counsel (O5), schedule and its subcommands (O6), the empty
+argv, root flags (`--version`, `-v`, `--help`) and unknown commands.
+`OKRA_IMPL=ts` is the explicit way back to `okra-ts` for all argv (owner q96);
+`OKRA_IMPL=ergo` is the default. Unknown override values fail with status 1.
+Nothing falls back to TypeScript for a flag or a missing native binary.
+Effect-only global flags are dropped (owner q95), not sent to TS. The package
+`bin` is `bin/okra`; `bun run dev` builds and runs the Ergo binary.
 
 No installed link is changed. `scripts/build.ts` no longer links HOME/.bun/bin.
-`bun run build` builds `okra-ts`; `ERGO=/path/to/pinned/ergo bun run build:ergo`
-generates guide assets then builds `okra-ergo` and the offline `okra-ergo-parity`.
-Publishing is not changed.
+`bun run build` builds `okra-ts` (the rollback); `ERGO=/path/to/pinned/ergo bun
+run build:ergo` generates guide assets and the version line, then builds
+`okra-ergo` and the offline `okra-ergo-parity`. Publishing is not changed.
 
 ## Limits
 
@@ -75,3 +76,29 @@ one skill (owner/repo@skill)`. `parity/skills.ts` checks that shape on every
   answers `--version` but then cannot start is named without the platform text.
 - Two concurrent installs of one skill name race in the reference; the corpus
   does not hold such a pair.
+
+## Schedule: declared differences
+
+`parity/schedule.ts` runs the compiled reference (`parity/schedule-reference.ts`,
+frozen `Date.now`, no network) and the port in one HOME, with fake `launchctl`,
+`claude`, `codex`, `git`, `gh`, `tail` and `okra` first on PATH (the real agents
+are never reached). Stdout, stderr, status, every file under HOME, each agent's
+argv and folder, and each launchctl call compare byte for byte, except:
+
+- Tasks and logs are listed in name order; the reference lists them in
+  directory order (unspecified). The harness sorts list rows for multi-task
+  cases.
+- Why a task file does not decode is the port's own text after
+  `Decode failed: ` and `Warning: skipping corrupt task file <name>: `; the
+  line, its code and its status compare.
+- `--until` accepts the ECMAScript date-time format (date only, with time,
+  `Z` or an offset, fractions) as Bun reads it, which covers every form okra's
+  help, docs and tests show. Other strings that Bun's legacy parser happens to
+  accept fail with `[INVALID_DATE] ... Use ISO 8601 or YYYY-MM-DD.`
+  (orchestrator, O6 q1). A date-time with no zone is local time at that date.
+- `--max-runs` reads a Go integer (std flag); Effect reads a JavaScript number
+  and then requires an integer.
+- Usage errors (a bad `--provider`, extra or missing arguments) print the
+  port's help and error layout with status 1 (owner q95).
+- launchd is macOS only; on Linux the corpus runs against the fake
+  `launchctl`. No scheduler state was changed on any host.

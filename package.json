@@ -6,11 +6,11 @@
     "url": "https://github.com/cevr/okra"
   },
   "bin": {
-    "okra": "src/main.ts"
+    "okra": "bin/okra"
   },
   "type": "module",
   "scripts": {
-    "dev": "bun run src/main.ts",
+    "dev": "bun run scripts/build.ts --ergo && ./bin/okra",
     "build": "bun run scripts/build.ts",
     "build:ergo": "bun run scripts/build.ts --ergo",
     "typecheck": "tsc --noEmit",
