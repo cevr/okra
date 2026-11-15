@@ -12,6 +12,7 @@ import { createHash } from "node:crypto";
 import { chmod, lstat, mkdir, mkdtemp, readdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
+import { frozen } from "./frozen";
 
 const root = resolve(import.meta.dir, "..");
 const scratch = process.env.OKRA_PARITY_SCRATCH ?? "/tmp/opencode/okra-o6";
@@ -620,7 +621,9 @@ async function setup(c: Case, dir: string, fixture: string) {
   if (c.setup) await c.setup(dir);
 }
 
-type Renames = { ids: Map<string, string>; nonces: Map<string, string> };
+// dir: the case folder, a scratch path that differs between the recorded
+// reference and a check, shown as <DIR>.
+type Renames = { ids: Map<string, string>; nonces: Map<string, string>; dir: string };
 // Declared difference: why a task file does not decode is each side's own
 // text (Effect Schema's or the port's); the line and its code are compared.
 function causes(text: string) {
@@ -635,7 +638,7 @@ function causes(text: string) {
   return out.join("\n");
 }
 function normalize(text: string, r: Renames) {
-  let out = causes(text);
+  let out = causes(text).replaceAll(r.dir, "<DIR>");
   for (const m of out.matchAll(/OKRA_STOP_[0-9a-f]{8}/g))
     if (!r.nonces.has(m[0])) r.nonces.set(m[0], `OKRA_STOP_<N${r.nonces.size + 1}>`);
   for (const [from, to] of [...r.ids, ...r.nonces]) out = out.replaceAll(from, to);
@@ -740,7 +743,7 @@ async function execute(program: string, c: Case, dir: string) {
   const fixture = `${dir}.fixture`;
   await mkdir(dir);
   await setup(c, dir, fixture);
-  const r: Renames = { ids: new Map(), nonces: new Map() };
+  const r: Renames = { ids: new Map(), nonces: new Map(), dir };
   const taskDir = join(dir, ".okra/schedule/tasks");
   const stored = async () =>
     (await readdir(taskDir).catch(() => [] as string[])).map((n) => n.replace(/\.json$/, ""));
@@ -767,6 +770,7 @@ async function execute(program: string, c: Case, dir: string) {
   };
 }
 
+const records = frozen("schedule", seed, Boolean(arg("case")));
 let count = 0;
 try {
   for (const c of cases.filter((x) => !arg("case") || x.name === arg("case"))) {
@@ -774,10 +778,13 @@ try {
     const base = await mkdtemp(join(scratch, "schedule-"));
     await chmod(base, 0o755);
     const dir = join(base, "case");
-    const want = await execute(reference, c, dir);
+    const want = await records.get(c.name, async () => {
+      const result = await execute(reference, c, dir);
+      await rename(dir, `${dir}.ref`);
+      await rename(`${dir}.fixture`, `${dir}.ref.fixture`);
+      return result;
+    });
     if (process.argv.includes("--dump")) console.log(JSON.stringify({ case: c.name, want }, null, 1));
-    await rename(dir, `${dir}.ref`);
-    await rename(`${dir}.fixture`, `${dir}.ref.fixture`);
     const got = await execute(tsOnly ? reference : binary, c, dir);
     if (c.usage && !tsOnly) {
       for (const [i, w] of want.steps.entries()) {
@@ -803,6 +810,7 @@ try {
     count++;
   }
   if (count === 0) throw new Error("no schedule cases selected");
+  records.done();
   console.log(`SCHEDULE PARITY EXIT: 0 (${count} cases, seed ${seed})`);
 } finally {
   await peer.stop(true);

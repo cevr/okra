@@ -1,0 +1,3133 @@
+{
+ "bare": {
+  "steps": [
+   {
+    "args": [
+     "schedule"
+    ],
+    "out": "",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "no-schedule": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "x"
+    ],
+    "out": "",
+    "err": "[MISSING_FLAG] Missing --schedule (-s). Usage: okra schedule \"<prompt>\" -s \"<schedule>\"\n",
+    "code": 1
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "invalid": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "x",
+     "-s",
+     "bogus"
+    ],
+    "out": "",
+    "err": "[INVALID_SCHEDULE] Cannot parse schedule: \"bogus\"\nSee 'okra schedule --help' for schedule formats.\n",
+    "code": 1
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "empty-schedule": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "x",
+     "-s",
+     ""
+    ],
+    "out": "",
+    "err": "[INVALID_SCHEDULE] Cannot parse schedule: \"\"\nSee 'okra schedule --help' for schedule formats.\n",
+    "code": 1
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "weekday-create-list": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "do it",
+     "-s",
+     "every weekday at 9am",
+     "--max-runs",
+     "3",
+     "--stop-when",
+     "pr merged"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   do it\n  Provider: claude\n  Schedule: weekdays at 09:00\n  Stop:     0/3 runs\n  When:     pr merged\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "ID         Provider   Schedule                       Status     Prompt\n<ID1>   claude     weekdays at 09:00 (0/3 runs, when: pr merged) active     do it\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[{\"id\":\"<ID1>\",\"prompt\":\"do it\",\"provider\":\"claude\",\"schedule\":{\"_tag\":\"Cron\",\"minute\":0,\"hour\":9,\"dayOfMonth\":\"*\",\"month\":\"*\",\"dayOfWeek\":\"1-5\",\"raw\":\"every weekday at 9am\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T12:00:00.000Z\",\"status\":\"active\",\"runCount\":0,\"context\":{\"gitBranch\":\"feature/123-thing\",\"gitRemoteUrl\":\"git@github.com:me/proj.git\",\"gitRepo\":\"proj\",\"gitCommit\":\"abc1234\",\"gitDefaultBranch\":\"main\",\"prNumber\":42,\"prUrl\":\"https://example.invalid/pr/42\",\"issueNumber\":123},\"stopConditions\":[{\"_tag\":\"MaxRuns\",\"count\":3}],\"conditionalStop\":{\"condition\":\"pr merged\"}}]\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 a0138c9c8331820b \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"do it\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123},\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"MaxRuns\\\",\\\"count\\\":3}],\\\"conditionalStop\\\":{\\\"condition\\\":\\\"pr merged\\\"}}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist 644 f32e09f35db0cf80 ",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\n"
+ },
+ "codex-every-day": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "λ prompt 🌱",
+     "-p",
+     "codex",
+     "-s",
+     "every day at 12:30 pm"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   Î» prompt ð±\n  Provider: codex\n  Schedule: daily at 12:30\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "-j"
+    ],
+    "out": "[{\"id\":\"<ID1>\",\"prompt\":\"Î» prompt ð±\",\"provider\":\"codex\",\"schedule\":{\"_tag\":\"Cron\",\"minute\":30,\"hour\":12,\"dayOfMonth\":\"*\",\"month\":\"*\",\"dayOfWeek\":\"*\",\"raw\":\"every day at 12:30 pm\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T12:00:00.000Z\",\"status\":\"active\",\"runCount\":0,\"context\":{\"gitBranch\":\"feature/123-thing\",\"gitRemoteUrl\":\"git@github.com:me/proj.git\",\"gitRepo\":\"proj\",\"gitCommit\":\"abc1234\",\"gitDefaultBranch\":\"main\",\"prNumber\":42,\"prUrl\":\"https://example.invalid/pr/42\",\"issueNumber\":123}}]\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 c8c87a4f85079527 \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"Î» prompt ð±\\\",\\\"provider\\\":\\\"codex\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":30,\\\"hour\\\":12,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"*\\\",\\\"raw\\\":\\\"every day at 12:30 pm\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist 644 d48afed66e3c279e \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID1></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID1></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Minute</key>\\n    <integer>30</integer>\\n    <key>Hour</key>\\n    <integer>12</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\n"
+ },
+ "named-days": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "a",
+     "-s",
+     "every Sunday at 7:05 PM"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   a\n  Provider: claude\n  Schedule: every Sun at 19:05\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "b",
+     "-s",
+     "EVERY monday AT 12am"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID2>\n  Prompt:   b\n  Provider: claude\n  Schedule: every Mon at 00:00\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "c",
+     "-s",
+     "every saturday at 11"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID3>\n  Prompt:   c\n  Provider: claude\n  Schedule: every Sat at 11:00\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 1419192e65654902 \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"a\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":5,\\\"hour\\\":19,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":0,\\\"raw\\\":\\\"every Sunday at 7:05 PM\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\"",
+   ".okra/schedule/tasks/<ID2>.json 644 3852cbd823011da5 \"{\\\"id\\\":\\\"<ID2>\\\",\\\"prompt\\\":\\\"b\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":0,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":1,\\\"raw\\\":\\\"EVERY monday AT 12am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\"",
+   ".okra/schedule/tasks/<ID3>.json 644 4e29a6cd1ccb941f \"{\\\"id\\\":\\\"<ID3>\\\",\\\"prompt\\\":\\\"c\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":11,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":6,\\\"raw\\\":\\\"every saturday at 11\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist 644 9f365680cff0af3c \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID1></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID1></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Weekday</key>\\n    <integer>0</integer>\\n    <key>Minute</key>\\n    <integer>5</integer>\\n    <key>Hour</key>\\n    <integer>19</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID2>.plist 644 34fff0c959c28315 \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID2></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID2></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Weekday</key>\\n    <integer>1</integer>\\n    <key>Minute</key>\\n    <integer>0</integer>\\n    <key>Hour</key>\\n    <integer>0</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID2>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID2>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID3>.plist 644 c808d2f33993e818 \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID3></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID3></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Weekday</key>\\n    <integer>6</integer>\\n    <key>Minute</key>\\n    <integer>0</integer>\\n    <key>Hour</key>\\n    <integer>11</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID3>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID3>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\nlaunchctl list com.cvr.okra.schedule-<ID2>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID2>.plist\nlaunchctl list com.cvr.okra.schedule-<ID3>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID3>.plist\n"
+ },
+ "oneshots": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "a",
+     "-s",
+     "  In 2 Hours  "
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   a\n  Provider: claude\n  Schedule: once at 2027-01-01T01:59:59.000Z\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "b",
+     "-s",
+     "in 1 minute"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID2>\n  Prompt:   b\n  Provider: claude\n  Schedule: once at 2027-01-01T00:00:59.000Z\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "c",
+     "-s",
+     "in 3 days"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID3>\n  Prompt:   c\n  Provider: claude\n  Schedule: once at 2027-01-03T23:59:59.000Z\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "d",
+     "-s",
+     "tomorrow at 12am"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID4>\n  Prompt:   d\n  Provider: claude\n  Schedule: once at 2027-01-01T00:00:00.000Z\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "e",
+     "-s",
+     "tomorrow at 9:45pm"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID5>\n  Prompt:   e\n  Provider: claude\n  Schedule: once at 2027-01-01T21:45:00.000Z\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "ID         Provider   Schedule                       Status     Prompt\n\n<ID1>   claude     once at 2027-01-01T01:59:59.000Z active     a\n<ID2>   claude     once at 2027-01-01T00:00:59.000Z active     b\n<ID3>   claude     once at 2027-01-03T23:59:59.000Z active     c\n<ID4>   claude     once at 2027-01-01T00:00:00.000Z active     d\n<ID5>   claude     once at 2027-01-01T21:45:00.000Z active     e",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 48a8d9a5a25b159a \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"a\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Oneshot\\\",\\\"at\\\":\\\"2027-01-01T01:59:59.000Z\\\",\\\"raw\\\":\\\"In 2 Hours\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-12-31T23:59:59.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\"",
+   ".okra/schedule/tasks/<ID2>.json 644 0f3e80f1560b9af2 \"{\\\"id\\\":\\\"<ID2>\\\",\\\"prompt\\\":\\\"b\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Oneshot\\\",\\\"at\\\":\\\"2027-01-01T00:00:59.000Z\\\",\\\"raw\\\":\\\"in 1 minute\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-12-31T23:59:59.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\"",
+   ".okra/schedule/tasks/<ID3>.json 644 4264f2de08af0903 \"{\\\"id\\\":\\\"<ID3>\\\",\\\"prompt\\\":\\\"c\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Oneshot\\\",\\\"at\\\":\\\"2027-01-03T23:59:59.000Z\\\",\\\"raw\\\":\\\"in 3 days\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-12-31T23:59:59.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\"",
+   ".okra/schedule/tasks/<ID4>.json 644 d6267c902ceb5be8 \"{\\\"id\\\":\\\"<ID4>\\\",\\\"prompt\\\":\\\"d\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Oneshot\\\",\\\"at\\\":\\\"2027-01-01T00:00:00.000Z\\\",\\\"raw\\\":\\\"tomorrow at 12am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-12-31T23:59:59.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\"",
+   ".okra/schedule/tasks/<ID5>.json 644 2e9a82ad3ed1057e \"{\\\"id\\\":\\\"<ID5>\\\",\\\"prompt\\\":\\\"e\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Oneshot\\\",\\\"at\\\":\\\"2027-01-01T21:45:00.000Z\\\",\\\"raw\\\":\\\"tomorrow at 9:45pm\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-12-31T23:59:59.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist 644 5ee218bb46c76874 \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID1></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID1></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Month</key>\\n    <integer>1</integer>\\n    <key>Day</key>\\n    <integer>1</integer>\\n    <key>Hour</key>\\n    <integer>1</integer>\\n    <key>Minute</key>\\n    <integer>59</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID2>.plist 644 e2a711dca7fdfba9 \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID2></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID2></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Month</key>\\n    <integer>1</integer>\\n    <key>Day</key>\\n    <integer>1</integer>\\n    <key>Hour</key>\\n    <integer>0</integer>\\n    <key>Minute</key>\\n    <integer>0</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID2>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID2>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID3>.plist 644 7f151717e65d203a \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID3></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID3></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Month</key>\\n    <integer>1</integer>\\n    <key>Day</key>\\n    <integer>3</integer>\\n    <key>Hour</key>\\n    <integer>23</integer>\\n    <key>Minute</key>\\n    <integer>59</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID3>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID3>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID4>.plist 644 f3165ad62b02e575 \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID4></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID4></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Month</key>\\n    <integer>1</integer>\\n    <key>Day</key>\\n    <integer>1</integer>\\n    <key>Hour</key>\\n    <integer>0</integer>\\n    <key>Minute</key>\\n    <integer>0</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID4>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID4>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID5>.plist 644 ab441b2bdc6fffe7 \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID5></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID5></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Month</key>\\n    <integer>1</integer>\\n    <key>Day</key>\\n    <integer>1</integer>\\n    <key>Hour</key>\\n    <integer>21</integer>\\n    <key>Minute</key>\\n    <integer>45</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID5>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID5>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\nlaunchctl list com.cvr.okra.schedule-<ID2>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID2>.plist\nlaunchctl list com.cvr.okra.schedule-<ID3>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID3>.plist\nlaunchctl list com.cvr.okra.schedule-<ID4>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID4>.plist\nlaunchctl list com.cvr.okra.schedule-<ID5>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID5>.plist\n"
+ },
+ "cron-forms": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "a",
+     "-s",
+     "0 9 * * 0-6"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   a\n  Provider: claude\n  Schedule: cron: 0 9 * * 0-6\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "b",
+     "-s",
+     "*/5 * * * 1"
+    ],
+    "out": "",
+    "err": "Internal error: Error: Schema validation failed\n",
+    "code": 1
+   },
+   {
+    "args": [
+     "schedule",
+     "c",
+     "-s",
+     "0x1F 1.5 -3 1e3 1"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID2>\n  Prompt:   c\n  Provider: claude\n  Schedule: every Mon at 01:00\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "d",
+     "-s",
+     "99999999999999999999 9 * * 0"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID3>\n  Prompt:   d\n  Provider: claude\n  Schedule: every Sun at 09:100000000000000000000\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "e",
+     "-s",
+     "0 9 * * 6-0"
+    ],
+    "out": "",
+    "err": "[INVALID_SCHEDULE] Cannot parse schedule: \"0 9 * * 6-0\"\nSee 'okra schedule --help' for schedule formats.\n",
+    "code": 1
+   },
+   {
+    "args": [
+     "schedule",
+     "f",
+     "-s",
+     "0 9 * * 7"
+    ],
+    "out": "",
+    "err": "[INVALID_SCHEDULE] Cannot parse schedule: \"0 9 * * 7\"\nSee 'okra schedule --help' for schedule formats.\n",
+    "code": 1
+   },
+   {
+    "args": [
+     "schedule",
+     "g",
+     "-s",
+     "0\t9  1 2 *"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID4>\n  Prompt:   g\n  Provider: claude\n  Schedule: daily at 09:00\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "h",
+     "-s",
+     "5 * * * 3-4"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID5>\n  Prompt:   h\n  Provider: claude\n  Schedule: cron: 5 * * * 3-4\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[\"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"a\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"0-6\\\",\\\"raw\\\":\\\"0 9 * * 0-6\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\",\"{\\\"id\\\":\\\"<ID2>\\\",\\\"prompt\\\":\\\"c\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":1,\\\"dayOfMonth\\\":-3,\\\"month\\\":1,\\\"dayOfWeek\\\":1,\\\"raw\\\":\\\"0x1F 1.5 -3 1e3 1\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\",\"{\\\"id\\\":\\\"<ID3>\\\",\\\"prompt\\\":\\\"d\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":100000000000000000000,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":0,\\\"raw\\\":\\\"99999999999999999999 9 * * 0\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\",\"{\\\"id\\\":\\\"<ID4>\\\",\\\"prompt\\\":\\\"g\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":1,\\\"month\\\":2,\\\"dayOfWeek\\\":\\\"*\\\",\\\"raw\\\":\\\"0\\\\t9  1 2 *\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\",\"{\\\"id\\\":\\\"<ID5>\\\",\\\"prompt\\\":\\\"h\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":5,\\\"hour\\\":\\\"*\\\",\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"3-4\\\",\\\"raw\\\":\\\"5 * * * 3-4\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\"]",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 3aac3ce413ec608b \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"a\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"0-6\\\",\\\"raw\\\":\\\"0 9 * * 0-6\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\"",
+   ".okra/schedule/tasks/<ID2>.json 644 d51d137fd78a9336 \"{\\\"id\\\":\\\"<ID2>\\\",\\\"prompt\\\":\\\"c\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":1,\\\"dayOfMonth\\\":-3,\\\"month\\\":1,\\\"dayOfWeek\\\":1,\\\"raw\\\":\\\"0x1F 1.5 -3 1e3 1\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\"",
+   ".okra/schedule/tasks/<ID3>.json 644 0cf9c7fc5013ee99 \"{\\\"id\\\":\\\"<ID3>\\\",\\\"prompt\\\":\\\"d\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":100000000000000000000,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":0,\\\"raw\\\":\\\"99999999999999999999 9 * * 0\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\"",
+   ".okra/schedule/tasks/<ID4>.json 644 d062fea8e60a68c0 \"{\\\"id\\\":\\\"<ID4>\\\",\\\"prompt\\\":\\\"g\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":1,\\\"month\\\":2,\\\"dayOfWeek\\\":\\\"*\\\",\\\"raw\\\":\\\"0\\\\t9  1 2 *\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\"",
+   ".okra/schedule/tasks/<ID5>.json 644 be4247aa90e13285 \"{\\\"id\\\":\\\"<ID5>\\\",\\\"prompt\\\":\\\"h\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":5,\\\"hour\\\":\\\"*\\\",\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"3-4\\\",\\\"raw\\\":\\\"5 * * * 3-4\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist 644 0722485695363604 ",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID2>.plist 644 19b373e0a6b6d46c \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID2></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID2></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Weekday</key>\\n    <integer>1</integer>\\n    <key>Minute</key>\\n    <integer>0</integer>\\n    <key>Hour</key>\\n    <integer>1</integer>\\n    <key>Day</key>\\n    <integer>-3</integer>\\n    <key>Month</key>\\n    <integer>1</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID2>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID2>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID3>.plist 644 3095d855d95d192f \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID3></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID3></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Weekday</key>\\n    <integer>0</integer>\\n    <key>Minute</key>\\n    <integer>100000000000000000000</integer>\\n    <key>Hour</key>\\n    <integer>9</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID3>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID3>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID4>.plist 644 62d22cd917cebd64 \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID4></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID4></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Minute</key>\\n    <integer>0</integer>\\n    <key>Hour</key>\\n    <integer>9</integer>\\n    <key>Day</key>\\n    <integer>1</integer>\\n    <key>Month</key>\\n    <integer>2</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID4>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID4>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID5>.plist 644 7d9531697984687a \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID5></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID5></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <array>\\n    <dict>\\n      <key>Weekday</key>\\n      <integer>3</integer>\\n      <key>Minute</key>\\n      <integer>5</integer>\\n    </dict>\\n    <dict>\\n      <key>Weekday</key>\\n      <integer>4</integer>\\n      <key>Minute</key>\\n      <integer>5</integer>\\n    </dict>\\n  </array>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID5>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID5>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\nlaunchctl list com.cvr.okra.schedule-<ID2>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID2>.plist\nlaunchctl list com.cvr.okra.schedule-<ID3>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID3>.plist\nlaunchctl list com.cvr.okra.schedule-<ID4>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID4>.plist\nlaunchctl list com.cvr.okra.schedule-<ID5>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID5>.plist\n"
+ },
+ "odd-times": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "a",
+     "-s",
+     "every day at 25pm"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   a\n  Provider: claude\n  Schedule: daily at 37:00\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "b",
+     "-s",
+     "every day at 9:5"
+    ],
+    "out": "",
+    "err": "[INVALID_SCHEDULE] Cannot parse schedule: \"every day at 9:5\"\nSee 'okra schedule --help' for schedule formats.\n",
+    "code": 1
+   },
+   {
+    "args": [
+     "schedule",
+     "c",
+     "-s",
+     "every day at 09:59am"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID2>\n  Prompt:   c\n  Provider: claude\n  Schedule: daily at 09:59\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "d",
+     "-s",
+     "every weekday at 12pm"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID3>\n  Prompt:   d\n  Provider: claude\n  Schedule: weekdays at 12:00\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 17c6453ab8e7b5f4 \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"a\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":37,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"*\\\",\\\"raw\\\":\\\"every day at 25pm\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\"",
+   ".okra/schedule/tasks/<ID2>.json 644 c91b7d5ddd451fb7 \"{\\\"id\\\":\\\"<ID2>\\\",\\\"prompt\\\":\\\"c\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":59,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"*\\\",\\\"raw\\\":\\\"every day at 09:59am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\"",
+   ".okra/schedule/tasks/<ID3>.json 644 f5d940d6cef3e371 \"{\\\"id\\\":\\\"<ID3>\\\",\\\"prompt\\\":\\\"d\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":12,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 12pm\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist 644 ccdf9d34ac54937b \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID1></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID1></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Minute</key>\\n    <integer>0</integer>\\n    <key>Hour</key>\\n    <integer>37</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID2>.plist 644 b840d85502e51eee \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID2></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID2></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Minute</key>\\n    <integer>59</integer>\\n    <key>Hour</key>\\n    <integer>9</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID2>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID2>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID3>.plist 644 dd23c4d334466e1b ",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\nlaunchctl list com.cvr.okra.schedule-<ID2>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID2>.plist\nlaunchctl list com.cvr.okra.schedule-<ID3>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID3>.plist\n"
+ },
+ "until-date-only": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "x",
+     "-s",
+     "every day at 9am",
+     "--until",
+     "2026-03-20"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   x\n  Provider: claude\n  Schedule: daily at 09:00\n  Stop:     until 2026-03-20\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "ID         Provider   Schedule                       Status     Prompt\n<ID1>   claude     daily at 09:00 (until 2026-03-20) active     x\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[{\"id\":\"<ID1>\",\"prompt\":\"x\",\"provider\":\"claude\",\"schedule\":{\"_tag\":\"Cron\",\"minute\":0,\"hour\":9,\"dayOfMonth\":\"*\",\"month\":\"*\",\"dayOfWeek\":\"*\",\"raw\":\"every day at 9am\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T12:00:00.000Z\",\"status\":\"active\",\"runCount\":0,\"context\":{\"gitBranch\":\"feature/123-thing\",\"gitRemoteUrl\":\"git@github.com:me/proj.git\",\"gitRepo\":\"proj\",\"gitCommit\":\"abc1234\",\"gitDefaultBranch\":\"main\",\"prNumber\":42,\"prUrl\":\"https://example.invalid/pr/42\",\"issueNumber\":123},\"stopConditions\":[{\"_tag\":\"AfterDate\",\"date\":\"2026-03-20T23:59:59.999Z\"}]}]\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 3c180519d7ae94ab \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"x\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"*\\\",\\\"raw\\\":\\\"every day at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123},\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"AfterDate\\\",\\\"date\\\":\\\"2026-03-20T23:59:59.999Z\\\"}]}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist 644 112847be428b68d5 \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID1></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID1></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Minute</key>\\n    <integer>0</integer>\\n    <key>Hour</key>\\n    <integer>9</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\n"
+ },
+ "until-forms": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "a",
+     "-s",
+     "every day at 9am",
+     "--until",
+     "2026-03-20T10:00:00Z"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   a\n  Provider: claude\n  Schedule: daily at 09:00\n  Stop:     until 2026-03-20\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "b",
+     "-s",
+     "every day at 9am",
+     "--until",
+     "2026-03-20T10:00+02:00"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID2>\n  Prompt:   b\n  Provider: claude\n  Schedule: daily at 09:00\n  Stop:     until 2026-03-20\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "c",
+     "-s",
+     "every day at 9am",
+     "--until",
+     "2026-03"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID3>\n  Prompt:   c\n  Provider: claude\n  Schedule: daily at 09:00\n  Stop:     until 2026-03-01\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "d",
+     "-s",
+     "every day at 9am",
+     "--until",
+     "2027"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID4>\n  Prompt:   d\n  Provider: claude\n  Schedule: daily at 09:00\n  Stop:     until 2027-01-01\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "e",
+     "-s",
+     "every day at 9am",
+     "--until",
+     "2026-03-20T10:00:00.5Z"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID5>\n  Prompt:   e\n  Provider: claude\n  Schedule: daily at 09:00\n  Stop:     until 2026-03-20\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "f",
+     "-s",
+     "every day at 9am",
+     "--until",
+     "2026-03-20T10:00"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID6>\n  Prompt:   f\n  Provider: claude\n  Schedule: daily at 09:00\n  Stop:     until 2026-03-20\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[\"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"a\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"*\\\",\\\"raw\\\":\\\"every day at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123},\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"AfterDate\\\",\\\"date\\\":\\\"2026-03-20T10:00:00.000Z\\\"}]}\",\"{\\\"id\\\":\\\"<ID2>\\\",\\\"prompt\\\":\\\"b\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"*\\\",\\\"raw\\\":\\\"every day at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123},\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"AfterDate\\\",\\\"date\\\":\\\"2026-03-20T08:00:00.000Z\\\"}]}\",\"{\\\"id\\\":\\\"<ID3>\\\",\\\"prompt\\\":\\\"c\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"*\\\",\\\"raw\\\":\\\"every day at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123},\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"AfterDate\\\",\\\"date\\\":\\\"2026-03-01T00:00:00.000Z\\\"}]}\",\"{\\\"id\\\":\\\"<ID4>\\\",\\\"prompt\\\":\\\"d\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"*\\\",\\\"raw\\\":\\\"every day at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123},\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"AfterDate\\\",\\\"date\\\":\\\"2027-01-01T00:00:00.000Z\\\"}]}\",\"{\\\"id\\\":\\\"<ID5>\\\",\\\"prompt\\\":\\\"e\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"*\\\",\\\"raw\\\":\\\"every day at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123},\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"AfterDate\\\",\\\"date\\\":\\\"2026-03-20T10:00:00.500Z\\\"}]}\",\"{\\\"id\\\":\\\"<ID6>\\\",\\\"prompt\\\":\\\"f\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"*\\\",\\\"raw\\\":\\\"every day at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123},\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"AfterDate\\\",\\\"date\\\":\\\"2026-03-20T14:00:00.000Z\\\"}]}\"]",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 c7de6a913d35dea3 \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"a\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"*\\\",\\\"raw\\\":\\\"every day at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123},\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"AfterDate\\\",\\\"date\\\":\\\"2026-03-20T10:00:00.000Z\\\"}]}\"",
+   ".okra/schedule/tasks/<ID2>.json 644 80d9505bfe40e07d \"{\\\"id\\\":\\\"<ID2>\\\",\\\"prompt\\\":\\\"b\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"*\\\",\\\"raw\\\":\\\"every day at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123},\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"AfterDate\\\",\\\"date\\\":\\\"2026-03-20T08:00:00.000Z\\\"}]}\"",
+   ".okra/schedule/tasks/<ID3>.json 644 79cb2fe17495cb92 \"{\\\"id\\\":\\\"<ID3>\\\",\\\"prompt\\\":\\\"c\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"*\\\",\\\"raw\\\":\\\"every day at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123},\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"AfterDate\\\",\\\"date\\\":\\\"2026-03-01T00:00:00.000Z\\\"}]}\"",
+   ".okra/schedule/tasks/<ID4>.json 644 22d4611e56decddf \"{\\\"id\\\":\\\"<ID4>\\\",\\\"prompt\\\":\\\"d\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"*\\\",\\\"raw\\\":\\\"every day at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123},\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"AfterDate\\\",\\\"date\\\":\\\"2027-01-01T00:00:00.000Z\\\"}]}\"",
+   ".okra/schedule/tasks/<ID5>.json 644 bc356e01ff4ff3c8 \"{\\\"id\\\":\\\"<ID5>\\\",\\\"prompt\\\":\\\"e\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"*\\\",\\\"raw\\\":\\\"every day at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123},\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"AfterDate\\\",\\\"date\\\":\\\"2026-03-20T10:00:00.500Z\\\"}]}\"",
+   ".okra/schedule/tasks/<ID6>.json 644 c2a7c2119c3d8acc \"{\\\"id\\\":\\\"<ID6>\\\",\\\"prompt\\\":\\\"f\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"*\\\",\\\"raw\\\":\\\"every day at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123},\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"AfterDate\\\",\\\"date\\\":\\\"2026-03-20T14:00:00.000Z\\\"}]}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist 644 112847be428b68d5 \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID1></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID1></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Minute</key>\\n    <integer>0</integer>\\n    <key>Hour</key>\\n    <integer>9</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID2>.plist 644 c348600698466624 \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID2></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID2></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Minute</key>\\n    <integer>0</integer>\\n    <key>Hour</key>\\n    <integer>9</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID2>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID2>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID3>.plist 644 e91157900f874e69 \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID3></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID3></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Minute</key>\\n    <integer>0</integer>\\n    <key>Hour</key>\\n    <integer>9</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID3>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID3>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID4>.plist 644 e1560fe4ba708aa7 \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID4></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID4></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Minute</key>\\n    <integer>0</integer>\\n    <key>Hour</key>\\n    <integer>9</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID4>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID4>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID5>.plist 644 8a6e92b738e445f1 \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID5></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID5></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Minute</key>\\n    <integer>0</integer>\\n    <key>Hour</key>\\n    <integer>9</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID5>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID5>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID6>.plist 644 2bee06f03e344efc \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID6></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID6></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Minute</key>\\n    <integer>0</integer>\\n    <key>Hour</key>\\n    <integer>9</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID6>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID6>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\nlaunchctl list com.cvr.okra.schedule-<ID2>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID2>.plist\nlaunchctl list com.cvr.okra.schedule-<ID3>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID3>.plist\nlaunchctl list com.cvr.okra.schedule-<ID4>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID4>.plist\nlaunchctl list com.cvr.okra.schedule-<ID5>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID5>.plist\nlaunchctl list com.cvr.okra.schedule-<ID6>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID6>.plist\n"
+ },
+ "until-invalid": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "x",
+     "-s",
+     "every day at 9am",
+     "--until",
+     "someday"
+    ],
+    "out": "",
+    "err": "[INVALID_DATE] Invalid --until date: \"someday\". Use ISO 8601 or YYYY-MM-DD.\n",
+    "code": 1
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "stop-when-needs-fallback": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "x",
+     "-s",
+     "every day at 9am",
+     "--stop-when",
+     "done"
+    ],
+    "out": "",
+    "err": "[MISSING_FALLBACK] --stop-when requires a deterministic fallback (--max-runs or --until). The agent could run forever without one.\n",
+    "code": 1
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "both-stops": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "x",
+     "-s",
+     "every day at 9am",
+     "--max-runs",
+     "2",
+     "--until",
+     "2026-02-01",
+     "--stop-when",
+     "a very long condition text here"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   x\n  Provider: claude\n  Schedule: daily at 09:00\n  Stop:     0/2 runs, until 2026-02-01\n  When:     a very long condition text here\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "ID         Provider   Schedule                       Status     Prompt\n<ID1>   claude     daily at 09:00 (0/2 runs, until 2026-02-01, when: a very long condi...) active     x\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 0102d48a8edef427 \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"x\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"*\\\",\\\"raw\\\":\\\"every day at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123},\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"MaxRuns\\\",\\\"count\\\":2},{\\\"_tag\\\":\\\"AfterDate\\\",\\\"date\\\":\\\"2026-02-01T23:59:59.999Z\\\"}],\\\"conditionalStop\\\":{\\\"condition\\\":\\\"a very long condition text here\\\"}}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist 644 112847be428b68d5 \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID1></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID1></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Minute</key>\\n    <integer>0</integer>\\n    <key>Hour</key>\\n    <integer>9</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\n"
+ },
+ "context-none": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "x",
+     "-s",
+     "in 5 minutes"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   x\n  Provider: claude\n  Schedule: once at 2026-01-01T12:05:00.000Z\n  CWD:      <DIR>/work\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[{\"id\":\"<ID1>\",\"prompt\":\"x\",\"provider\":\"claude\",\"schedule\":{\"_tag\":\"Oneshot\",\"at\":\"2026-01-01T12:05:00.000Z\",\"raw\":\"in 5 minutes\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T12:00:00.000Z\",\"status\":\"active\",\"runCount\":0}]\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 f188b9e3de377f57 \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"x\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Oneshot\\\",\\\"at\\\":\\\"2026-01-01T12:05:00.000Z\\\",\\\"raw\\\":\\\"in 5 minutes\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist 644 5b45e140f4c08aa7 \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID1></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID1></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Month</key>\\n    <integer>1</integer>\\n    <key>Day</key>\\n    <integer>1</integer>\\n    <key>Hour</key>\\n    <integer>12</integer>\\n    <key>Minute</key>\\n    <integer>5</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\n"
+ },
+ "context-partial": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "x",
+     "-s",
+     "in 5 minutes"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   x\n  Provider: claude\n  Schedule: once at 2026-01-01T12:05:00.000Z\n  CWD:      <DIR>/work\n  Branch:   main\n  PR:       #4.5\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[{\"id\":\"<ID1>\",\"prompt\":\"x\",\"provider\":\"claude\",\"schedule\":{\"_tag\":\"Oneshot\",\"at\":\"2026-01-01T12:05:00.000Z\",\"raw\":\"in 5 minutes\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T12:00:00.000Z\",\"status\":\"active\",\"runCount\":0,\"context\":{\"gitBranch\":\"main\",\"gitRemoteUrl\":\"https://host/a/b/\",\"gitDefaultBranch\":\"upstream/dev\",\"prNumber\":4.5}}]\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 374fb20ddc213f76 \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"x\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Oneshot\\\",\\\"at\\\":\\\"2026-01-01T12:05:00.000Z\\\",\\\"raw\\\":\\\"in 5 minutes\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"main\\\",\\\"gitRemoteUrl\\\":\\\"https://host/a/b/\\\",\\\"gitDefaultBranch\\\":\\\"upstream/dev\\\",\\\"prNumber\\\":4.5}}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist 644 5b45e140f4c08aa7 \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID1></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID1></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Month</key>\\n    <integer>1</integer>\\n    <key>Day</key>\\n    <integer>1</integer>\\n    <key>Hour</key>\\n    <integer>12</integer>\\n    <key>Minute</key>\\n    <integer>5</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\n"
+ },
+ "context-issue": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "x",
+     "-s",
+     "in 5 minutes"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   x\n  Provider: claude\n  Schedule: once at 2026-01-01T12:05:00.000Z\n  CWD:      <DIR>/work\n  Branch:   user/00-x-0042/y\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[{\"id\":\"<ID1>\",\"prompt\":\"x\",\"provider\":\"claude\",\"schedule\":{\"_tag\":\"Oneshot\",\"at\":\"2026-01-01T12:05:00.000Z\",\"raw\":\"in 5 minutes\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T12:00:00.000Z\",\"status\":\"active\",\"runCount\":0,\"context\":{\"gitBranch\":\"user/00-x-0042/y\",\"gitRemoteUrl\":\"a:b:c.git\",\"gitRepo\":\"b:c\"}}]\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 cc994cbd7b3bff42 \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"x\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Oneshot\\\",\\\"at\\\":\\\"2026-01-01T12:05:00.000Z\\\",\\\"raw\\\":\\\"in 5 minutes\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"user/00-x-0042/y\\\",\\\"gitRemoteUrl\\\":\\\"a:b:c.git\\\",\\\"gitRepo\\\":\\\"b:c\\\"}}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist 644 5b45e140f4c08aa7 \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID1></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID1></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Month</key>\\n    <integer>1</integer>\\n    <key>Day</key>\\n    <integer>1</integer>\\n    <key>Hour</key>\\n    <integer>12</integer>\\n    <key>Minute</key>\\n    <integer>5</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\n"
+ },
+ "context-pr-only": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "x",
+     "-s",
+     "in 5 minutes"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   x\n  Provider: claude\n  Schedule: once at 2026-01-01T12:05:00.000Z\n  CWD:      <DIR>/work\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[{\"id\":\"<ID1>\",\"prompt\":\"x\",\"provider\":\"claude\",\"schedule\":{\"_tag\":\"Oneshot\",\"at\":\"2026-01-01T12:05:00.000Z\",\"raw\":\"in 5 minutes\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T12:00:00.000Z\",\"status\":\"active\",\"runCount\":0}]\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 f188b9e3de377f57 \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"x\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Oneshot\\\",\\\"at\\\":\\\"2026-01-01T12:05:00.000Z\\\",\\\"raw\\\":\\\"in 5 minutes\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist 644 5b45e140f4c08aa7 \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID1></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID1></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Month</key>\\n    <integer>1</integer>\\n    <key>Day</key>\\n    <integer>1</integer>\\n    <key>Hour</key>\\n    <integer>12</integer>\\n    <key>Minute</key>\\n    <integer>5</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\n"
+ },
+ "context-pr-number": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "x",
+     "-s",
+     "in 5 minutes"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   x\n  Provider: claude\n  Schedule: once at 2026-01-01T12:05:00.000Z\n  CWD:      <DIR>/work\n",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 c929f4789adb4f6f \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"x\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Oneshot\\\",\\\"at\\\":\\\"2026-01-01T12:05:00.000Z\\\",\\\"raw\\\":\\\"in 5 minutes\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitCommit\\\":\\\"c\\\"}}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist 644 5b45e140f4c08aa7 \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID1></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID1></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Month</key>\\n    <integer>1</integer>\\n    <key>Day</key>\\n    <integer>1</integer>\\n    <key>Hour</key>\\n    <integer>12</integer>\\n    <key>Minute</key>\\n    <integer>5</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\n"
+ },
+ "list-empty": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "",
+    "err": "No scheduled tasks.\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[]\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "list-fixtures": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "ID         Provider   Schedule                       Status     Prompt\naa         claude     weekdays at 09:00 (2/5 runs, until 2026-03-20, when: the pull request ...) completed  a prompt that is certainly longer tha...\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[{\"id\":\"aa\",\"prompt\":\"a prompt that is certainly longer than forty characters in total\",\"provider\":\"claude\",\"schedule\":{\"_tag\":\"Cron\",\"minute\":0,\"hour\":9,\"dayOfMonth\":\"*\",\"month\":\"*\",\"dayOfWeek\":\"1-5\",\"raw\":\"every weekday at 9am\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T00:00:00.000Z\",\"status\":\"completed\",\"lastRun\":\"2026-01-02T00:00:00.000Z\",\"runCount\":2,\"stopConditions\":[{\"_tag\":\"MaxRuns\",\"count\":5},{\"_tag\":\"AfterDate\",\"date\":\"2026-03-20T23:59:59.999Z\"}],\"conditionalStop\":{\"condition\":\"the pull request is merged\"}}]\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/aa.json 644 32a87b8971ad548f \"{\\\"id\\\":\\\"aa\\\",\\\"prompt\\\":\\\"a prompt that is certainly longer than forty characters in total\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T00:00:00.000Z\\\",\\\"status\\\":\\\"completed\\\",\\\"runCount\\\":2,\\\"lastRun\\\":\\\"2026-01-02T00:00:00.000Z\\\",\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"MaxRuns\\\",\\\"count\\\":5},{\\\"_tag\\\":\\\"AfterDate\\\",\\\"date\\\":\\\"2026-03-20T23:59:59.999Z\\\"}],\\\"conditionalStop\\\":{\\\"condition\\\":\\\"the pull request is merged\\\"},\\\"extra\\\":true}\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "list-corrupt": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "ID         Provider   Schedule                       Status     Prompt\n\ngood       claude     weekdays at 09:00              active     check the build",
+    "err": "\nWarning: skipping corrupt task file bad.json: <CAUSE>\nWarning: skipping corrupt task file dir.json: <CAUSE>\nWarning: skipping corrupt task file wrong.json: <CAUSE>",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/bad.json 644 021fb596db81e6d0 \"{\"",
+   ".okra/schedule/tasks/dir.json/ 755",
+   ".okra/schedule/tasks/good.json 644 36a30e47dd6b7be8 \"{\\\"id\\\":\\\"good\\\",\\\"prompt\\\":\\\"check the build\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T00:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0}\"",
+   ".okra/schedule/tasks/notes.txt 644 2d711642b726b044 \"x\"",
+   ".okra/schedule/tasks/wrong.json 644 f05258b99cc12635 \"{\\\"id\\\":\\\"wrong\\\",\\\"prompt\\\":\\\"check the build\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T00:00:00.000Z\\\",\\\"status\\\":\\\"paused\\\",\\\"runCount\\\":0}\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "list-null-optional": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "",
+    "err": "Warning: skipping corrupt task file nul.json: <CAUSE>\nNo scheduled tasks.\n",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/nul.json 644 579dd66d0738dc2f \"{\\\"id\\\":\\\"nul\\\",\\\"prompt\\\":\\\"check the build\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T00:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"lastRun\\\":null}\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "run-decode-mistyped": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "run",
+     "mist"
+    ],
+    "out": "",
+    "err": "[DECODE_FAILED] Decode failed: <CAUSE>\n",
+    "code": 1
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/mist.json 644 aa297f5a4057e731 \"{\\\"id\\\":\\\"mist\\\",\\\"prompt\\\":\\\"check the build\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T00:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":\\\"1\\\"}\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "list-oneshot-fixture": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "ID         Provider   Schedule                       Status     Prompt\none        codex      once at 2026-05-05T05:05:05.000Z active     check the build\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[{\"id\":\"one\",\"prompt\":\"check the build\",\"provider\":\"codex\",\"schedule\":{\"_tag\":\"Oneshot\",\"at\":\"2026-05-05T05:05:05.000Z\",\"raw\":\"in 2 days\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T00:00:00.000Z\",\"status\":\"active\",\"runCount\":0,\"context\":{\"gitBranch\":\"b\",\"prNumber\":3}}]\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/one.json 644 99588dc184318d22 \"{\\\"id\\\":\\\"one\\\",\\\"prompt\\\":\\\"check the build\\\",\\\"provider\\\":\\\"codex\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Oneshot\\\",\\\"at\\\":\\\"2026-05-05T05:05:05.000Z\\\",\\\"raw\\\":\\\"in 2 days\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T00:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"b\\\",\\\"prNumber\\\":3}}\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "run-plain": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "run",
+     "plain1"
+    ],
+    "out": "partial out",
+    "err": "[okra schedule] Running task plain1: check the build\nagent err\n[okra schedule] Task plain1 completed (run #1)\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[{\"id\":\"plain1\",\"prompt\":\"check the build\",\"provider\":\"claude\",\"schedule\":{\"_tag\":\"Cron\",\"minute\":0,\"hour\":9,\"dayOfMonth\":\"*\",\"month\":\"*\",\"dayOfWeek\":\"1-5\",\"raw\":\"every weekday at 9am\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T00:00:00.000Z\",\"status\":\"active\",\"lastRun\":\"2026-01-01T12:00:00.000Z\",\"runCount\":1}]\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/plain1.json 644 b6e667c6c6c93464 \"{\\\"id\\\":\\\"plain1\\\",\\\"prompt\\\":\\\"check the build\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T00:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"lastRun\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"runCount\\\":1}\"",
+   "work/ 755"
+  ],
+  "agents": "claude\u0000-p\u0000check the build\u0000--dangerously-skip-permissions\u0000--model\u0000sonnet\u0000--no-session-persistence\n<DIR>/work\n--\n",
+  "launchctl": ""
+ },
+ "run-codex-context": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "run",
+     "cx"
+    ],
+    "out": "line one\nline two\n",
+    "err": "[okra schedule] Running task cx: check the build\n[okra schedule] Task cx completed (run #1)\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[{\"id\":\"cx\",\"prompt\":\"check the build\",\"provider\":\"codex\",\"schedule\":{\"_tag\":\"Cron\",\"minute\":0,\"hour\":9,\"dayOfMonth\":\"*\",\"month\":\"*\",\"dayOfWeek\":\"1-5\",\"raw\":\"every weekday at 9am\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T00:00:00.000Z\",\"status\":\"active\",\"lastRun\":\"2026-01-01T12:00:00.000Z\",\"runCount\":1,\"context\":{\"gitBranch\":\"feature/9\",\"gitRemoteUrl\":\"git@h:o/r.git\",\"gitRepo\":\"r\",\"gitCommit\":\"abc\",\"gitDefaultBranch\":\"main\",\"prNumber\":9,\"prUrl\":\"https://u/9\",\"issueNumber\":9}}]\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/cx.json 644 403bb9eb14d50432 \"{\\\"id\\\":\\\"cx\\\",\\\"prompt\\\":\\\"check the build\\\",\\\"provider\\\":\\\"codex\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T00:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"lastRun\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"runCount\\\":1,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/9\\\",\\\"gitRemoteUrl\\\":\\\"git@h:o/r.git\\\",\\\"gitRepo\\\":\\\"r\\\",\\\"gitCommit\\\":\\\"abc\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":9,\\\"prUrl\\\":\\\"https://u/9\\\",\\\"issueNumber\\\":9}}\"",
+   "work/ 755"
+  ],
+  "agents": "codex\u0000exec\u0000-C\u0000<DIR>/work\u0000--dangerously-bypass-approvals-and-sandbox\u0000--skip-git-repo-check\u0000<context>\nRepository: r (git@h:o/r.git)\nBranch: feature/9\nDefault branch: main\nHEAD: abc\nPR: #9 (https://u/9)\nIssue: #9\nWorking directory: <DIR>/work\n</context>\n\ncheck the build\n<DIR>/work\n--\n",
+  "launchctl": ""
+ },
+ "run-oneshot": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "run",
+     "once"
+    ],
+    "out": "ok\n",
+    "err": "[okra schedule] Running task once: check the build\n[okra schedule] Task once completed: oneshot\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[{\"id\":\"once\",\"prompt\":\"check the build\",\"provider\":\"claude\",\"schedule\":{\"_tag\":\"Oneshot\",\"at\":\"2026-01-01T13:00:00.000Z\",\"raw\":\"in 1 hour\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T00:00:00.000Z\",\"status\":\"completed\",\"lastRun\":\"2026-01-01T12:00:00.000Z\",\"runCount\":1}]\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/once.json 644 86feac9787d916b4 \"{\\\"id\\\":\\\"once\\\",\\\"prompt\\\":\\\"check the build\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Oneshot\\\",\\\"at\\\":\\\"2026-01-01T13:00:00.000Z\\\",\\\"raw\\\":\\\"in 1 hour\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T00:00:00.000Z\\\",\\\"status\\\":\\\"completed\\\",\\\"lastRun\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"runCount\\\":1}\"",
+   "work/ 755"
+  ],
+  "agents": "claude\u0000-p\u0000check the build\u0000--dangerously-skip-permissions\u0000--model\u0000sonnet\u0000--no-session-persistence\n<DIR>/work\n--\n",
+  "launchctl": "launchctl list com.cvr.okra.schedule-once\nlaunchctl unload <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-once.plist\n"
+ },
+ "run-max-runs-pre": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "run",
+     "maxed"
+    ],
+    "out": "",
+    "err": "[okra schedule] Task maxed completed: reached max runs (3/3)\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[{\"id\":\"maxed\",\"prompt\":\"check the build\",\"provider\":\"claude\",\"schedule\":{\"_tag\":\"Cron\",\"minute\":0,\"hour\":9,\"dayOfMonth\":\"*\",\"month\":\"*\",\"dayOfWeek\":\"1-5\",\"raw\":\"every weekday at 9am\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T00:00:00.000Z\",\"status\":\"completed\",\"runCount\":3,\"stopConditions\":[{\"_tag\":\"MaxRuns\",\"count\":3}]}]\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/maxed.json 644 17d8b5ce3e8de5e6 \"{\\\"id\\\":\\\"maxed\\\",\\\"prompt\\\":\\\"check the build\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T00:00:00.000Z\\\",\\\"status\\\":\\\"completed\\\",\\\"runCount\\\":3,\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"MaxRuns\\\",\\\"count\\\":3}]}\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-maxed\n"
+ },
+ "run-max-runs-post": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "run",
+     "last"
+    ],
+    "out": "x",
+    "err": "[okra schedule] Running task last: check the build\n[okra schedule] Task last completed: reached max runs (3/3)\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[{\"id\":\"last\",\"prompt\":\"check the build\",\"provider\":\"claude\",\"schedule\":{\"_tag\":\"Cron\",\"minute\":0,\"hour\":9,\"dayOfMonth\":\"*\",\"month\":\"*\",\"dayOfWeek\":\"1-5\",\"raw\":\"every weekday at 9am\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T00:00:00.000Z\",\"status\":\"completed\",\"lastRun\":\"2026-01-01T12:00:00.000Z\",\"runCount\":3,\"stopConditions\":[{\"_tag\":\"MaxRuns\",\"count\":3}]}]\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/last.json 644 88b75d05edbb49ae \"{\\\"id\\\":\\\"last\\\",\\\"prompt\\\":\\\"check the build\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T00:00:00.000Z\\\",\\\"status\\\":\\\"completed\\\",\\\"lastRun\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"runCount\\\":3,\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"MaxRuns\\\",\\\"count\\\":3}]}\"",
+   "work/ 755"
+  ],
+  "agents": "claude\u0000-p\u0000check the build\u0000--dangerously-skip-permissions\u0000--model\u0000sonnet\u0000--no-session-persistence\n<DIR>/work\n--\n",
+  "launchctl": "launchctl list com.cvr.okra.schedule-last\n"
+ },
+ "run-after-date": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "run",
+     "late"
+    ],
+    "out": "",
+    "err": "[okra schedule] Task late completed: past stop date (2026-01-01T11:59:59.999Z)\n",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/late.json 644 37decdd439e4efe0 \"{\\\"id\\\":\\\"late\\\",\\\"prompt\\\":\\\"check the build\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T00:00:00.000Z\\\",\\\"status\\\":\\\"completed\\\",\\\"runCount\\\":0,\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"AfterDate\\\",\\\"date\\\":\\\"2026-01-01T11:59:59.999Z\\\"}]}\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-late\n"
+ },
+ "run-before-date": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "run",
+     "early"
+    ],
+    "out": "ran\n",
+    "err": "[okra schedule] Running task early: check the build\n[okra schedule] Task early completed (run #1)\n",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/early.json 644 bea19c6944a9c2d5 \"{\\\"id\\\":\\\"early\\\",\\\"prompt\\\":\\\"check the build\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T00:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"lastRun\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"runCount\\\":1,\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"AfterDate\\\",\\\"date\\\":\\\"2026-01-01T12:00:00.000Z\\\"}]}\"",
+   "work/ 755"
+  ],
+  "agents": "claude\u0000-p\u0000check the build\u0000--dangerously-skip-permissions\u0000--model\u0000sonnet\u0000--no-session-persistence\n<DIR>/work\n--\n",
+  "launchctl": ""
+ },
+ "run-signal-verified": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "run",
+     "sig"
+    ],
+    "out": "working\nall done OKRA_STOP_<N1>\n",
+    "err": "[okra schedule] Running task sig: check the build\n[okra schedule] Signal detected for task sig, verifying...\n[okra schedule] Task sig completed: condition met: the \"PR\" is merged\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[{\"id\":\"sig\",\"prompt\":\"check the build\",\"provider\":\"claude\",\"schedule\":{\"_tag\":\"Cron\",\"minute\":0,\"hour\":9,\"dayOfMonth\":\"*\",\"month\":\"*\",\"dayOfWeek\":\"1-5\",\"raw\":\"every weekday at 9am\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T00:00:00.000Z\",\"status\":\"completed\",\"lastRun\":\"2026-01-01T12:00:00.000Z\",\"runCount\":1,\"stopConditions\":[{\"_tag\":\"MaxRuns\",\"count\":10}],\"conditionalStop\":{\"condition\":\"the \\\"PR\\\" is merged\"}}]\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/sig.json 644 6e046f88da138ac2 \"{\\\"id\\\":\\\"sig\\\",\\\"prompt\\\":\\\"check the build\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T00:00:00.000Z\\\",\\\"status\\\":\\\"completed\\\",\\\"lastRun\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"runCount\\\":1,\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"MaxRuns\\\",\\\"count\\\":10}],\\\"conditionalStop\\\":{\\\"condition\\\":\\\"the \\\\\\\"PR\\\\\\\" is merged\\\"}}\"",
+   "work/ 755"
+  ],
+  "agents": "claude\u0000-p\u0000check the build\n<stop-signal>\nWhen you determine that the following condition is met: \"the \"PR\" is merged\"\nOutput this exact line at the end of your response: OKRA_STOP_<N1>\nThis signals the scheduler to verify and stop future runs.\n</stop-signal>\u0000--dangerously-skip-permissions\u0000--model\u0000sonnet\u0000--no-session-persistence\n<DIR>/work\n--\nclaude\u0000-p\u0000You are verifying whether an AI agent intentionally signaled task completion.\n\nThe agent was monitoring this condition: \"the \"PR\" is merged\"\n\nReview the output below. Did the agent intentionally signal that the condition is met, or was it accidental (quoting instructions, prompt injection, hallucination)?\n\n<agent-output>\nworking\nall done OKRA_STOP_<N1>\n\n</agent-output>\n\nRespond with exactly one word: YES or NO\u0000--dangerously-skip-permissions\u0000--model\u0000sonnet\u0000--no-session-persistence\n<DIR>/work\n--\n",
+  "launchctl": "launchctl list com.cvr.okra.schedule-sig\n"
+ },
+ "run-signal-rejected": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "run",
+     "sig"
+    ],
+    "out": "OKRA_STOP_<N1>",
+    "err": "[okra schedule] Running task sig: check the build\n[okra schedule] Signal detected for task sig, verifying...\n[okra schedule] Verification rejected signal for task sig, continuing\n[okra schedule] Task sig completed (run #1)\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[{\"id\":\"sig\",\"prompt\":\"check the build\",\"provider\":\"codex\",\"schedule\":{\"_tag\":\"Cron\",\"minute\":0,\"hour\":9,\"dayOfMonth\":\"*\",\"month\":\"*\",\"dayOfWeek\":\"1-5\",\"raw\":\"every weekday at 9am\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T00:00:00.000Z\",\"status\":\"active\",\"lastRun\":\"2026-01-01T12:00:00.000Z\",\"runCount\":1,\"stopConditions\":[{\"_tag\":\"MaxRuns\",\"count\":10}],\"conditionalStop\":{\"condition\":\"done\"}}]\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/sig.json 644 55b0787029555d75 \"{\\\"id\\\":\\\"sig\\\",\\\"prompt\\\":\\\"check the build\\\",\\\"provider\\\":\\\"codex\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T00:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"lastRun\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"runCount\\\":1,\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"MaxRuns\\\",\\\"count\\\":10}],\\\"conditionalStop\\\":{\\\"condition\\\":\\\"done\\\"}}\"",
+   "work/ 755"
+  ],
+  "agents": "codex\u0000exec\u0000-C\u0000<DIR>/work\u0000--dangerously-bypass-approvals-and-sandbox\u0000--skip-git-repo-check\u0000check the build\n<stop-signal>\nWhen you determine that the following condition is met: \"done\"\nOutput this exact line at the end of your response: OKRA_STOP_<N1>\nThis signals the scheduler to verify and stop future runs.\n</stop-signal>\n<DIR>/work\n--\ncodex\u0000exec\u0000-C\u0000<DIR>/work\u0000--dangerously-bypass-approvals-and-sandbox\u0000--skip-git-repo-check\u0000You are verifying whether an AI agent intentionally signaled task completion.\n\nThe agent was monitoring this condition: \"done\"\n\nReview the output below. Did the agent intentionally signal that the condition is met, or was it accidental (quoting instructions, prompt injection, hallucination)?\n\n<agent-output>\nOKRA_STOP_<N1>\n</agent-output>\n\nRespond with exactly one word: YES or NO\n<DIR>/work\n--\n",
+  "launchctl": ""
+ },
+ "run-no-signal": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "run",
+     "sig"
+    ],
+    "out": "OKRA_STOP_<N1>\n",
+    "err": "[okra schedule] Running task sig: check the build\n[okra schedule] Task sig completed (run #1)\n",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/sig.json 644 435a513e1911c6f1 \"{\\\"id\\\":\\\"sig\\\",\\\"prompt\\\":\\\"check the build\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T00:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"lastRun\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"runCount\\\":1,\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"MaxRuns\\\",\\\"count\\\":10}],\\\"conditionalStop\\\":{\\\"condition\\\":\\\"done\\\"}}\"",
+   "work/ 755"
+  ],
+  "agents": "claude\u0000-p\u0000check the build\n<stop-signal>\nWhen you determine that the following condition is met: \"done\"\nOutput this exact line at the end of your response: OKRA_STOP_<N2>\nThis signals the scheduler to verify and stop future runs.\n</stop-signal>\u0000--dangerously-skip-permissions\u0000--model\u0000sonnet\u0000--no-session-persistence\n<DIR>/work\n--\n",
+  "launchctl": ""
+ },
+ "run-signal-long-output": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "run",
+     "sig"
+    ],
+    "out": "line 0\nline 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\nline 31\nline 32\nline 33\nline 34\nline 35\nline 36\nline 37\nline 38\nline 39\nline 40\nline 41\nline 42\nline 43\nline 44\nline 45\nline 46\nline 47\nline 48\nline 49\nline 50\nline 51\nline 52\nline 53\nline 54\nline 55\nline 56\nline 57\nline 58\nline 59\nline 60\nline 61\nline 62\nline 63\nline 64\nline 65\nline 66\nline 67\nline 68\nline 69\nline 70\nline 71\nline 72\nline 73\nline 74\nline 75\nline 76\nline 77\nline 78\nline 79\nline 80\nline 81\nline 82\nline 83\nline 84\nline 85\nline 86\nline 87\nline 88\nline 89\nline 90\nline 91\nline 92\nline 93\nline 94\nline 95\nline 96\nline 97\nline 98\nline 99\nline 100\nline 101\nline 102\nline 103\nline 104\nline 105\nline 106\nline 107\nline 108\nline 109\nline 110\nline 111\nline 112\nline 113\nline 114\nline 115\nline 116\nline 117\nline 118\nline 119\nline 120\nline 121\nline 122\nline 123\nline 124\nline 125\nline 126\nline 127\nline 128\nline 129\nline 130\nline 131\nline 132\nline 133\nline 134\nline 135\nline 136\nline 137\nline 138\nline 139\nline 140\nline 141\nline 142\nline 143\nline 144\nline 145\nline 146\nline 147\nline 148\nline 149\nline 150\nline 151\nline 152\nline 153\nline 154\nline 155\nline 156\nline 157\nline 158\nline 159\nline 160\nline 161\nline 162\nline 163\nline 164\nline 165\nline 166\nline 167\nline 168\nline 169\nline 170\nline 171\nline 172\nline 173\nline 174\nline 175\nline 176\nline 177\nline 178\nline 179\nline 180\nline 181\nline 182\nline 183\nline 184\nline 185\nline 186\nline 187\nline 188\nline 189\nline 190\nline 191\nline 192\nline 193\nline 194\nline 195\nline 196\nline 197\nline 198\nline 199\nline 200\nline 201\nline 202\nline 203\nline 204\nline 205\nline 206\nline 207\nline 208\nline 209\nline 210\nline 211\nline 212\nline 213\nline 214\nline 215\nline 216\nline 217\nline 218\nline 219\nline 220\nline 221\nline 222\nline 223\nline 224\nline 225\nline 226\nline 227\nline 228\nline 229\nOKRA_STOP_<N1>\n\n",
+    "err": "[okra schedule] Running task sig: check the build\n[okra schedule] Signal detected for task sig, verifying...\n[okra schedule] Task sig completed: condition met: done\n",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/sig.json 644 e87a5e349405dd39 \"{\\\"id\\\":\\\"sig\\\",\\\"prompt\\\":\\\"check the build\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T00:00:00.000Z\\\",\\\"status\\\":\\\"completed\\\",\\\"lastRun\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"runCount\\\":1,\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"MaxRuns\\\",\\\"count\\\":10}],\\\"conditionalStop\\\":{\\\"condition\\\":\\\"done\\\"}}\"",
+   "work/ 755"
+  ],
+  "agents": "claude\u0000-p\u0000check the build\n<stop-signal>\nWhen you determine that the following condition is met: \"done\"\nOutput this exact line at the end of your response: OKRA_STOP_<N1>\nThis signals the scheduler to verify and stop future runs.\n</stop-signal>\u0000--dangerously-skip-permissions\u0000--model\u0000sonnet\u0000--no-session-persistence\n<DIR>/work\n--\nclaude\u0000-p\u0000You are verifying whether an AI agent intentionally signaled task completion.\n\nThe agent was monitoring this condition: \"done\"\n\nReview the output below. Did the agent intentionally signal that the condition is met, or was it accidental (quoting instructions, prompt injection, hallucination)?\n\n<agent-output>\nline 33\nline 34\nline 35\nline 36\nline 37\nline 38\nline 39\nline 40\nline 41\nline 42\nline 43\nline 44\nline 45\nline 46\nline 47\nline 48\nline 49\nline 50\nline 51\nline 52\nline 53\nline 54\nline 55\nline 56\nline 57\nline 58\nline 59\nline 60\nline 61\nline 62\nline 63\nline 64\nline 65\nline 66\nline 67\nline 68\nline 69\nline 70\nline 71\nline 72\nline 73\nline 74\nline 75\nline 76\nline 77\nline 78\nline 79\nline 80\nline 81\nline 82\nline 83\nline 84\nline 85\nline 86\nline 87\nline 88\nline 89\nline 90\nline 91\nline 92\nline 93\nline 94\nline 95\nline 96\nline 97\nline 98\nline 99\nline 100\nline 101\nline 102\nline 103\nline 104\nline 105\nline 106\nline 107\nline 108\nline 109\nline 110\nline 111\nline 112\nline 113\nline 114\nline 115\nline 116\nline 117\nline 118\nline 119\nline 120\nline 121\nline 122\nline 123\nline 124\nline 125\nline 126\nline 127\nline 128\nline 129\nline 130\nline 131\nline 132\nline 133\nline 134\nline 135\nline 136\nline 137\nline 138\nline 139\nline 140\nline 141\nline 142\nline 143\nline 144\nline 145\nline 146\nline 147\nline 148\nline 149\nline 150\nline 151\nline 152\nline 153\nline 154\nline 155\nline 156\nline 157\nline 158\nline 159\nline 160\nline 161\nline 162\nline 163\nline 164\nline 165\nline 166\nline 167\nline 168\nline 169\nline 170\nline 171\nline 172\nline 173\nline 174\nline 175\nline 176\nline 177\nline 178\nline 179\nline 180\nline 181\nline 182\nline 183\nline 184\nline 185\nline 186\nline 187\nline 188\nline 189\nline 190\nline 191\nline 192\nline 193\nline 194\nline 195\nline 196\nline 197\nline 198\nline 199\nline 200\nline 201\nline 202\nline 203\nline 204\nline 205\nline 206\nline 207\nline 208\nline 209\nline 210\nline 211\nline 212\nline 213\nline 214\nline 215\nline 216\nline 217\nline 218\nline 219\nline 220\nline 221\nline 222\nline 223\nline 224\nline 225\nline 226\nline 227\nline 228\nline 229\nOKRA_STOP_<N1>\n\n\n</agent-output>\n\nRespond with exactly one word: YES or NO\u0000--dangerously-skip-permissions\u0000--model\u0000sonnet\u0000--no-session-persistence\n<DIR>/work\n--\n",
+  "launchctl": "launchctl list com.cvr.okra.schedule-sig\n"
+ },
+ "run-invalid-utf8": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "run",
+     "sig"
+    ],
+    "out": "bad ÿþ and cut â end OKRA_STOP_<N1>\n",
+    "err": "[okra schedule] Running task sig: check the build\n[okra schedule] Signal detected for task sig, verifying...\n[okra schedule] Verification rejected signal for task sig, continuing\n[okra schedule] Task sig completed (run #1)\n",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/sig.json 644 435a513e1911c6f1 \"{\\\"id\\\":\\\"sig\\\",\\\"prompt\\\":\\\"check the build\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T00:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"lastRun\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"runCount\\\":1,\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"MaxRuns\\\",\\\"count\\\":10}],\\\"conditionalStop\\\":{\\\"condition\\\":\\\"done\\\"}}\"",
+   "work/ 755"
+  ],
+  "agents": "claude\u0000-p\u0000check the build\n<stop-signal>\nWhen you determine that the following condition is met: \"done\"\nOutput this exact line at the end of your response: OKRA_STOP_<N1>\nThis signals the scheduler to verify and stop future runs.\n</stop-signal>\u0000--dangerously-skip-permissions\u0000--model\u0000sonnet\u0000--no-session-persistence\n<DIR>/work\n--\nclaude\u0000-p\u0000You are verifying whether an AI agent intentionally signaled task completion.\n\nThe agent was monitoring this condition: \"done\"\n\nReview the output below. Did the agent intentionally signal that the condition is met, or was it accidental (quoting instructions, prompt injection, hallucination)?\n\n<agent-output>\nbad ï¿½ï¿½ and cut ï¿½ end OKRA_STOP_<N1>\n\n</agent-output>\n\nRespond with exactly one word: YES or NO\u0000--dangerously-skip-permissions\u0000--model\u0000sonnet\u0000--no-session-persistence\n<DIR>/work\n--\n",
+  "launchctl": ""
+ },
+ "run-spawn-failed": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "run",
+     "bad"
+    ],
+    "out": "",
+    "err": "[okra schedule] Running task bad: check the build\n[okra schedule] Task bad failed on run #1\n[SPAWN_FAILED] claude invocation failed: NotFound: ChildProcess.spawn (<DIR>/bin/claude -p 'check the build' --dangerously-skip-permissions --model sonnet --no-session-persistence)\n",
+    "code": 1
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[{\"id\":\"bad\",\"prompt\":\"check the build\",\"provider\":\"claude\",\"schedule\":{\"_tag\":\"Cron\",\"minute\":0,\"hour\":9,\"dayOfMonth\":\"*\",\"month\":\"*\",\"dayOfWeek\":\"1-5\",\"raw\":\"every weekday at 9am\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T00:00:00.000Z\",\"status\":\"active\",\"lastRun\":\"2026-01-01T12:00:00.000Z\",\"runCount\":1}]\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/bad.json 644 510f215e4c80eb85 \"{\\\"id\\\":\\\"bad\\\",\\\"prompt\\\":\\\"check the build\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T00:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"lastRun\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"runCount\\\":1}\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "run-missing-cwd": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "run",
+     "gone"
+    ],
+    "out": "",
+    "err": "[okra schedule] Running task gone: check the build\n[okra schedule] Task gone failed on run #1\n[SPAWN_FAILED] claude invocation failed: NotFound: FileSystem.access (/nonexistent/okra-parity-cwd)\n",
+    "code": 1
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/gone.json 644 8fe7346527243dbc \"{\\\"id\\\":\\\"gone\\\",\\\"prompt\\\":\\\"check the build\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 9am\\\"},\\\"cwd\\\":\\\"/nonexistent/okra-parity-cwd\\\",\\\"createdAt\\\":\\\"2026-01-01T00:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"lastRun\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"runCount\\\":1}\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "run-not-found": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "run",
+     "nothere"
+    ],
+    "out": "",
+    "err": "[NOT_FOUND] Task not found: nothere (NotFound: FileSystem.readFile (<DIR>/.okra/schedule/tasks/nothere.json))\nRun 'okra schedule list' to see available tasks.\n",
+    "code": 1
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "run-invalid-id": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "run",
+     "../x"
+    ],
+    "out": "",
+    "err": "[INVALID_ID] Invalid task ID: \"../x\". Only alphanumeric, hyphens, and underscores allowed.\n",
+    "code": 1
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "run-decode-failed": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "run",
+     "broken"
+    ],
+    "out": "",
+    "err": "[DECODE_FAILED] Decode failed: <CAUSE>\n",
+    "code": 1
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/broken.json 644 13897b9d65fa5206 \"{\\\"id\\\":\\\"broken\\\"}\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "remove-loaded": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "remove",
+     "gone"
+    ],
+    "out": "",
+    "err": "Removed task gone\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "",
+    "err": "No scheduled tasks.\n",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-gone\nlaunchctl unload <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-gone.plist\n"
+ },
+ "remove-missing": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "remove",
+     "nothere"
+    ],
+    "out": "",
+    "err": "[REMOVE_FAILED] Remove failed: NotFound: FileSystem.remove (<DIR>/.okra/schedule/tasks/nothere.json)\n",
+    "code": 1
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-nothere\n"
+ },
+ "remove-invalid-id": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "remove",
+     "a b"
+    ],
+    "out": "",
+    "err": "[INVALID_ID] Invalid task ID: \"a b\". Only alphanumeric, hyphens, and underscores allowed.\n",
+    "code": 1
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-a b\n"
+ },
+ "remove-unload-fails": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "remove",
+     "stuck"
+    ],
+    "out": "",
+    "err": "[LAUNCHD_FAILED] Cannot unload com.cvr.okra.schedule-stuck: Unload failed: 5: Input/output error. Job is still running â plist not removed.\n",
+    "code": 1
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/stuck.json 644 0c1d0180391ead85 \"{\\\"id\\\":\\\"stuck\\\",\\\"prompt\\\":\\\"check the build\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T00:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0}\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-stuck\nlaunchctl unload <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-stuck.plist\nlaunchctl list com.cvr.okra.schedule-stuck\n"
+ },
+ "remove-unload-fails-silent": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "remove",
+     "stuck"
+    ],
+    "out": "",
+    "err": "[LAUNCHD_FAILED] Cannot unload com.cvr.okra.schedule-stuck: exit code 5. Job is still running â plist not removed.\n",
+    "code": 1
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/stuck.json 644 0c1d0180391ead85 \"{\\\"id\\\":\\\"stuck\\\",\\\"prompt\\\":\\\"check the build\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T00:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0}\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-stuck\nlaunchctl unload <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-stuck.plist\nlaunchctl list com.cvr.okra.schedule-stuck\n"
+ },
+ "create-load-fails": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "x",
+     "-s",
+     "every day at 9am"
+    ],
+    "out": "",
+    "err": "[LAUNCHD_FAILED] Cannot load com.cvr.okra.schedule-<ID1>: Load failed: 5\n",
+    "code": 1
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 85829f5009569836 \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"x\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"*\\\",\\\"raw\\\":\\\"every day at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist 644 112847be428b68d5 \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID1></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID1></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Minute</key>\\n    <integer>0</integer>\\n    <key>Hour</key>\\n    <integer>9</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\n"
+ },
+ "create-and-remove": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "x",
+     "-s",
+     "every day at 9am"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   x\n  Provider: claude\n  Schedule: daily at 09:00\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "logs"
+    ],
+    "out": "",
+    "err": "No logs found.\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "remove",
+     "$1"
+    ],
+    "out": "",
+    "err": "Removed task <ID1>\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[]\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\nlaunchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl unload <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\n"
+ },
+ "logs-list": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "logs"
+    ],
+    "out": "a\n",
+    "err": "Available logs:\n",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/logs/a.log 644 87428fc522803d31 \"a\\n\"",
+   ".okra/schedule/logs/notes.txt 644 1b16b1df538ba12d \"n\"",
+   ".okra/schedule/tasks/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "logs-show": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "logs",
+     "a"
+    ],
+    "out": "first\nsecond\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "logs",
+     "missing"
+    ],
+    "out": "",
+    "err": "[NOT_FOUND] No logs found for task missing\nRun 'okra schedule list' to see available tasks.\n",
+    "code": 1
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/logs/a.log 644 4252f8d56b4bb236 \"first\\nsecond\"",
+   ".okra/schedule/tasks/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "logs-follow": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "logs",
+     "a",
+     "-f"
+    ],
+    "out": "tail [-f] [<DIR>/.okra/schedule/logs/a.log]\nx\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "logs",
+     "--follow",
+     "a"
+    ],
+    "out": "tail [-f] [<DIR>/.okra/schedule/logs/a.log]\nx\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/logs/a.log 644 73cb3858a687a849 \"x\\n\"",
+   ".okra/schedule/tasks/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "no-okra-on-path": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "x",
+     "-s",
+     "every day at 9am"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   x\n  Provider: claude\n  Schedule: daily at 09:00\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 85829f5009569836 \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"x\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":9,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"*\\\",\\\"raw\\\":\\\"every day at 9am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist 644 645b428e32df3cc9 \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID1></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string>okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID1></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Minute</key>\\n    <integer>0</integer>\\n    <key>Hour</key>\\n    <integer>9</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\n"
+ },
+ "xml-escaping": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "x",
+     "-s",
+     "in 5 minutes"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   x\n  Provider: claude\n  Schedule: once at 2026-01-01T12:05:00.000Z\n  CWD:      <DIR>/a&b<c>'d\"\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 321d8b31cb42ed71 \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"x\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Oneshot\\\",\\\"at\\\":\\\"2026-01-01T12:05:00.000Z\\\",\\\"raw\\\":\\\"in 5 minutes\\\"},\\\"cwd\\\":\\\"<DIR>/a&b<c>'d\\\\\\\"\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123}}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist 644 3abf52681039ccc4 \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID1></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID1></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/a&amp;b&lt;c&gt;&apos;d&quot;</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Month</key>\\n    <integer>1</integer>\\n    <key>Day</key>\\n    <integer>1</integer>\\n    <key>Hour</key>\\n    <integer>12</integer>\\n    <key>Minute</key>\\n    <integer>5</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "a&b<c>'d\"/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\n"
+ },
+ "invalid-schema-value": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "x",
+     "-s",
+     "x 9 * * *"
+    ],
+    "out": "",
+    "err": "Internal error: Error: Schema validation failed\n",
+    "code": 1
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[]\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "provider-bad": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "x",
+     "-s",
+     "in 5 minutes",
+     "-p",
+     "gemini"
+    ],
+    "out": "DESCRIPTION\n  Schedule AI agent tasks via macOS launchd\n\nUSAGE\n  okra schedule <subcommand> [flags] [<prompt>]\n\nARGUMENTS\n  prompt string     (optional)\n\nFLAGS\n  --schedule, -s string    \n  --provider, -p choice    (choices: claude, codex)\n  --max-runs integer       \n  --until string           \n  --stop-when string       \n\nGLOBAL FLAGS\n  --help, -h                                                          Show help information\n  --version, -v                                                       Show version information\n  --wizard                                                            Start wizard mode for a command\n  --completions <bash|zsh|fish|powershell|sh|pwsh>                    Print shell completion script (choices: bash, zsh, fish, powershell, sh, pwsh)\n  --log-level <all|trace|debug|info|warn|warning|error|fatal|none>    Sets the minimum log level (choices: all, trace, debug, info, warn, warning, error, fatal, none)\n\nSUBCOMMANDS\n  list      List active schedules\n  remove    Remove a scheduled task\n  run       Execute a scheduled task (called by launchd)\n  logs      View task logs\nEXAMPLES\n  # Schedule a recurring task\n  okra schedule \"babysit this pr\" -p claude -s \"every weekday at 9am\"\n\n  # Stop after 5 runs\n  okra schedule \"babysit pr\" -s \"every day at 9am\" --max-runs 5\n\n  # Stop after a date\n  okra schedule \"check deploys\" -s \"every weekday at 9am\" --until 2026-03-20\n\n  # Stop when condition is met (with fallback)\n  okra schedule \"babysit pr\" -s \"every day at 9am\" --stop-when \"the PR is merged\" --max-runs 20\n\n  # Schedule a one-shot task\n  okra schedule \"run tests\" -s \"in 30 minutes\"\n\n  # List scheduled tasks\n  okra schedule list\n\n  # Remove a task\n  okra schedule remove <id>\n",
+    "err": "\nERROR\n  Invalid value for flag --provider: \"gemini\". Expected: \"claude\" | \"codex\"\n",
+    "code": 1
+   }
+  ],
+  "files": [
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "max-runs-bad": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "x",
+     "-s",
+     "in 5 minutes",
+     "--max-runs",
+     "abc"
+    ],
+    "out": "DESCRIPTION\n  Schedule AI agent tasks via macOS launchd\n\nUSAGE\n  okra schedule <subcommand> [flags] [<prompt>]\n\nARGUMENTS\n  prompt string     (optional)\n\nFLAGS\n  --schedule, -s string    \n  --provider, -p choice    (choices: claude, codex)\n  --max-runs integer       \n  --until string           \n  --stop-when string       \n\nGLOBAL FLAGS\n  --help, -h                                                          Show help information\n  --version, -v                                                       Show version information\n  --wizard                                                            Start wizard mode for a command\n  --completions <bash|zsh|fish|powershell|sh|pwsh>                    Print shell completion script (choices: bash, zsh, fish, powershell, sh, pwsh)\n  --log-level <all|trace|debug|info|warn|warning|error|fatal|none>    Sets the minimum log level (choices: all, trace, debug, info, warn, warning, error, fatal, none)\n\nSUBCOMMANDS\n  list      List active schedules\n  remove    Remove a scheduled task\n  run       Execute a scheduled task (called by launchd)\n  logs      View task logs\nEXAMPLES\n  # Schedule a recurring task\n  okra schedule \"babysit this pr\" -p claude -s \"every weekday at 9am\"\n\n  # Stop after 5 runs\n  okra schedule \"babysit pr\" -s \"every day at 9am\" --max-runs 5\n\n  # Stop after a date\n  okra schedule \"check deploys\" -s \"every weekday at 9am\" --until 2026-03-20\n\n  # Stop when condition is met (with fallback)\n  okra schedule \"babysit pr\" -s \"every day at 9am\" --stop-when \"the PR is merged\" --max-runs 20\n\n  # Schedule a one-shot task\n  okra schedule \"run tests\" -s \"in 30 minutes\"\n\n  # List scheduled tasks\n  okra schedule list\n\n  # Remove a task\n  okra schedule remove <id>\n",
+    "err": "\nERROR\n  Invalid value for flag --max-runs: \"abc\". Expected a string representing a finite number\n",
+    "code": 1
+   }
+  ],
+  "files": [
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "list-extra": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "list",
+     "extra"
+    ],
+    "out": "DESCRIPTION\n  List active schedules\n\nUSAGE\n  okra schedule list [flags]\n\nFLAGS\n  --json, -j    \n\nGLOBAL FLAGS\n  --help, -h                                                          Show help information\n  --version, -v                                                       Show version information\n  --wizard                                                            Start wizard mode for a command\n  --completions <bash|zsh|fish|powershell|sh|pwsh>                    Print shell completion script (choices: bash, zsh, fish, powershell, sh, pwsh)\n  --log-level <all|trace|debug|info|warn|warning|error|fatal|none>    Sets the minimum log level (choices: all, trace, debug, info, warn, warning, error, fatal, none)\n",
+    "err": "\nERROR\n  Unexpected positional argument: \"extra\"\n",
+    "code": 1
+   }
+  ],
+  "files": [
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "remove-no-id": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "remove"
+    ],
+    "out": "DESCRIPTION\n  Remove a scheduled task\n\nUSAGE\n  okra schedule remove [flags] <id>\n\nARGUMENTS\n  id string    \n\nGLOBAL FLAGS\n  --help, -h                                                          Show help information\n  --version, -v                                                       Show version information\n  --wizard                                                            Start wizard mode for a command\n  --completions <bash|zsh|fish|powershell|sh|pwsh>                    Print shell completion script (choices: bash, zsh, fish, powershell, sh, pwsh)\n  --log-level <all|trace|debug|info|warn|warning|error|fatal|none>    Sets the minimum log level (choices: all, trace, debug, info, warn, warning, error, fatal, none)\n",
+    "err": "\nERROR\n  Missing required argument: id\n",
+    "code": 1
+   }
+  ],
+  "files": [
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "run-no-id": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "run"
+    ],
+    "out": "DESCRIPTION\n  Execute a scheduled task (called by launchd)\n\nUSAGE\n  okra schedule run [flags] <id>\n\nARGUMENTS\n  id string    \n\nGLOBAL FLAGS\n  --help, -h                                                          Show help information\n  --version, -v                                                       Show version information\n  --wizard                                                            Start wizard mode for a command\n  --completions <bash|zsh|fish|powershell|sh|pwsh>                    Print shell completion script (choices: bash, zsh, fish, powershell, sh, pwsh)\n  --log-level <all|trace|debug|info|warn|warning|error|fatal|none>    Sets the minimum log level (choices: all, trace, debug, info, warn, warning, error, fatal, none)\n",
+    "err": "\nERROR\n  Missing required argument: id\n",
+    "code": 1
+   }
+  ],
+  "files": [
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "logs-two-ids": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "logs",
+     "a",
+     "b"
+    ],
+    "out": "DESCRIPTION\n  View task logs\n\nUSAGE\n  okra schedule logs [flags] [<id>]\n\nARGUMENTS\n  id string     (optional)\n\nFLAGS\n  --follow, -f    \n\nGLOBAL FLAGS\n  --help, -h                                                          Show help information\n  --version, -v                                                       Show version information\n  --wizard                                                            Start wizard mode for a command\n  --completions <bash|zsh|fish|powershell|sh|pwsh>                    Print shell completion script (choices: bash, zsh, fish, powershell, sh, pwsh)\n  --log-level <all|trace|debug|info|warn|warning|error|fatal|none>    Sets the minimum log level (choices: all, trace, debug, info, warn, warning, error, fatal, none)\n",
+    "err": "\nERROR\n  Unexpected positional argument: \"b\"\n",
+    "code": 1
+   }
+  ],
+  "files": [
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "root-version": {
+  "steps": [
+   {
+    "args": [
+     "--version"
+    ],
+    "out": "okra v0.13.2\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "-v"
+    ],
+    "out": "okra v0.13.2\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--version"
+    ],
+    "out": "okra v0.13.2\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "keys",
+     "get",
+     "x",
+     "-v"
+    ],
+    "out": "okra v0.13.2\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "root-empty": {
+  "steps": [
+   {
+    "args": [],
+    "out": "",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "root-version-after-dashdash": {
+  "steps": [
+   {
+    "args": [
+     "how",
+     "--",
+     "--version"
+    ],
+    "out": "",
+    "err": "[NOT_FOUND] Unknown topic '--version'. Available topics: schedule, counsel, repo, skills, image, keys\n",
+    "code": 1
+   }
+  ],
+  "files": [
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "root-unknown": {
+  "steps": [
+   {
+    "args": [
+     "unknown"
+    ],
+    "out": "DESCRIPTION\n  AI agent orchestration toolkit\n\nUSAGE\n  okra <subcommand> [flags]\n\nGLOBAL FLAGS\n  --help, -h                                                          Show help information\n  --version, -v                                                       Show version information\n  --wizard                                                            Start wizard mode for a command\n  --completions <bash|zsh|fish|powershell|sh|pwsh>                    Print shell completion script (choices: bash, zsh, fish, powershell, sh, pwsh)\n  --log-level <all|trace|debug|info|warn|warning|error|fatal|none>    Sets the minimum log level (choices: all, trace, debug, info, warn, warning, error, fatal, none)\n\nSUBCOMMANDS\n  schedule    Schedule AI agent tasks via macOS launchd\n  counsel     Route a prompt to the opposite local coding agent\n  repo        Multi-registry source code cache manager\n  skills      Manage AI agent skills\n  image       Generate an image from a prompt (codex or OpenAI image models)\n  keys        Manage stored API keys in ~/.okra/keys.json\n  how         Print usage guides for okra domains (list topics, or one full guide)\n",
+    "err": "\nERROR\n  Unknown subcommand \"unknown\" for \"okra\"\n",
+    "code": 1
+   }
+  ],
+  "files": [
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "seed-7-0": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "seeded 0",
+     "-s",
+     "  every   day   at 10am  ",
+     "--stop-when",
+     "it is done"
+    ],
+    "out": "",
+    "err": "[MISSING_FALLBACK] --stop-when requires a deterministic fallback (--max-runs or --until). The agent could run forever without one.\n",
+    "code": 1
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[]\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "run",
+     "$1"
+    ],
+    "out": "",
+    "err": "[INVALID_ID] Invalid task ID: \"$1\". Only alphanumeric, hyphens, and underscores allowed.\n",
+    "code": 1
+   },
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "",
+    "err": "No scheduled tasks.\n",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "seed-7-1": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "seeded 1",
+     "-s",
+     "  every   day   at 6  ",
+     "--stop-when",
+     "it is done"
+    ],
+    "out": "",
+    "err": "[MISSING_FALLBACK] --stop-when requires a deterministic fallback (--max-runs or --until). The agent could run forever without one.\n",
+    "code": 1
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[]\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "run",
+     "$1"
+    ],
+    "out": "",
+    "err": "[INVALID_ID] Invalid task ID: \"$1\". Only alphanumeric, hyphens, and underscores allowed.\n",
+    "code": 1
+   },
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "",
+    "err": "No scheduled tasks.\n",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "seed-7-2": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "seeded 2",
+     "-s",
+     "  every   day   at 4  ",
+     "--stop-when",
+     "it is done"
+    ],
+    "out": "",
+    "err": "[MISSING_FALLBACK] --stop-when requires a deterministic fallback (--max-runs or --until). The agent could run forever without one.\n",
+    "code": 1
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[]\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "run",
+     "$1"
+    ],
+    "out": "",
+    "err": "[INVALID_ID] Invalid task ID: \"$1\". Only alphanumeric, hyphens, and underscores allowed.\n",
+    "code": 1
+   },
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "",
+    "err": "No scheduled tasks.\n",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "seed-7-3": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "seeded 3",
+     "-s",
+     "  every   day   at 0am  ",
+     "--max-runs",
+     "2",
+     "-p",
+     "codex"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   seeded 3\n  Provider: codex\n  Schedule: daily at 00:00\n  Stop:     0/2 runs\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[{\"id\":\"<ID1>\",\"prompt\":\"seeded 3\",\"provider\":\"codex\",\"schedule\":{\"_tag\":\"Cron\",\"minute\":0,\"hour\":0,\"dayOfMonth\":\"*\",\"month\":\"*\",\"dayOfWeek\":\"*\",\"raw\":\"every   day   at 0am\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T12:00:00.000Z\",\"status\":\"active\",\"runCount\":0,\"context\":{\"gitBranch\":\"feature/123-thing\",\"gitRemoteUrl\":\"git@github.com:me/proj.git\",\"gitRepo\":\"proj\",\"gitCommit\":\"abc1234\",\"gitDefaultBranch\":\"main\",\"prNumber\":42,\"prUrl\":\"https://example.invalid/pr/42\",\"issueNumber\":123},\"stopConditions\":[{\"_tag\":\"MaxRuns\",\"count\":2}]}]\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "run",
+     "$1"
+    ],
+    "out": "plain\n",
+    "err": "[okra schedule] Running task <ID1>: seeded 3\n[okra schedule] Task <ID1> completed (run #1)\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "ID         Provider   Schedule                       Status     Prompt\n<ID1>   codex      daily at 00:00 (1/2 runs)      active     seeded 3\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 79b3d7fb5800f4d0 \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"seeded 3\\\",\\\"provider\\\":\\\"codex\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":0,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"*\\\",\\\"raw\\\":\\\"every   day   at 0am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"lastRun\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"runCount\\\":1,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123},\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"MaxRuns\\\",\\\"count\\\":2}]}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist 644 1c0c8999a2e696de \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID1></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID1></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Minute</key>\\n    <integer>0</integer>\\n    <key>Hour</key>\\n    <integer>0</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "work/ 755"
+  ],
+  "agents": "codex\u0000exec\u0000-C\u0000<DIR>/work\u0000--dangerously-bypass-approvals-and-sandbox\u0000--skip-git-repo-check\u0000<context>\nRepository: proj (git@github.com:me/proj.git)\nBranch: feature/123-thing\nDefault branch: main\nHEAD: abc1234\nPR: #42 (https://example.invalid/pr/42)\nIssue: #123\nWorking directory: <DIR>/work\n</context>\n\nseeded 3\n<DIR>/work\n--\n",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\n"
+ },
+ "seed-7-4": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "seeded 4",
+     "-s",
+     "every weekday at 2:99Am"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   seeded 4\n  Provider: claude\n  Schedule: weekdays at 02:99\n  CWD:      <DIR>/work\n  Branch:   x/12\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[{\"id\":\"<ID1>\",\"prompt\":\"seeded 4\",\"provider\":\"claude\",\"schedule\":{\"_tag\":\"Cron\",\"minute\":99,\"hour\":2,\"dayOfMonth\":\"*\",\"month\":\"*\",\"dayOfWeek\":\"1-5\",\"raw\":\"every weekday at 2:99Am\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T12:00:00.000Z\",\"status\":\"active\",\"runCount\":0,\"context\":{\"gitBranch\":\"x/12\",\"issueNumber\":12}}]\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "run",
+     "$1"
+    ],
+    "out": "",
+    "err": "[okra schedule] Running task <ID1>: seeded 4\n[okra schedule] Task <ID1> completed (run #1)\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "ID         Provider   Schedule                       Status     Prompt\n<ID1>   claude     weekdays at 02:99              active     seeded 4\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 a01528d500b1c842 \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"seeded 4\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":99,\\\"hour\\\":2,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 2:99Am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"lastRun\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"runCount\\\":1,\\\"context\\\":{\\\"gitBranch\\\":\\\"x/12\\\",\\\"issueNumber\\\":12}}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist 644 259ffb441065e86d ",
+   "work/ 755"
+  ],
+  "agents": "claude\u0000-p\u0000<context>\nBranch: x/12\nIssue: #12\nWorking directory: <DIR>/work\n</context>\n\nseeded 4\u0000--dangerously-skip-permissions\u0000--model\u0000sonnet\u0000--no-session-persistence\n<DIR>/work\n--\n",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\n"
+ },
+ "seed-7-5": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "seeded 5",
+     "-s",
+     "every weekday at 6:30am"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   seeded 5\n  Provider: claude\n  Schedule: weekdays at 06:30\n  CWD:      <DIR>/work\n  Branch:   x/12\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[{\"id\":\"<ID1>\",\"prompt\":\"seeded 5\",\"provider\":\"claude\",\"schedule\":{\"_tag\":\"Cron\",\"minute\":30,\"hour\":6,\"dayOfMonth\":\"*\",\"month\":\"*\",\"dayOfWeek\":\"1-5\",\"raw\":\"every weekday at 6:30am\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T12:00:00.000Z\",\"status\":\"active\",\"runCount\":0,\"context\":{\"gitBranch\":\"x/12\",\"issueNumber\":12}}]\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "run",
+     "$1"
+    ],
+    "out": "\n",
+    "err": "[okra schedule] Running task <ID1>: seeded 5\n[okra schedule] Task <ID1> completed (run #1)\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "ID         Provider   Schedule                       Status     Prompt\n<ID1>   claude     weekdays at 06:30              active     seeded 5\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 7fcfa6fe9538e5d1 \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"seeded 5\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":30,\\\"hour\\\":6,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 6:30am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"lastRun\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"runCount\\\":1,\\\"context\\\":{\\\"gitBranch\\\":\\\"x/12\\\",\\\"issueNumber\\\":12}}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist 644 d337047b27bd9e64 ",
+   "work/ 755"
+  ],
+  "agents": "claude\u0000-p\u0000<context>\nBranch: x/12\nIssue: #12\nWorking directory: <DIR>/work\n</context>\n\nseeded 5\u0000--dangerously-skip-permissions\u0000--model\u0000sonnet\u0000--no-session-persistence\n<DIR>/work\n--\n",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\n"
+ },
+ "seed-7-6": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "seeded 6",
+     "-s",
+     "every weekday at 2:00",
+     "--max-runs",
+     "0",
+     "-p",
+     "codex"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   seeded 6\n  Provider: codex\n  Schedule: weekdays at 02:00\n  Stop:     0/0 runs\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[{\"id\":\"<ID1>\",\"prompt\":\"seeded 6\",\"provider\":\"codex\",\"schedule\":{\"_tag\":\"Cron\",\"minute\":0,\"hour\":2,\"dayOfMonth\":\"*\",\"month\":\"*\",\"dayOfWeek\":\"1-5\",\"raw\":\"every weekday at 2:00\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T12:00:00.000Z\",\"status\":\"active\",\"runCount\":0,\"context\":{\"gitBranch\":\"feature/123-thing\",\"gitRemoteUrl\":\"git@github.com:me/proj.git\",\"gitRepo\":\"proj\",\"gitCommit\":\"abc1234\",\"gitDefaultBranch\":\"main\",\"prNumber\":42,\"prUrl\":\"https://example.invalid/pr/42\",\"issueNumber\":123},\"stopConditions\":[{\"_tag\":\"MaxRuns\",\"count\":0}]}]\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "run",
+     "$1"
+    ],
+    "out": "",
+    "err": "[okra schedule] Task <ID1> completed: reached max runs (0/0)\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "ID         Provider   Schedule                       Status     Prompt\n<ID1>   codex      weekdays at 02:00 (0/0 runs)   completed  seeded 6\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 b88ff576c011355f \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"seeded 6\\\",\\\"provider\\\":\\\"codex\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":2,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 2:00\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"completed\\\",\\\"runCount\\\":0,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123},\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"MaxRuns\\\",\\\"count\\\":0}]}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\nlaunchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl unload <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\n"
+ },
+ "seed-7-7": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "seeded 7",
+     "-s",
+     "tomorrow at 0:99am",
+     "--stop-when",
+     "it is done"
+    ],
+    "out": "",
+    "err": "[MISSING_FALLBACK] --stop-when requires a deterministic fallback (--max-runs or --until). The agent could run forever without one.\n",
+    "code": 1
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[]\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "run",
+     "$1"
+    ],
+    "out": "",
+    "err": "[INVALID_ID] Invalid task ID: \"$1\". Only alphanumeric, hyphens, and underscores allowed.\n",
+    "code": 1
+   },
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "",
+    "err": "No scheduled tasks.\n",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "seed-7-8": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "seeded 8",
+     "-s",
+     "tomorrow at 12:99Am",
+     "--max-runs",
+     "2",
+     "-p",
+     "codex"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   seeded 8\n  Provider: codex\n  Schedule: once at 2026-01-02T01:39:00.000Z\n  Stop:     0/2 runs\n  CWD:      <DIR>/work\n  Branch:   x/12\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[{\"id\":\"<ID1>\",\"prompt\":\"seeded 8\",\"provider\":\"codex\",\"schedule\":{\"_tag\":\"Oneshot\",\"at\":\"2026-01-02T01:39:00.000Z\",\"raw\":\"tomorrow at 12:99Am\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T12:00:00.000Z\",\"status\":\"active\",\"runCount\":0,\"context\":{\"gitBranch\":\"x/12\",\"issueNumber\":12},\"stopConditions\":[{\"_tag\":\"MaxRuns\",\"count\":2}]}]\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "run",
+     "$1"
+    ],
+    "out": "plain\n",
+    "err": "[okra schedule] Running task <ID1>: seeded 8\n[okra schedule] Task <ID1> completed: oneshot\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "ID         Provider   Schedule                       Status     Prompt\n<ID1>   codex      once at 2026-01-02T01:39:00.000Z (1/2 runs) completed  seeded 8\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 34d2155dfd20abcb \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"seeded 8\\\",\\\"provider\\\":\\\"codex\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Oneshot\\\",\\\"at\\\":\\\"2026-01-02T01:39:00.000Z\\\",\\\"raw\\\":\\\"tomorrow at 12:99Am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"completed\\\",\\\"lastRun\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"runCount\\\":1,\\\"context\\\":{\\\"gitBranch\\\":\\\"x/12\\\",\\\"issueNumber\\\":12},\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"MaxRuns\\\",\\\"count\\\":2}]}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "work/ 755"
+  ],
+  "agents": "codex\u0000exec\u0000-C\u0000<DIR>/work\u0000--dangerously-bypass-approvals-and-sandbox\u0000--skip-git-repo-check\u0000<context>\nBranch: x/12\nIssue: #12\nWorking directory: <DIR>/work\n</context>\n\nseeded 8\n<DIR>/work\n--\n",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\nlaunchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl unload <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\n"
+ },
+ "seed-7-9": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "seeded 9",
+     "-s",
+     "7 0 * 0-6 7"
+    ],
+    "out": "",
+    "err": "[INVALID_SCHEDULE] Cannot parse schedule: \"7 0 * 0-6 7\"\nSee 'okra schedule --help' for schedule formats.\n",
+    "code": 1
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[]\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "run",
+     "$1"
+    ],
+    "out": "",
+    "err": "[INVALID_ID] Invalid task ID: \"$1\". Only alphanumeric, hyphens, and underscores allowed.\n",
+    "code": 1
+   },
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "",
+    "err": "No scheduled tasks.\n",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "seed-7-10": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "seeded 10",
+     "-s",
+     "5 6 59 0-6 7"
+    ],
+    "out": "",
+    "err": "[INVALID_SCHEDULE] Cannot parse schedule: \"5 6 59 0-6 7\"\nSee 'okra schedule --help' for schedule formats.\n",
+    "code": 1
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[]\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "run",
+     "$1"
+    ],
+    "out": "",
+    "err": "[INVALID_ID] Invalid task ID: \"$1\". Only alphanumeric, hyphens, and underscores allowed.\n",
+    "code": 1
+   },
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "",
+    "err": "No scheduled tasks.\n",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "seed-7-11": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "seeded 11",
+     "-s",
+     "7 6 2-2 12 1-5",
+     "--until",
+     "2026-06-30T00:00:00Z",
+     "-p",
+     "codex"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   seeded 11\n  Provider: codex\n  Schedule: weekdays at 06:07\n  Stop:     until 2026-06-30\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[{\"id\":\"<ID1>\",\"prompt\":\"seeded 11\",\"provider\":\"codex\",\"schedule\":{\"_tag\":\"Cron\",\"minute\":7,\"hour\":6,\"dayOfMonth\":2,\"month\":12,\"dayOfWeek\":\"1-5\",\"raw\":\"7 6 2-2 12 1-5\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T12:00:00.000Z\",\"status\":\"active\",\"runCount\":0,\"context\":{\"gitBranch\":\"feature/123-thing\",\"gitRemoteUrl\":\"git@github.com:me/proj.git\",\"gitRepo\":\"proj\",\"gitCommit\":\"abc1234\",\"gitDefaultBranch\":\"main\",\"prNumber\":42,\"prUrl\":\"https://example.invalid/pr/42\",\"issueNumber\":123},\"stopConditions\":[{\"_tag\":\"AfterDate\",\"date\":\"2026-06-30T00:00:00.000Z\"}]}]\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "run",
+     "$1"
+    ],
+    "out": "plain\n",
+    "err": "[okra schedule] Running task <ID1>: seeded 11\n[okra schedule] Task <ID1> completed (run #1)\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "ID         Provider   Schedule                       Status     Prompt\n<ID1>   codex      weekdays at 06:07 (until 2026-06-30) active     seeded 11\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 f0948b7c26591d27 \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"seeded 11\\\",\\\"provider\\\":\\\"codex\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":7,\\\"hour\\\":6,\\\"dayOfMonth\\\":2,\\\"month\\\":12,\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"7 6 2-2 12 1-5\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"lastRun\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"runCount\\\":1,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123},\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"AfterDate\\\",\\\"date\\\":\\\"2026-06-30T00:00:00.000Z\\\"}]}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist 644 17ca63f4e41dcf3d ",
+   "work/ 755"
+  ],
+  "agents": "codex\u0000exec\u0000-C\u0000<DIR>/work\u0000--dangerously-bypass-approvals-and-sandbox\u0000--skip-git-repo-check\u0000<context>\nRepository: proj (git@github.com:me/proj.git)\nBranch: feature/123-thing\nDefault branch: main\nHEAD: abc1234\nPR: #42 (https://example.invalid/pr/42)\nIssue: #123\nWorking directory: <DIR>/work\n</context>\n\nseeded 11\n<DIR>/work\n--\n",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\n"
+ },
+ "seed-7-12": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "seeded 12",
+     "-s",
+     "  every   day   at 10pm  ",
+     "--stop-when",
+     "it is done"
+    ],
+    "out": "",
+    "err": "[MISSING_FALLBACK] --stop-when requires a deterministic fallback (--max-runs or --until). The agent could run forever without one.\n",
+    "code": 1
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[]\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "run",
+     "$1"
+    ],
+    "out": "",
+    "err": "[INVALID_ID] Invalid task ID: \"$1\". Only alphanumeric, hyphens, and underscores allowed.\n",
+    "code": 1
+   },
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "",
+    "err": "No scheduled tasks.\n",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "seed-7-13": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "seeded 13",
+     "-s",
+     "  every   day   at 2Am  ",
+     "--stop-when",
+     "it is done"
+    ],
+    "out": "",
+    "err": "[MISSING_FALLBACK] --stop-when requires a deterministic fallback (--max-runs or --until). The agent could run forever without one.\n",
+    "code": 1
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[]\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "run",
+     "$1"
+    ],
+    "out": "",
+    "err": "[INVALID_ID] Invalid task ID: \"$1\". Only alphanumeric, hyphens, and underscores allowed.\n",
+    "code": 1
+   },
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "",
+    "err": "No scheduled tasks.\n",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   "work/ 755"
+  ],
+  "agents": "",
+  "launchctl": ""
+ },
+ "seed-7-14": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "seeded 14",
+     "-s",
+     "  every   day   at 2 PM  ",
+     "--max-runs",
+     "2",
+     "-p",
+     "codex"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   seeded 14\n  Provider: codex\n  Schedule: daily at 14:00\n  Stop:     0/2 runs\n  CWD:      <DIR>/work\n  Branch:   feature/123-thing\n  PR:       #42\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[{\"id\":\"<ID1>\",\"prompt\":\"seeded 14\",\"provider\":\"codex\",\"schedule\":{\"_tag\":\"Cron\",\"minute\":0,\"hour\":14,\"dayOfMonth\":\"*\",\"month\":\"*\",\"dayOfWeek\":\"*\",\"raw\":\"every   day   at 2 PM\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T12:00:00.000Z\",\"status\":\"active\",\"runCount\":0,\"context\":{\"gitBranch\":\"feature/123-thing\",\"gitRemoteUrl\":\"git@github.com:me/proj.git\",\"gitRepo\":\"proj\",\"gitCommit\":\"abc1234\",\"gitDefaultBranch\":\"main\",\"prNumber\":42,\"prUrl\":\"https://example.invalid/pr/42\",\"issueNumber\":123},\"stopConditions\":[{\"_tag\":\"MaxRuns\",\"count\":2}]}]\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "run",
+     "$1"
+    ],
+    "out": "",
+    "err": "[okra schedule] Running task <ID1>: seeded 14\n[okra schedule] Task <ID1> completed (run #1)\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "ID         Provider   Schedule                       Status     Prompt\n<ID1>   codex      daily at 14:00 (1/2 runs)      active     seeded 14\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 020d11c2f1b9123b \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"seeded 14\\\",\\\"provider\\\":\\\"codex\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":0,\\\"hour\\\":14,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"*\\\",\\\"raw\\\":\\\"every   day   at 2 PM\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"lastRun\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"runCount\\\":1,\\\"context\\\":{\\\"gitBranch\\\":\\\"feature/123-thing\\\",\\\"gitRemoteUrl\\\":\\\"git@github.com:me/proj.git\\\",\\\"gitRepo\\\":\\\"proj\\\",\\\"gitCommit\\\":\\\"abc1234\\\",\\\"gitDefaultBranch\\\":\\\"main\\\",\\\"prNumber\\\":42,\\\"prUrl\\\":\\\"https://example.invalid/pr/42\\\",\\\"issueNumber\\\":123},\\\"stopConditions\\\":[{\\\"_tag\\\":\\\"MaxRuns\\\",\\\"count\\\":2}]}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist 644 6d01588a79d43c11 \"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\\n<plist version=\\\"1.0\\\">\\n<dict>\\n  <key>Label</key>\\n  <string>com.cvr.okra.schedule-<ID1></string>\\n  <key>ProgramArguments</key>\\n  <array>\\n    <string><DIR>/bin/okra</string>\\n    <string>schedule</string>\\n    <string>run</string>\\n    <string><ID1></string>\\n  </array>\\n  <key>EnvironmentVariables</key>\\n  <dict>\\n    <key>HOME</key>\\n    <string><DIR></string>\\n    <key>PATH</key>\\n    <string><DIR>/bin:/usr/bin:/bin</string>\\n  </dict>\\n  <key>WorkingDirectory</key>\\n  <string><DIR>/work</string>\\n  <key>StartCalendarInterval</key>\\n  <dict>\\n    <key>Minute</key>\\n    <integer>0</integer>\\n    <key>Hour</key>\\n    <integer>14</integer>\\n  </dict>\\n  <key>StandardOutPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>StandardErrorPath</key>\\n  <string><DIR>/.okra/schedule/logs/<ID1>.log</string>\\n  <key>KeepAlive</key>\\n  <false/>\\n</dict>\\n</plist>\\n\"",
+   "work/ 755"
+  ],
+  "agents": "codex\u0000exec\u0000-C\u0000<DIR>/work\u0000--dangerously-bypass-approvals-and-sandbox\u0000--skip-git-repo-check\u0000<context>\nRepository: proj (git@github.com:me/proj.git)\nBranch: feature/123-thing\nDefault branch: main\nHEAD: abc1234\nPR: #42 (https://example.invalid/pr/42)\nIssue: #123\nWorking directory: <DIR>/work\n</context>\n\nseeded 14\n<DIR>/work\n--\n",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\n"
+ },
+ "seed-7-15": {
+  "steps": [
+   {
+    "args": [
+     "schedule",
+     "seeded 15",
+     "-s",
+     "every weekday at 8:99Am"
+    ],
+    "out": "",
+    "err": "Scheduled task <ID1>\n  Prompt:   seeded 15\n  Provider: claude\n  Schedule: weekdays at 08:99\n  CWD:      <DIR>/work\n  Branch:   x/12\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list",
+     "--json"
+    ],
+    "out": "[{\"id\":\"<ID1>\",\"prompt\":\"seeded 15\",\"provider\":\"claude\",\"schedule\":{\"_tag\":\"Cron\",\"minute\":99,\"hour\":8,\"dayOfMonth\":\"*\",\"month\":\"*\",\"dayOfWeek\":\"1-5\",\"raw\":\"every weekday at 8:99Am\"},\"cwd\":\"<DIR>/work\",\"createdAt\":\"2026-01-01T12:00:00.000Z\",\"status\":\"active\",\"runCount\":0,\"context\":{\"gitBranch\":\"x/12\",\"issueNumber\":12}}]\n",
+    "err": "",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "run",
+     "$1"
+    ],
+    "out": "x\n",
+    "err": "[okra schedule] Running task <ID1>: seeded 15\n[okra schedule] Task <ID1> completed (run #1)\n",
+    "code": 0
+   },
+   {
+    "args": [
+     "schedule",
+     "list"
+    ],
+    "out": "ID         Provider   Schedule                       Status     Prompt\n<ID1>   claude     weekdays at 08:99              active     seeded 15\n",
+    "err": "",
+    "code": 0
+   }
+  ],
+  "files": [
+   ".okra/ 755",
+   ".okra/schedule/ 755",
+   ".okra/schedule/logs/ 755",
+   ".okra/schedule/tasks/ 755",
+   ".okra/schedule/tasks/<ID1>.json 644 800d580ed3d57c2a \"{\\\"id\\\":\\\"<ID1>\\\",\\\"prompt\\\":\\\"seeded 15\\\",\\\"provider\\\":\\\"claude\\\",\\\"schedule\\\":{\\\"_tag\\\":\\\"Cron\\\",\\\"minute\\\":99,\\\"hour\\\":8,\\\"dayOfMonth\\\":\\\"*\\\",\\\"month\\\":\\\"*\\\",\\\"dayOfWeek\\\":\\\"1-5\\\",\\\"raw\\\":\\\"every weekday at 8:99Am\\\"},\\\"cwd\\\":\\\"<DIR>/work\\\",\\\"createdAt\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"status\\\":\\\"active\\\",\\\"lastRun\\\":\\\"2026-01-01T12:00:00.000Z\\\",\\\"runCount\\\":1,\\\"context\\\":{\\\"gitBranch\\\":\\\"x/12\\\",\\\"issueNumber\\\":12}}\"",
+   "Library/ 755",
+   "Library/LaunchAgents/ 755",
+   "Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist 644 eee30bbf89b2fe08 ",
+   "work/ 755"
+  ],
+  "agents": "claude\u0000-p\u0000<context>\nBranch: x/12\nIssue: #12\nWorking directory: <DIR>/work\n</context>\n\nseeded 15\u0000--dangerously-skip-permissions\u0000--model\u0000sonnet\u0000--no-session-persistence\n<DIR>/work\n--\n",
+  "launchctl": "launchctl list com.cvr.okra.schedule-<ID1>\nlaunchctl load <DIR>/Library/LaunchAgents/com.cvr.okra.schedule-<ID1>.plist\n"
+ }
+}

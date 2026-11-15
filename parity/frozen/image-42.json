@@ -1,0 +1,1561 @@
+{
+ "401": {
+  "out": "",
+  "err": "Generating image (auto, png) via OpenAI (gpt-image-2.5-flare)…\n[AUTH_EXPIRED] OpenAI API key was rejected (fixture rejection). Set OPENAI_API_KEY or run `okra keys set openai`.\n",
+  "code": 1,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/generations",
+    "auth": "Bearer fixture-env",
+    "body": {
+     "prompt": "cube",
+     "model": "gpt-image-2.5-flare",
+     "output_format": "png",
+     "size": "auto"
+    }
+   }
+  ]
+ },
+ "403": {
+  "out": "",
+  "err": "Generating image (auto, png) via OpenAI (gpt-image-2.5-flare)…\n[AUTH_EXPIRED] OpenAI API key was rejected (fixture rejection). Set OPENAI_API_KEY or run `okra keys set openai`.\n",
+  "code": 1,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/generations",
+    "auth": "Bearer fixture-env",
+    "body": {
+     "prompt": "cube",
+     "model": "gpt-image-2.5-flare",
+     "output_format": "png",
+     "size": "auto"
+    }
+   }
+  ]
+ },
+ "429": {
+  "out": "",
+  "err": "Generating image (auto, png) via OpenAI (gpt-image-2.5-flare)…\n[GENERATION_FAILED] Image generation failed (gpt-image-2.5-flare, HTTP 429): fixture rejection\n",
+  "code": 1,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/generations",
+    "auth": "Bearer fixture-env",
+    "body": {
+     "prompt": "cube",
+     "model": "gpt-image-2.5-flare",
+     "output_format": "png",
+     "size": "auto"
+    }
+   }
+  ]
+ },
+ "missing-created": {
+  "out": "",
+  "err": "Generating image (auto, png) via OpenAI (gpt-image-2.5-flare)…\n[GENERATION_FAILED] OpenAI returned an unexpected response (gpt-image-2.5-flare): Missing key\n  at [\"created\"]\n",
+  "code": 1,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/generations",
+    "auth": "Bearer fixture-env",
+    "body": {
+     "prompt": "cube",
+     "model": "gpt-image-2.5-flare",
+     "output_format": "png",
+     "size": "auto"
+    }
+   }
+  ]
+ },
+ "malformed-json": {
+  "out": "",
+  "err": "Generating image (auto, png) via OpenAI (gpt-image-2.5-flare)…\n[GENERATION_FAILED] OpenAI returned an unexpected response (gpt-image-2.5-flare): Decode error (200 POST https://api.openai.com/v1/images/generations)\n",
+  "code": 1,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/generations",
+    "auth": "Bearer fixture-env",
+    "body": {
+     "prompt": "cube",
+     "model": "gpt-image-2.5-flare",
+     "output_format": "png",
+     "size": "auto"
+    }
+   }
+  ]
+ },
+ "transport": {
+  "out": "",
+  "err": "Generating image (auto, png) via OpenAI (gpt-image-2.5-flare)…\n[GENERATION_FAILED] Image generation failed (gpt-image-2.5-flare): Transport error (POST https://api.openai.com/v1/images/generations)\n",
+  "code": 1,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": []
+ },
+ "codex-malformed-sse": {
+  "out": "",
+  "err": "Generating image (auto, png) via codex…\n[GENERATION_FAILED] Image generation failed: OpenAiClient.createResponseStream: Invalid response: Expected a valid JSON string\n",
+  "code": 1,
+  "files": [
+   ".codex/auth.json 420 8dddbd7b4c9ea2f5a25be53dfa5f185a344688e4555c06e29aca46d007969e2b",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/codex/responses",
+    "auth": "Bearer fixture-codex",
+    "body": {
+     "model": "gpt-6-sol",
+     "input": [
+      {
+       "role": "user",
+       "content": [
+        {
+         "type": "input_text",
+         "text": "You are an image generation assistant.\n\ncube"
+        }
+       ]
+      }
+     ],
+     "tools": [
+      {
+       "output_format": "png",
+       "size": "auto",
+       "type": "image_generation"
+      }
+     ],
+     "tool_choice": {
+      "type": "image_generation"
+     },
+     "store": false,
+     "stream": true
+    }
+   }
+  ]
+ },
+ "codex-transport": {
+  "out": "",
+  "err": "Generating image (auto, png) via codex…\n[GENERATION_FAILED] Image generation failed: OpenAiClient.createResponseStream: TransportError: A network error occurred. (POST https://chatgpt.com/backend-api/codex/responses)\n\nCheck your network connection and verify that the requested URL is accessible.\n",
+  "code": 1,
+  "files": [
+   ".codex/auth.json 420 8dddbd7b4c9ea2f5a25be53dfa5f185a344688e4555c06e29aca46d007969e2b",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": []
+ },
+ "empty-env": {
+  "out": "out.png\n",
+  "err": "Generating image (auto, png) via OpenAI (gpt-image-2.5-flare)…\n",
+  "code": 0,
+  "files": [
+   ".okra/keys.json 384 8122dc2596f7d01cbce0310815ea374c092daa5304b6e970ed95d7691813a593",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "out.png 420 a37a87392ae36593bf6fa384c26466e78bf8409216485798b6af5c32bbd8826b",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/generations",
+    "auth": "Bearer fixture-stored",
+    "body": {
+     "prompt": "cube",
+     "model": "gpt-image-2.5-flare",
+     "output_format": "png",
+     "size": "auto"
+    }
+   }
+  ]
+ },
+ "no-home": {
+  "out": "",
+  "err": "Generating image (auto, png) via codex…\n[AUTH_MISSING] HOME environment variable is not set\n",
+  "code": 1,
+  "files": [
+   ".codex/auth.json 420 8dddbd7b4c9ea2f5a25be53dfa5f185a344688e4555c06e29aca46d007969e2b",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": []
+ },
+ "missing": {
+  "out": "",
+  "err": "[INVALID_INPUT] Missing prompt. Usage: okra image \"<prompt>\" [-o out].\n",
+  "code": 1,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": []
+ },
+ "generate": {
+  "out": "result.png\n",
+  "err": "Generating image (auto, png) via OpenAI (gpt-image-2.5-flare)…\n",
+  "code": 0,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "result.png 420 a37a87392ae36593bf6fa384c26466e78bf8409216485798b6af5c32bbd8826b"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/generations",
+    "auth": "Bearer fixture-env",
+    "body": {
+     "prompt": "a neutral cube",
+     "model": "gpt-image-2.5-flare",
+     "output_format": "png",
+     "size": "auto"
+    }
+   }
+  ]
+ },
+ "store": {
+  "out": "nested/result.webp\n",
+  "err": "Generating image (auto, webp) via OpenAI (gpt-image-2.5-flare)…\n",
+  "code": 0,
+  "files": [
+   ".okra/keys.json 384 8122dc2596f7d01cbce0310815ea374c092daa5304b6e970ed95d7691813a593",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "nested/result.webp 420 a37a87392ae36593bf6fa384c26466e78bf8409216485798b6af5c32bbd8826b",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/generations",
+    "auth": "Bearer fixture-stored",
+    "body": {
+     "prompt": "cube",
+     "model": "gpt-image-2.5-flare",
+     "output_format": "webp",
+     "size": "auto"
+    }
+   }
+  ]
+ },
+ "precedence": {
+  "out": "result\n",
+  "err": "Generating image (auto, png) via OpenAI (gpt-image-2.5-flare)…\n",
+  "code": 0,
+  "files": [
+   ".okra/keys.json 384 8122dc2596f7d01cbce0310815ea374c092daa5304b6e970ed95d7691813a593",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "result 420 a37a87392ae36593bf6fa384c26466e78bf8409216485798b6af5c32bbd8826b"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/generations",
+    "auth": "Bearer fixture-env",
+    "body": {
+     "prompt": "cube",
+     "model": "gpt-image-2.5-flare",
+     "output_format": "png",
+     "size": "auto"
+    }
+   }
+  ]
+ },
+ "multi": {
+  "out": "nested/out.multi-1.png\nnested/out.multi-2.png\nnested/out.multi-3.png\n",
+  "err": "Generating image (auto, png) via OpenAI (gpt-image-2.5-flare)…\n",
+  "code": 0,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "nested/out.multi-1.png 420 a37a87392ae36593bf6fa384c26466e78bf8409216485798b6af5c32bbd8826b",
+   "nested/out.multi-2.png 420 2d4630f80d7c1dd02c43e5959925d4005a7810289d90c71800e596de416b3419",
+   "nested/out.multi-3.png 420 4cb0fbf55c9bc34f32c5b26fb93cb0d463f4a4189828d5a684288072a40a590f",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/generations",
+    "auth": "Bearer fixture-env",
+    "body": {
+     "prompt": "cube",
+     "model": "gpt-image-2.5-flare",
+     "n": 3,
+     "quality": "max",
+     "output_format": "png",
+     "size": "auto",
+     "background": "transparent"
+    }
+   }
+  ]
+ },
+ "no-key": {
+  "out": "",
+  "err": "Generating image (auto, png) via OpenAI (gpt-image-2.5-flare)…\n[AUTH_MISSING] No OpenAI API key. Set OPENAI_API_KEY or run `okra keys set openai`.\n",
+  "code": 1,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": []
+ },
+ "no-image": {
+  "out": "",
+  "err": "Generating image (auto, png) via OpenAI (gpt-image-2.5-flare)…\n[NO_IMAGE] OpenAI returned no image data. Try rephrasing the prompt.\n",
+  "code": 1,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/generations",
+    "auth": "Bearer fixture-env",
+    "body": {
+     "prompt": "cube",
+     "model": "gpt-image-2.5-flare",
+     "output_format": "png",
+     "size": "auto"
+    }
+   }
+  ]
+ },
+ "edit": {
+  "out": "edited.png\n",
+  "err": "Editing image (auto, png, 1 source, mask) via OpenAI edit (gpt-image-2.5-flare)…\n",
+  "code": 0,
+  "files": [
+   "edited.png 420 a37a87392ae36593bf6fa384c26466e78bf8409216485798b6af5c32bbd8826b",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/edits",
+    "auth": "Bearer fixture-env",
+    "body": [
+     [
+      "prompt",
+      "make blue"
+     ],
+     [
+      "model",
+      "gpt-image-2.5-flare"
+     ],
+     [
+      "size",
+      "auto"
+     ],
+     [
+      "output_format",
+      "png"
+     ],
+     [
+      "image",
+      "image-0.png",
+      "image/png",
+      "iVBORw0KGgoAAAAASUhEUgAABOYAAATm"
+     ],
+     [
+      "mask",
+      "mask.png",
+      "image/png",
+      "iVBORw0KGgoAAAAASUhEUgAABOYAAATm"
+     ]
+    ]
+   }
+  ]
+ },
+ "edit-multi": {
+  "out": "edit-1\nedit-2\n",
+  "err": "Editing image (auto, png, 2 sources, high fidelity) via OpenAI edit (gpt-image-1.5)…\n",
+  "code": 0,
+  "files": [
+   "edit-1 420 a37a87392ae36593bf6fa384c26466e78bf8409216485798b6af5c32bbd8826b",
+   "edit-2 420 2d4630f80d7c1dd02c43e5959925d4005a7810289d90c71800e596de416b3419",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/edits",
+    "auth": "Bearer fixture-env",
+    "body": [
+     [
+      "prompt",
+      "make blue"
+     ],
+     [
+      "model",
+      "gpt-image-1.5"
+     ],
+     [
+      "size",
+      "auto"
+     ],
+     [
+      "output_format",
+      "png"
+     ],
+     [
+      "n",
+      "2"
+     ],
+     [
+      "input_fidelity",
+      "high"
+     ],
+     [
+      "image[]",
+      "image-0.jpg",
+      "image/jpeg",
+      "iVBORw0KGgoAAAAASUhEUgAABOYAAATm"
+     ],
+     [
+      "image[]",
+      "image-1.webp",
+      "image/webp",
+      "iVBORw0KGgoAAAAASUhEUgAABOYAAATm"
+     ]
+    ]
+   }
+  ]
+ },
+ "codex": {
+  "out": "codex.png\n",
+  "err": "Generating image (auto, png) via codex…\n",
+  "code": 0,
+  "files": [
+   ".codex/auth.json 420 8dddbd7b4c9ea2f5a25be53dfa5f185a344688e4555c06e29aca46d007969e2b",
+   "codex.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/codex/responses",
+    "auth": "Bearer fixture-codex",
+    "body": {
+     "model": "gpt-6-sol",
+     "input": [
+      {
+       "role": "user",
+       "content": [
+        {
+         "type": "input_text",
+         "text": "You are an image generation assistant.\n\ncube"
+        }
+       ]
+      }
+     ],
+     "tools": [
+      {
+       "output_format": "png",
+       "size": "auto",
+       "type": "image_generation"
+      }
+     ],
+     "tool_choice": {
+      "type": "image_generation"
+     },
+     "store": false,
+     "stream": true
+    }
+   }
+  ]
+ },
+ "codex-size": {
+  "out": "codex.png\n",
+  "err": "Note: --quality/--background/--n apply only to OpenAI image models; ignored for codex.\nGenerating image (1024x1536, png, 1 ref) via codex…\nNote: codex returned 1254x1254 for --size 1024x1536; the codex backend chooses the final size. Use an OpenAI image model (--model gpt-image-2.5-flare) for an exact size.\n",
+  "code": 0,
+  "files": [
+   ".codex/auth.json 420 8dddbd7b4c9ea2f5a25be53dfa5f185a344688e4555c06e29aca46d007969e2b",
+   "codex.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/codex/responses",
+    "auth": "Bearer fixture-codex",
+    "body": {
+     "model": "gpt-6-sol",
+     "input": [
+      {
+       "role": "user",
+       "content": [
+        {
+         "type": "input_text",
+         "text": "You are an image generation assistant.\n\ncube\n\nOutput size: exactly 1024x1536 pixels (portrait)."
+        },
+        {
+         "type": "input_image",
+         "image_url": "data:image/png;base64,iVBORw0KGgoAAAAASUhEUgAABOYAAATm",
+         "detail": "auto"
+        }
+       ]
+      }
+     ],
+     "tools": [
+      {
+       "output_format": "png",
+       "size": "1024x1536",
+       "type": "image_generation"
+      }
+     ],
+     "tool_choice": {
+      "type": "image_generation"
+     },
+     "store": false,
+     "stream": true
+    }
+   }
+  ]
+ },
+ "codex-noauth": {
+  "out": "",
+  "err": "Generating image (auto, png) via codex…\n[AUTH_MISSING] No codex credentials at .codex/auth.json. Run `codex login` first.\n",
+  "code": 1,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": []
+ },
+ "codex-malformed": {
+  "out": "",
+  "err": "Generating image (auto, png) via codex…\n[AUTH_MISSING] Malformed codex credentials at .codex/auth.json. Run `codex login` again.\n",
+  "code": 1,
+  "files": [
+   ".codex/auth.json 420 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": []
+ },
+ "codex-401": {
+  "out": "",
+  "err": "Generating image (auto, png) via codex…\n[AUTH_EXPIRED] Codex token rejected (expired or invalid). Run `codex login`.\n",
+  "code": 1,
+  "files": [
+   ".codex/auth.json 420 8dddbd7b4c9ea2f5a25be53dfa5f185a344688e4555c06e29aca46d007969e2b",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/codex/responses",
+    "auth": "Bearer fixture-codex",
+    "body": {
+     "model": "gpt-6-sol",
+     "input": [
+      {
+       "role": "user",
+       "content": [
+        {
+         "type": "input_text",
+         "text": "You are an image generation assistant.\n\ncube"
+        }
+       ]
+      }
+     ],
+     "tools": [
+      {
+       "output_format": "png",
+       "size": "auto",
+       "type": "image_generation"
+      }
+     ],
+     "tool_choice": {
+      "type": "image_generation"
+     },
+     "store": false,
+     "stream": true
+    }
+   }
+  ]
+ },
+ "codex-noimage": {
+  "out": "",
+  "err": "Generating image (auto, png) via codex…\n[NO_IMAGE] Backend returned no image. Try rephrasing the prompt.\n",
+  "code": 1,
+  "files": [
+   ".codex/auth.json 420 8dddbd7b4c9ea2f5a25be53dfa5f185a344688e4555c06e29aca46d007969e2b",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/codex/responses",
+    "auth": "Bearer fixture-codex",
+    "body": {
+     "model": "gpt-6-sol",
+     "input": [
+      {
+       "role": "user",
+       "content": [
+        {
+         "type": "input_text",
+         "text": "You are an image generation assistant.\n\ncube"
+        }
+       ]
+      }
+     ],
+     "tools": [
+      {
+       "output_format": "png",
+       "size": "auto",
+       "type": "image_generation"
+      }
+     ],
+     "tool_choice": {
+      "type": "image_generation"
+     },
+     "store": false,
+     "stream": true
+    }
+   }
+  ]
+ },
+ "codex-empty": {
+  "out": "",
+  "err": "Generating image (auto, png) via codex…\n[NO_IMAGE] Backend returned an empty image result.\n",
+  "code": 1,
+  "files": [
+   ".codex/auth.json 420 8dddbd7b4c9ea2f5a25be53dfa5f185a344688e4555c06e29aca46d007969e2b",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/codex/responses",
+    "auth": "Bearer fixture-codex",
+    "body": {
+     "model": "gpt-6-sol",
+     "input": [
+      {
+       "role": "user",
+       "content": [
+        {
+         "type": "input_text",
+         "text": "You are an image generation assistant.\n\ncube"
+        }
+       ]
+      }
+     ],
+     "tools": [
+      {
+       "output_format": "png",
+       "size": "auto",
+       "type": "image_generation"
+      }
+     ],
+     "tool_choice": {
+      "type": "image_generation"
+     },
+     "store": false,
+     "stream": true
+    }
+   }
+  ]
+ },
+ "codex-edit-refused": {
+  "out": "",
+  "err": "[INVALID_INPUT] --edit needs an OpenAI image model — pass --model gpt-image-2.5-flare.\n",
+  "code": 1,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": []
+ },
+ "codex-mask-refused": {
+  "out": "",
+  "err": "[INVALID_INPUT] --mask needs an OpenAI image model — pass --model gpt-image-2.5-flare.\n",
+  "code": 1,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": []
+ },
+ "codex-fidelity-refused": {
+  "out": "",
+  "err": "[INVALID_INPUT] --fidelity needs an OpenAI image model — pass --model gpt-image-2.5-flare.\n",
+  "code": 1,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": []
+ },
+ "missing-source": {
+  "out": "",
+  "err": "[INVALID_INPUT] --edit needs a source image — pass --ref <path> to edit.\n",
+  "code": 1,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": []
+ },
+ "no-fidelity": {
+  "out": "",
+  "err": "[INVALID_INPUT] --fidelity is not supported by gpt-image-2.5-flare — use gpt-image-1 or gpt-image-1.5.\n",
+  "code": 1,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": []
+ },
+ "fidelity-generation": {
+  "out": "",
+  "err": "[INVALID_INPUT] --fidelity only applies when editing — pass --ref <path> to edit.\n",
+  "code": 1,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": []
+ },
+ "dalle-edit": {
+  "out": "",
+  "err": "[INVALID_INPUT] dall-e-3 cannot edit images — use a GPT image model (e.g. --model gpt-image-2.5-flare).\n",
+  "code": 1,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": []
+ },
+ "legacy-quality": {
+  "out": "",
+  "err": "[INVALID_INPUT] --quality xhigh needs a GPT Image 2.5 model.\n",
+  "code": 1,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": []
+ },
+ "ref-extension": {
+  "out": "",
+  "err": "[INVALID_INPUT] Unsupported --ref image type: bad.txt (use png/jpg/jpeg/webp/gif).\n",
+  "code": 1,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": []
+ },
+ "ref-missing": {
+  "out": "",
+  "err": "[INVALID_INPUT] Cannot read --ref gone.png: NotFound: FileSystem.readFile (gone.png)\n",
+  "code": 1,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": []
+ },
+ "invalid64": {
+  "out": "",
+  "err": "Generating image (auto, png) via OpenAI (gpt-image-2.5-flare)…\n[DECODE_FAILED] OpenAI returned invalid base64 image data\n",
+  "code": 1,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/generations",
+    "auth": "Bearer fixture-env",
+    "body": {
+     "prompt": "cube",
+     "model": "gpt-image-2.5-flare",
+     "output_format": "png",
+     "size": "auto"
+    }
+   }
+  ]
+ },
+ "unpadded": {
+  "out": "<DIR>/cube.png\n",
+  "err": "Generating image (auto, png) via OpenAI (gpt-image-2.5-flare)…\n",
+  "code": 0,
+  "files": [
+   "cube.png 420 ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/generations",
+    "auth": "Bearer fixture-env",
+    "body": {
+     "prompt": "cube",
+     "model": "gpt-image-2.5-flare",
+     "output_format": "png",
+     "size": "auto"
+    }
+   }
+  ]
+ },
+ "zero-count": {
+  "out": "",
+  "err": "Generating image (auto, png) via OpenAI (gpt-image-2.5-flare)…\n[INVALID_INPUT] Invalid image request: \n",
+  "code": 1,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": []
+ },
+ "large-count": {
+  "out": "",
+  "err": "Generating image (auto, png) via OpenAI (gpt-image-2.5-flare)…\n[INVALID_INPUT] Invalid image request: \n",
+  "code": 1,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": []
+ },
+ "write-failure": {
+  "out": "",
+  "err": "Generating image (auto, png) via OpenAI (gpt-image-2.5-flare)…\n[WRITE_FAILED] Cannot write out-2.png: BadResource: FileSystem.writeFile (out-2.png)\n",
+  "code": 1,
+  "files": [
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "out-1.png 420 a37a87392ae36593bf6fa384c26466e78bf8409216485798b6af5c32bbd8826b",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/generations",
+    "auth": "Bearer fixture-env",
+    "body": {
+     "prompt": "cube",
+     "model": "gpt-image-2.5-flare",
+     "n": 2,
+     "output_format": "png",
+     "size": "auto"
+    }
+   }
+  ]
+ },
+ "model-cache": {
+  "out": "out.png\n",
+  "err": "Generating image (auto, png) via codex…\n",
+  "code": 0,
+  "files": [
+   ".codex/auth.json 420 8dddbd7b4c9ea2f5a25be53dfa5f185a344688e4555c06e29aca46d007969e2b",
+   ".codex/models_cache.json 420 cb5faa32b37aede7e7332be35c9277badc8fe2653929268e51e52c661f1f561f",
+   ".okra/models.json 420 a2a66a73d61a67941efa15f2c36f5cba2ddbb6bcdcd9bea5d2ad44a93a9aabae",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "out.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/codex/responses",
+    "auth": "Bearer fixture-codex",
+    "body": {
+     "model": "gpt-6.1-sol",
+     "input": [
+      {
+       "role": "user",
+       "content": [
+        {
+         "type": "input_text",
+         "text": "You are an image generation assistant.\n\ncube"
+        }
+       ]
+      }
+     ],
+     "tools": [
+      {
+       "output_format": "png",
+       "size": "auto",
+       "type": "image_generation"
+      }
+     ],
+     "tool_choice": {
+      "type": "image_generation"
+     },
+     "store": false,
+     "stream": true
+    }
+   }
+  ]
+ },
+ "model-fetch": {
+  "out": "out.png\n",
+  "err": "Generating image (auto, png) via codex…\n",
+  "code": 0,
+  "files": [
+   ".codex/auth.json 420 8dddbd7b4c9ea2f5a25be53dfa5f185a344688e4555c06e29aca46d007969e2b",
+   ".codex/models_cache.json 420 cb5faa32b37aede7e7332be35c9277badc8fe2653929268e51e52c661f1f561f",
+   ".okra/models.json 420 a2a66a73d61a67941efa15f2c36f5cba2ddbb6bcdcd9bea5d2ad44a93a9aabae",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "out.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/catalog/api.json",
+    "auth": "",
+    "body": null
+   },
+   {
+    "path": "/codex/responses",
+    "auth": "Bearer fixture-codex",
+    "body": {
+     "model": "gpt-6.1-sol",
+     "input": [
+      {
+       "role": "user",
+       "content": [
+        {
+         "type": "input_text",
+         "text": "You are an image generation assistant.\n\ncube"
+        }
+       ]
+      }
+     ],
+     "tools": [
+      {
+       "output_format": "png",
+       "size": "auto",
+       "type": "image_generation"
+      }
+     ],
+     "tool_choice": {
+      "type": "image_generation"
+     },
+     "store": false,
+     "stream": true
+    }
+   }
+  ]
+ },
+ "model-fallback": {
+  "out": "out.png\n",
+  "err": "Generating image (auto, png) via codex…\n",
+  "code": 0,
+  "files": [
+   ".codex/auth.json 420 8dddbd7b4c9ea2f5a25be53dfa5f185a344688e4555c06e29aca46d007969e2b",
+   ".codex/models_cache.json 420 cb5faa32b37aede7e7332be35c9277badc8fe2653929268e51e52c661f1f561f",
+   ".okra/models.json 420 a2a66a73d61a67941efa15f2c36f5cba2ddbb6bcdcd9bea5d2ad44a93a9aabae",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "out.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/codex/responses",
+    "auth": "Bearer fixture-codex",
+    "body": {
+     "model": "gpt-6.1-sol",
+     "input": [
+      {
+       "role": "user",
+       "content": [
+        {
+         "type": "input_text",
+         "text": "You are an image generation assistant.\n\ncube"
+        }
+       ]
+      }
+     ],
+     "tools": [
+      {
+       "output_format": "png",
+       "size": "auto",
+       "type": "image_generation"
+      }
+     ],
+     "tool_choice": {
+      "type": "image_generation"
+     },
+     "store": false,
+     "stream": true
+    }
+   },
+   {
+    "path": "/codex/responses",
+    "auth": "Bearer fixture-codex",
+    "body": {
+     "model": "gpt-6-sol",
+     "input": [
+      {
+       "role": "user",
+       "content": [
+        {
+         "type": "input_text",
+         "text": "You are an image generation assistant.\n\ncube"
+        }
+       ]
+      }
+     ],
+     "tools": [
+      {
+       "output_format": "png",
+       "size": "auto",
+       "type": "image_generation"
+      }
+     ],
+     "tool_choice": {
+      "type": "image_generation"
+     },
+     "store": false,
+     "stream": true
+    }
+   }
+  ]
+ },
+ "model-no-fallback": {
+  "out": "",
+  "err": "Generating image (auto, png) via codex…\n[GENERATION_FAILED] Image generation failed: OpenAiClient.createResponseStream: Rate limit exceeded\n",
+  "code": 1,
+  "files": [
+   ".codex/auth.json 420 8dddbd7b4c9ea2f5a25be53dfa5f185a344688e4555c06e29aca46d007969e2b",
+   ".codex/models_cache.json 420 cb5faa32b37aede7e7332be35c9277badc8fe2653929268e51e52c661f1f561f",
+   ".okra/models.json 420 a2a66a73d61a67941efa15f2c36f5cba2ddbb6bcdcd9bea5d2ad44a93a9aabae",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/codex/responses",
+    "auth": "Bearer fixture-codex",
+    "body": {
+     "model": "gpt-6.1-sol",
+     "input": [
+      {
+       "role": "user",
+       "content": [
+        {
+         "type": "input_text",
+         "text": "You are an image generation assistant.\n\ncube"
+        }
+       ]
+      }
+     ],
+     "tools": [
+      {
+       "output_format": "png",
+       "size": "auto",
+       "type": "image_generation"
+      }
+     ],
+     "tool_choice": {
+      "type": "image_generation"
+     },
+     "store": false,
+     "stream": true
+    }
+   }
+  ]
+ },
+ "seed-42-0": {
+  "out": "gen0.result\n",
+  "err": "Generating image (1536x1024, png, 1 ref) via codex…\nNote: codex returned 1254x1254 for --size 1536x1024; the codex backend chooses the final size. Use an OpenAI image model (--model gpt-image-2.5-flare) for an exact size.\n",
+  "code": 0,
+  "files": [
+   ".codex/auth.json 420 8dddbd7b4c9ea2f5a25be53dfa5f185a344688e4555c06e29aca46d007969e2b",
+   "gen0.result 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/codex/responses",
+    "auth": "Bearer fixture-codex",
+    "body": {
+     "model": "gpt-6-sol",
+     "input": [
+      {
+       "role": "user",
+       "content": [
+        {
+         "type": "input_text",
+         "text": "You are an image generation assistant.\n\nshape 378494188 λ 🌱\n\nOutput size: exactly 1536x1024 pixels (landscape)."
+        },
+        {
+         "type": "input_image",
+         "image_url": "data:image/png;base64,iVBORw0KGgoAAAAASUhEUgAABOYAAATm",
+         "detail": "auto"
+        }
+       ]
+      }
+     ],
+     "tools": [
+      {
+       "output_format": "png",
+       "size": "1536x1024",
+       "type": "image_generation"
+      }
+     ],
+     "tool_choice": {
+      "type": "image_generation"
+     },
+     "store": false,
+     "stream": true
+    }
+   }
+  ]
+ },
+ "seed-42-1": {
+  "out": "gen1-1.result\ngen1-2.result\ngen1-3.result\n",
+  "err": "Generating image (1024x1024, jpeg) via OpenAI (gpt-image-2.5-flare)…\n",
+  "code": 0,
+  "files": [
+   ".codex/auth.json 420 8dddbd7b4c9ea2f5a25be53dfa5f185a344688e4555c06e29aca46d007969e2b",
+   "gen1-1.result 420 a37a87392ae36593bf6fa384c26466e78bf8409216485798b6af5c32bbd8826b",
+   "gen1-2.result 420 2d4630f80d7c1dd02c43e5959925d4005a7810289d90c71800e596de416b3419",
+   "gen1-3.result 420 4cb0fbf55c9bc34f32c5b26fb93cb0d463f4a4189828d5a684288072a40a590f",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/generations",
+    "auth": "Bearer fixture-env",
+    "body": {
+     "prompt": "shape 1921058495 λ 🌱",
+     "model": "gpt-image-2.5-flare",
+     "n": 3,
+     "output_format": "jpeg",
+     "size": "1024x1024"
+    }
+   }
+  ]
+ },
+ "seed-42-2": {
+  "out": "gen2-1.result\ngen2-2.result\ngen2-3.result\n",
+  "err": "Generating image (1024x1024, webp) via OpenAI (gpt-image-2.5-flare)…\n",
+  "code": 0,
+  "files": [
+   ".codex/auth.json 420 8dddbd7b4c9ea2f5a25be53dfa5f185a344688e4555c06e29aca46d007969e2b",
+   "gen2-1.result 420 a37a87392ae36593bf6fa384c26466e78bf8409216485798b6af5c32bbd8826b",
+   "gen2-2.result 420 2d4630f80d7c1dd02c43e5959925d4005a7810289d90c71800e596de416b3419",
+   "gen2-3.result 420 4cb0fbf55c9bc34f32c5b26fb93cb0d463f4a4189828d5a684288072a40a590f",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/generations",
+    "auth": "Bearer fixture-env",
+    "body": {
+     "prompt": "shape 2757373069 λ 🌱",
+     "model": "gpt-image-2.5-flare",
+     "n": 3,
+     "output_format": "webp",
+     "size": "1024x1024"
+    }
+   }
+  ]
+ },
+ "seed-42-3": {
+  "out": "gen3-1.result\ngen3-2.result\ngen3-3.result\n",
+  "err": "Generating image (1024x1024, jpeg) via OpenAI (gpt-image-2.5-flare)…\n",
+  "code": 0,
+  "files": [
+   ".codex/auth.json 420 8dddbd7b4c9ea2f5a25be53dfa5f185a344688e4555c06e29aca46d007969e2b",
+   "gen3-1.result 420 a37a87392ae36593bf6fa384c26466e78bf8409216485798b6af5c32bbd8826b",
+   "gen3-2.result 420 2d4630f80d7c1dd02c43e5959925d4005a7810289d90c71800e596de416b3419",
+   "gen3-3.result 420 4cb0fbf55c9bc34f32c5b26fb93cb0d463f4a4189828d5a684288072a40a590f",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/generations",
+    "auth": "Bearer fixture-env",
+    "body": {
+     "prompt": "shape 3970935403 λ 🌱",
+     "model": "gpt-image-2.5-flare",
+     "n": 3,
+     "output_format": "jpeg",
+     "size": "1024x1024"
+    }
+   }
+  ]
+ },
+ "seed-42-4": {
+  "out": "gen4-1.result\ngen4-2.result\n",
+  "err": "Generating image (1536x1024, jpeg) via OpenAI (gpt-image-2.5-flare)…\n",
+  "code": 0,
+  "files": [
+   ".codex/auth.json 420 8dddbd7b4c9ea2f5a25be53dfa5f185a344688e4555c06e29aca46d007969e2b",
+   "gen4-1.result 420 a37a87392ae36593bf6fa384c26466e78bf8409216485798b6af5c32bbd8826b",
+   "gen4-2.result 420 2d4630f80d7c1dd02c43e5959925d4005a7810289d90c71800e596de416b3419",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/generations",
+    "auth": "Bearer fixture-env",
+    "body": {
+     "prompt": "shape 4050676697 λ 🌱",
+     "model": "gpt-image-2.5-flare",
+     "n": 2,
+     "output_format": "jpeg",
+     "size": "1536x1024"
+    }
+   }
+  ]
+ },
+ "seed-42-5": {
+  "out": "gen5-1.result\ngen5-2.result\n",
+  "err": "Generating image (1536x1024, jpeg) via OpenAI (gpt-image-2.5-flare)…\n",
+  "code": 0,
+  "files": [
+   ".codex/auth.json 420 8dddbd7b4c9ea2f5a25be53dfa5f185a344688e4555c06e29aca46d007969e2b",
+   "gen5-1.result 420 a37a87392ae36593bf6fa384c26466e78bf8409216485798b6af5c32bbd8826b",
+   "gen5-2.result 420 2d4630f80d7c1dd02c43e5959925d4005a7810289d90c71800e596de416b3419",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/generations",
+    "auth": "Bearer fixture-env",
+    "body": {
+     "prompt": "shape 96444503 λ 🌱",
+     "model": "gpt-image-2.5-flare",
+     "n": 2,
+     "output_format": "jpeg",
+     "size": "1536x1024"
+    }
+   }
+  ]
+ },
+ "seed-42-6": {
+  "out": "gen6-1.result\ngen6-2.result\ngen6-3.result\n",
+  "err": "Generating image (1536x1024, jpeg) via OpenAI (gpt-image-2.5-flare)…\n",
+  "code": 0,
+  "files": [
+   ".codex/auth.json 420 8dddbd7b4c9ea2f5a25be53dfa5f185a344688e4555c06e29aca46d007969e2b",
+   "gen6-1.result 420 a37a87392ae36593bf6fa384c26466e78bf8409216485798b6af5c32bbd8826b",
+   "gen6-2.result 420 2d4630f80d7c1dd02c43e5959925d4005a7810289d90c71800e596de416b3419",
+   "gen6-3.result 420 4cb0fbf55c9bc34f32c5b26fb93cb0d463f4a4189828d5a684288072a40a590f",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/generations",
+    "auth": "Bearer fixture-env",
+    "body": {
+     "prompt": "shape 2515376997 λ 🌱",
+     "model": "gpt-image-2.5-flare",
+     "n": 3,
+     "output_format": "jpeg",
+     "size": "1536x1024"
+    }
+   }
+  ]
+ },
+ "seed-42-7": {
+  "out": "gen7.result\n",
+  "err": "Editing image (auto, png, 1 source) via OpenAI edit (gpt-image-2.5-flare)…\n",
+  "code": 0,
+  "files": [
+   ".codex/auth.json 420 8dddbd7b4c9ea2f5a25be53dfa5f185a344688e4555c06e29aca46d007969e2b",
+   "gen7.result 420 a37a87392ae36593bf6fa384c26466e78bf8409216485798b6af5c32bbd8826b",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/edits",
+    "auth": "Bearer fixture-env",
+    "body": [
+     [
+      "prompt",
+      "shape 420590723 λ 🌱"
+     ],
+     [
+      "model",
+      "gpt-image-2.5-flare"
+     ],
+     [
+      "size",
+      "auto"
+     ],
+     [
+      "output_format",
+      "png"
+     ],
+     [
+      "n",
+      "1"
+     ],
+     [
+      "image",
+      "image-0.png",
+      "image/png",
+      "iVBORw0KGgoAAAAASUhEUgAABOYAAATm"
+     ]
+    ]
+   }
+  ]
+ },
+ "seed-42-8": {
+  "out": "gen8-1.result\ngen8-2.result\n",
+  "err": "Editing image (1024x1024, webp, 1 source) via OpenAI edit (gpt-image-2.5-flare)…\n",
+  "code": 0,
+  "files": [
+   ".codex/auth.json 420 8dddbd7b4c9ea2f5a25be53dfa5f185a344688e4555c06e29aca46d007969e2b",
+   "gen8-1.result 420 a37a87392ae36593bf6fa384c26466e78bf8409216485798b6af5c32bbd8826b",
+   "gen8-2.result 420 2d4630f80d7c1dd02c43e5959925d4005a7810289d90c71800e596de416b3419",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/edits",
+    "auth": "Bearer fixture-env",
+    "body": [
+     [
+      "prompt",
+      "shape 3455919921 λ 🌱"
+     ],
+     [
+      "model",
+      "gpt-image-2.5-flare"
+     ],
+     [
+      "size",
+      "1024x1024"
+     ],
+     [
+      "output_format",
+      "webp"
+     ],
+     [
+      "n",
+      "2"
+     ],
+     [
+      "image",
+      "image-0.png",
+      "image/png",
+      "iVBORw0KGgoAAAAASUhEUgAABOYAAATm"
+     ]
+    ]
+   }
+  ]
+ },
+ "seed-42-9": {
+  "out": "gen9.result\n",
+  "err": "Generating image (1024x1024, webp) via OpenAI (gpt-image-2.5-flare)…\n",
+  "code": 0,
+  "files": [
+   ".codex/auth.json 420 8dddbd7b4c9ea2f5a25be53dfa5f185a344688e4555c06e29aca46d007969e2b",
+   "gen9.result 420 a37a87392ae36593bf6fa384c26466e78bf8409216485798b6af5c32bbd8826b",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/generations",
+    "auth": "Bearer fixture-env",
+    "body": {
+     "prompt": "shape 1434383087 λ 🌱",
+     "model": "gpt-image-2.5-flare",
+     "n": 1,
+     "output_format": "webp",
+     "size": "1024x1024"
+    }
+   }
+  ]
+ },
+ "seed-42-10": {
+  "out": "gen10-1.result\ngen10-2.result\ngen10-3.result\n",
+  "err": "Generating image (1024x1024, png) via OpenAI (gpt-image-2.5-flare)…\n",
+  "code": 0,
+  "files": [
+   ".codex/auth.json 420 8dddbd7b4c9ea2f5a25be53dfa5f185a344688e4555c06e29aca46d007969e2b",
+   "gen10-1.result 420 a37a87392ae36593bf6fa384c26466e78bf8409216485798b6af5c32bbd8826b",
+   "gen10-2.result 420 2d4630f80d7c1dd02c43e5959925d4005a7810289d90c71800e596de416b3419",
+   "gen10-3.result 420 4cb0fbf55c9bc34f32c5b26fb93cb0d463f4a4189828d5a684288072a40a590f",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/generations",
+    "auth": "Bearer fixture-env",
+    "body": {
+     "prompt": "shape 1446034237 λ 🌱",
+     "model": "gpt-image-2.5-flare",
+     "n": 3,
+     "output_format": "png",
+     "size": "1024x1024"
+    }
+   }
+  ]
+ },
+ "seed-42-11": {
+  "out": "gen11-1.result\ngen11-2.result\n",
+  "err": "Generating image (1024x1024, png) via OpenAI (gpt-image-2.5-flare)…\n",
+  "code": 0,
+  "files": [
+   ".codex/auth.json 420 8dddbd7b4c9ea2f5a25be53dfa5f185a344688e4555c06e29aca46d007969e2b",
+   "gen11-1.result 420 a37a87392ae36593bf6fa384c26466e78bf8409216485798b6af5c32bbd8826b",
+   "gen11-2.result 420 2d4630f80d7c1dd02c43e5959925d4005a7810289d90c71800e596de416b3419",
+   "mask.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.jpg 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.png 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6",
+   "ref.webp 420 32a843a41d2ac50d4c14047e45086db4c41205499be965b0a728c580c11cfda6"
+  ],
+  "requests": [
+   {
+    "path": "/openai/images/generations",
+    "auth": "Bearer fixture-env",
+    "body": {
+     "prompt": "shape 3460605851 λ 🌱",
+     "model": "gpt-image-2.5-flare",
+     "n": 2,
+     "output_format": "png",
+     "size": "1024x1024"
+    }
+   }
+  ]
+ }
+}

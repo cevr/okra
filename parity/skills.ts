@@ -7,6 +7,7 @@ import { createHash } from "node:crypto";
 import { lstat, mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve as resolvePath } from "node:path";
 import { build, fixtureSkill, fixtureToken, seed, type World } from "./skills-world";
+import { frozen } from "./frozen";
 
 const root = resolvePath(import.meta.dir, "..");
 const scratch = process.env.OKRA_PARITY_SCRATCH ?? "/tmp/opencode/linear-port";
@@ -457,6 +458,7 @@ const reference = (args: string[], cwd: string, env: Env) =>
 
 const notInteractive =
   "[NOT_INTERACTIVE] choosing skills needs a terminal on standard input; name one skill (owner/repo@skill)\n";
+const records = frozen("skills", seed0, Boolean(only));
 let compared = 0;
 let prompts = 0;
 try {
@@ -469,10 +471,12 @@ try {
     );
     if (session.setup) for (const dir of dirs) await session.setup(dir);
     const env = session.env ?? {};
-    for (const current of session.steps) {
+    for (const [index, current] of session.steps.entries()) {
       if (current.world) current.world(world);
       if (current.edit) for (const dir of dirs) await current.edit(dir);
-      const want = await reference(current.args, dirs[0]!, env);
+      const want = await records.get(`${session.name}#${index}`, () =>
+        reference(current.args, dirs[0]!, env),
+      );
       const got = tsOnly
         ? await reference(current.args, dirs[1]!, env)
         : await execute(candidate, current.args, dirs[1]!, env);
@@ -536,6 +540,7 @@ try {
 }
 if (world.leaks.length) throw new Error(`credential leaks: ${world.leaks.join("; ")}`);
 if (!compared) throw new Error("No cases selected");
+records.done();
 if (!tsOnly && !only && !prompts)
   throw new Error("no prompt case ran: the declared prompt rule was never exercised");
 console.log(

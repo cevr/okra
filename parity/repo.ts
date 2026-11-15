@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import { lstat, mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve as resolvePath } from "node:path";
 import { advance, build } from "./repo-world";
+import { frozen } from "./frozen";
 
 const root = resolvePath(import.meta.dir, "..");
 const scratch = process.env.OKRA_PARITY_SCRATCH ?? "/tmp/opencode/linear-port";
@@ -293,9 +294,14 @@ for (let w = 0; w < 2; w++)
   });
 
 function normalize(text: string) {
-  return text.replace(/\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z/g, (iso) =>
-    Date.parse(iso) >= started - 5000 ? "<NOW>" : iso,
-  );
+  // A time the run wrote is <NOW>; a fixture time from at() is named by its
+  // days, so a recorded reference holds on any later day.
+  return text.replace(/\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z/g, (iso) => {
+    const t = Date.parse(iso);
+    if (t >= started - 5000) return "<NOW>";
+    const days = (started - 3_600_000 - t) / day;
+    return Number.isInteger(days) ? `<AT ${days} days ago>` : iso;
+  });
 }
 
 async function snapshot(dir: string) {
@@ -401,6 +407,7 @@ const reference = (args: string[], cwd: string) =>
     cwd,
   );
 
+const records = frozen("repo", seed, Boolean(only));
 let compared = 0;
 try {
   for (const session of sessions.filter((s) => !only || s.name === only)) {
@@ -410,9 +417,11 @@ try {
       ),
     );
     if (session.setup) for (const dir of dirs) await session.setup(dir);
-    for (const current of session.steps) {
+    for (const [index, current] of session.steps.entries()) {
       if (current.before) await current.before();
-      const want = await reference(current.args, dirs[0]!);
+      const want = await records.get(`${session.name}#${index}`, () =>
+        reference(current.args, dirs[0]!),
+      );
       const got = tsOnly
         ? await reference(current.args, dirs[1]!)
         : await execute(candidate, current.args, dirs[1]!);
@@ -465,4 +474,5 @@ try {
   world.stop();
 }
 if (!compared) throw new Error("No cases selected");
+records.done();
 console.log(`REPO PARITY EXIT: 0 (${compared} process pairs, seed ${seed})`);

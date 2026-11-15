@@ -19,7 +19,9 @@
 // replay is `bun parity/until.ts --seed=<seed> --only=<n>`.
 import { spawn, spawnSync } from "node:child_process";
 import { chmod, mkdir, mkdtemp, readdir, readFile, rename, writeFile } from "node:fs/promises";
+import { readFileSync, readlinkSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { frozen } from "./frozen";
 import { carriedNames, hostZoneFiles, icuNames } from "./zones";
 
 const root = resolve(import.meta.dir, "..");
@@ -31,7 +33,22 @@ const only = arg("only");
 const first = process.argv.includes("--first");
 const reference = join(scratch, "okra-schedule-ts");
 const binary = arg("binary") ?? join(root, "bin/okra-ergo-parity");
-if (!(await Bun.file(reference).exists()))
+// The host's own zone decides a TZ that names no zone, on both sides, so the
+// records are per host zone: /etc/localtime's link target, or /etc/timezone
+// beside a copied file.
+function hostZone() {
+  try {
+    const link = readlinkSync("/etc/localtime");
+    const at = link.indexOf("zoneinfo/");
+    if (at >= 0) return link.slice(at + "zoneinfo/".length);
+  } catch {
+    /* a regular file: name it by /etc/timezone */
+  }
+  return readFileSync("/etc/timezone", "utf8").trim();
+}
+const host = hostZone();
+const records = frozen("until", `${seed}-${host.replaceAll("/", "_")}`, only !== undefined);
+if (records.recording && !(await Bun.file(reference).exists()))
   throw new Error(`no reference at ${reference}: run bun parity/schedule.ts --build-reference first`);
 
 let state = seed >>> 0;
@@ -522,17 +539,27 @@ async function runOne(program: string, item: Item, dir: string): Promise<Result>
     err = err.replaceAll(id, "<ID>");
     stops += JSON.stringify(JSON.parse(await readFile(join(tasks, name), "utf8")).stopConditions);
   }
+  // The case folder is a scratch path, which differs between the recorded
+  // reference and a check.
+  out = out.replaceAll(dir, "<DIR>");
+  err = err.replaceAll(dir, "<DIR>");
   return { code, out, err, stops };
 }
 
 const tally = { equal: 0, bothRefuse: 0, bunOnly: 0, portOnly: 0 };
 let mismatches = 0;
 try {
-  for (const [n, item] of items.entries()) {
+  // Recording draws the items; a check replays the recorded items, so the
+  // checking host's zone lists cannot change the corpus.
+  const order = records.recording ? items.map((_, n) => n) : records.keys().map(Number);
+  for (const n of order) {
     if (only !== undefined && String(n) !== only) continue;
     const dir = join(base, String(n));
-    const want = await runOne(reference, item, dir);
-    await rename(dir, `${dir}.ref`);
+    const { item, want } = await records.get(String(n), async () => {
+      const result = await runOne(reference, items[n]!, dir);
+      await rename(dir, `${dir}.ref`);
+      return { item: items[n]!, want: result };
+    });
     const got = await runOne(binary, item, dir);
     const same = want.code === got.code && want.out === got.out && want.err === got.err && want.stops === got.stops;
     const refused = (r: Result) => r.code === 1 && r.stops === "" && r.err.includes("[INVALID_DATE]");
@@ -585,4 +612,5 @@ if (mismatches > 0) {
   process.exit(1);
 }
 if (counted === 0) throw new Error("no until text selected");
+records.done();
 console.log(`UNTIL PARITY EXIT: 0 (${counted} texts, seed ${seed}: ${tally.equal} same instant, ${tally.bothRefuse} both refuse, ${tally.bunOnly} only Bun reads, ${tally.portOnly} only the port reads)`);

@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import { lstat, mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
+import { frozen } from "./frozen";
 
 const root = resolve(import.meta.dir, "..");
 const scratch = process.env.OKRA_PARITY_SCRATCH ?? "/tmp/opencode/okra-o4";
@@ -573,10 +574,11 @@ function declared(name: string, want: Run, got: Run): [Run, Run] | null {
     { ...got, err },
   ];
 }
+const records = frozen("image", seed, Boolean(arg("case")));
 let count = 0;
 try {
   for (const c of cases.filter((x) => !arg("case") || x.name === arg("case"))) {
-    const want = await execute(reference, c);
+    const want = await records.get(c.name, () => execute(reference, c));
     const got = await execute(tsOnly ? reference : binary, c);
     const compared = declared(c.name, want, got);
     if (!compared || !isDeepStrictEqual(compared[0], compared[1])) {
@@ -601,6 +603,7 @@ try {
     count++;
   }
   if (count === 0) throw new Error("no image cases selected");
+  records.done();
   console.log(`IMAGE PARITY EXIT: 0 (${count} process pairs, seed ${seed})`);
 } finally {
   await peer.stop(true);

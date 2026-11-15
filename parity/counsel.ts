@@ -21,6 +21,7 @@ import {
 } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
+import { frozen } from "./frozen";
 
 const root = resolve(import.meta.dir, "..");
 const scratch = process.env.OKRA_PARITY_SCRATCH ?? "/tmp/opencode/okra-o5";
@@ -424,7 +425,29 @@ let agentFiles: string[] = [];
 const slugPattern = /\d{8}-\d{6}-(claude|codex)-to-(claude|codex)-[0-9a-f]{6}/g;
 // normalize replaces the run's time and random suffix, after checking that
 // each slug, timestamp and duration is well formed and consistent.
+// The run's folder and its output bucket name the scratch path, which differs
+// between the recorded reference and a check; both become placeholders. The
+// bucket is the reference's: the last two segments in slug form and the first
+// eight hex digits of the folder's SHA-256.
+let runPaths: [string, string][] = [];
+function bucket(cwd: string) {
+  const normalized = cwd.replace(/\\/g, "/").replace(/\/+$/, "");
+  const tail = normalized
+    .split("/")
+    .filter((s) => s.length > 0)
+    .slice(-2)
+    .map((s) =>
+      s
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, ""),
+    )
+    .filter((s) => s.length > 0);
+  const hash = createHash("sha256").update(normalized).digest("hex").slice(0, 8);
+  return tail.length > 0 ? `${tail.join("-")}-${hash}` : hash;
+}
 function normalize(text: string, slugs: Set<string>) {
+  for (const [from, to] of runPaths) text = text.replaceAll(from, to);
   for (const m of text.matchAll(slugPattern)) slugs.add(m[0]);
   return text.replaceAll(slugPattern, "<SLUG>");
 }
@@ -476,6 +499,10 @@ async function execute(program: string, c: Case, dir: string) {
   await setup(c, dir, fixture);
   requests = [];
   const cwd = c.cwd ? join(dir, c.cwd) : dir;
+  runPaths = [
+    [bucket(cwd), "<BUCKET>"],
+    [dir, "<DIR>"],
+  ];
   const child = spawn(program, ["counsel", ...c.args], {
     cwd,
     detached: true,
@@ -573,6 +600,7 @@ async function settled(program: string, c: Case, dir: string, port: boolean) {
   throw new Error(`${port ? "port" : "reference"} lost agent output: ${c.name} ${JSON.stringify(once.result)}`);
 }
 
+const records = frozen("counsel", seed, Boolean(arg("case")));
 let count = 0;
 try {
   for (const c of cases.filter((x) => !arg("case") || x.name === arg("case"))) {
@@ -583,9 +611,12 @@ try {
     // working folder) is the same; the first run's folder is moved aside.
     const base = await mkdtemp(join(scratch, "counsel-"));
     const dir = join(base, "case");
-    const want = await settled(reference, c, dir, false);
-    await rename(dir, `${dir}.ref`);
-    await rename(`${dir}.fixture`, `${dir}.ref.fixture`);
+    const want = await records.get(c.name, async () => {
+      const result = await settled(reference, c, dir, false);
+      await rename(dir, `${dir}.ref`);
+      await rename(`${dir}.fixture`, `${dir}.ref.fixture`);
+      return result;
+    });
     const got = await settled(tsOnly ? reference : binary, c, dir, !tsOnly);
     if (c.usage && !tsOnly) {
       if (want.code !== 1 || got.code !== 1 || !got.out.includes("okra") || got.err === "")
@@ -614,6 +645,7 @@ try {
     count++;
   }
   if (count === 0) throw new Error("no counsel cases selected");
+  records.done();
   console.log(`COUNSEL PARITY EXIT: 0 (${count} process pairs, seed ${seed})`);
 } finally {
   await peer.stop(true);

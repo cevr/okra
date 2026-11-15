@@ -1,0 +1,2705 @@
+{
+ "inherited-remove#0": {
+  "out": "",
+  "err": "Removed \"constructor\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{}\n",
+   "mode": 384
+  }
+ },
+ "inherited-remove#1": {
+  "out": "",
+  "err": "Removed \"__proto__\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{}\n",
+   "mode": 384
+  }
+ },
+ "empty#0": {
+  "out": "",
+  "err": "",
+  "code": 0,
+  "file": null
+ },
+ "empty#1": {
+  "out": "",
+  "err": "No keys stored. Add one with `okra keys set <provider> <key>`.\n",
+  "code": 0,
+  "file": null
+ },
+ "empty#2": {
+  "out": "",
+  "err": "[NOT_FOUND] No key for \"missing\". Set OKRA_KEY_MISSING or run `okra keys set missing`.\n",
+  "code": 1,
+  "file": null
+ },
+ "empty#3": {
+  "out": "",
+  "err": "[NOT_FOUND] No stored key for \"missing\".\n",
+  "code": 1,
+  "file": null
+ },
+ "stdin#0": {
+  "out": "",
+  "err": "Saved \"demo\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"demo\":\"fixture-secret\"}\n",
+   "mode": 384
+  }
+ },
+ "stdin#1": {
+  "out": "fixtu…cret (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"demo\":\"fixture-secret\"}\n",
+   "mode": 384
+  }
+ },
+ "stdin#2": {
+  "out": "demo\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"demo\":\"fixture-secret\"}\n",
+   "mode": 384
+  }
+ },
+ "stdin#3": {
+  "out": "",
+  "err": "Removed \"demo\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{}\n",
+   "mode": 384
+  }
+ },
+ "invalid-input#0": {
+  "out": "",
+  "err": "[INVALID_INPUT] No key provided. Pass it as an argument or pipe it with --stdin.\n",
+  "code": 1,
+  "file": null
+ },
+ "invalid-input#1": {
+  "out": "",
+  "err": "[INVALID_INPUT] Key is empty\n",
+  "code": 1,
+  "file": null
+ },
+ "object-semantics#0": {
+  "out": "10\n2\n__proto__\na\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"10\":\"x\",\"a\":123,\"2\":\"y\",\"a\":\"last\",\"__proto__\":\"fixture-proto\"}",
+   "mode": 420
+  }
+ },
+ "object-semantics#1": {
+  "out": "•••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"10\":\"x\",\"a\":123,\"2\":\"y\",\"a\":\"last\",\"__proto__\":\"fixture-proto\"}",
+   "mode": 420
+  }
+ },
+ "object-semantics#2": {
+  "out": "",
+  "err": "Saved \"1\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"1\":\"one\",\"2\":\"y\",\"10\":\"x\",\"a\":\"last\",\"__proto__\":\"fixture-proto\"}\n",
+   "mode": 384
+  }
+ },
+ "object-semantics#3": {
+  "out": "",
+  "err": "Removed \"a\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"1\":\"one\",\"2\":\"y\",\"10\":\"x\",\"__proto__\":\"fixture-proto\"}\n",
+   "mode": 384
+  }
+ },
+ "malformed#0": {
+  "out": "",
+  "err": "No keys stored. Add one with `okra keys set <provider> <key>`.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"demo\":123}",
+   "mode": 420
+  }
+ },
+ "malformed#1": {
+  "out": "",
+  "err": "Saved \"demo\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"demo\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "malformed#2": {
+  "out": "••••••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"demo\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "syntax#0": {
+  "out": "",
+  "err": "No keys stored. Add one with `okra keys set <provider> <key>`.\n",
+  "code": 0,
+  "file": {
+   "text": "{",
+   "mode": 420
+  }
+ },
+ "env#0": {
+  "out": "fixtu…alue (env OPENAI_API_KEY)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"fixture-stored-value\",\"other\":\"other-stored\"}",
+   "mode": 420
+  }
+ },
+ "env#1": {
+  "out": "fixtu…alue (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"fixture-stored-value\",\"other\":\"other-stored\"}",
+   "mode": 420
+  }
+ },
+ "env#2": {
+  "out": "other…-env (env OKRA_KEY_OTHER)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"fixture-stored-value\",\"other\":\"other-stored\"}",
+   "mode": 420
+  }
+ },
+ "how#0": {
+  "out": "okra — AI agent orchestration toolkit\n\nTopics:\n  schedule  AI agent task scheduler via macOS launchd.\n  counsel   Route a prompt to the opposite local coding agent.\n  repo      Multi-registry source code cache manager CLI.\n  skills    Manage AI agent skills installed in $SKILLS_DIR (defaults to ~/Developer/personal/dotfiles/skills).\n  image     Generate images from text prompts with GPT Image 2.5 Flare or Sunburst.\n  keys      Manage stored API keys for okra (the shared ~/.okra/keys.json secret store).\n\nRun `okra how <topic>` for the full guide.\n",
+  "err": "",
+  "code": 0,
+  "file": null
+ },
+ "how#1": {
+  "out": "# okra schedule\n\nSchedule AI agent tasks (Claude, Codex) via macOS launchd. Each task becomes a plist that fires `okra schedule run <id>`, invoking the agent in the original working directory.\n\n## Navigation\n\n```\nWhat do you need?\n├─ Schedule a task           → §Scheduling\n├─ Manage existing tasks     → §Management\n├─ View logs                 → §Logs\n├─ Understand internals      → §Architecture\n└─ Troubleshooting           → §Gotchas\n```\n\n## Quick Reference\n\n| Command                                                                           | What it does                     |\n| --------------------------------------------------------------------------------- | -------------------------------- |\n| `okra schedule \"<prompt>\" -s \"<schedule>\"`                                        | Schedule task (default: claude)  |\n| `okra schedule \"<prompt>\" -s \"<schedule>\" -p codex`                               | Schedule with specific provider  |\n| `okra schedule \"<prompt>\" -s \"<schedule>\" --stop-when \"<condition>\" --max-runs N` | Conditional stop with fallback   |\n| `okra schedule list`                                                              | List all tasks                   |\n| `okra schedule list -j`                                                           | List tasks as JSON               |\n| `okra schedule remove <id>`                                                       | Remove task + unload plist       |\n| `okra schedule run <id>`                                                          | Execute task (called by launchd) |\n| `okra schedule logs`                                                              | List available logs              |\n| `okra schedule logs <id>`                                                         | View task log                    |\n| `okra schedule logs <id> -f`                                                      | Tail task log                    |\n\n## Scheduling\n\n### Schedule Formats\n\nNatural language (preferred):\n\n| Pattern                      | Type      | Example                   |\n| ---------------------------- | --------- | ------------------------- |\n| `in N minutes/hours/days`    | Oneshot   | `in 30 minutes`           |\n| `tomorrow at HH:mm[am\\|pm]`  | Oneshot   | `tomorrow at 9am`         |\n| `every day at HH:mm[am\\|pm]` | Recurring | `every day at 9:00`       |\n| `every weekday at HH:mm`     | Recurring | `every weekday at 9am`    |\n| `every {day} at HH:mm`       | Recurring | `every monday at 10:30am` |\n\n5-field cron fallback: `min hour dom month dow`\n\n### Providers\n\n| Flag                  | CLI invoked                                                        |\n| --------------------- | ------------------------------------------------------------------ |\n| `-p claude` (default) | `claude -p <prompt> --dangerously-skip-permissions --model sonnet` |\n| `-p codex`            | `codex exec -C <cwd> --dangerously-bypass-approvals-and-sandbox`   |\n\n## Context Metadata\n\nAt creation, captures git/gh context (best-effort, all optional): branch, remote URL, repo name, commit, default branch, PR number/URL, issue number (from branch pattern).\n\nAt invocation, context injected as `<context>` block prepended to prompt. Enables natural prompts like `\"babysit this pr\"`.\n\n## Conditional Stops\n\n`--stop-when` lets the agent signal \"I'm done\" based on a natural language condition. Requires a deterministic fallback (`--max-runs` or `--until`).\n\n```bash\nokra schedule \"babysit pr\" -s \"every day at 9am\" --stop-when \"the PR is merged\" --max-runs 20\n```\n\n**Flow:** nonce injection → signal detection in output → verification call → complete or continue.\n\n## Management\n\n- Tasks stored at `~/.okra/schedule/tasks/{id}.json`\n- Plists at `~/Library/LaunchAgents/com.cvr.okra.schedule-{id}.plist`\n- `rm` unloads plist, deletes task file, cleans log\n- Oneshot tasks auto-complete after first run\n- `install` is atomic: rolls back to previous plist if `launchctl load` fails\n\n## Logs\n\n- Log files at `~/.okra/schedule/logs/{id}.log`\n- Both stdout and stderr go to the same log file\n\n## Architecture\n\n```\nsrc/schedule/\n  errors.ts                  # ScheduleError (tagged, string code)\n  paths.ts                   # ~/.okra/schedule/ path resolution\n  context.ts                 # git/gh context capture + prompt injection\n  commands/\n    index.ts                 # root (= add) + subcommands\n    list.ts, remove.ts, run.ts, logs.ts\n  services/\n    Schedule.ts              # pure NL/cron parser\n    Store.ts                 # task CRUD\n    StopEvaluator.ts         # pure deterministic stop evaluation\n    Launchd.ts               # plist gen + launchctl (atomic install/uninstall)\n    AgentPlatform.ts         # agent invocation (capture+tee stdout)\n    Verification.ts          # conditional stop verification\n```\n\n## Gotchas\n\n- `Schedule` and `StopEvaluator` are pure modules, not `ServiceMap.Service`\n- Task IDs: alphanumeric, hyphens, underscores only\n- Weekday range `1-5` expands to 5 separate `StartCalendarInterval` entries\n- `PathEnv` inherits `process.env.PATH` at build time\n- `--stop-when` requires `--max-runs` or `--until` — error code `MISSING_FALLBACK`\n- `generatePlist` and `escapeXml` are `@internal` exports for testability\n",
+  "err": "",
+  "code": 0,
+  "file": null
+ },
+ "how#2": {
+  "out": "# okra counsel\n\nOne command. Opposite agent. For delegating any task — review, help, exploration, brainstorming — to the other local coding agent.\n\n## From Claude Code: the codex mod\n\nIn Claude Code, when the `mcp__codex__start` tool is listed (the `codex` mod), use it in place of `okra counsel`. `okra counsel` stays the path from Codex to Claude, and the fallback when the mod's tools are missing.\n\n- **Start:** `mcp__codex__start` with `model: \"sol\"` (the newest Sol), `effort: \"medium\"` (`\"max\"` where you would pass `--deep`), `sandbox: \"read-only\"` for advice or review, a short `description`, and the prompt (§Prompt Shape). Pass no `role`: a role carries an orchestrate unit's instructions.\n- **Wait:** the call returns a thread id at once. The answer arrives as a message from the codex plugin when the turn ends. Go on with other work. Set no timer, and do not poll.\n- **Follow up:** `mcp__codex__send` with the thread id. The thread keeps its context, so a follow-up or a next review round sends only what changed.\n- **Check:** `mcp__codex__threads` lists this session's threads and whether each one runs.\n\n## Navigation\n\n```\nWhat do you need?\n├─ In Claude Code             → §From Claude Code: the codex mod\n├─ Quick command shape        → §Quick Reference\n├─ When to use it             → §When to Use\n├─ How to prepare the prompt  → §Prompt Shape\n├─ How to run it              → §Workflow\n└─ What files to read after   → §Output\n```\n\n## Quick Reference\n\n| Command                               | What it does                                  |\n| ------------------------------------- | --------------------------------------------- |\n| `okra counsel \"prompt\"`               | Send inline prompt to opposite agent          |\n| `okra counsel -f prompt.md`           | Send a prompt file                            |\n| `echo \"prompt\" \\| okra counsel`       | Send stdin                                    |\n| `okra counsel --deep \"prompt\"`        | Use deeper profile (Opus/max or Sol/max)      |\n| `okra counsel --from claude \"prompt\"` | Force source when auto-detection is ambiguous |\n| `okra counsel --dry-run \"prompt\"`     | Preview resolved invocation                   |\n\n## When to Use\n\n- **Second opinion** — challenge your own approach, adversarial review\n- **Help & guidance** — ask the other agent for ideas, explanations, or suggestions\n- **Code review** — get a fresh read on a diff, file, or module\n- **Exploration** — brainstorm approaches, investigate options, research a question\n- **Delegation** — hand off a self-contained task you don't want to do yourself\n\nOne clean shot. Not iterative rounds or multi-agent orchestration.\n\n## Prompt Shape\n\nGather context first. Then send a tight prompt.\n\n- Name the concrete question or task\n- Reference exact files or directories\n- Include constraints that matter\n- Ask for receipts, not vibes\n\nGood: `Review src/auth/ for regression risk after the token refresh refactor. Ground every claim in file paths.`\nGood: `Help me understand how the scheduler reconciles missed runs. Read src/schedule/ and explain the flow.`\nGood: `Brainstorm 3 approaches for migrating the store from JSON files to SQLite. Pros/cons for each.`\n\nBad: `Thoughts?`\n\n## Workflow\n\n1. Gather local context yourself first — counsel does not do discovery\n2. Write the prompt inline, from a file, or through stdin\n3. In Claude Code, start a Codex thread through the codex mod (§From Claude Code). Elsewhere, run `okra counsel`\n4. The mod's answer comes as a message. For `okra counsel`, read the stdout payload first, then the target output file\n\n## Output\n\nEach run writes a directory under `/tmp/counsel/<slug>/`:\n\n```\nprompt.md\nclaude.md or codex.md\nclaude.stderr or codex.stderr\nevents.jsonl\nmanifest.json\n```\n\n`manifest.json` records the run: `status`, `model`, `failure`, `exitCode`, and `durationMs`. `model` is the model that answered: after a Codex fallback it names the fallback model, and for Claude it names the concrete model behind the alias (e.g. `claude-opus-5-5`).\n\nRead order: stdout payload → `<target>.md` → `manifest.json` and `<target>.stderr` if error/timeout.\n\n## Architecture\n\n```\nsrc/counsel/\n  errors.ts          # CounselError (literal code schema)\n  constants.ts       # timeouts, tool lists, sanitizePath\n  types.ts           # Provider, Profile, RunManifest, DryRunPreview\n  commands/index.ts  # command definition with all flags\n  services/\n    Host.ts              # cwd, env, stdin, exitCode\n    AgentPlatform.ts     # source detection, invocation building\n    InvocationRunner.ts  # child process spawn + stream piping\n    Run.ts               # orchestration: resolve → build → execute\n```\n\n## Gotchas\n\n- Fails if it cannot infer Claude vs Codex and `--from` is missing\n- Writes files; does not stream the other model's answer back into active chat\n- Exits 1 and prints `<target> failed: <reason>` on stderr when the other agent does not answer (usage limit, API error, no answer), even when that agent exits 0; the `.md` file is then empty\n- Claude: both profiles use the `opus` alias (latest Opus): `--deep` at max effort, standard at medium effort\n- Codex: standard uses the newest GPT Sol that the Codex account can use (models.dev release order, filtered by the Codex CLI model list, with a fallback to an older Sol on rejection) at medium effort; `--deep` uses the same model at max effort\n- Claude invocation includes `--tools` and `--allowedTools` restricted to read-only tools\n",
+  "err": "",
+  "code": 0,
+  "file": null
+ },
+ "how#3": {
+  "out": "# repo\n\nFetch and explore source code from GitHub, npm, PyPI, and Crates. Local cache at `~/.cache/repo/`.\n\n## Navigation\n\n```\nWhat do you need?\n├─ Fetch a repo/package        → §Fetching\n├─ Check if already cached     → §Quick Lookup\n├─ Search cached code          → §Search Tools\n├─ Manage the cache            → §Cache Management\n└─ Troubleshooting             → §Gotchas\n```\n\n## Quick Reference\n\n| Command                           | What it does                                                        |\n| --------------------------------- | ------------------------------------------------------------------- |\n| `okra repo fetch <spec>`          | Fetch/update. stdout = path, stderr = progress. `--json`, `--force` |\n| `okra repo path <spec>`           | Pure cache lookup. stdout = path, nonzero on miss. No network.      |\n| `okra repo list`                  | List cached repos. `--registry`, `--sort`, `--json`                 |\n| `okra repo remove <spec>`         | Remove from cache                                                   |\n| `okra repo clean --days N`        | Prune by age                                                        |\n| `okra repo clean --max-size 100M` | Prune by size                                                       |\n| `okra repo clean --all -y`        | Remove everything                                                   |\n| `okra repo clean --dry-run`       | Preview what would be removed                                       |\n\n### Spec Formats\n\n| Format | Example                                |\n| ------ | -------------------------------------- |\n| GitHub | `owner/repo`, `owner/repo@v1.0.0`      |\n| npm    | `npm:lodash`, `npm:@effect/cli@0.73.0` |\n| PyPI   | `pypi:requests@2.31.0`                 |\n| Crates | `crates:serde@1.0.0`                   |\n\n## Fetching\n\n```bash\n# Fetch a repo (prints path to stdout)\nokra repo fetch vercel/next.js\n\n# Compose with shell\ncd $(okra repo fetch effect-ts/effect-smol)\n\n# Force re-clone\nokra repo fetch -f owner/repo\n\n# JSON output (path, size, ref, fresh)\nokra repo fetch --json owner/repo\n```\n\nstdout = path only. All status/progress goes to stderr. This makes piping work.\n\n## Quick Lookup\n\n```bash\n# Instant check, no network\nokra repo path owner/repo\n# Exit 0 + path on stdout if cached, nonzero if not\n```\n\n## Cache Layout\n\n| Registry | Path                                |\n| -------- | ----------------------------------- |\n| GitHub   | `~/.cache/repo/{owner}/{repo}`      |\n| npm      | `~/.cache/repo/{package}/{version}` |\n| PyPI     | `~/.cache/repo/{package}/{version}` |\n| Crates   | `~/.cache/repo/{crate}/{version}`   |\n\n## Search Tools\n\n### ripgrep (rg)\n\n```bash\nrg \"pattern\" ~/.cache/repo/{owner}/{repo}\nrg \"pattern\" -C 3 --type ts ~/.cache/repo/{owner}/{repo}\nrg --files ~/.cache/repo/{owner}/{repo} | rg \"filename\"\n```\n\n### ast-grep — structural code search\n\n```bash\nast-grep --pattern 'console.log($$$)' --lang ts ~/.cache/repo/{owner}/{repo}\nast-grep --pattern 'import { $$$ } from \"$MOD\"' --lang ts ~/.cache/repo/{owner}/{repo}\n```\n\nUse ast-grep for function/method definitions, import statements, class definitions, specific code structures.\n\n### fd — file finder\n\n```bash\nfd \"pattern\" ~/.cache/repo/{owner}/{repo}\nfd -e ts ~/.cache/repo/{owner}/{repo}\n```\n\n### Exploration strategy\n\n| Scope             | Tool                             |\n| ----------------- | -------------------------------- |\n| Broad exploration | Explore agent on the cached path |\n| Text patterns     | `rg` (ripgrep)                   |\n| Code structures   | `ast-grep`                       |\n| File names        | `fd` or Glob tool                |\n| Specific files    | Read tool with full path         |\n| Directory tree    | `eza --tree` on okra repo path   |\n\n## Cache Management\n\n```bash\n# List everything\nokra repo list\nokra repo list --json\nokra repo list -r npm              # filter by registry\nokra repo list -s size             # sort by size/date/name\n\n# Remove one\nokra repo remove owner/repo\n\n# Prune old/large\nokra repo clean --days 30          # not accessed in 30 days\nokra repo clean --max-size 1G      # larger than 1GB\nokra repo clean --days 30 --dry-run\n\n# Nuke\nokra repo clean --all -y\n```\n\n## Typical Workflow\n\n```bash\n# 1. Fetch\nokra repo fetch effect-ts/effect-smol\n\n# 2. Get path\nREPO=$(okra repo path effect-ts/effect-smol)\n\n# 3. Explore\nRead file_path=\"$REPO/package.json\"\nrg \"Context\" $REPO/packages --type ts -C 2\nast-grep --pattern 'class $NAME extends Context.Service<$$$>()($$$) { $$$ }' --lang ts $REPO\n\n# 4. Or use Explore agent\nAgent subagent_type=\"Explore\" prompt=\"Explore $REPO to understand the service pattern...\"\n```\n\n## Gotchas\n\n- `okra repo fetch` always refreshes git repos on fetch (pull latest)\n- `okra repo path` does zero network I/O — pure metadata lookup\n- stdout/stderr discipline: never parse stderr, only stdout has data\n- `okra repo list --json` returns `{ repos: [...], total, totalSize }` — useful for programmatic queries\n- Size formats for `--max-size`: `100M`, `1G`, `500KB`\n",
+  "err": "",
+  "code": 0,
+  "file": null
+ },
+ "how#4": {
+  "out": "# skills\n\nInstall and manage agent skill packages from GitHub or local paths. Skills land in `$SKILLS_DIR` (default `~/Developer/personal/dotfiles/skills`). State persists in a lockfile at `$SKILLS_DIR/.skill-lock.json`.\n\n## Quick Reference\n\n| Command                        | What it does                                              |\n| ------------------------------ | --------------------------------------------------------- |\n| `okra skills`                  | List managed skills                                       |\n| `okra skills add <source...>`  | Install one or more skills (aliases: `i`, `install`)      |\n| `okra skills remove <name...>` | Uninstall one or more skills (aliases: `rm`, `uninstall`) |\n| `okra skills search <query>`   | Search skills.sh for skills                               |\n| `okra skills update`           | Re-fetch all installed skills from their sources          |\n\n### Source Formats\n\n| Source                                          | Behavior                                                         |\n| ----------------------------------------------- | ---------------------------------------------------------------- |\n| `owner/repo`                                    | Discover skills in the repo. Multi-select prompt if >1 found.    |\n| `owner/repo@name`                               | Install that specific skill.                                     |\n| `owner/repo#ref`                                | Pin to a ref (branch/tag/sha).                                   |\n| `https://github.com/owner/repo[/tree/ref/path]` | URL form, supports tree links.                                   |\n| `./path` `~/path` `/abs/path`                   | Local folder. Multi-select prompt if folder has multiple skills. |\n| anything else                                   | Treated as a search query against skills.sh.                     |\n\n## Adding skills\n\n```bash\n# Single skill, GitHub\nokra skills add owner/repo@my-skill\n\n# Whole repo — multi-select prompt if >1 skill\nokra skills add owner/repo\n\n# Local folder — multi-select if multiple SKILL.md found in subdirs\nokra skills add ./my-skills-dir\n\n# Variadic — install many at once\nokra skills add owner/a owner/b owner/c@named ./local\n\n# Aliases\nokra skills i owner/repo@name\nokra skills install owner/repo@name\n```\n\nWhen a source resolves to multiple skills, an interactive `multiSelect` prompt opens. The prompt dims installed skills and keeps them unavailable for selection. A newly discovered single skill installs directly without a prompt.\n\nGitHub discovery prefers a real `SKILL.md` over symlinked copies of the same skill. File and directory symlinks within a skill are installed as their target contents at the link's path. Targets must stay inside the same repository and exist in its tree; invalid or cyclic links fail that skill before its installed files are changed. Updates use the same resolution, including existing lock entries pointing at a symlinked copy.\n\n## Removing skills\n\n```bash\n# By name\nokra skills remove my-skill\n\n# Variadic\nokra skills remove a b c\n\n# By local source path — removes every installed skill that came from that folder\nokra skills remove ./my-skills-dir\n\n# Aliases\nokra skills rm my-skill\nokra skills uninstall my-skill\n```\n\n## Updating\n\n```bash\n# Re-fetch every managed skill from its recorded source\nokra skills update\n\n# Check without writing: outdated skill names on stdout, progress on stderr\nokra skills update --dry-run\n\n# One JSON report on stdout: {dryRun, outdated:[{name,source,skillPath,moved}], failed:[{name,source,reason}], modified:[{name,source,reason}], unchanged}\nokra skills update --dry-run --json\n\n# Overwrite local edits in every managed skill\nokra skills update --force\n```\n\nAdd and update record a content `hash` in each lock entry. Before fetching a source, update compares the installed files with that baseline. A mismatch is reported as `modified` and skipped, including during `--dry-run`; its files and lock entry stay untouched. Move the edit to the recorded source, then use `--force` to accept the source version. Update takes no skill names, so `--force` applies to all managed skills. `--dry-run --force` previews that overwrite without writing anything.\n\nLegacy entries without a hash get a baseline on their next update. If source and installed files match, only the lock entry is backfilled; files are not rewritten. If they differ, update replaces the files as before and warns that no baseline existed to detect local edits. Dry-run never writes the lock, including backfills.\n\nThe stable hash format is `sha256:<lowercase hex>`. Sort relative paths using `/` separators in JavaScript UTF-16 code-unit order (not locale order). For each file, concatenate UTF-8 path bytes, a NUL byte, the ASCII decimal content byte length, a NUL byte, and the raw content bytes; SHA-256 hashes the concatenation of those records. All installed files, including hidden files and nested files, participate; timestamps, permissions, and empty directories do not. Added, deleted, renamed, and binary-edited files therefore change the hash.\n\nPer-skill `modified` and `failed` results both leave the command's exit code at 0, preserving the existing failure-reporting behavior. Scripts should inspect those JSON arrays. Command-level errors, such as an unreadable lock file, still fail the command.\n\nA local source that is missing on this machine is reported as failed; the skill and its lock entry stay. Delete with `okra skills remove`. A skill whose directory moved within its GitHub repo is found and its path updated.\nThe terminal shows one live status line. Each completed skill prints one result line. Spinner ticks add no lines to terminal history. Piped output contains results without animation.\n\n## Gotchas\n\n- `$SKILLS_DIR` is read once at layer construction. Restart the process after changing it.\n- Lock entries record the _resolved_ source (so `acme/repo@foo` stays as `acme/repo@foo` for updates).\n- Local sources under `$HOME` are recorded as `local:~/path`, so one lock works on machines with different home directories. Moving the source folder breaks `update`.\n- Multi-skill repos: choose carefully. Picking nothing in the prompt aborts the install for that source.\n- The `--skill/-s` flag was removed in favor of the `owner/repo@name` syntax.\n",
+  "err": "",
+  "code": 0,
+  "file": null
+ },
+ "how#5": {
+  "out": "# image\n\nGenerate images with GPT Image 2.5. The ChatGPT subscription remains the default.\n\n- **Codex subscription:** `--model` selects the main Responses model; the default is the newest GPT Sol the Codex account can use. The Codex backend always uses its own image model (`gpt-image-2-codex`) at a quality it chooses, so this route cannot select Flare or Sunburst. Authentication comes from `codex login`.\n- **OpenAI Images API:** `--model gpt-image-2.5-flare` or `--model gpt-image-2.5-sunburst` selects the paid API. This route needs an OpenAI API key. Use Flare for fast generation. Use Sunburst for precise edits.\n\n## Quick reference\n\n```bash\n# ChatGPT subscription (the Codex backend picks the image model)\nokra image \"a single ripe okra pod on white\" -o okra.png\n\n# Paid API: Sunburst for precise edits\nokra image \"an illustrated botanical label\" --model gpt-image-2.5-sunburst -o label.png\n\n# Paid API: Flare with the new quality setting and a custom size\nokra image \"a landscape at dawn\" --model gpt-image-2.5-flare \\\n  --quality xhigh --size 1536x864 -o landscape.png\n\n# Paid API: Sunburst edit\nokra image \"change only the sky to sunset\" --model gpt-image-2.5-sunburst \\\n  --ref photo.png --quality max -o sunset.png\n\n# Paid API: mask guides the edit\nokra image \"replace the sky\" --model gpt-image-2.5-sunburst \\\n  --ref photo.png --mask sky-mask.png -o edited.png\n\n# Paid API: transparent output\nokra image \"a simple leaf icon\" --model gpt-image-2.5-flare \\\n  --background transparent --format webp -o leaf.webp\n\n# Paid API: multiple output files\nokra image \"an okra logo\" --model gpt-image-2.5-flare --n 3 -o logo.png\n```\n\nThe last command writes `logo-1.png`, `logo-2.png`, and `logo-3.png`.\n\n## Flags\n\n| Flag           | Default               | Use                                                                                               |\n| -------------- | --------------------- | ------------------------------------------------------------------------------------------------- |\n| `--out`, `-o`  | `<prompt-slug>.png`   | Output path.                                                                                      |\n| `--model`      | newest usable GPT Sol | Main Codex model, or a direct API image model.                                                    |\n| `--size`       | `auto`                | Image dimensions, such as `1024x1024` or `1536x864`. Exact on the API route; see the note below.  |\n| `--format`     | `png`                 | `png`, `webp`, or `jpeg`.                                                                         |\n| `--quality`    | API model default     | API only: `auto`, `low`, `medium`, `high`, `xhigh`, or `max`. The last two require GPT Image 2.5. |\n| `--background` | API model default     | API only: `auto`, `transparent`, or `opaque`. Use PNG or WebP for transparency.                   |\n| `--n`          | `1`                   | API only: number of output images.                                                                |\n| `--ref`        | none                  | Repeatable input path. Codex: reference image. API: source image to edit.                         |\n| `--edit`       | off                   | Explicit API edit request. Requires `--ref`.                                                      |\n| `--mask`       | none                  | API edit mask. Requires `--ref`.                                                                  |\n| `--fidelity`   | omitted               | Legacy `gpt-image-1` and `gpt-image-1.5` edits only: `high` or `low`. Omit for GPT Image 2.5.     |\n\n`--quality`, `--background`, and `--n` apply only to the API route. The subscription route prints a note and ignores these flags. It returns one image.\n\nstdout contains the saved path, or one path per line for multiple images. Progress and errors go to stderr.\n\n## References and edits\n\nOn the subscription route, `--ref` supplies an image reference to the Responses model. This command supports explicit `--edit` and `--mask` controls only on the API route.\n\nOn the API route, `--ref` selects `/images/edits`. Use up to 16 source images. A mask applies to the first source image. Transparent areas guide the edit. A mask does not guarantee exact pixel boundaries.\n\nUse PNG, JPEG, or WebP sources. Use a PNG mask with an alpha channel. The CLI can also read GIF references, but acceptance depends on the selected backend. Output files are separate from source files unless you select the source path with `-o`.\n\nGPT Image 2.5 accepts custom dimensions. Each edge must be a multiple of 16 and at most 3840 pixels. The aspect ratio must stay between 1:3 and 3:1. The total must be from 655,360 to 8,294,400 pixels. The API checks these limits. Sizes above 2560x1440 are experimental.\n\nLegacy model names still route to the API. Their availability and controls depend on OpenAI. Do not use `xhigh` or `max` with a legacy model.\n\n## Authentication\n\nFor the subscription route, run `codex login`. Okra reads `~/.codex/auth.json` and the Codex version on each request.\n\nFor the paid API, use `OPENAI_API_KEY` or store a key:\n\n```bash\npbpaste | okra keys set openai --stdin\n```\n\nThe environment value takes priority over the stored key. Stored keys use `~/.okra/keys.json` with mode `0600`. Use `okra keys get openai` to see the source and a masked value.\n\n## Errors\n\n- `AUTH_MISSING`: run `codex login`, or set the API key for the selected route.\n- `AUTH_EXPIRED`: the server rejected the credentials. Sign in again or replace the API key.\n- `INVALID_INPUT`: check the model and flags. API edit controls need a source image.\n- `GENERATION_FAILED`: the server rejected the request or returned an invalid response.\n- `NO_IMAGE`: the response contains no image.\n- `DECODE_FAILED`: the response contains invalid base64 data.\n\n## Transport notes\n\nThe subscription route sends `store: false`, streams the response, and includes the installed Codex version. `CodexStreamPatch` handles the server's `generating` image status before the Effect adapter decodes the stream.\n\nOn the Codex route the backend replaces the tool's `size` with `auto` and lets the model choose. Okra states the requested size in the prompt, which gives exact portrait and landscape sizes (`1024x1536`, `1536x1024`), but a square comes back as `1254x1254`. Okra prints a note on stderr when the result differs from `--size`. Use an API image model for an exact size.\n\nThe API route decodes all base64 image results. Okra extends the upstream request and response schemas for GPT Image 2.5 quality values and custom response sizes.\n\n## Sources\n\n- [OpenAI image generation guide](https://developers.openai.com/api/docs/guides/image-generation)\n- [GPT Image 2.5 Flare](https://developers.openai.com/api/docs/models/gpt-image-2.5-flare)\n- [GPT Image 2.5 Sunburst](https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst)\n",
+  "err": "",
+  "code": 0,
+  "file": null
+ },
+ "how#6": {
+  "out": "# keys\n\nCentralized management of the API keys okra persists in `~/.okra/keys.json` — a generic,\nmulti-provider map (`{ \"openai\": \"sk-...\", \"anthropic\": \"sk-...\" }`) written `0600`. Keys are\naddressed by a **provider name**. Any okra domain that needs an API key resolves it from here,\nwith the rule **environment variable > stored key**.\n\n## Quick Reference\n\n| Command                                         | What it does                                                  |\n| ----------------------------------------------- | ------------------------------------------------------------- |\n| `okra keys set <provider> <key>`                | Store a key for a provider (merges; other keys preserved)     |\n| `echo $KEY \\| okra keys set <provider> --stdin` | Store a key from stdin (avoids shell history)                 |\n| `okra keys list`                                | Print stored provider **names** (never values), one per line  |\n| `okra keys get <provider>`                      | Show if a key is set (masked) and its source; exit 1 if unset |\n| `okra keys rm <provider>`                       | Remove a stored key                                           |\n\nConfirmations go to **stderr**; `okra keys list` and `okra keys get` print to **stdout** so they're pipeable.\nThe key value is **never** echoed — `get` shows only a masked preview (`sk-pr…1234`).\n\n## Usage\n\n```bash\n# Store the OpenAI key used by `okra image --model gpt-image-1.5`\nokra keys set openai sk-...\n\n# Pipe from a password manager so the key never lands in shell history\nop read \"op://Private/OpenAI/key\" | okra keys set openai --stdin\n\n# What's stored? (names only)\nokra keys list\n# → openai\n\n# Is it configured, and from where? (masked — never reveals the secret)\nokra keys get openai\n# → sk-pr…1234 (stored)        # or \"… (env OPENAI_API_KEY)\" when the env var wins\n# Exits 1 with [NOT_FOUND] if neither env nor stored — handy for scripts:\nokra keys get openai >/dev/null 2>&1 || echo \"set your OpenAI key first\"\n\n# Rotate / clear\nokra keys rm openai\n```\n\n## Resolution precedence\n\nWhen a domain needs a key, it checks the **environment variable first**, then the stored key:\n\n1. `OPENAI_API_KEY` (or the domain's env var) — if set, it wins.\n2. `~/.okra/keys.json[<provider>]` — the stored fallback.\n3. Otherwise the domain fails with its own \"missing key\" error.\n\nSo an exported env var transparently overrides whatever is stored — handy for one-off runs or CI.\n\n## Consumers\n\n| Provider name | Used by                         | Env override     |\n| ------------- | ------------------------------- | ---------------- |\n| `openai`      | `okra image` (GPT-image/DALL·E) | `OPENAI_API_KEY` |\n\n(Future domains reuse the same store under their own provider name.)\n\n## Gotchas\n\n- `set` **merges** into the existing map — storing one provider never clobbers another.\n- `list` reads names only; it never decodes or prints secret values.\n- The file is created `0600`; the parent `~/.okra/` directory is created on first write.\n- A malformed `keys.json` is treated as empty (resolution falls through to env / missing-key error) rather than crashing.\n- Removing a provider that isn't stored exits with `[NOT_FOUND]`.\n",
+  "err": "",
+  "code": 0,
+  "file": null
+ },
+ "how#7": {
+  "out": "",
+  "err": "[NOT_FOUND] Unknown topic 'unknown'. Available topics: schedule, counsel, repo, skills, image, keys\n",
+  "code": 1,
+  "file": null
+ },
+ "usage#0": {
+  "out": "DESCRIPTION\n  Manage stored API keys in ~/.okra/keys.json\n\nUSAGE\n  okra keys <subcommand> [flags]\n\nGLOBAL FLAGS\n  --help, -h                                                          Show help information\n  --version, -v                                                       Show version information\n  --wizard                                                            Start wizard mode for a command\n  --completions <bash|zsh|fish|powershell|sh|pwsh>                    Print shell completion script (choices: bash, zsh, fish, powershell, sh, pwsh)\n  --log-level <all|trace|debug|info|warn|warning|error|fatal|none>    Sets the minimum log level (choices: all, trace, debug, info, warn, warning, error, fatal, none)\n\nSUBCOMMANDS\n  set     Store an API key for a provider\n  list    List provider names that have a stored key\n  get     Show whether a provider's key is set (masked), and its source\n  rm      Remove a stored API key\n",
+  "err": "\nERROR\n  Unknown subcommand \"unknown\" for \"okra keys\"\n",
+  "code": 1,
+  "file": null
+ },
+ "usage#1": {
+  "out": "DESCRIPTION\n  Show whether a provider's key is set (masked), and its source\n\nUSAGE\n  okra keys get [flags] <provider>\n\nARGUMENTS\n  provider string    Provider name, e.g. openai\n\nGLOBAL FLAGS\n  --help, -h                                                          Show help information\n  --version, -v                                                       Show version information\n  --wizard                                                            Start wizard mode for a command\n  --completions <bash|zsh|fish|powershell|sh|pwsh>                    Print shell completion script (choices: bash, zsh, fish, powershell, sh, pwsh)\n  --log-level <all|trace|debug|info|warn|warning|error|fatal|none>    Sets the minimum log level (choices: all, trace, debug, info, warn, warning, error, fatal, none)\n",
+  "err": "\nERROR\n  Missing required argument: provider\n",
+  "code": 1,
+  "file": null
+ },
+ "usage#2": {
+  "out": "DESCRIPTION\n  List provider names that have a stored key\n\nUSAGE\n  okra keys list [flags]\n\nGLOBAL FLAGS\n  --help, -h                                                          Show help information\n  --version, -v                                                       Show version information\n  --wizard                                                            Start wizard mode for a command\n  --completions <bash|zsh|fish|powershell|sh|pwsh>                    Print shell completion script (choices: bash, zsh, fish, powershell, sh, pwsh)\n  --log-level <all|trace|debug|info|warn|warning|error|fatal|none>    Sets the minimum log level (choices: all, trace, debug, info, warn, warning, error, fatal, none)\n",
+  "err": "\nERROR\n  Unexpected positional argument: \"extra\"\n",
+  "code": 1,
+  "file": null
+ },
+ "usage#3": {
+  "out": "DESCRIPTION\n  Show whether a provider's key is set (masked), and its source\n\nUSAGE\n  okra keys get [flags] <provider>\n\nARGUMENTS\n  provider string    Provider name, e.g. openai\n\nGLOBAL FLAGS\n  --help, -h                                                          Show help information\n  --version, -v                                                       Show version information\n  --wizard                                                            Start wizard mode for a command\n  --completions <bash|zsh|fish|powershell|sh|pwsh>                    Print shell completion script (choices: bash, zsh, fish, powershell, sh, pwsh)\n  --log-level <all|trace|debug|info|warn|warning|error|fatal|none>    Sets the minimum log level (choices: all, trace, debug, info, warn, warning, error, fatal, none)\n",
+  "err": "\nERROR\n  Unrecognized flag: --bad in command okra keys get\n",
+  "code": 1,
+  "file": null
+ },
+ "usage#4": {
+  "out": "DESCRIPTION\n  Store an API key for a provider\n\nUSAGE\n  okra keys set [flags] <provider> [<key>]\n\nARGUMENTS\n  provider string    Provider name, e.g. openai\n  key string         API key value (omit and use --stdin to avoid shell history) (optional)\n\nFLAGS\n  --stdin    Read the key from stdin instead of an argument\n\nGLOBAL FLAGS\n  --help, -h                                                          Show help information\n  --version, -v                                                       Show version information\n  --wizard                                                            Start wizard mode for a command\n  --completions <bash|zsh|fish|powershell|sh|pwsh>                    Print shell completion script (choices: bash, zsh, fish, powershell, sh, pwsh)\n  --log-level <all|trace|debug|info|warn|warning|error|fatal|none>    Sets the minimum log level (choices: all, trace, debug, info, warn, warning, error, fatal, none)\n",
+  "err": "\nERROR\n  Invalid value for flag --stdin: \"2 occurrences\". Expected: at most 1 value\n",
+  "code": 1,
+  "file": null
+ },
+ "usage#5": {
+  "out": "DESCRIPTION\n  Print usage guides for okra domains (list topics, or one full guide)\n\nUSAGE\n  okra how [flags] [<topic>]\n\nARGUMENTS\n  topic string    Topic to explain; omit to list all topics (optional)\n\nGLOBAL FLAGS\n  --help, -h                                                          Show help information\n  --version, -v                                                       Show version information\n  --wizard                                                            Start wizard mode for a command\n  --completions <bash|zsh|fish|powershell|sh|pwsh>                    Print shell completion script (choices: bash, zsh, fish, powershell, sh, pwsh)\n  --log-level <all|trace|debug|info|warn|warning|error|fatal|none>    Sets the minimum log level (choices: all, trace, debug, info, warn, warning, error, fatal, none)\n",
+  "err": "\nERROR\n  Unexpected positional argument: \"extra\"\n",
+  "code": 1,
+  "file": null
+ },
+ "unicode-boundaries#0": {
+  "out": "",
+  "err": "Saved \"unicode\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"unicode\":\"fixture-short\"}\n",
+   "mode": 384
+  }
+ },
+ "unicode-boundaries#1": {
+  "out": "fixtu…hort (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"unicode\":\"fixture-short\"}\n",
+   "mode": 384
+  }
+ },
+ "unicode-boundaries#2": {
+  "out": "",
+  "err": "Saved \"unicode\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"unicode\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "unicode-boundaries#3": {
+  "out": "abc😀…gh🦉 (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"unicode\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "unicode-boundaries#4": {
+  "out": "",
+  "err": "Saved \"unicode\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"unicode\":\"abcd😀efghi\"}\n",
+   "mode": 384
+  }
+ },
+ "unicode-boundaries#5": {
+  "out": "abcd�…fghi (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"unicode\":\"abcd😀efghi\"}\n",
+   "mode": 384
+  }
+ },
+ "unicode-boundaries#6": {
+  "out": "",
+  "err": "Saved \"unicode\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"unicode\":\"é🦉短\"}\n",
+   "mode": 384
+  }
+ },
+ "unicode-boundaries#7": {
+  "out": "•••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"unicode\":\"é🦉短\"}\n",
+   "mode": 384
+  }
+ },
+ "unicode-boundaries#8": {
+  "out": "",
+  "err": "Saved \"unicode\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"unicode\":\"quote\\\"slash\\\\control\\b\"}\n",
+   "mode": 384
+  }
+ },
+ "unicode-boundaries#9": {
+  "out": "quote…rol\b (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"unicode\":\"quote\\\"slash\\\\control\\b\"}\n",
+   "mode": 384
+  }
+ },
+ "unicode-boundaries#10": {
+  "out": "",
+  "err": "Saved \"unicode\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"unicode\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "unicode-boundaries#11": {
+  "out": "••••••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"unicode\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "unicode-boundaries#12": {
+  "out": "",
+  "err": "Saved \"unicode\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"unicode\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "unicode-boundaries#13": {
+  "out": "fixt…ure (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"unicode\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "unicode-boundaries#14": {
+  "out": "",
+  "err": "[INVALID_INPUT] Key is empty\n",
+  "code": 1,
+  "file": {
+   "text": "{\"unicode\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "unicode-boundaries#15": {
+  "out": "fixt…ure (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"unicode\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "unicode-boundaries#16": {
+  "out": "",
+  "err": "Saved \"unicode\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"unicode\":\"line\\nsecond\"}\n",
+   "mode": 384
+  }
+ },
+ "unicode-boundaries#17": {
+  "out": "line\n…cond (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"unicode\":\"line\\nsecond\"}\n",
+   "mode": 384
+  }
+ },
+ "unicode-boundaries#18": {
+  "out": "",
+  "err": "Saved \"unicode\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"unicode\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "unicode-boundaries#19": {
+  "out": "••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"unicode\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-0#0": {
+  "out": "",
+  "err": "[INVALID_INPUT] Key is empty\n",
+  "code": 1,
+  "file": null
+ },
+ "seed-7-0#1": {
+  "out": "",
+  "err": "[NOT_FOUND] No key for \"10\". Set OKRA_KEY_10 or run `okra keys set 10`.\n",
+  "code": 1,
+  "file": null
+ },
+ "seed-7-0#2": {
+  "out": "",
+  "err": "No keys stored. Add one with `okra keys set <provider> <key>`.\n",
+  "code": 0,
+  "file": null
+ },
+ "seed-7-0#3": {
+  "out": "",
+  "err": "Saved \"😀\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"😀\":\"quote\\\"slash\\\\control\\b\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-0#4": {
+  "out": "quote…rol\b (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"😀\":\"quote\\\"slash\\\\control\\b\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-0#5": {
+  "out": "😀\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"😀\":\"quote\\\"slash\\\\control\\b\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-0#6": {
+  "out": "",
+  "err": "Removed \"😀\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-0#7": {
+  "out": "",
+  "err": "Saved \"😀\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"😀\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-0#8": {
+  "out": "••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"😀\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-0#9": {
+  "out": "😀\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"😀\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-0#10": {
+  "out": "",
+  "err": "Saved \"4294967294\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"fixture\",\"😀\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-0#11": {
+  "out": "fixt…ure (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"fixture\",\"😀\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-0#12": {
+  "out": "4294967294\n😀\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"fixture\",\"😀\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-0#13": {
+  "out": "",
+  "err": "Removed \"4294967294\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"😀\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-0#14": {
+  "out": "",
+  "err": "Saved \"__proto__\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"😀\":\"x\\u0000y\",\"__proto__\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-0#15": {
+  "out": "",
+  "err": "Internal error: TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function\n",
+  "code": 1,
+  "file": {
+   "text": "{\"😀\":\"x\\u0000y\",\"__proto__\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-0#16": {
+  "out": "__proto__\n😀\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"😀\":\"x\\u0000y\",\"__proto__\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-0#17": {
+  "out": "",
+  "err": "Saved \"4294967294\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"line\\nsecond\",\"😀\":\"x\\u0000y\",\"__proto__\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-0#18": {
+  "out": "line\n…cond (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"line\\nsecond\",\"😀\":\"x\\u0000y\",\"__proto__\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-0#19": {
+  "out": "4294967294\n__proto__\n😀\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"line\\nsecond\",\"😀\":\"x\\u0000y\",\"__proto__\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-0#20": {
+  "out": "",
+  "err": "Removed \"4294967294\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"😀\":\"x\\u0000y\",\"__proto__\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-1#0": {
+  "out": "",
+  "err": "Saved \"openai\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-1#1": {
+  "out": "••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-1#2": {
+  "out": "openai\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-1#3": {
+  "out": "",
+  "err": "Saved \"4294967294\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"abcd😀efghi\",\"openai\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-1#4": {
+  "out": "abcd�…fghi (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"abcd😀efghi\",\"openai\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-1#5": {
+  "out": "4294967294\nopenai\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"abcd😀efghi\",\"openai\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-1#6": {
+  "out": "",
+  "err": "Removed \"4294967294\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-1#7": {
+  "out": "",
+  "err": "Saved \"4294967294\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"x\\u0000y\",\"openai\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-1#8": {
+  "out": "••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"x\\u0000y\",\"openai\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-1#9": {
+  "out": "4294967294\nopenai\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"x\\u0000y\",\"openai\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-1#10": {
+  "out": "",
+  "err": "Saved \"λ\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"x\\u0000y\",\"openai\":\"x\\u0000y\",\"λ\":\"line\\nsecond\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-1#11": {
+  "out": "line\n…cond (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"x\\u0000y\",\"openai\":\"x\\u0000y\",\"λ\":\"line\\nsecond\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-1#12": {
+  "out": "4294967294\nopenai\nλ\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"x\\u0000y\",\"openai\":\"x\\u0000y\",\"λ\":\"line\\nsecond\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-1#13": {
+  "out": "",
+  "err": "Removed \"λ\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"x\\u0000y\",\"openai\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-1#14": {
+  "out": "",
+  "err": "Saved \"constructor\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"x\\u0000y\",\"openai\":\"x\\u0000y\",\"constructor\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-1#15": {
+  "out": "",
+  "err": "Internal error: TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function\n",
+  "code": 1,
+  "file": {
+   "text": "{\"4294967294\":\"x\\u0000y\",\"openai\":\"x\\u0000y\",\"constructor\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-1#16": {
+  "out": "4294967294\nconstructor\nopenai\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"x\\u0000y\",\"openai\":\"x\\u0000y\",\"constructor\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-1#17": {
+  "out": "",
+  "err": "Saved \"\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"x\\u0000y\",\"openai\":\"x\\u0000y\",\"constructor\":\"abc😀defgh🦉\",\"\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-1#18": {
+  "out": "fixt…ure (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"x\\u0000y\",\"openai\":\"x\\u0000y\",\"constructor\":\"abc😀defgh🦉\",\"\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-1#19": {
+  "out": "4294967294\nconstructor\nopenai\n\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"x\\u0000y\",\"openai\":\"x\\u0000y\",\"constructor\":\"abc😀defgh🦉\",\"\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-1#20": {
+  "out": "",
+  "err": "Removed \"\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"x\\u0000y\",\"openai\":\"x\\u0000y\",\"constructor\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-2#0": {
+  "out": "",
+  "err": "[INVALID_INPUT] Key is empty\n",
+  "code": 1,
+  "file": null
+ },
+ "seed-7-2#1": {
+  "out": "",
+  "err": "[NOT_FOUND] No key for \"4294967295\". Set OKRA_KEY_4294967295 or run `okra keys set 4294967295`.\n",
+  "code": 1,
+  "file": null
+ },
+ "seed-7-2#2": {
+  "out": "",
+  "err": "No keys stored. Add one with `okra keys set <provider> <key>`.\n",
+  "code": 0,
+  "file": null
+ },
+ "seed-7-2#3": {
+  "out": "",
+  "err": "Saved \"10\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"10\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-2#4": {
+  "out": "fixt…ure (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"10\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-2#5": {
+  "out": "10\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"10\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-2#6": {
+  "out": "",
+  "err": "Removed \"10\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-2#7": {
+  "out": "",
+  "err": "[INVALID_INPUT] Key is empty\n",
+  "code": 1,
+  "file": {
+   "text": "{}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-2#8": {
+  "out": "",
+  "err": "[NOT_FOUND] No key for \"openai\". Set OPENAI_API_KEY or run `okra keys set openai`.\n",
+  "code": 1,
+  "file": {
+   "text": "{}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-2#9": {
+  "out": "",
+  "err": "No keys stored. Add one with `okra keys set <provider> <key>`.\n",
+  "code": 0,
+  "file": {
+   "text": "{}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-2#10": {
+  "out": "",
+  "err": "Saved \"constructor\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"constructor\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-2#11": {
+  "out": "",
+  "err": "Internal error: TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function\n",
+  "code": 1,
+  "file": {
+   "text": "{\"constructor\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-2#12": {
+  "out": "constructor\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"constructor\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-2#13": {
+  "out": "",
+  "err": "Removed \"constructor\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-2#14": {
+  "out": "",
+  "err": "Saved \"4294967295\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967295\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-2#15": {
+  "out": "abc😀…gh🦉 (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967295\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-2#16": {
+  "out": "4294967295\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967295\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-2#17": {
+  "out": "",
+  "err": "Saved \"__proto__\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967295\":\"abc😀defgh🦉\",\"__proto__\":\"fixture-short\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-2#18": {
+  "out": "",
+  "err": "Internal error: TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function\n",
+  "code": 1,
+  "file": {
+   "text": "{\"4294967295\":\"abc😀defgh🦉\",\"__proto__\":\"fixture-short\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-2#19": {
+  "out": "4294967295\n__proto__\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967295\":\"abc😀defgh🦉\",\"__proto__\":\"fixture-short\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-2#20": {
+  "out": "",
+  "err": "Removed \"__proto__\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967295\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-3#0": {
+  "out": "",
+  "err": "Saved \"4294967295\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967295\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-3#1": {
+  "out": "••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967295\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-3#2": {
+  "out": "4294967295\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967295\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-3#3": {
+  "out": "",
+  "err": "Saved \"constructor\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967295\":\"x\\u0000y\",\"constructor\":\"abcd😀efghi\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-3#4": {
+  "out": "",
+  "err": "Internal error: TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function\n",
+  "code": 1,
+  "file": {
+   "text": "{\"4294967295\":\"x\\u0000y\",\"constructor\":\"abcd😀efghi\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-3#5": {
+  "out": "4294967295\nconstructor\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967295\":\"x\\u0000y\",\"constructor\":\"abcd😀efghi\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-3#6": {
+  "out": "",
+  "err": "Removed \"constructor\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967295\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-3#7": {
+  "out": "",
+  "err": "Saved \"2\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"4294967295\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-3#8": {
+  "out": "••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"4294967295\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-3#9": {
+  "out": "2\n4294967295\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"4294967295\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-3#10": {
+  "out": "",
+  "err": "Saved \"\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"4294967295\":\"x\\u0000y\",\"\":\"fixture-short\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-3#11": {
+  "out": "fixtu…hort (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"4294967295\":\"x\\u0000y\",\"\":\"fixture-short\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-3#12": {
+  "out": "2\n4294967295\n\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"4294967295\":\"x\\u0000y\",\"\":\"fixture-short\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-3#13": {
+  "out": "",
+  "err": "Removed \"\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"4294967295\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-3#14": {
+  "out": "",
+  "err": "Saved \"other\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"4294967295\":\"x\\u0000y\",\"other\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-3#15": {
+  "out": "••••••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"4294967295\":\"x\\u0000y\",\"other\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-3#16": {
+  "out": "2\n4294967295\nother\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"4294967295\":\"x\\u0000y\",\"other\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-3#17": {
+  "out": "",
+  "err": "Saved \"__proto__\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"4294967295\":\"x\\u0000y\",\"other\":\"fixture\",\"__proto__\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-3#18": {
+  "out": "",
+  "err": "Internal error: TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function\n",
+  "code": 1,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"4294967295\":\"x\\u0000y\",\"other\":\"fixture\",\"__proto__\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-3#19": {
+  "out": "2\n4294967295\n__proto__\nother\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"4294967295\":\"x\\u0000y\",\"other\":\"fixture\",\"__proto__\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-3#20": {
+  "out": "",
+  "err": "Removed \"__proto__\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"4294967295\":\"x\\u0000y\",\"other\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-4#0": {
+  "out": "",
+  "err": "Saved \"__proto__\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"__proto__\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-4#1": {
+  "out": "",
+  "err": "Internal error: TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function\n",
+  "code": 1,
+  "file": {
+   "text": "{\"__proto__\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-4#2": {
+  "out": "__proto__\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"__proto__\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-4#3": {
+  "out": "",
+  "err": "Saved \"2\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"line\\nsecond\",\"__proto__\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-4#4": {
+  "out": "line\n…cond (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"line\\nsecond\",\"__proto__\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-4#5": {
+  "out": "2\n__proto__\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"line\\nsecond\",\"__proto__\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-4#6": {
+  "out": "",
+  "err": "Removed \"2\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"__proto__\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-4#7": {
+  "out": "",
+  "err": "Saved \"__proto__\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"__proto__\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-4#8": {
+  "out": "",
+  "err": "Internal error: TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function\n",
+  "code": 1,
+  "file": {
+   "text": "{\"__proto__\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-4#9": {
+  "out": "__proto__\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"__proto__\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-4#10": {
+  "out": "",
+  "err": "Saved \"other\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"__proto__\":\"fixture\",\"other\":\"line\\nsecond\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-4#11": {
+  "out": "line\n…cond (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"__proto__\":\"fixture\",\"other\":\"line\\nsecond\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-4#12": {
+  "out": "__proto__\nother\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"__proto__\":\"fixture\",\"other\":\"line\\nsecond\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-4#13": {
+  "out": "",
+  "err": "Removed \"other\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"__proto__\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-4#14": {
+  "out": "",
+  "err": "Saved \"other\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"__proto__\":\"fixture\",\"other\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-4#15": {
+  "out": "••••••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"__proto__\":\"fixture\",\"other\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-4#16": {
+  "out": "__proto__\nother\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"__proto__\":\"fixture\",\"other\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-4#17": {
+  "out": "",
+  "err": "Saved \"0\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"0\":\"abcd😀efghi\",\"__proto__\":\"fixture\",\"other\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-4#18": {
+  "out": "abcd�…fghi (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"0\":\"abcd😀efghi\",\"__proto__\":\"fixture\",\"other\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-4#19": {
+  "out": "0\n__proto__\nother\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"0\":\"abcd😀efghi\",\"__proto__\":\"fixture\",\"other\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-4#20": {
+  "out": "",
+  "err": "Removed \"0\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"__proto__\":\"fixture\",\"other\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-5#0": {
+  "out": "",
+  "err": "Saved \"2\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-5#1": {
+  "out": "••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-5#2": {
+  "out": "2\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-5#3": {
+  "out": "",
+  "err": "Saved \"other\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"other\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-5#4": {
+  "out": "fixt…ure (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"other\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-5#5": {
+  "out": "2\nother\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"other\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-5#6": {
+  "out": "",
+  "err": "Removed \"other\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-5#7": {
+  "out": "",
+  "err": "Saved \"other\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"other\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-5#8": {
+  "out": "abc😀…gh🦉 (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"other\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-5#9": {
+  "out": "2\nother\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"other\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-5#10": {
+  "out": "",
+  "err": "Saved \"😀\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"other\":\"abc😀defgh🦉\",\"😀\":\"quote\\\"slash\\\\control\\b\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-5#11": {
+  "out": "quote…rol\b (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"other\":\"abc😀defgh🦉\",\"😀\":\"quote\\\"slash\\\\control\\b\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-5#12": {
+  "out": "2\nother\n😀\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"other\":\"abc😀defgh🦉\",\"😀\":\"quote\\\"slash\\\\control\\b\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-5#13": {
+  "out": "",
+  "err": "Removed \"😀\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"other\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-5#14": {
+  "out": "",
+  "err": "Saved \"10\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"10\":\"fixture\",\"other\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-5#15": {
+  "out": "••••••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"10\":\"fixture\",\"other\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-5#16": {
+  "out": "10\n2\nother\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"10\":\"fixture\",\"other\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-5#17": {
+  "out": "",
+  "err": "Saved \"other\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"10\":\"fixture\",\"other\":\"abcd😀efghi\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-5#18": {
+  "out": "abcd�…fghi (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"10\":\"fixture\",\"other\":\"abcd😀efghi\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-5#19": {
+  "out": "10\n2\nother\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"10\":\"fixture\",\"other\":\"abcd😀efghi\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-5#20": {
+  "out": "",
+  "err": "Removed \"other\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"2\":\"x\\u0000y\",\"10\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-6#0": {
+  "out": "",
+  "err": "Saved \"openai\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-6#1": {
+  "out": "••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-6#2": {
+  "out": "openai\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-6#3": {
+  "out": "",
+  "err": "Saved \"__proto__\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\",\"__proto__\":\"line\\nsecond\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-6#4": {
+  "out": "",
+  "err": "Internal error: TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function\n",
+  "code": 1,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\",\"__proto__\":\"line\\nsecond\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-6#5": {
+  "out": "__proto__\nopenai\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\",\"__proto__\":\"line\\nsecond\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-6#6": {
+  "out": "",
+  "err": "Removed \"__proto__\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-6#7": {
+  "out": "",
+  "err": "Saved \"😀\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\",\"😀\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-6#8": {
+  "out": "••••••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\",\"😀\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-6#9": {
+  "out": "openai\n😀\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\",\"😀\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-6#10": {
+  "out": "",
+  "err": "Saved \"4294967295\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\",\"😀\":\"fixture\",\"4294967295\":\"fixture-short\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-6#11": {
+  "out": "fixtu…hort (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\",\"😀\":\"fixture\",\"4294967295\":\"fixture-short\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-6#12": {
+  "out": "4294967295\nopenai\n😀\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\",\"😀\":\"fixture\",\"4294967295\":\"fixture-short\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-6#13": {
+  "out": "",
+  "err": "Removed \"4294967295\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\",\"😀\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-6#14": {
+  "out": "",
+  "err": "[INVALID_INPUT] Key is empty\n",
+  "code": 1,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\",\"😀\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-6#15": {
+  "out": "",
+  "err": "[NOT_FOUND] No key for \"2\". Set OKRA_KEY_2 or run `okra keys set 2`.\n",
+  "code": 1,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\",\"😀\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-6#16": {
+  "out": "openai\n😀\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\",\"😀\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-6#17": {
+  "out": "",
+  "err": "Saved \"__proto__\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\",\"😀\":\"fixture\",\"__proto__\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-6#18": {
+  "out": "",
+  "err": "Internal error: TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function\n",
+  "code": 1,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\",\"😀\":\"fixture\",\"__proto__\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-6#19": {
+  "out": "__proto__\nopenai\n😀\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\",\"😀\":\"fixture\",\"__proto__\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-6#20": {
+  "out": "",
+  "err": "Removed \"__proto__\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"x\\u0000y\",\"😀\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-7#0": {
+  "out": "",
+  "err": "Saved \"other\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-7#1": {
+  "out": "••••••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-7#2": {
+  "out": "other\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-7#3": {
+  "out": "",
+  "err": "Saved \"openai\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\",\"openai\":\"quote\\\"slash\\\\control\\b\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-7#4": {
+  "out": "quote…rol\b (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\",\"openai\":\"quote\\\"slash\\\\control\\b\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-7#5": {
+  "out": "openai\nother\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\",\"openai\":\"quote\\\"slash\\\\control\\b\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-7#6": {
+  "out": "",
+  "err": "Removed \"openai\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-7#7": {
+  "out": "",
+  "err": "Saved \"4294967295\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\",\"4294967295\":\"é🦉短\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-7#8": {
+  "out": "•••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\",\"4294967295\":\"é🦉短\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-7#9": {
+  "out": "4294967295\nother\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\",\"4294967295\":\"é🦉短\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-7#10": {
+  "out": "",
+  "err": "Saved \"openai\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\",\"4294967295\":\"é🦉短\",\"openai\":\"line\\nsecond\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-7#11": {
+  "out": "line\n…cond (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\",\"4294967295\":\"é🦉短\",\"openai\":\"line\\nsecond\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-7#12": {
+  "out": "4294967295\nopenai\nother\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\",\"4294967295\":\"é🦉短\",\"openai\":\"line\\nsecond\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-7#13": {
+  "out": "",
+  "err": "Removed \"openai\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\",\"4294967295\":\"é🦉短\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-7#14": {
+  "out": "",
+  "err": "Saved \"😀\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\",\"4294967295\":\"é🦉短\",\"😀\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-7#15": {
+  "out": "••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\",\"4294967295\":\"é🦉短\",\"😀\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-7#16": {
+  "out": "4294967295\nother\n😀\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\",\"4294967295\":\"é🦉短\",\"😀\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-7#17": {
+  "out": "",
+  "err": "Saved \"01\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\",\"4294967295\":\"é🦉短\",\"😀\":\"x\\u0000y\",\"01\":\"line\\nsecond\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-7#18": {
+  "out": "line\n…cond (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\",\"4294967295\":\"é🦉短\",\"😀\":\"x\\u0000y\",\"01\":\"line\\nsecond\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-7#19": {
+  "out": "01\n4294967295\nother\n😀\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\",\"4294967295\":\"é🦉短\",\"😀\":\"x\\u0000y\",\"01\":\"line\\nsecond\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-7#20": {
+  "out": "",
+  "err": "Removed \"01\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\",\"4294967295\":\"é🦉短\",\"😀\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-8#0": {
+  "out": "",
+  "err": "Saved \"4294967294\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-8#1": {
+  "out": "••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-8#2": {
+  "out": "4294967294\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-8#3": {
+  "out": "",
+  "err": "Saved \"10\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"10\":\"fixture-short\",\"4294967294\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-8#4": {
+  "out": "fixtu…hort (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"10\":\"fixture-short\",\"4294967294\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-8#5": {
+  "out": "10\n4294967294\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"10\":\"fixture-short\",\"4294967294\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-8#6": {
+  "out": "",
+  "err": "Removed \"10\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-8#7": {
+  "out": "",
+  "err": "Saved \"other\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"x\\u0000y\",\"other\":\"é🦉短\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-8#8": {
+  "out": "•••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"x\\u0000y\",\"other\":\"é🦉短\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-8#9": {
+  "out": "4294967294\nother\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"x\\u0000y\",\"other\":\"é🦉短\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-8#10": {
+  "out": "",
+  "err": "Saved \"4294967294\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"line\\nsecond\",\"other\":\"é🦉短\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-8#11": {
+  "out": "line\n…cond (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"line\\nsecond\",\"other\":\"é🦉短\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-8#12": {
+  "out": "4294967294\nother\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"line\\nsecond\",\"other\":\"é🦉短\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-8#13": {
+  "out": "",
+  "err": "Removed \"4294967294\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"é🦉短\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-8#14": {
+  "out": "",
+  "err": "Saved \"\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"é🦉短\",\"\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-8#15": {
+  "out": "abc😀…gh🦉 (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"é🦉短\",\"\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-8#16": {
+  "out": "other\n\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"é🦉短\",\"\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-8#17": {
+  "out": "",
+  "err": "Saved \"λ\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"é🦉短\",\"\":\"abc😀defgh🦉\",\"λ\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-8#18": {
+  "out": "fixt…ure (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"é🦉短\",\"\":\"abc😀defgh🦉\",\"λ\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-8#19": {
+  "out": "other\nλ\n\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"é🦉短\",\"\":\"abc😀defgh🦉\",\"λ\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-8#20": {
+  "out": "",
+  "err": "Removed \"λ\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"é🦉短\",\"\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-9#0": {
+  "out": "",
+  "err": "Saved \"__proto__\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"__proto__\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-9#1": {
+  "out": "",
+  "err": "Internal error: TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function\n",
+  "code": 1,
+  "file": {
+   "text": "{\"__proto__\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-9#2": {
+  "out": "__proto__\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"__proto__\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-9#3": {
+  "out": "",
+  "err": "Saved \"0\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"0\":\"quote\\\"slash\\\\control\\b\",\"__proto__\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-9#4": {
+  "out": "quote…rol\b (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"0\":\"quote\\\"slash\\\\control\\b\",\"__proto__\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-9#5": {
+  "out": "0\n__proto__\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"0\":\"quote\\\"slash\\\\control\\b\",\"__proto__\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-9#6": {
+  "out": "",
+  "err": "Removed \"0\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"__proto__\":\"abc😀defgh🦉\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-9#7": {
+  "out": "",
+  "err": "Saved \"openai\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"__proto__\":\"abc😀defgh🦉\",\"openai\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-9#8": {
+  "out": "••••••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"__proto__\":\"abc😀defgh🦉\",\"openai\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-9#9": {
+  "out": "__proto__\nopenai\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"__proto__\":\"abc😀defgh🦉\",\"openai\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-9#10": {
+  "out": "",
+  "err": "Saved \"__proto__\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"__proto__\":\"line\\nsecond\",\"openai\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-9#11": {
+  "out": "",
+  "err": "Internal error: TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function\n",
+  "code": 1,
+  "file": {
+   "text": "{\"__proto__\":\"line\\nsecond\",\"openai\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-9#12": {
+  "out": "__proto__\nopenai\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"__proto__\":\"line\\nsecond\",\"openai\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-9#13": {
+  "out": "",
+  "err": "Removed \"__proto__\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-9#14": {
+  "out": "",
+  "err": "Saved \"4294967294\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"fixture\",\"openai\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-9#15": {
+  "out": "••••••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"fixture\",\"openai\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-9#16": {
+  "out": "4294967294\nopenai\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"fixture\",\"openai\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-9#17": {
+  "out": "",
+  "err": "Saved \"4294967295\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"fixture\",\"openai\":\"fixture\",\"4294967295\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-9#18": {
+  "out": "fixt…ure (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"fixture\",\"openai\":\"fixture\",\"4294967295\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-9#19": {
+  "out": "4294967294\n4294967295\nopenai\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"fixture\",\"openai\":\"fixture\",\"4294967295\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-9#20": {
+  "out": "",
+  "err": "Removed \"4294967295\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"4294967294\":\"fixture\",\"openai\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-10#0": {
+  "out": "",
+  "err": "Saved \"other\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-10#1": {
+  "out": "••••••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-10#2": {
+  "out": "other\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-10#3": {
+  "out": "",
+  "err": "Saved \"😀\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\",\"😀\":\"line\\nsecond\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-10#4": {
+  "out": "line\n…cond (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\",\"😀\":\"line\\nsecond\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-10#5": {
+  "out": "other\n😀\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\",\"😀\":\"line\\nsecond\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-10#6": {
+  "out": "",
+  "err": "Removed \"😀\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"fixture\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-10#7": {
+  "out": "",
+  "err": "Saved \"other\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-10#8": {
+  "out": "••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-10#9": {
+  "out": "other\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-10#10": {
+  "out": "",
+  "err": "Saved \"constructor\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"x\\u0000y\",\"constructor\":\"abcd😀efghi\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-10#11": {
+  "out": "",
+  "err": "Internal error: TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function\n",
+  "code": 1,
+  "file": {
+   "text": "{\"other\":\"x\\u0000y\",\"constructor\":\"abcd😀efghi\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-10#12": {
+  "out": "constructor\nother\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"x\\u0000y\",\"constructor\":\"abcd😀efghi\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-10#13": {
+  "out": "",
+  "err": "Removed \"constructor\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"x\\u0000y\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-10#14": {
+  "out": "",
+  "err": "Saved \"😀\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"x\\u0000y\",\"😀\":\"é🦉短\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-10#15": {
+  "out": "•••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"x\\u0000y\",\"😀\":\"é🦉短\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-10#16": {
+  "out": "other\n😀\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"x\\u0000y\",\"😀\":\"é🦉短\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-10#17": {
+  "out": "",
+  "err": "Saved \"constructor\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"x\\u0000y\",\"😀\":\"é🦉短\",\"constructor\":\"abcd😀efghi\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-10#18": {
+  "out": "",
+  "err": "Internal error: TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function\n",
+  "code": 1,
+  "file": {
+   "text": "{\"other\":\"x\\u0000y\",\"😀\":\"é🦉短\",\"constructor\":\"abcd😀efghi\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-10#19": {
+  "out": "constructor\nother\n😀\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"x\\u0000y\",\"😀\":\"é🦉短\",\"constructor\":\"abcd😀efghi\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-10#20": {
+  "out": "",
+  "err": "Removed \"constructor\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"other\":\"x\\u0000y\",\"😀\":\"é🦉短\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-11#0": {
+  "out": "",
+  "err": "Saved \"😀\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"😀\":\"é🦉短\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-11#1": {
+  "out": "•••• (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"😀\":\"é🦉短\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-11#2": {
+  "out": "😀\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"😀\":\"é🦉短\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-11#3": {
+  "out": "",
+  "err": "Saved \"other\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"😀\":\"é🦉短\",\"other\":\"quote\\\"slash\\\\control\\b\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-11#4": {
+  "out": "quote…rol\b (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"😀\":\"é🦉短\",\"other\":\"quote\\\"slash\\\\control\\b\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-11#5": {
+  "out": "other\n😀\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"😀\":\"é🦉短\",\"other\":\"quote\\\"slash\\\\control\\b\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-11#6": {
+  "out": "",
+  "err": "Removed \"other\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{\"😀\":\"é🦉短\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-11#7": {
+  "out": "",
+  "err": "[INVALID_INPUT] Key is empty\n",
+  "code": 1,
+  "file": {
+   "text": "{\"😀\":\"é🦉短\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-11#8": {
+  "out": "",
+  "err": "[NOT_FOUND] No key for \"λ\". Set OKRA_KEY_Λ or run `okra keys set λ`.\n",
+  "code": 1,
+  "file": {
+   "text": "{\"😀\":\"é🦉短\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-11#9": {
+  "out": "😀\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"😀\":\"é🦉短\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-11#10": {
+  "out": "",
+  "err": "Saved \"😀\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"😀\":\"abcd😀efghi\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-11#11": {
+  "out": "abcd�…fghi (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"😀\":\"abcd😀efghi\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-11#12": {
+  "out": "😀\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"😀\":\"abcd😀efghi\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-11#13": {
+  "out": "",
+  "err": "Removed \"😀\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-11#14": {
+  "out": "",
+  "err": "[INVALID_INPUT] Key is empty\n",
+  "code": 1,
+  "file": {
+   "text": "{}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-11#15": {
+  "out": "",
+  "err": "[NOT_FOUND] No key for \"4294967294\". Set OKRA_KEY_4294967294 or run `okra keys set 4294967294`.\n",
+  "code": 1,
+  "file": {
+   "text": "{}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-11#16": {
+  "out": "",
+  "err": "No keys stored. Add one with `okra keys set <provider> <key>`.\n",
+  "code": 0,
+  "file": {
+   "text": "{}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-11#17": {
+  "out": "",
+  "err": "Saved \"openai\" key to .okra/keys.json\n",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"line\\nsecond\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-11#18": {
+  "out": "line\n…cond (stored)\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"line\\nsecond\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-11#19": {
+  "out": "openai\n",
+  "err": "",
+  "code": 0,
+  "file": {
+   "text": "{\"openai\":\"line\\nsecond\"}\n",
+   "mode": 384
+  }
+ },
+ "seed-7-11#20": {
+  "out": "",
+  "err": "Removed \"openai\" key.\n",
+  "code": 0,
+  "file": {
+   "text": "{}\n",
+   "mode": 384
+  }
+ }
+}

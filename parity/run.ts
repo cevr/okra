@@ -3,6 +3,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { join, resolve as resolvePath } from "node:path";
+import { frozen } from "./frozen";
 
 const root = resolvePath(import.meta.dir, "..");
 const scratch = process.env.OKRA_PARITY_SCRATCH ?? "/tmp/opencode/linear-port";
@@ -224,6 +225,7 @@ async function execute(program: string, args: string[], cwd: string, inputStep: 
   }
   return { out, err, code, file };
 }
+const records = frozen("keys", seed, Boolean(name));
 let compared = 0;
 for (const session of sessions.filter((s) => !name || s.name === name)) {
   const dirs = await Promise.all(
@@ -236,17 +238,19 @@ for (const session of sessions.filter((s) => !name || s.name === name)) {
       return dir;
     }),
   );
-  for (const current of session.steps) {
-    const reference = await execute(
-      process.execPath,
-      [
-        "--preload",
-        join(root, "parity/deny-network.ts"),
-        join(root, "src/main.ts"),
-        ...current.args,
-      ],
-      dirs[0]!,
-      current,
+  for (const [index, current] of session.steps.entries()) {
+    const reference = await records.get(`${session.name}#${index}`, () =>
+      execute(
+        process.execPath,
+        [
+          "--preload",
+          join(root, "parity/deny-network.ts"),
+          join(root, "src/main.ts"),
+          ...current.args,
+        ],
+        dirs[0]!,
+        current,
+      ),
     );
     const actual = tsOnly
       ? await execute(
@@ -295,4 +299,5 @@ for (const session of sessions.filter((s) => !name || s.name === name)) {
   console.log(`ok ${session.name}`);
 }
 if (!compared) throw new Error("No cases selected");
+records.done();
 console.log(`PARITY EXIT: 0 (${compared} process pairs, seed ${seed})`);
