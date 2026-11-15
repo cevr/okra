@@ -278,7 +278,9 @@ export async function build(dir: string): Promise<World> {
   });
   // The clone okra makes is compared with a recorded tree, so the files git
   // writes into .git must not follow the host: the reflog names a fixed
-  // committer, and an empty template adds no hooks, description or excludes.
+  // committer, an empty template adds no hooks, description or excludes, and
+  // no automatic maintenance or gc leaves a lock or a pack behind (a stray
+  // objects/maintenance.lock once showed as a mismatch).
   await mkdir(join(dir, "template"), { recursive: true });
   const gitEnv: Record<string, string> = {
     GIT_CONFIG_NOSYSTEM: "1",
@@ -288,7 +290,11 @@ export async function build(dir: string): Promise<World> {
     GIT_COMMITTER_EMAIL: "fixture@example.invalid",
     GIT_ALLOW_PROTOCOL: "file",
     GIT_TERMINAL_PROMPT: "0",
-    GIT_CONFIG_COUNT: String(forges.length),
+    GIT_CONFIG_COUNT: String(forges.length + 2),
+    [`GIT_CONFIG_KEY_${forges.length}`]: "maintenance.auto",
+    [`GIT_CONFIG_VALUE_${forges.length}`]: "false",
+    [`GIT_CONFIG_KEY_${forges.length + 1}`]: "gc.auto",
+    [`GIT_CONFIG_VALUE_${forges.length + 1}`]: "0",
   };
   forges.forEach((forge, i) => {
     gitEnv[`GIT_CONFIG_KEY_${i}`] = `url.file://${join(dir, "remotes", forge)}/.insteadOf`;

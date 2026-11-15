@@ -1,8 +1,8 @@
 #!/bin/sh
 # okra launcher: exec the native Ergo binary for this platform. Every command
 # runs in Ergo. POSIX sh, so a call costs no Node or Bun start. Never rewrites
-# argv. OKRA_IMPL=ts is the way back to the TypeScript build for all argv in a
-# source checkout (owner q96); it is never a default route.
+# argv. There is no other implementation: the TypeScript CLI and its
+# OKRA_IMPL switch were removed (owner, 2026-11-15).
 
 # Resolve this file through symlinks (bun and npm link bin/okra into PATH,
 # and ~/.bun/bin/okra is a link). `readlink` without -f exists on Linux

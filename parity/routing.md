@@ -37,8 +37,9 @@ packed tarball and runs it.
   are compared byte for byte. Permission-denied paths are not yet in the corpus.
 - No image, counsel or other paid/credentialed service has been invoked. All
   parity runs get an isolated HOME and explicit synthetic environment only.
-  Image parity (`parity/image.ts`) runs a compiled offline reference against
-  one loopback peer; it shows no live-provider compatibility.
+  Image parity (`parity/image.ts`) checks the port against the reference's
+  recorded results with one loopback peer; it shows no live-provider
+  compatibility.
 - The reference's environment-name table inherits Object.prototype. `keys get`
   for prototype names (such as constructor) has a stable internal-error line.
   Native preserves those bytes with a typed failure rather than calling a
@@ -90,8 +91,9 @@ one skill (owner/repo@skill)`. `parity/skills.ts` checks that shape on every
 
 ## Schedule: declared differences
 
-`parity/schedule.ts` runs the compiled reference (`parity/schedule-reference.ts`,
-frozen `Date.now`, no network) and the port in one HOME, with fake `launchctl`,
+`parity/schedule.ts` checks the port against the TypeScript CLI's recorded
+results (`parity/frozen/schedule-<seed>.json`, recorded with a frozen `Date.now`
+and no network). Each case runs in one HOME, with fake `launchctl`,
 `claude`, `codex`, `git`, `gh`, `tail` and `okra` first on PATH (the real agents
 are never reached). Stdout, stderr, status, every file under HOME, each agent's
 argv and folder, and each launchctl call compare byte for byte, except:
