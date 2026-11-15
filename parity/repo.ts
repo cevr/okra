@@ -2,8 +2,17 @@
 // the cache tree git and tar leave and metadata.json bytes. A checker cannot
 // observe git, tar or the file system. All peers are local and synthetic.
 import { spawn, spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
-import { lstat, mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
+import { createHash, randomBytes } from "node:crypto";
+import {
+  lstat,
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  symlink,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
 import { join, resolve as resolvePath } from "node:path";
 import { advance, build } from "./repo-world";
 import { frozen } from "./frozen";
@@ -16,7 +25,16 @@ const arg = (name: string) =>
 const candidate = arg("binary") ?? join(root, "bin/okra-ergo-parity");
 const seed = Number(arg("seed") ?? 42);
 const only = arg("case");
-const world = await build(await mkdtemp(join(scratch, "repo-world-")));
+// A fetched clone's .git/FETCH_HEAD names the remote by its path, and the
+// clone's size (the --json size, metadata, the "Size:" line) counts those
+// bytes. The records were made with the world at a 38-byte path
+// (/tmp/opencode/ship/a/repo-world-XXXXXX), so a check reaches its world
+// through a link whose path has that length, in any scratch folder.
+const worldLink = `/tmp/opencode/okra-repo-world-${randomBytes(4).toString("hex")}`;
+if (worldLink.length !== 38) throw new Error(`world link ${worldLink} is not 38 bytes`);
+await mkdir("/tmp/opencode", { recursive: true });
+await symlink(await mkdtemp(join(scratch, "repo-world-")), worldLink);
+const world = await build(worldLink);
 const started = Date.now();
 
 type Step = { args: string[]; usage?: boolean; declared?: string; before?: () => Promise<void> };
@@ -457,6 +475,7 @@ try {
   }
 } finally {
   world.stop();
+  await unlink(worldLink);
 }
 if (!compared) throw new Error("No cases selected");
 records.done();
