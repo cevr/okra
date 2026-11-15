@@ -60,16 +60,17 @@ async function verify(script: string) {
 }
 await verify(source);
 if (process.argv.includes("--mutants")) {
-  const route = "ergo|'') exec \"$bindir/okra-ergo\" \"$@\" ;;";
+  const route = "ergo | '') ;;";
+  const native = 'if [ -e "$bindir/okra-ergo" ]; then';
   const pick = 'case ${OKRA_IMPL-} in';
   const resolve = 'while [ -L "$self" ]; do';
   const relative = '*) self=$(dirname -- "$self")/$link ;;';
-  for (const text of [route, pick, resolve, relative])
+  for (const text of [route, native, pick, resolve, relative])
     if (source.split(text).length !== 2) throw new Error("switch edit is not unique");
   const toTs = (cond: string) =>
     source.replace(pick, `[ -z "\${OKRA_IMPL-}" ] && ${cond} && exec "$bindir/okra-ts" "$@"\n${pick}`);
   for (const [name, mutated, message] of [
-    ["shim-default-to-ts", source.replace(route, 'ergo) exec "$bindir/okra-ergo" "$@" ;;\n  \'\') exec "$bindir/okra-ts" "$@" ;;'), "route/argv mismatch:"],
+    ["shim-default-to-ts", source.replace(route, 'ergo) ;;\n  \'\') exec "$bindir/okra-ts" "$@" ;;'), "route/argv mismatch:"],
     ["shim-schedule-to-ts", toTs('[ "${1-}" = schedule ]'), "route/argv mismatch:"],
     ["shim-empty-to-ts", toTs("[ $# -eq 0 ]"), "route/argv mismatch:"],
     ["shim-unknown-to-ts", toTs('[ "${1-}" = unknown ]'), "route/argv mismatch:"],
@@ -77,10 +78,7 @@ if (process.argv.includes("--mutants")) {
     ["shim-counsel-flag-to-ts", toTs('[ "${1-}" = counsel ] && [ "${2-}" = --log-level=debug ]'), "route/argv mismatch:"],
     [
       "shim-missing-native-to-ts",
-      source.replace(
-        route,
-        'ergo|\'\') [ -x "$bindir/okra-ergo" ] || exec "$bindir/okra-ts" "$@"; exec "$bindir/okra-ergo" "$@" ;;',
-      ),
+      source.replace(native, `[ -x "$bindir/okra-ergo" ] || exec "$bindir/okra-ts" "$@"\n${native}`),
       "missing native binary fell back",
     ],
     ["shim-link-unresolved", source.replace(resolve, 'while false; do'), "linked shim mismatch:"],

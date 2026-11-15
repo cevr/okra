@@ -1,6 +1,8 @@
 #!/bin/sh
-# Every command runs in Ergo. OKRA_IMPL=ts is the way back to the
-# TypeScript build for all argv (owner q96); it is never a default route.
+# okra launcher: exec the native Ergo binary for this platform. Every command
+# runs in Ergo. POSIX sh, so a call costs no Node or Bun start. Never rewrites
+# argv. OKRA_IMPL=ts is the way back to the TypeScript build for all argv in a
+# source checkout (owner q96); it is never a default route.
 
 # Resolve this file through symlinks (bun and npm link bin/okra into PATH,
 # and ~/.bun/bin/okra is a link). `readlink` without -f exists on Linux
@@ -14,8 +16,42 @@ while [ -L "$self" ]; do
   esac
 done
 bindir=$(CDPATH= cd -- "$(dirname -- "$self")" && pwd -P) || exit 1
+
+fail() {
+  printf 'okra: %s\n' "$1" >&2
+  exit 1
+}
+
 case ${OKRA_IMPL-} in
-  ts) exec "$bindir/okra-ts" "$@" ;;
-  ergo|'') exec "$bindir/okra-ergo" "$@" ;;
+  ts)
+    [ -e "$bindir/okra-ts" ] || fail "OKRA_IMPL=ts needs bin/okra-ts, which only a source checkout builds (bun run build)"
+    exec "$bindir/okra-ts" "$@" ;;
+  ergo | '') ;;
   *) printf '%s\n' 'OKRA_IMPL must be ts or ergo' >&2; exit 1 ;;
 esac
+
+# A source checkout: `bun run build:ergo` builds this host's binary here. The
+# package never ships it. A missing native binary is an error, never TS.
+if [ -e "$bindir/okra-ergo" ]; then
+  exec "$bindir/okra-ergo" "$@"
+fi
+
+# The package: npm/<os>-<arch>/okra, names as Node's process.platform/arch.
+system=$(uname -s)
+machine=$(uname -m)
+case $system in
+  Linux) os=linux ;;
+  Darwin) os=darwin ;;
+  *) os= ;;
+esac
+case $machine in
+  x86_64 | amd64) arch=x64 ;;
+  arm64 | aarch64) arch=arm64 ;;
+  *) arch= ;;
+esac
+if [ -z "$os" ] || [ -z "$arch" ]; then
+  fail "no native binary for $system $machine; the platforms are darwin-arm64, darwin-x64, linux-arm64 and linux-x64"
+fi
+exe=$(dirname -- "$bindir")/npm/$os-$arch/okra
+[ -e "$exe" ] || fail "$exe is missing; reinstall the package, or run bun scripts/release.ts in a source checkout"
+exec "$exe" "$@"

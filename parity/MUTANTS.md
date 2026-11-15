@@ -54,3 +54,10 @@ case cannot reach them, because a process case has no terminal.
 - `kebab-drops-capitals` (local; frontmatter-42 at seed 42 reads no name with a description, so it misses this): front matter names map to the reference's kebab case, lower-cased first.
 - `lock-drops-ref` (law LoadSeesSave on skillfile): a lock entry's ref survives a save and load.
 - `shim-skills-to-ts` (`bun parity/switch.ts --mutants`): skills routes to the native binary.
+
+## SHIP: the package launcher (`bun parity/launcher.ts --mutants`; no earlier probe ran the package layout)
+
+- `arch-x64-as-arm64`, `arch-aarch64-unmapped`, `os-darwin-as-linux`: a supported `uname` pair runs another platform's binary.
+- `link-unresolved`, `relative-link-from-cwd`: the npm (relative) or bun (absolute, then relative) link does not reach the package's `npm/` folder.
+- `unsupported-arch-as-x64`, `unsupported-os-as-linux`: an unsupported platform runs a binary instead of the refusal line.
+- `ts-without-binary-runs`: `OKRA_IMPL=ts` in the package execs a missing `okra-ts` instead of the one-line refusal.

@@ -4,6 +4,8 @@ bin/*
 ergo/how/topics.ergo
 ergo/cli/version.ergo
 dist/
+# Native binaries scripts/release.ts builds for the package.
+npm/
 .xp/
 *.log
 *.tsbuildinfo
