@@ -1,8 +1,8 @@
 // Builds no Go. The public seam is the launcher's chosen file, argv, status and
 // refusal line, in the package layout (npm/<os>-<arch>/okra), reached through
 // the links npm (relative) and bun (absolute) make. A fake `uname` names each
-// platform; fake binaries print their directory and argv. parity/switch.ts owns
-// the source-checkout layout (bin/okra-ergo, OKRA_IMPL).
+// platform; fake binaries print their directory and argv. A source checkout's
+// bin/okra-ergo wins when present.
 //
 //   bun parity/launcher.ts [--shim=PATH] [--mutants]
 import { spawn, spawnSync } from "node:child_process";
@@ -142,13 +142,10 @@ async function verify(script: string) {
         );
     }
   }
-  // OKRA_IMPL=ergo is the default; ts has no TS binary in the package.
-  const ergo = await run(entries[1]!, ["keys", "list"], env("Linux", "x86_64", "ergo"));
-  if (ergo.out !== "linux-x64\nkeys\nlist\n" || ergo.code !== 23)
-    throw new Fault(`launcher: OKRA_IMPL=ergo differs from the default: ${JSON.stringify(ergo)}`);
-  const ts = await run(entries[1]!, ["keys", "list"], env("Linux", "x86_64", "ts"));
-  if (ts.out !== "" || ts.code !== 1 || !ts.err.startsWith("okra: OKRA_IMPL=ts needs bin/okra-ts"))
-    throw new Fault(`launcher: OKRA_IMPL=ts in the package: ${JSON.stringify(ts)}`);
+  // There is one implementation: the old OKRA_IMPL switch selects nothing.
+  const old = await run(entries[1]!, ["keys", "list"], env("Linux", "x86_64", "ts"));
+  if (old.out !== "linux-x64\nkeys\nlist\n" || old.err !== "" || old.code !== 23)
+    throw new Fault(`launcher: OKRA_IMPL changed the route: ${JSON.stringify(old)}`);
   // A missing binary for this platform is an error; no other platform's runs.
   await rename(join(pkg, "npm/linux-x64/okra"), join(pkg, "npm/linux-x64/gone"));
   const missing = await run(entries[1]!, ["keys", "list"], env("Linux", "x86_64"));
@@ -159,6 +156,17 @@ async function verify(script: string) {
       `okra: ${join(pkg, "npm/linux-x64/okra")} is missing; reinstall the package, or run bun scripts/release.ts in a source checkout\n`
   )
     throw new Fault(`launcher: missing binary not refused: ${JSON.stringify(missing)}`);
+  // A source checkout: the host binary bun run build writes beside the launcher wins.
+  await writeFile(
+    join(pkg, "bin/okra-ergo"),
+    `#!/bin/sh\nprintf '%s\\n' checkout "$@"\nexit 24\n`,
+    {
+      mode: 0o755,
+    },
+  );
+  const checkout = await run(entries[2]!, ["keys", "list"], env("Linux", "x86_64"));
+  if (checkout.out !== "checkout\nkeys\nlist\n" || checkout.err !== "" || checkout.code !== 24)
+    throw new Fault(`launcher: checkout binary not chosen: ${JSON.stringify(checkout)}`);
 }
 
 await verify(source);
@@ -172,7 +180,12 @@ if (process.argv.includes("--mutants")) {
     ["relative-link-from-cwd", '*) self=$(dirname -- "$self")/$link ;;', "*) self=$link ;;"],
     ["unsupported-arch-as-x64", "*) arch= ;;", "*) arch=x64 ;;"],
     ["unsupported-os-as-linux", "*) os= ;;", "*) os=linux ;;"],
-    ["ts-without-binary-runs", '[ -e "$bindir/okra-ts" ] || fail', "true || fail"],
+    ["checkout-binary-ignored", 'if [ -e "$bindir/okra-ergo" ]; then', "if false; then"],
+    [
+      "impl-switch-kept",
+      'if [ -e "$bindir/okra-ergo" ]; then',
+      '[ "${OKRA_IMPL-}" = ts ] && exec "$bindir/okra-ts" "$@"\nif [ -e "$bindir/okra-ergo" ]; then',
+    ],
   ];
   for (const [name, from, to] of mutants) {
     if (source.split(from).length !== 2) throw new Error(`${name}: edit is not unique`);

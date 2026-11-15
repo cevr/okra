@@ -6,64 +6,15 @@
     "perf": "error"
   },
   "plugins": ["typescript", "import", "node"],
-  "jsPlugins": ["oxlint-plugin-effect/plugin"],
   "rules": {
     "typescript/no-explicit-any": "error",
-    "typescript/no-unsafe-type-assertion": "error",
-    "typescript/no-non-null-assertion": "error",
-    "typescript/no-extra-non-null-assertion": "error",
-    "typescript/no-non-null-asserted-optional-chain": "error",
     "typescript/consistent-type-imports": [
       "error",
       { "prefer": "type-imports", "fixStyle": "separate-type-imports" }
     ],
     "import/no-duplicates": "error",
-    "node/no-process-env": "error",
     "no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
-    "no-nested-ternary": "error",
-    "complexity": ["error", 20],
-    "no-underscore-dangle": "off",
-    "consistent-return": "off",
-    "effect/noAsyncFunction": "error",
-    "effect/noComments": "error",
-    "effect/noDynamicImports": "error",
-    "effect/noEffectBind": "error",
-    "effect/noEffectDo": "error",
-    "effect/noGlobals": "error",
-    "effect/noNewError": "error",
-    "effect/noNewPromise": "error",
-    "effect/noNodeBuiltinImport": "error",
-    "effect/noTernary": "error",
-    "effect/noTestLifecycleHooks": "error",
-    "effect/noThrowStatement": "error",
-    "effect/noTryCatch": "error"
+    "no-await-in-loop": "off"
   },
-  "ignorePatterns": ["**/dist/**", "**/node_modules/**", "**/*.d.ts", "**/bin/**", "**/scripts/**"],
-  "overrides": [
-    {
-      "files": ["parity/**/*.ts", "scripts/build.ts", "scripts/guides.ts"],
-      "rules": {
-        "no-await-in-loop": "off",
-        "node/no-process-env": "off",
-        "typescript/no-non-null-assertion": "off",
-        "effect/noAsyncFunction": "off",
-        "effect/noComments": "off",
-        "effect/noGlobals": "off",
-        "effect/noNewError": "off",
-        "effect/noNewPromise": "off",
-        "effect/noNodeBuiltinImport": "off",
-        "effect/noTernary": "off",
-        "effect/noThrowStatement": "off",
-        "effect/noTryCatch": "off"
-      }
-    },
-    {
-      "files": ["**/*.test.ts", "**/tests/**"],
-      "rules": {
-        "typescript/no-explicit-any": "off",
-        "typescript/no-non-null-assertion": "off",
-        "typescript/no-unsafe-type-assertion": "off"
-      }
-    }
-  ]
+  "ignorePatterns": ["**/node_modules/**", "**/bin/**", "**/npm/**"]
 }

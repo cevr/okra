@@ -71,7 +71,7 @@ Scheduler on a fake agent's readiness FIFO, checks both partial files while
 the child runs, then checks its TERM trap's status 37. The reference's sink
 race may require a reference-only retry; a port run is never retried.
 
-Build and routing: `parity/routing.md`. Run `bun parity/run.ts --record-check` for
-two isolated TypeScript runs, or `bun parity/run.ts --seed=42` for TS/native
-sessions. The reference always runs from current source with a network-denying
-preload. Every case owns its fixture store; no real keys/tokens are read.
+Build and routing: `parity/routing.md`. Run `bun parity/run.ts --seed=42` to
+check the native sessions against the TypeScript CLI's recorded ones
+(`parity/frozen`). Every case owns its fixture store; no real keys/tokens are
+read.

@@ -16,7 +16,6 @@ const arg = (name: string) =>
 const candidate = arg("binary") ?? join(root, "bin/okra-ergo-parity");
 const seed = Number(arg("seed") ?? 42);
 const only = arg("case");
-const tsOnly = process.argv.includes("--record-check");
 const world = await build(await mkdtemp(join(scratch, "repo-world-")));
 const started = Date.now();
 
@@ -334,6 +333,7 @@ async function snapshot(dir: string) {
   return out;
 }
 
+type Result = Awaited<ReturnType<typeof execute>>;
 async function execute(program: string, args: string[], cwd: string) {
   const child = spawn(program, args, {
     cwd,
@@ -400,33 +400,18 @@ async function execute(program: string, args: string[], cwd: string) {
   return { out: normalize(out), err: normalize(err), code, tree: await snapshot(cwd) };
 }
 
-const reference = (args: string[], cwd: string) =>
-  execute(
-    process.execPath,
-    ["--preload", join(root, "parity/registry-network.ts"), join(root, "src/main.ts"), ...args],
-    cwd,
-  );
-
 const records = frozen("repo", seed, Boolean(only));
 let compared = 0;
 try {
   for (const session of sessions.filter((s) => !only || s.name === only)) {
-    const dirs = await Promise.all(
-      ["reference", "candidate"].map((impl) =>
-        mkdtemp(join(scratch, `repo-${session.name}-${impl}-`)),
-      ),
-    );
-    if (session.setup) for (const dir of dirs) await session.setup(dir);
+    const dir = await mkdtemp(join(scratch, `repo-${session.name}-`));
+    if (session.setup) await session.setup(dir);
     for (const [index, current] of session.steps.entries()) {
       if (current.before) await current.before();
-      const want = await records.get(`${session.name}#${index}`, () =>
-        reference(current.args, dirs[0]!),
-      );
-      const got = tsOnly
-        ? await reference(current.args, dirs[1]!)
-        : await execute(candidate, current.args, dirs[1]!);
+      const want = records.get<Result>(`${session.name}#${index}`);
+      const got = await execute(candidate, current.args, dir);
       // A usage error (the reference names it under ERRORS) has std flag's layout.
-      if ((current.usage || want.err.startsWith("\nERRORS\n")) && !tsOnly) {
+      if (current.usage || want.err.startsWith("\nERRORS\n")) {
         if (
           want.code !== got.code ||
           !got.out.includes("okra") ||
@@ -436,7 +421,7 @@ try {
         got.out = want.out;
         got.err = want.err;
       }
-      if (current.declared && !tsOnly) {
+      if (current.declared) {
         const cut = (s: string) =>
           s.slice(0, s.indexOf(current.declared!) + current.declared!.length);
         if (!want.err.includes(current.declared) || cut(want.err) !== cut(got.err))

@@ -1,26 +1,24 @@
 # Parity table
 
-`bin/okra` execs `okra-ergo` for every argv: keys, how, repo (O2), skills
-(O3), image (O4), counsel (O5), schedule and its subcommands (O6), the empty
-argv, root flags (`--version`, `-v`, `--help`) and unknown commands.
-`OKRA_IMPL=ts` is the explicit way back to `okra-ts` for all argv (owner q96);
-`OKRA_IMPL=ergo` is the default. Unknown override values fail with status 1.
-Nothing falls back to TypeScript for a flag or a missing native binary.
-Effect-only global flags are dropped (owner q95), not sent to TS. The package
-`bin` is `bin/okra`; `bun run dev` builds and runs the Ergo binary.
+okra is one native program: keys, how, repo (O2), skills (O3), image (O4),
+counsel (O5), schedule and its subcommands (O6), the empty argv, root flags
+(`--version`, `-v`, `--help`) and unknown commands. The TypeScript CLI it
+replaced is deleted (owner, 2026-11-15); its outputs, recorded before the
+deletion, are the parity suites' expected results (`parity/frozen`). Effect-only
+global flags are dropped (owner q95). The package `bin` is `bin/okra`; `bun run
+dev` builds and runs the Ergo binary.
 
-No installed link is changed. `scripts/build.ts` no longer links HOME/.bun/bin.
-`bun run build` builds `okra-ts` (the rollback); `ERGO=/path/to/pinned/ergo bun
-run build:ergo` generates guide assets and the version line, then builds
-`okra-ergo` and the offline `okra-ergo-parity`.
+No installed link is changed. `ERGO=/path/to/pinned/ergo bun run build`
+generates guide assets and the version line, then builds `okra-ergo` and the
+offline `okra-ergo-parity`.
 
 ## Package
 
 The npm package ships `bin/okra` and `npm/<os>-<arch>/okra` for darwin and
 linux (arm64, x64), built by `scripts/release.ts` with the pinned compiler, and
 no TypeScript. In the package the launcher runs the binary for `uname -s`/`-m`;
-an unsupported platform or a missing binary fails with one line and status 1,
-and `OKRA_IMPL=ts` fails (no `okra-ts` there). A source checkout's
+an unsupported platform or a missing binary fails with one line and status 1;
+no variable selects another implementation. A source checkout's
 `bin/okra-ergo` wins when it is present. `parity/launcher.ts` holds this over
 fake platforms and the links npm and bun make; `scripts/smoke.ts` installs the
 packed tarball and runs it.
@@ -147,7 +145,7 @@ argv and folder, and each launchctl call compare byte for byte, except:
   (`america/new_york`); and ICU's 27 aliases that the carried data lacks
   read as the carried zone ICU maps them to, with the same instants:
   `ACT AET AGT ART AST BET BST CAT CNT CST CTT EAT ECT IET IST JST MIT NET
-  NST PLT PNT PRT PST SST VST` (as written only: `pst` is not a zone) and
+NST PLT PNT PRT PST SST VST` (as written only: `pst` is not a zone) and
   `US/Pacific-New`, `Canada/East-Saskatchewan` (in any case). ICU's id check
   applies to the whole TZ: letters, then at most two digits at the end, or
   exactly `EST5EDT`, `CST6CDT`, `MST7MDT` or `PST8PDT`.

@@ -63,11 +63,9 @@ jobs:
           ERGO: ${{ runner.temp }}/ergo
         run: bun scripts/release.ts --platform=${{ matrix.platforms }}
 
-      # The smoke compares two fixed cases with the TypeScript reference.
+      # The smoke compares two fixed cases with the recorded TypeScript output.
       - name: Smoke the package on this runner
-        run: |
-          bun scripts/build.ts
-          bun scripts/smoke.ts --scratch="$RUNNER_TEMP/smoke"
+        run: bun scripts/smoke.ts --scratch="$RUNNER_TEMP/smoke"
 
       - uses: actions/upload-artifact@v4
         with:

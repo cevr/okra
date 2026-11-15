@@ -19,7 +19,8 @@ import { join } from "node:path";
 import { carriedNames, goEnv, icuNames, icuNamesFile } from "../parity/zones";
 
 const root = join(import.meta.dir, "..");
-const arg = (name: string) => process.argv.find((s) => s.startsWith(`--${name}=`))?.slice(name.length + 3);
+const arg = (name: string) =>
+  process.argv.find((s) => s.startsWith(`--${name}=`))?.slice(name.length + 3);
 
 const icuSource = arg("icu");
 if (icuSource !== undefined) {
@@ -33,7 +34,8 @@ if (icuSource !== undefined) {
     icuNamesFile,
     `# ICU's zone ids: the Names table of zoneinfo64.txt (ICU ${process.versions.icu}, tz ${version}),\n` +
       `# read by scripts/zone-names.ts --icu=<zoneinfo64.txt>. Bun reads TZ through ICU.\n` +
-      names.join("\n") + "\n",
+      names.join("\n") +
+      "\n",
   );
 }
 
@@ -47,10 +49,16 @@ const offs = [];
 for (let y = 1900; y <= 2040; y++) for (let m = 0; m < 12; m++) for (const d of [1, 15]) offs.push(new Date(y, m, d, 12).getTime() - Date.UTC(y, m, d, 12));
 console.log(JSON.stringify({ zone: Intl.DateTimeFormat().resolvedOptions().timeZone, offs: offs.join(",") }));
 `;
-const probeFile = join(process.env.OKRA_PARITY_SCRATCH ?? "/tmp/opencode", `zone-probe-${process.pid}.ts`);
+const probeFile = join(
+  process.env.OKRA_PARITY_SCRATCH ?? "/tmp/opencode",
+  `zone-probe-${process.pid}.ts`,
+);
 writeFileSync(probeFile, probe);
 const read = (tz: string) => {
-  const r = spawnSync(process.execPath, [probeFile], { env: { PATH: process.env.PATH, TZ: tz }, encoding: "utf8" });
+  const r = spawnSync(process.execPath, [probeFile], {
+    env: { PATH: process.env.PATH, TZ: tz },
+    encoding: "utf8",
+  });
   if (r.status !== 0) throw new Error(`bun under TZ=${tz}: ${r.stderr}`);
   return JSON.parse(r.stdout) as { zone: string; offs: string };
 };

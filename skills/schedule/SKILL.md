@@ -88,27 +88,16 @@ okra schedule "babysit pr" -s "every day at 9am" --stop-when "the PR is merged" 
 ## Architecture
 
 ```
-src/schedule/
-  errors.ts                  # ScheduleError (tagged, string code)
-  paths.ts                   # ~/.okra/schedule/ path resolution
-  context.ts                 # git/gh context capture + prompt injection
-  commands/
-    index.ts                 # root (= add) + subcommands
-    list.ts, remove.ts, run.ts, logs.ts
-  services/
-    Schedule.ts              # pure NL/cron parser
-    Store.ts                 # task CRUD
-    StopEvaluator.ts         # pure deterministic stop evaluation
-    Launchd.ts               # plist gen + launchctl (atomic install/uninstall)
-    AgentPlatform.ts         # agent invocation (capture+tee stdout)
-    Verification.ts          # conditional stop verification
+ergo/schedule/           # the domain: schedule text and cron, tasks, stop conditions, plist, context
+ergo/taskfile/           # the task store under ~/.okra/schedule
+ergo/launchd/            # launchctl install and uninstall
+ergo/agentexec/          # the agent run (stdout captured and teed to the log)
+ergo/localzone/          # the host's time zone for --until
+ergo/cli/schedule.ergo   # the commands and their flags
 ```
 
 ## Gotchas
 
-- `Schedule` and `StopEvaluator` are pure modules, not `ServiceMap.Service`
 - Task IDs: alphanumeric, hyphens, underscores only
 - Weekday range `1-5` expands to 5 separate `StartCalendarInterval` entries
-- `PathEnv` inherits `process.env.PATH` at build time
 - `--stop-when` requires `--max-runs` or `--until` — error code `MISSING_FALLBACK`
-- `generatePlist` and `escapeXml` are `@internal` exports for testability

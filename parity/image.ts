@@ -14,20 +14,7 @@ await mkdir(scratch, { recursive: true });
 const arg = (name: string) =>
   process.argv.find((s) => s.startsWith(`--${name}=`))?.slice(name.length + 3);
 const seed = Number(arg("seed") ?? 42);
-const tsOnly = process.argv.includes("--record-check");
-const reference = join(scratch, "okra-image-ts");
 const binary = arg("binary") ?? join(root, "bin/okra-ergo-parity");
-if (process.argv.includes("--build-reference")) {
-  const result = await Bun.build({
-    entrypoints: [join(root, "parity/image-reference.ts")],
-    target: "bun",
-    compile: { outfile: reference, autoloadBunfig: false },
-    define: {
-      __VERSION__: JSON.stringify((await Bun.file(join(root, "package.json")).json()).version),
-    },
-  });
-  if (!result.success) throw new Error(`reference build failed: ${result.logs.join("\n")}`);
-}
 
 // A header-only synthetic PNG is enough: the CLI reads dimensions, not pixels.
 const png = Buffer.alloc(24);
@@ -486,6 +473,7 @@ function semantic(log: RequestLog) {
     },
   };
 }
+type Result = Awaited<ReturnType<typeof execute>>;
 async function execute(program: string, c: Case) {
   const dir = await setup(c);
   logs = [];
@@ -566,8 +554,7 @@ function declared(name: string, want: Run, got: Run): [Run, Run] | null {
   if (at < 0 || want.err.indexOf(d.prefix, at + 1) >= 0 || !want.err.endsWith("\n")) return null;
   const head = want.err.slice(0, at + d.prefix.length);
   if (want.err.length <= head.length + 1) return null; // the reference gave no suffix
-  // The record-check compares the reference with itself.
-  if (got.err !== (tsOnly ? want.err : `${head}${d.ergo}\n`)) return null;
+  if (got.err !== `${head}${d.ergo}\n`) return null;
   const err = `${head}<q100 suffix>\n`;
   return [
     { ...want, err },
@@ -578,8 +565,8 @@ const records = frozen("image", seed, Boolean(arg("case")));
 let count = 0;
 try {
   for (const c of cases.filter((x) => !arg("case") || x.name === arg("case"))) {
-    const want = await records.get(c.name, () => execute(reference, c));
-    const got = await execute(tsOnly ? reference : binary, c);
+    const want = records.get<Result>(c.name);
+    const got = await execute(binary, c);
     const compared = declared(c.name, want, got);
     if (!compared || !isDeepStrictEqual(compared[0], compared[1])) {
       console.error(

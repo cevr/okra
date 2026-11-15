@@ -96,7 +96,7 @@ The environment value takes priority over the stored key. Stored keys use `~/.ok
 
 ## Transport notes
 
-The subscription route sends `store: false`, streams the response, and includes the installed Codex version. `CodexStreamPatch` handles the server's `generating` image status before the Effect adapter decodes the stream.
+The subscription route sends `store: false`, streams the response, and includes the installed Codex version.
 
 On the Codex route the backend replaces the tool's `size` with `auto` and lets the model choose. Okra states the requested size in the prompt, which gives exact portrait and landscape sizes (`1024x1536`, `1536x1024`), but a square comes back as `1254x1254`. Okra prints a note on stderr when the result differs from `--size`. Use an API image model for an exact size.
 

@@ -1,73 +1,32 @@
 # okra
 
-AI agent orchestration toolkit. Effect v4 + Bun, single-binary build.
+AI agent orchestration toolkit, written in [Ergo](https://github.com/cevr/ergo)
+and shipped as a native binary. The compiler pin is `ergo-toolchain.json`.
 
 ## Commands
 
 ```bash
-bun run gate          # typecheck + lint + fmt + test + build (parallel)
-bun run dev           # run from source
-bun run build         # compile binary to bin/okra
+ERGO=/path/to/ergo bun run build   # bin/okra-ergo and bin/okra-ergo-parity
+bun run dev                        # build, then run bin/okra
+bun parity/run.ts                  # keys and how; see README.md for every suite
+bun scripts/release.ts             # the four native binaries in npm/
 ```
 
-## Architecture
+## Layout
 
-Seven orthogonal domains under `src/`, each with own errors, services, commands:
+See `ergo/README.md`. A package per responsibility (`keys`, `repo`, `skills`,
+`image`, `counsel`, `schedule`, `how`); providers live in packages named after
+their dependency (`keyfile`, `cachefile`, `registryhttp`, `imagehttp`,
+`taskfile`, `launchd`, `agentexec`, `memory`). `ergo/cmd/okra/main.ergo` is the
+only place that binds them; `ergo/cmd/okra-parity` binds the offline fakes.
 
-| Domain      | Subcommand      | Error tag       | Data dir                                                           |
-| ----------- | --------------- | --------------- | ------------------------------------------------------------------ |
-| `schedule/` | `okra schedule` | `ScheduleError` | `~/.okra/schedule/`                                                |
-| `counsel/`  | `okra counsel`  | `CounselError`  | `/tmp/counsel/`                                                    |
-| `repo/`     | `okra repo`     | `RepoError`     | `~/.cache/repo/`                                                   |
-| `skills/`   | `okra skills`   | `SkillsError`   | `$SKILLS_DIR` or `~/Developer/personal/dotfiles/skills`            |
-| `image/`    | `okra image`    | `ImageError`    | reads `~/.codex/auth.json` + `~/.okra/keys.json`; writes `-o` path |
-| `keys/`     | `okra keys`     | `KeysError`     | `~/.okra/keys.json` (via shared `KeyStoreService`)                 |
-| `how/`      | `okra how`      | `HowError`      | none — docs embedded at compile time                               |
+## Parity
 
-Shared utilities in `src/shared/`: `Provider` schema, `resolveExecutable`, `isColorEnabled`, `KeyStoreService` (`keystore.ts` — generic multi-provider secret store at `~/.okra/keys.json`).
-
-- `main.ts` wires root CLI with `PlatformLayer` (BunServices + FetchHttpClient), error handler matches all domain error tags
-- Each domain exports its command via `Command.provide(DomainServiceLayer)` from `index.ts`
-- All domains self-provide their service layers at command level — no domain layers in main.ts
-- Repo, Skills, Keys, and How use structural `isRepoError`/`isSkillsError`/`isKeysError`/`isHowError` guards
-- Effect: `Context.Service`, `Effect.fn`, `Schema.TaggedError`, `effect/cli`
-
-## Gotchas
-
-- `BunServices.layer` omits crypto. The root `PlatformLayer` provides `BunCrypto.layerDigest` and `BunCrypto.layerSecureRandom`; tests provide the families they exercise. Preserve the persisted skills hash framing in `src/skills/lib/hash.ts`.
-
-- `Schedule`, `StopEvaluator`, `Verification` are pure modules, not services
-- Counsel's `program.ts` has standalone argv handling — used for direct invocation, not the subcommand path
-- Counsel run status comes from the events, not only the exit code: a codex usage limit ends in `turn.failed`, and a claude API error (529 overload, usage limit) is a `result` with `is_error: true` but `subtype: "success"`; both can exit 0. `readCodexOutcome`/`readClaudeOutcome` (`src/shared/agent-output.ts`) turn events into Answered/Failed/Silent; anything but Answered is status `error`, exit 1, `failure` in the manifest, the reason on stderr, and an empty `<target>.md`
-- Counsel model profiles: standard uses the `opus` alias (latest Opus; not pinned) at medium effort or the latest GPT Sol at medium; `--deep` uses Claude Fable at max or the latest GPT Sol at max
-- Codex has no "latest Sol" alias. Counsel and the image default resolve it in `src/shared/codex-models.ts`: models.dev ranks the line (family `gpt-sol` plus the id pattern `gpt-<n>-sol`, because the family also holds `gpt-5.6` and preview aliases), and `~/.codex/models_cache.json` (written by the codex CLI for the signed-in account) filters it. models.dev lists releases a ChatGPT-account login rejects ("model is not supported when using Codex with a ChatGPT account"), and during a rollout the codex list flaps and can name such a model too. So callers try the candidates newest first and move on only on that rejection; the list ends with the verified `CODEX_FALLBACK_MODEL`. models.dev is cached in `~/.okra/models.json` for a day
-- Plist labels: `com.cvr.okra.schedule-{id}`, program args include `schedule run <id>`
-- `resolveExecutable` falls back to `~/.bun/bin`, `/usr/local/bin`, `~/.local/bin` when `Bun.which` fails (daemon PATH issue)
-- oxlint forbids `!` non-null assertions — use `as T` with existence guards
-- Skills' `GitHub.ts` uses `Bun.spawn`/`Bun.which` directly, not via Effect's `ChildProcessSpawner`
-- Skills' `fetchSkillDir` loads git trees lazily (`makeTreeIndex`): one recursive tree, and when GitHub truncates it (repos like openclaw/openclaw), only the trees on the skill's path. Never walk a whole truncated repo: it is thousands of sequential requests and made `skills update` hang. Every GitHub request times out after `REQUEST_TIMEOUT`, and gh runs with `GH_PROMPT_DISABLED`
-- Skills' `SkillStore` reads `$SKILLS_DIR` env var at layer construction time via `Config.option`
-- Skills has `lib/` subdirectory for non-service code (frontmatter, source parsing, search API, fs helpers)
-- Repo's `CacheService` creates `~/.cache/repo/` directory at layer construction time
-- Repo test-utils are at `src/repo/test-utils/` with mock layers for all 4 services
-- The codex image backend rewrites the `image_generation` tool: the response reports `model: gpt-image-2-codex`, `size: auto`, `quality: auto` whatever okra sends, so `--size` does not reach the tool and okra sends no image model (the old `--image-model` flag was removed for that reason). The model follows a size stated in the prompt (`sizePromptHint` in `src/image/image-dimensions.ts`): portrait/landscape come back exact, square comes back 1254x1254, and quality stays `low`. The command reads the real size from the image header and notes a mismatch on stderr
-- Image has two backends selected by `--model` via `isOpenAiImageModel` (prefixes `gpt-image`/`dall-e`): codex (default: the newest GPT Sol the codex account can use, see above) vs the metered OpenAI Images API
-- RC CLI constructors are capitalized: `Flag.String`, `Flag.Boolean`, `Flag.Int`, `Flag.Literals`, `Argument.String`, and `Prompt.MultiSelect`. Set `Flag.withDefault(false)` on optional boolean switches. `Flag.Boolean` alone is required. Config uses `Config.String`.
-- `--model` selects the codex main model or routes an image model (`gpt-image-*`, `dall-e-*`) to the paid API; only the paid API can select Flare or Sunburst.
-- Codex path uses `@effect/ai-openai` (`OpenAiClient` + `OpenAiLanguageModel` + `OpenAiTool.ImageGeneration`) pointed at `https://chatgpt.com/backend-api/codex`; auth = OAuth token from `~/.codex/auth.json` (`codex login`)
-- OpenAI path (`OpenAiImagesService`) POSTs `/images/generations` with a local extension of `Generated.CreateImageRequest` and decodes a local extension of `Generated.ImagesResponse` (the high-level `OpenAiClient` does NOT surface `createImage`); recommended models `gpt-image-2.5-flare` and `gpt-image-2.5-sunburst`; legacy model names still route to the API. Local schema extensions accept `xhigh`/`max` quality and custom response sizes
-- `KeyStoreService` (`src/shared/keystore.ts`) is a generic, cross-domain secret store: a flat `{ provider: key }` map at `~/.okra/keys.json` (0600). Methods: `resolve(name, envVar)` (precedence **env > stored**), `store(name, key)` (merges — preserves other providers), `list` (sorted names, never values), `remove(name)` (→ bool), `describe(name, envVar)` (→ `KeyStatus { source: "env"|"stored"|"missing"; masked: Option<string> }` — never the raw secret). `maskSecret` (prefix…last4, short→bullets) and `PROVIDER_ENV_VARS`/`envVarForProvider` (provider→env-var map) are exported too. It fails `KeyStoreError`; consuming domains map it to their own error. Not OpenAI-specific. Requires `FileSystem | Path` (bubbles to the root PlatformLayer)
-- The `keys` domain (`okra keys set/list/get/rm <provider>`) is the user-facing front end for `KeyStoreService`; it maps `KeyStoreError` → `KeysError`. `set` takes a `--stdin` flag (key avoids shell history); `get` prints a masked preview + source to stdout (exit 1 / `NOT_FOUND` when unset). The OpenAI key is stored under provider name `"openai"` (`OPENAI_KEY_NAME` in `image/constants.ts`; mirrored in shared `PROVIDER_ENV_VARS`). There is NO `okra image set-key` — key management is centralized in `keys`
-- Image's `--quality`/`--background`/`--n` are optional flags that only feed the OpenAI Images request (`CreateImageRequest`); the codex path ignores them and prints a note when they're set. `OpenAiImagesService.generate` returns `ReadonlyArray<Uint8Array>` (one per `--n`); the command writes `out-1.<ext>`, `out-2.<ext>`, … when >1 (single image keeps the bare path). Codex always yields exactly one image
-- Image's `--ref <path>` (repeatable, `Flag.atLeast(0)`) means different things per backend. **Codex**: a **style/composition reference** — `ImageGen.generate` builds a structured prompt (user message: text + each ref as a `file` part), which the OpenAI Responses adapter forwards as `input_image`; codex still generates a _new_ image. **OpenAI image model**: the **source image to edit** — `--ref` routes to `OpenAiImagesService.edit` (`POST /images/edits`). `refMediaType` sniffs png/jpg/jpeg/webp/gif from the extension; `readImageFile` is the shared reader for refs + mask
-- Image's `--edit` (boolean) / `--mask <path>` / `--fidelity high|low` are **GPT-image-only** edit controls. `resolveRoute` (pure, in `commands/index.ts`) reconciles model+flags into `"codex" | "openai-generate" | "openai-edit"` or an `INVALID_INPUT` (returned as a `{ok,...}` result, NOT thrown — avoids `instanceof` on a Schema class). Rules: codex + `--edit`/`--mask`/`--fidelity` → error (explicit edit controls are API-only; "use gpt-image-2.5-flare"); OpenAI + any input image (`--ref`/`--edit`/`--mask`) → edit; `--edit`/`--mask` without `--ref` → error (needs source); `dall-e-*` + ref → error (`supportsEdits` = `gpt-image` prefix only). `--fidelity` is edits-only + `supportsInputFidelity` (gpt-image-1 / gpt-image-1.5 and their dated snapshots, NOT `-mini`, 2, or 2.5) — errors otherwise; maps to the `input_fidelity` multipart field (API default `low`). NO auto-switch: `--edit` on the codex default errors rather than silently switching to the metered API
-- `OpenAiImagesService.edit` builds the multipart body directly via `globalThis.FormData` + `HttpBody.formData` (the high-level client never surfaces `createImageEdit`, same as `createImage`): single source → `image` key, multiple → `image[]` (up to 16); optional `mask`; scalar fields (`prompt`/`model`/`size`/`output_format`/`quality`/`background`/`n`) as strings. `toBlob` copies bytes into a fresh `ArrayBuffer`-backed `Uint8Array` before `new File(...)` (a `SharedArrayBuffer` view isn't a valid `BlobPart`, and avoids the `no-unsafe-type-assertion` lint). `generate`/`edit` share `runImages` (auth/transport error mapping + base64 decode)
-- Image's `CodexModel` builds the client via `OpenAiClient.make({ transformClient })`: `transformClient` must transform the passed-in client (which already prepends `apiUrl`), not replace it; it injects per-request `Authorization`/`chatgpt-account-id`/`originator`/`version`/`session_id`/`User-Agent` headers and applies the SSE patch
-- Codex backend requires `store: false` + `stream: true` and a current `version` header; it streams SSE with **no** `content-type` header
-- `ImageGenService` is transport-agnostic (consumes a provided `LanguageModel`) so the model layer is provided per-invocation in the command handler (parameterized by `--model`) — hence `strictEffectProvide:off` on `image/commands/index.ts`
-- `CodexStreamPatch` rewrites the codex-only `image_generation_call` status `"generating"` → `"in_progress"` at SSE-event granularity before decoding, working around upstream `OpenAiSchema.MessageStatus` which omits `"generating"` (their `Generated.ts` includes it; the handwritten streaming schema is stricter)
-- The `how` domain embeds every `skills/*/SKILL.md` via Bun `with { type: "text" }` imports (`src/how/topics.ts`) — a new skill must be registered there to appear in `okra how`. It is pure (no service layer). `okra how` prints a TOC of first-sentence summaries; `okra how <topic>` prints the SKILL.md body (frontmatter stripped); hyphen-nested skills (`x-*`) surface as a "Subtopics" footer on `okra how x`. `skills/okra/SKILL.md` is the thin installable TOC skill pointing at the command
-- Image command pre-checks `CodexAuthService.load` before generating, so missing creds surface as `AUTH_MISSING` (not a boxed transport error); `isUnauthorized` matches the structured `AiError.reason._tag === "AuthenticationError"`, not message substrings
+The parity suites (`parity/`) run the binary against offline fakes and compare
+its output, status and files with the TypeScript CLI's, recorded in
+`parity/frozen` before that source was removed (owner, 2026-11-15). Declared
+differences are in `parity/routing.md` and `parity/declared-differences.md`;
+the mutant ledgers are `parity/*MUTANTS.md`.
 
 ## Skills
 
@@ -80,3 +39,6 @@ Shared utilities in `src/shared/`: `Provider` schema, `resolveExecutable`, `isCo
 | `okra image`    | `skills/image/SKILL.md`    |
 | `okra keys`     | `skills/keys/SKILL.md`     |
 | `okra` (TOC)    | `skills/okra/SKILL.md`     |
+
+`okra how <topic>` prints a skill's SKILL.md body; `scripts/guides.ts` embeds
+them at build time in the order above.

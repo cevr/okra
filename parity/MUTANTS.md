@@ -1,6 +1,6 @@
 # Mutant ledger
 
-Public seams: current TypeScript versus native CLI session (streams, status and
+Public seams: the native CLI session against the TypeScript CLI's recorded one (parity/frozen) (streams, status and
 fixture file bytes/mode), and operation laws over an in-memory provider. No real
 key, token, HOME or paid peer is part of a test.
 
@@ -16,7 +16,6 @@ key, token, HOME or paid peer is part of a test.
 - `utf16-mask-uses-bytes`: sessions with non-ASCII synthetic values, beyond prior ASCII examples.
 - `trim-removes-U0085`: generated boundary whitespace sessions distinguish JS trim from Go TrimSpace.
 - `index-order-is-insertion`: numeric provider names in generated sessions check file bytes, not just parsed JSON.
-- `shim-keys-to-ts`: inert-peer route check; domain parity alone does not execute the switch.
 
 No extra concrete domain rows are needed: seeded command sessions cover domain
 behavior; a generated law checks the memory provider's otherwise-unused write.
@@ -37,7 +36,6 @@ repo commands, so each session is the first guard of its seam.
 - `failed-extract-keeps-folder` (npm): a tarball that tar refuses leaves no folder.
 - `pinned-fetch-updates` (github-pinned): a pinned cached repo is not updated.
 - `quote-drops-control-escape` (law LoadSeesSave on cachefile): control characters in generated names survive a save and load.
-- `shim-repo-to-ts` (`bun parity/switch.ts --mutants`): repo routes to the native binary.
 
 ## O3: skills (`bun parity/skills-mutants.ts`; every mutant runs, all failures are listed at the end)
 
@@ -53,11 +51,13 @@ case cannot reach them, because a process case has no terminal.
 - `local-edit-overwritten` (http): a skill whose files changed since the last write is reported as modified, not overwritten, without `--force`.
 - `kebab-drops-capitals` (local; frontmatter-42 at seed 42 reads no name with a description, so it misses this): front matter names map to the reference's kebab case, lower-cased first.
 - `lock-drops-ref` (law LoadSeesSave on skillfile): a lock entry's ref survives a save and load.
-- `shim-skills-to-ts` (`bun parity/switch.ts --mutants`): skills routes to the native binary.
 
 ## SHIP: the package launcher (`bun parity/launcher.ts --mutants`; no earlier probe ran the package layout)
 
 - `arch-x64-as-arm64`, `arch-aarch64-unmapped`, `os-darwin-as-linux`: a supported `uname` pair runs another platform's binary.
 - `link-unresolved`, `relative-link-from-cwd`: the npm (relative) or bun (absolute, then relative) link does not reach the package's `npm/` folder.
 - `unsupported-arch-as-x64`, `unsupported-os-as-linux`: an unsupported platform runs a binary instead of the refusal line.
-- `ts-without-binary-runs`: `OKRA_IMPL=ts` in the package execs a missing `okra-ts` instead of the one-line refusal.
+- `checkout-binary-ignored`: a source checkout's `bin/okra-ergo` is skipped for the package path.
+- `impl-switch-kept`: `OKRA_IMPL=ts` still selects another program (the switch and the TypeScript CLI are gone; owner 2026-11-15).
+
+The shim-*-to-ts mutants of `parity/switch.ts` (O1-O6) are gone with the switch: nothing can route to TypeScript, and `impl-switch-kept` holds that.

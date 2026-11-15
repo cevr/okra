@@ -1,8 +1,8 @@
 // Smoke the npm package the way a user gets it: pack it, install the tarball
 // with bun and with npm into a clean HOME, then run the installed `okra` on
 // this host: --version, --help, and two fixed cases (`how`, `keys get missing`
-// in an empty HOME) byte-equal to the TypeScript reference bin/okra-ts (bun run
-// build). It runs after scripts/release.ts has built at least this host's
+// in an empty HOME) byte-equal to the TypeScript CLI's recorded output
+// (parity/frozen/keys-42.json). It runs after scripts/release.ts has built at least this host's
 // binary. Offline: the package has no dependencies, and the cases reach no
 // network.
 //
@@ -139,14 +139,16 @@ const installs: [string, string][] = [];
   installs.push(["npm", join(home, "prefix/bin/okra")]);
 }
 
-// The fixed cases, against the TypeScript reference in an empty HOME.
-const reference = join(root, "bin/okra-ts");
-const cases = [["how"], ["keys", "get", "missing"]];
-const expected: { out: string; err: string; code: number }[] = [];
-for (const args of cases) {
-  const home = await mkdtemp(join(scratch, "reference-"));
-  expected.push(await run(reference, args, { PATH: "/usr/bin:/bin", HOME: home }, home));
-}
+// The fixed cases, against the TypeScript CLI's recorded output in an empty
+// HOME (the keys suite's "how" and "empty" sessions).
+const recorded = JSON.parse(await readFile(join(root, "parity/frozen/keys-42.json"), "utf8"));
+const cases = [
+  { args: ["how"], key: "how#0" },
+  { args: ["keys", "get", "missing"], key: "empty#2" },
+];
+const expected: { out: string; err: string; code: number }[] = cases.map(
+  ({ key }) => recorded[key],
+);
 for (const [tool, okra] of installs) {
   const work = await mkdtemp(join(scratch, `run-${tool}-`));
   const env = { PATH: "/usr/bin:/bin", HOME: work }; // no bun, node or key on PATH/env
@@ -154,12 +156,12 @@ for (const [tool, okra] of installs) {
   must(v.code === 0 && v.err === "" && v.out === `okra v${version}\n`, `${tool}: --version`, v);
   const help = await run(okra, ["--help"], env, work);
   must(help.code === 0 && help.out.includes("Commands:"), `${tool}: --help`, help);
-  for (const [i, args] of cases.entries()) {
+  for (const [i, { args }] of cases.entries()) {
     const got = await run(okra, args, env, work);
     const want = expected[i]!;
     must(
       got.out === want.out && got.err === want.err && got.code === want.code,
-      `${tool}: okra ${args.join(" ")} against the reference`,
+      `${tool}: okra ${args.join(" ")} against the recorded TypeScript output`,
       { got, want },
     );
   }

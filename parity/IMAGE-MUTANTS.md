@@ -13,7 +13,6 @@ Named before adding each guard. Earlier keys/repo/skills guards never call image
 | credentials-use-store-first      | env/store precedence peer guard                                         | real keys (never read)             |
 | codex-fallback-on-any-error      | model rejection retries, other error does not                           | real rollout                       |
 | suffix-before-first-dot          | multi-image dotted/extensionless paths                                  | host path oddities                 |
-| shim-image-to-ts                 | switch verifier                                                         | installed link (unchanged)         |
 | generation-allows-zero           | invalid count cases fail before a paid request                          | edit API validation (server-owned) |
 | decoding-requires-padding        | unpadded base64 peer decodes as Bun does                                | malformed JSON diagnostics         |
 | default-model-never-ranks        | fresh/stale/fetched model catalog cases                                 | live catalogs                      |

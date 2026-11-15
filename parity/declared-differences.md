@@ -1,7 +1,7 @@
 # Declared differences
 
 The parity bar is q95: `--json` and `--dry-run` output, failure lines and exit
-status are byte-equal to the TypeScript reference. Repo and skills differences
+status are byte-equal to the TypeScript CLI's, recorded in `parity/frozen`. Repo and skills differences
 are listed in `routing.md`. This file lists owner-approved exceptions to q95,
 and the counsel differences that wait for the owner (marked so).
 

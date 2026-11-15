@@ -33,7 +33,6 @@ partial sink files while it runs, then expires. The agent's TERM trap exits 37. 
 | timeout-status-invented     | stream-lifecycle | the manifest input is the actual post-termination status |
 | failed-spawn-publishes-sink | spawn-failed     | no stream file is published by a spawn that fails        |
 
-The switch guard also kills shim-counsel-to-ts, shim-counsel-flag-to-ts and
-shim-missing-native-to-ts. No live agent, real key,
+No live agent, real key,
 live model catalogue or paid service is used. Managed exec's own lifecycle
 property guards group cleanup; this driver exercises the consumer contract.

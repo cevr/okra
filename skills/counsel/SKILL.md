@@ -90,16 +90,8 @@ Read order: stdout payload → `<target>.md` → `manifest.json` and `<target>.s
 ## Architecture
 
 ```
-src/counsel/
-  errors.ts          # CounselError (literal code schema)
-  constants.ts       # timeouts, tool lists, sanitizePath
-  types.ts           # Provider, Profile, RunManifest, DryRunPreview
-  commands/index.ts  # command definition with all flags
-  services/
-    Host.ts              # cwd, env, stdin, exitCode
-    AgentPlatform.ts     # source detection, invocation building
-    InvocationRunner.ts  # child process spawn + stream piping
-    Run.ts               # orchestration: resolve → build → execute
+ergo/counsel/          # the domain: source and target, agent commands, event streams, run records
+ergo/cli/counsel.ergo  # the command and its flags; runs the agent and writes the files
 ```
 
 ## Gotchas

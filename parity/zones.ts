@@ -17,7 +17,8 @@ export function zipNames(path: string) {
   let at = zip.readUInt32LE(eocd + 16);
   const out: string[] = [];
   for (let i = 0; i < count; i++) {
-    if (zip.readUInt32LE(at) !== 0x02014b50) throw new Error(`bad central directory entry ${i} in ${path}`);
+    if (zip.readUInt32LE(at) !== 0x02014b50)
+      throw new Error(`bad central directory entry ${i} in ${path}`);
     const nameLen = zip.readUInt16LE(at + 28);
     const extra = zip.readUInt16LE(at + 30);
     const comment = zip.readUInt16LE(at + 32);
@@ -37,7 +38,9 @@ export const carriedNames = () => zipNames(join(goEnv("GOROOT"), "lib/time/zonei
 
 export const icuNamesFile = join(root, "parity/icu-zone-ids.txt");
 export const icuNames = () =>
-  readFileSync(icuNamesFile, "utf8").split("\n").filter((l) => l !== "" && !l.startsWith("#"));
+  readFileSync(icuNamesFile, "utf8")
+    .split("\n")
+    .filter((l) => l !== "" && !l.startsWith("#"));
 
 // The host's zoneinfo files and links, as TZ names (relative paths).
 export function hostZoneFiles(dir = "/usr/share/zoneinfo") {

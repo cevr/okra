@@ -22,16 +22,8 @@ fail() {
   exit 1
 }
 
-case ${OKRA_IMPL-} in
-  ts)
-    [ -e "$bindir/okra-ts" ] || fail "OKRA_IMPL=ts needs bin/okra-ts, which only a source checkout builds (bun run build)"
-    exec "$bindir/okra-ts" "$@" ;;
-  ergo | '') ;;
-  *) printf '%s\n' 'OKRA_IMPL must be ts or ergo' >&2; exit 1 ;;
-esac
-
-# A source checkout: `bun run build:ergo` builds this host's binary here. The
-# package never ships it. A missing native binary is an error, never TS.
+# A source checkout: `bun run build` builds this host's binary here. The
+# package never ships it.
 if [ -e "$bindir/okra-ergo" ]; then
   exec "$bindir/okra-ergo" "$@"
 fi

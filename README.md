@@ -11,9 +11,8 @@ AI agent orchestration toolkit. Seven subcommands:
 - **`okra how`** — Print the embedded usage guide for any subcommand
 
 okra is written in [Ergo](https://github.com/cevr/ergo) and ships as a native
-binary. The TypeScript source in `src/` is the reference implementation: the
-parity suites run both programs and require the same output. It stays until it
-is retired.
+binary. It was a Bun and Effect program until the Ergo port replaced it; the
+parity suites hold the port to that program's recorded output.
 
 ## Install
 
@@ -30,12 +29,9 @@ From a source checkout, build the compiler at the pin in `ergo-toolchain.json`
 
 ```bash
 bun install
-ERGO=/path/to/ergo bun run build:ergo   # bin/okra-ergo and the offline parity entry
+ERGO=/path/to/ergo bun run build   # bin/okra-ergo and the offline parity entry
 ln -sf "$PWD/bin/okra" ~/.bun/bin/okra
 ```
-
-`OKRA_IMPL=ts okra …` runs the TypeScript build (`bun run build`) instead, in a
-source checkout only.
 
 ## Usage
 
@@ -66,28 +62,21 @@ okra repo path effect-ts/effect-smol
 
 ## Development
 
-```bash
-bun install     # install dependencies
-bun run gate    # typecheck + lint + fmt + test + build (parallel)
-bun run dev     # build the Ergo binary and run it
-bun test        # tests of the TypeScript reference
-```
-
-Ergo port (`ergo/`, see [ergo/README.md](ergo/README.md)) and its parity
-suites, with `ERGO` naming the pinned compiler:
+The source is in `ergo/` (see [ergo/README.md](ergo/README.md)). With `ERGO`
+naming the pinned compiler:
 
 ```bash
-bun scripts/build.ts && bun scripts/build.ts --ergo   # both programs
+bun install                  # the parity harness and release tools
+bun run build                # bin/okra-ergo and the offline parity entry
 bun parity/run.ts            # keys, how
 bun parity/repo.ts --seed=42 # repo; likewise skills, image, counsel, schedule, until
 bun scripts/release.ts       # the four native binaries the package ships, in npm/
 bun scripts/smoke.ts         # pack, install with bun and npm, run the installed okra
 ```
 
+The parity suites run the binary against offline fakes (registries, GitHub,
+model APIs, agents, launchctl). The expected output is the TypeScript CLI's,
+recorded before its source was removed (`parity/frozen`).
+
 CI (`.github/workflows/ci.yml`) builds the pinned compiler and runs every parity
 suite; the release workflow builds the binaries on Linux and macOS runners.
-
-## Stack
-
-Ergo (native binary), with the TypeScript reference on Effect 4, Bun and
-`effect/cli`; oxlint, oxfmt, lefthook.

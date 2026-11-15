@@ -9,7 +9,7 @@
 // are random on both sides and are renamed in order of appearance.
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmod, lstat, mkdir, mkdtemp, readdir, readFile, rename, writeFile } from "node:fs/promises";
+import { chmod, lstat, mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { frozen } from "./frozen";
@@ -20,20 +20,7 @@ await mkdir(scratch, { recursive: true });
 const arg = (name: string) =>
   process.argv.find((s) => s.startsWith(`--${name}=`))?.slice(name.length + 3);
 const seed = Number(arg("seed") ?? 42);
-const tsOnly = process.argv.includes("--record-check");
-const reference = join(scratch, "okra-schedule-ts");
 const binary = arg("binary") ?? join(root, "bin/okra-ergo-parity");
-if (process.argv.includes("--build-reference")) {
-  const result = await Bun.build({
-    entrypoints: [join(root, "parity/schedule-reference.ts")],
-    target: "bun",
-    compile: { outfile: reference, autoloadBunfig: false },
-    define: {
-      __VERSION__: JSON.stringify((await Bun.file(join(root, "package.json")).json()).version),
-    },
-  });
-  if (!result.success) throw new Error(`reference build failed: ${result.logs.join("\n")}`);
-}
 // The port's parity entry needs a loopback origin; schedule makes no request.
 const peer = Bun.serve({
   hostname: "127.0.0.1",
@@ -53,7 +40,7 @@ type Case = {
   launchctl?: Partial<Record<"list" | "load" | "unload", { status: number; err?: string }>>;
   loaded?: boolean; // a "launchctl list" of any label succeeds before the run
   files?: Record<string, string>; // created under HOME before the run
-  setup?: (dir: string) => Promise<void>;
+  setup?: (dir: string) => Promise<unknown>;
   cwd?: string;
   now?: number; // frozen clock, Unix milliseconds (whole seconds)
   usage?: boolean; // a usage error: help and error layout are the port's own
@@ -102,7 +89,16 @@ const cases: Case[] = [
   {
     name: "weekday-create-list",
     steps: [
-      ["schedule", "do it", "-s", "every weekday at 9am", "--max-runs", "3", "--stop-when", "pr merged"],
+      [
+        "schedule",
+        "do it",
+        "-s",
+        "every weekday at 9am",
+        "--max-runs",
+        "3",
+        "--stop-when",
+        "pr merged",
+      ],
       ["schedule", "list"],
       ["schedule", "list", "--json"],
     ],
@@ -194,28 +190,57 @@ const cases: Case[] = [
   {
     name: "both-stops",
     steps: [
-      ["schedule", "x", "-s", "every day at 9am", "--max-runs", "2", "--until", "2026-02-01", "--stop-when", "a very long condition text here"],
+      [
+        "schedule",
+        "x",
+        "-s",
+        "every day at 9am",
+        "--max-runs",
+        "2",
+        "--until",
+        "2026-02-01",
+        "--stop-when",
+        "a very long condition text here",
+      ],
       ["schedule", "list"],
     ],
   },
   {
     name: "context-none",
-    steps: [["schedule", "x", "-s", "in 5 minutes"], ["schedule", "list", "--json"]],
+    steps: [
+      ["schedule", "x", "-s", "in 5 minutes"],
+      ["schedule", "list", "--json"],
+    ],
     git: "none",
   },
   {
     name: "context-partial",
-    steps: [["schedule", "x", "-s", "in 5 minutes"], ["schedule", "list", "--json"]],
-    git: { branch: "main", remote: "https://host/a/b/", commit: null, head: "upstream/dev", pr: '{"number":4.5}' },
+    steps: [
+      ["schedule", "x", "-s", "in 5 minutes"],
+      ["schedule", "list", "--json"],
+    ],
+    git: {
+      branch: "main",
+      remote: "https://host/a/b/",
+      commit: null,
+      head: "upstream/dev",
+      pr: '{"number":4.5}',
+    },
   },
   {
     name: "context-issue",
-    steps: [["schedule", "x", "-s", "in 5 minutes"], ["schedule", "list", "--json"]],
+    steps: [
+      ["schedule", "x", "-s", "in 5 minutes"],
+      ["schedule", "list", "--json"],
+    ],
     git: { branch: "user/00-x-0042/y", remote: "a:b:c.git", pr: '{"number":"7","url":"u"}' },
   },
   {
     name: "context-pr-only",
-    steps: [["schedule", "x", "-s", "in 5 minutes"], ["schedule", "list", "--json"]],
+    steps: [
+      ["schedule", "x", "-s", "in 5 minutes"],
+      ["schedule", "list", "--json"],
+    ],
     git: { pr: '{"url":"https://u","extra":[1]}  ' },
   },
   {
@@ -225,18 +250,27 @@ const cases: Case[] = [
   },
   {
     name: "list-empty",
-    steps: [["schedule", "list"], ["schedule", "list", "--json"]],
+    steps: [
+      ["schedule", "list"],
+      ["schedule", "list", "--json"],
+    ],
   },
   {
     name: "list-fixtures",
-    steps: [["schedule", "list"], ["schedule", "list", "--json"]],
+    steps: [
+      ["schedule", "list"],
+      ["schedule", "list", "--json"],
+    ],
     files: {
       ...tasks("aa", {
         prompt: "a prompt that is certainly longer than forty characters in total",
         status: "completed",
         lastRun: "2026-01-02T00:00:00.000Z",
         runCount: 2,
-        stopConditions: [{ _tag: "MaxRuns", count: 5 }, { _tag: "AfterDate", date: "2026-03-20T23:59:59.999Z" }],
+        stopConditions: [
+          { _tag: "MaxRuns", count: 5 },
+          { _tag: "AfterDate", date: "2026-03-20T23:59:59.999Z" },
+        ],
         conditionalStop: { condition: "the pull request is merged" },
         extra: true,
       }),
@@ -266,7 +300,10 @@ const cases: Case[] = [
   },
   {
     name: "list-oneshot-fixture",
-    steps: [["schedule", "list"], ["schedule", "list", "--json"]],
+    steps: [
+      ["schedule", "list"],
+      ["schedule", "list", "--json"],
+    ],
     files: tasks("one", {
       provider: "codex",
       schedule: { _tag: "Oneshot", at: "2026-05-05T05:05:05.000Z", raw: "in 2 days" },
@@ -275,13 +312,19 @@ const cases: Case[] = [
   },
   {
     name: "run-plain",
-    steps: [["schedule", "run", "plain1"], ["schedule", "list", "--json"]],
+    steps: [
+      ["schedule", "run", "plain1"],
+      ["schedule", "list", "--json"],
+    ],
     files: tasks("plain1"),
     replies: [{ out: "partial out", err: "agent err\n" }],
   },
   {
     name: "run-codex-context",
-    steps: [["schedule", "run", "cx"], ["schedule", "list", "--json"]],
+    steps: [
+      ["schedule", "run", "cx"],
+      ["schedule", "list", "--json"],
+    ],
     files: tasks("cx", {
       provider: "codex",
       context: {
@@ -299,7 +342,10 @@ const cases: Case[] = [
   },
   {
     name: "run-oneshot",
-    steps: [["schedule", "run", "once"], ["schedule", "list", "--json"]],
+    steps: [
+      ["schedule", "run", "once"],
+      ["schedule", "list", "--json"],
+    ],
     files: tasks("once", {
       schedule: { _tag: "Oneshot", at: "2026-01-01T13:00:00.000Z", raw: "in 1 hour" },
     }),
@@ -308,29 +354,42 @@ const cases: Case[] = [
   },
   {
     name: "run-max-runs-pre",
-    steps: [["schedule", "run", "maxed"], ["schedule", "list", "--json"]],
+    steps: [
+      ["schedule", "run", "maxed"],
+      ["schedule", "list", "--json"],
+    ],
     files: tasks("maxed", { runCount: 3, stopConditions: [{ _tag: "MaxRuns", count: 3 }] }),
   },
   {
     name: "run-max-runs-post",
-    steps: [["schedule", "run", "last"], ["schedule", "list", "--json"]],
+    steps: [
+      ["schedule", "run", "last"],
+      ["schedule", "list", "--json"],
+    ],
     files: tasks("last", { runCount: 2, stopConditions: [{ _tag: "MaxRuns", count: 3 }] }),
     replies: [{ out: "x" }],
   },
   {
     name: "run-after-date",
     steps: [["schedule", "run", "late"]],
-    files: tasks("late", { stopConditions: [{ _tag: "AfterDate", date: "2026-01-01T11:59:59.999Z" }] }),
+    files: tasks("late", {
+      stopConditions: [{ _tag: "AfterDate", date: "2026-01-01T11:59:59.999Z" }],
+    }),
   },
   {
     name: "run-before-date",
     steps: [["schedule", "run", "early"]],
-    files: tasks("early", { stopConditions: [{ _tag: "AfterDate", date: "2026-01-01T12:00:00.000Z" }] }),
+    files: tasks("early", {
+      stopConditions: [{ _tag: "AfterDate", date: "2026-01-01T12:00:00.000Z" }],
+    }),
     replies: [{ out: "ran\n" }],
   },
   {
     name: "run-signal-verified",
-    steps: [["schedule", "run", "sig"], ["schedule", "list", "--json"]],
+    steps: [
+      ["schedule", "run", "sig"],
+      ["schedule", "list", "--json"],
+    ],
     files: tasks("sig", {
       stopConditions: [{ _tag: "MaxRuns", count: 10 }],
       conditionalStop: { condition: 'the "PR" is merged' },
@@ -339,7 +398,10 @@ const cases: Case[] = [
   },
   {
     name: "run-signal-rejected",
-    steps: [["schedule", "run", "sig"], ["schedule", "list", "--json"]],
+    steps: [
+      ["schedule", "run", "sig"],
+      ["schedule", "list", "--json"],
+    ],
     files: tasks("sig", {
       provider: "codex",
       stopConditions: [{ _tag: "MaxRuns", count: 10 }],
@@ -379,7 +441,10 @@ const cases: Case[] = [
   },
   {
     name: "run-spawn-failed",
-    steps: [["schedule", "run", "bad"], ["schedule", "list", "--json"]],
+    steps: [
+      ["schedule", "run", "bad"],
+      ["schedule", "list", "--json"],
+    ],
     files: tasks("bad"),
     agents: "badshebang",
   },
@@ -397,7 +462,10 @@ const cases: Case[] = [
   },
   {
     name: "remove-loaded",
-    steps: [["schedule", "remove", "gone"], ["schedule", "list"]],
+    steps: [
+      ["schedule", "remove", "gone"],
+      ["schedule", "list"],
+    ],
     files: {
       ...tasks("gone"),
       ".okra/schedule/logs/gone.log": "old log\n",
@@ -451,12 +519,18 @@ const cases: Case[] = [
   },
   {
     name: "logs-show",
-    steps: [["schedule", "logs", "a"], ["schedule", "logs", "missing"]],
+    steps: [
+      ["schedule", "logs", "a"],
+      ["schedule", "logs", "missing"],
+    ],
     files: { ".okra/schedule/logs/a.log": "first\nsecond" },
   },
   {
     name: "logs-follow",
-    steps: [["schedule", "logs", "a", "-f"], ["schedule", "logs", "--follow", "a"]],
+    steps: [
+      ["schedule", "logs", "a", "-f"],
+      ["schedule", "logs", "--follow", "a"],
+    ],
     files: { ".okra/schedule/logs/a.log": "x\n" },
   },
   {
@@ -471,16 +545,30 @@ const cases: Case[] = [
   },
   {
     name: "invalid-schema-value",
-    steps: [["schedule", "x", "-s", "x 9 * * *"], ["schedule", "list", "--json"]],
+    steps: [
+      ["schedule", "x", "-s", "x 9 * * *"],
+      ["schedule", "list", "--json"],
+    ],
     git: fullGit,
   },
-  { name: "provider-bad", steps: [["schedule", "x", "-s", "in 5 minutes", "-p", "gemini"]], usage: true },
-  { name: "max-runs-bad", steps: [["schedule", "x", "-s", "in 5 minutes", "--max-runs", "abc"]], usage: true },
+  {
+    name: "provider-bad",
+    steps: [["schedule", "x", "-s", "in 5 minutes", "-p", "gemini"]],
+    usage: true,
+  },
+  {
+    name: "max-runs-bad",
+    steps: [["schedule", "x", "-s", "in 5 minutes", "--max-runs", "abc"]],
+    usage: true,
+  },
   { name: "list-extra", steps: [["schedule", "list", "extra"]], usage: true },
   { name: "remove-no-id", steps: [["schedule", "remove"]], usage: true },
   { name: "run-no-id", steps: [["schedule", "run"]], usage: true },
   { name: "logs-two-ids", steps: [["schedule", "logs", "a", "b"]], usage: true },
-  { name: "root-version", steps: [["--version"], ["-v"], ["schedule", "list", "--version"], ["keys", "get", "x", "-v"]] },
+  {
+    name: "root-version",
+    steps: [["--version"], ["-v"], ["schedule", "list", "--version"], ["keys", "get", "x", "-v"]],
+  },
   { name: "root-empty", steps: [[]] },
   { name: "root-version-after-dashdash", steps: [["how", "--", "--version"]] },
   { name: "root-unknown", steps: [["unknown"]], usage: true },
@@ -495,7 +583,16 @@ const scheduleTexts = () => {
   const h = String(next() % 14);
   const m = pick(["", ":00", ":07", ":30", ":5", ":99"]);
   const ampm = pick(["", "am", "pm", " PM", "Am"]);
-  const day = pick(["monday", "Tuesday", "WEDNESDAY", "thursday", "friday", "saturday", "sunday", "funday"]);
+  const day = pick([
+    "monday",
+    "Tuesday",
+    "WEDNESDAY",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+    "funday",
+  ]);
   const field = () => pick(["*", "0", "5", "12", "59", "007", "1-5", "0-6", "2-2", "6", "7", "x"]);
   return pick([
     `every day at ${h}${m}${ampm}`,
@@ -511,13 +608,22 @@ const scheduleTexts = () => {
 for (let i = 0; i < 16; i++) {
   const create = ["schedule", `seeded ${i}`, "-s", scheduleTexts()];
   if (next() % 3 === 0) create.push("--max-runs", String(next() % 3));
-  if (next() % 3 === 0) create.push("--until", pick(["2025-12-31", "2026-01-01", "2026-06-30T00:00:00Z", "2026-13-01"]));
+  if (next() % 3 === 0)
+    create.push(
+      "--until",
+      pick(["2025-12-31", "2026-01-01", "2026-06-30T00:00:00Z", "2026-13-01"]),
+    );
   if (next() % 4 === 0) create.push("--stop-when", "it is done");
   if (next() % 2 === 0) create.push("-p", pick(["claude", "codex"]));
   const out = pick(["", "plain\n", "no newline", "{NONCE}\n", "x\n{NONCE}"]);
   cases.push({
     name: `seed-${seed}-${i}`,
-    steps: [create, ["schedule", "list", "--json"], ["schedule", "run", "$1"], ["schedule", "list"]],
+    steps: [
+      create,
+      ["schedule", "list", "--json"],
+      ["schedule", "run", "$1"],
+      ["schedule", "list"],
+    ],
     replies: [{ out, status: pick([0, 0, 1]) }, { out: pick(["YES", "no", " yes\n"]) }],
     git: pick([fullGit, "none" as const, { branch: "x/12" }]),
   });
@@ -604,7 +710,10 @@ async function setup(c: Case, dir: string, fixture: string) {
   const bin = (name: string, text: string, mode = 0o755) =>
     writeFile(join(dir, "bin", name), text, { mode });
   for (const agent of ["claude", "codex"])
-    await bin(agent, c.agents === "badshebang" ? "#!/nonexistent/interpreter\n" : fakeAgent(fixture));
+    await bin(
+      agent,
+      c.agents === "badshebang" ? "#!/nonexistent/interpreter\n" : fakeAgent(fixture),
+    );
   await bin("launchctl", fakeLaunchctl(fixture, c));
   const [git, gh] = fakeGit(c.git ?? fullGit);
   await bin("git", git!);
@@ -629,7 +738,9 @@ type Renames = { ids: Map<string, string>; nonces: Map<string, string>; dir: str
 function causes(text: string) {
   const out: string[] = [];
   let warning = false;
-  for (const line of text.replace(/^(\[DECODE_FAILED\] Decode failed: )[^]*$/m, "$1<CAUSE>\n").split("\n")) {
+  for (const line of text
+    .replace(/^(\[DECODE_FAILED\] Decode failed: )[^]*$/m, "$1<CAUSE>\n")
+    .split("\n")) {
     const m = /^(Warning: skipping corrupt task file [^:]*: )/.exec(line);
     if (m) out.push(`${m[1]}<CAUSE>`);
     else if (!(warning && line.startsWith("  "))) out.push(line);
@@ -739,6 +850,7 @@ function unordered(text: string) {
   return [head, ...rows.sort()].join("\n");
 }
 
+type Result = Awaited<ReturnType<typeof execute>>;
 async function execute(program: string, c: Case, dir: string) {
   const fixture = `${dir}.fixture`;
   await mkdir(dir);
@@ -750,12 +862,19 @@ async function execute(program: string, c: Case, dir: string) {
   const fixed = new Set(await stored());
   const results = [];
   for (const raw of c.steps) {
-    const args = raw.map((a) => (/^\$\d$/.test(a) ? ([...r.ids.keys()][Number(a[1]) - 1] ?? a) : a));
+    const args = raw.map((a) =>
+      /^\$\d$/.test(a) ? ([...r.ids.keys()][Number(a[1]) - 1] ?? a) : a,
+    );
     const got = await step(program, args, c, dir);
     // A created task is named by its new file (a failed load keeps it).
     for (const id of await stored())
       if (!fixed.has(id) && !r.ids.has(id)) r.ids.set(id, `<ID${r.ids.size + 1}>`);
-    const res = { args: raw, out: normalize(got.out, r), err: normalize(got.err, r), code: got.code };
+    const res = {
+      args: raw,
+      out: normalize(got.out, r),
+      err: normalize(got.err, r),
+      code: got.code,
+    };
     if (c.unordered && raw.includes("list")) {
       res.out = unordered(res.out);
       res.err = res.err.split("\n").sort().join("\n");
@@ -778,15 +897,11 @@ try {
     const base = await mkdtemp(join(scratch, "schedule-"));
     await chmod(base, 0o755);
     const dir = join(base, "case");
-    const want = await records.get(c.name, async () => {
-      const result = await execute(reference, c, dir);
-      await rename(dir, `${dir}.ref`);
-      await rename(`${dir}.fixture`, `${dir}.ref.fixture`);
-      return result;
-    });
-    if (process.argv.includes("--dump")) console.log(JSON.stringify({ case: c.name, want }, null, 1));
-    const got = await execute(tsOnly ? reference : binary, c, dir);
-    if (c.usage && !tsOnly) {
+    const want = records.get<Result>(c.name);
+    if (process.argv.includes("--dump"))
+      console.log(JSON.stringify({ case: c.name, want }, null, 1));
+    const got = await execute(binary, c, dir);
+    if (c.usage) {
       for (const [i, w] of want.steps.entries()) {
         const g = got.steps[i]!;
         if (w.code !== 1 || g.code !== 1 || !g.out.includes("okra") || g.err === "")
@@ -798,14 +913,21 @@ try {
     if (!isDeepStrictEqual(want, got)) {
       console.error(
         JSON.stringify(
-          { seed, case: c, want, got, replay: `bun parity/schedule.ts --seed=${seed} --case=${c.name}` },
+          {
+            seed,
+            case: c,
+            want,
+            got,
+            replay: `bun parity/schedule.ts --seed=${seed} --case=${c.name}`,
+          },
           null,
           2,
         ),
       );
       throw new Error(`schedule parity mismatch: ${c.name}`);
     }
-    if (want.steps.some((s) => s.err.includes("refuses"))) throw new Error(`invalid reference ${c.name}`);
+    if (want.steps.some((s) => s.err.includes("refuses")))
+      throw new Error(`invalid reference ${c.name}`);
     console.log(`schedule ${c.name}: ${want.steps.map((s) => s.code).join(",")}`);
     count++;
   }

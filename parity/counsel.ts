@@ -15,7 +15,6 @@ import {
   mkdtemp,
   readdir,
   readFile,
-  rename,
   symlink,
   writeFile,
 } from "node:fs/promises";
@@ -29,21 +28,7 @@ await mkdir(scratch, { recursive: true });
 const arg = (name: string) =>
   process.argv.find((s) => s.startsWith(`--${name}=`))?.slice(name.length + 3);
 const seed = Number(arg("seed") ?? 42);
-const tsOnly = process.argv.includes("--record-check");
-const reference = join(scratch, "okra-image-ts");
 const binary = arg("binary") ?? join(root, "bin/okra-ergo-parity");
-if (process.argv.includes("--build-reference")) {
-  // The offline reference of O4: the whole CLI behind a deny-by-default fetch.
-  const result = await Bun.build({
-    entrypoints: [join(root, "parity/image-reference.ts")],
-    target: "bun",
-    compile: { outfile: reference, autoloadBunfig: false },
-    define: {
-      __VERSION__: JSON.stringify((await Bun.file(join(root, "package.json")).json()).version),
-    },
-  });
-  if (!result.success) throw new Error(`reference build failed: ${result.logs.join("\n")}`);
-}
 
 const catalog = {
   openai: {
@@ -594,10 +579,13 @@ function complete(c: Case, log: string, files: string[]) {
   return files.length === 2 && files[0] === (reply.err ?? "") && files[1] === (reply.out ?? "");
 }
 
+type Result = Awaited<ReturnType<typeof settled>>;
 async function settled(program: string, c: Case, dir: string, port: boolean) {
   const once = await execute(program, c, dir);
   if (once.complete || c.usage) return once.result;
-  throw new Error(`${port ? "port" : "reference"} lost agent output: ${c.name} ${JSON.stringify(once.result)}`);
+  throw new Error(
+    `${port ? "port" : "reference"} lost agent output: ${c.name} ${JSON.stringify(once.result)}`,
+  );
 }
 
 const records = frozen("counsel", seed, Boolean(arg("case")));
@@ -611,14 +599,9 @@ try {
     // working folder) is the same; the first run's folder is moved aside.
     const base = await mkdtemp(join(scratch, "counsel-"));
     const dir = join(base, "case");
-    const want = await records.get(c.name, async () => {
-      const result = await settled(reference, c, dir, false);
-      await rename(dir, `${dir}.ref`);
-      await rename(`${dir}.fixture`, `${dir}.ref.fixture`);
-      return result;
-    });
-    const got = await settled(tsOnly ? reference : binary, c, dir, !tsOnly);
-    if (c.usage && !tsOnly) {
+    const want = records.get<Result>(c.name);
+    const got = await settled(binary, c, dir, true);
+    if (c.usage) {
       if (want.code !== 1 || got.code !== 1 || !got.out.includes("okra") || got.err === "")
         throw new Error(`usage lost help/error/status: ${c.name} ${JSON.stringify(got)}`);
       got.out = want.out;

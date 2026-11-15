@@ -17,7 +17,6 @@ const arg = (name: string) =>
 const candidate = arg("binary") ?? join(root, "bin/okra-ergo-parity");
 const seed0 = Number(arg("seed") ?? 42);
 const only = arg("case");
-const tsOnly = process.argv.includes("--record-check");
 const world: World = await build(await mkdtemp(join(scratch, "skills-world-")));
 const started = Date.now();
 
@@ -384,6 +383,7 @@ async function snapshot(dir: string) {
   return out;
 }
 
+type Result = Awaited<ReturnType<typeof execute>>;
 async function execute(program: string, args: string[], cwd: string, env: Env) {
   const child = spawn(program, args, {
     cwd,
@@ -448,14 +448,6 @@ async function execute(program: string, args: string[], cwd: string, env: Env) {
   return { out: normalize(out, cwd), err: normalize(err, cwd), code, tree: await snapshot(cwd) };
 }
 
-const reference = (args: string[], cwd: string, env: Env) =>
-  execute(
-    process.execPath,
-    ["--preload", join(root, "parity/skills-network.ts"), join(root, "src/main.ts"), ...args],
-    cwd,
-    env,
-  );
-
 const notInteractive =
   "[NOT_INTERACTIVE] choosing skills needs a terminal on standard input; name one skill (owner/repo@skill)\n";
 const records = frozen("skills", seed0, Boolean(only));
@@ -464,24 +456,16 @@ let prompts = 0;
 try {
   for (const session of sessions.filter((s) => !only || s.name === only)) {
     seed(world);
-    const dirs = await Promise.all(
-      ["reference", "candidate"].map((impl) =>
-        mkdtemp(join(scratch, `skills-${session.name}-${impl}-`)),
-      ),
-    );
-    if (session.setup) for (const dir of dirs) await session.setup(dir);
+    const dir = await mkdtemp(join(scratch, `skills-${session.name}-`));
+    if (session.setup) await session.setup(dir);
     const env = session.env ?? {};
     for (const [index, current] of session.steps.entries()) {
       if (current.world) current.world(world);
-      if (current.edit) for (const dir of dirs) await current.edit(dir);
-      const want = await records.get(`${session.name}#${index}`, () =>
-        reference(current.args, dirs[0]!, env),
-      );
-      const got = tsOnly
-        ? await reference(current.args, dirs[1]!, env)
-        : await execute(candidate, current.args, dirs[1]!, env);
+      if (current.edit) await current.edit(dir);
+      const want = records.get<Result>(`${session.name}#${index}`);
+      const got = await execute(candidate, current.args, dir, env);
       // A usage error (the reference names it under ERRORS) has std flag's layout.
-      if ((current.usage || want.err.startsWith("\nERRORS\n")) && !tsOnly) {
+      if (current.usage || want.err.startsWith("\nERRORS\n")) {
         if (
           want.code !== got.code ||
           !got.out.includes("okra") ||
@@ -495,7 +479,7 @@ try {
       // input is not a terminal, the reference draws the prompt on stdout
       // and ends as an interrupt (130); the port fails before anything is
       // written, with one line and status 1.
-      if (want.code === 130 && !tsOnly) {
+      if (want.code === 130) {
         if (
           got.code !== 1 ||
           got.out !== "" ||
@@ -541,7 +525,7 @@ try {
 if (world.leaks.length) throw new Error(`credential leaks: ${world.leaks.join("; ")}`);
 if (!compared) throw new Error("No cases selected");
 records.done();
-if (!tsOnly && !only && !prompts)
+if (!only && !prompts)
   throw new Error("no prompt case ran: the declared prompt rule was never exercised");
 console.log(
   `SKILLS PARITY EXIT: 0 (${compared} process pairs, ${prompts} declared prompt cases, seed ${seed0})`,

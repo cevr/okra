@@ -11,7 +11,6 @@ await mkdir(scratch, { recursive: true });
 const candidate =
   process.argv.find((a) => a.startsWith("--binary="))?.slice(9) ?? join(root, "bin/okra-ergo");
 const seed = Number(process.argv.find((a) => a.startsWith("--seed="))?.slice(7) ?? 42);
-const tsOnly = process.argv.includes("--record-check");
 const name = process.argv.find((a) => a.startsWith("--case="))?.slice(7);
 type Step = { args: string[]; stdin?: string; env?: Record<string, string>; usage?: boolean };
 type Session = { name: string; initial?: string; steps: Step[] };
@@ -147,6 +146,7 @@ for (let i = 0; i < 12; i++) {
   sessions.push({ name: `seed-${seed}-${i}`, steps });
 }
 
+type Result = Awaited<ReturnType<typeof execute>>;
 async function execute(program: string, args: string[], cwd: string, inputStep: Step) {
   const child = spawn(program, args, {
     cwd,
@@ -228,44 +228,15 @@ async function execute(program: string, args: string[], cwd: string, inputStep: 
 const records = frozen("keys", seed, Boolean(name));
 let compared = 0;
 for (const session of sessions.filter((s) => !name || s.name === name)) {
-  const dirs = await Promise.all(
-    ["reference", "candidate"].map(async (impl) => {
-      const dir = await mkdtemp(join(scratch, `okra-${session.name}-${impl}-`));
-      if (session.initial !== undefined) {
-        await mkdir(join(dir, ".okra"));
-        await writeFile(join(dir, ".okra/keys.json"), session.initial, { mode: 0o644 });
-      }
-      return dir;
-    }),
-  );
+  const dir = await mkdtemp(join(scratch, `okra-${session.name}-`));
+  if (session.initial !== undefined) {
+    await mkdir(join(dir, ".okra"));
+    await writeFile(join(dir, ".okra/keys.json"), session.initial, { mode: 0o644 });
+  }
   for (const [index, current] of session.steps.entries()) {
-    const reference = await records.get(`${session.name}#${index}`, () =>
-      execute(
-        process.execPath,
-        [
-          "--preload",
-          join(root, "parity/deny-network.ts"),
-          join(root, "src/main.ts"),
-          ...current.args,
-        ],
-        dirs[0]!,
-        current,
-      ),
-    );
-    const actual = tsOnly
-      ? await execute(
-          process.execPath,
-          [
-            "--preload",
-            join(root, "parity/deny-network.ts"),
-            join(root, "src/main.ts"),
-            ...current.args,
-          ],
-          dirs[1]!,
-          current,
-        )
-      : await execute(candidate, current.args, dirs[1]!, current);
-    if (current.usage && !tsOnly) {
+    const reference = records.get<Result>(`${session.name}#${index}`);
+    const actual = await execute(candidate, current.args, dir, current);
+    if (current.usage) {
       if (
         reference.code !== 1 ||
         actual.code !== 1 ||

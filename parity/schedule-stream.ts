@@ -12,7 +12,8 @@ import { join, resolve } from "node:path";
 const root = resolve(import.meta.dir, "..");
 const scratch = process.env.OKRA_PARITY_SCRATCH ?? "/tmp/opencode/okra-o6";
 const binary =
-  process.argv.find((s) => s.startsWith("--binary="))?.slice(9) ?? join(root, "bin/okra-ergo-parity");
+  process.argv.find((s) => s.startsWith("--binary="))?.slice(9) ??
+  join(root, "bin/okra-ergo-parity");
 await mkdir(scratch, { recursive: true });
 const dir = await mkdtemp(join(scratch, "schedule-stream-"));
 const bin = join(dir, "bin");
@@ -34,7 +35,15 @@ await writeFile(
     id: "live",
     prompt: "stream",
     provider: "claude",
-    schedule: { _tag: "Cron", minute: 0, hour: 9, dayOfMonth: "*", month: "*", dayOfWeek: "*", raw: "every day at 9am" },
+    schedule: {
+      _tag: "Cron",
+      minute: 0,
+      hour: 9,
+      dayOfMonth: "*",
+      month: "*",
+      dayOfWeek: "*",
+      raw: "every day at 9am",
+    },
     cwd: work,
     createdAt: "2026-01-01T00:00:00.000Z",
     status: "active",
@@ -80,10 +89,16 @@ child.stderr!.on("data", (s: Buffer) => (err += s.toString("latin1")));
 const code = await new Promise<number>((yes) => child.once("close", (status) => yes(status ?? 1)));
 clearTimeout(timer);
 const ps = spawnSync("ps", ["-eo", "pgid,stat"], { encoding: "utf8" });
-if (ps.stdout.split("\n").some((l) => l.trim().split(/\s+/)[0] === String(child.pid) && !l.includes("Z")))
+if (
+  ps.stdout
+    .split("\n")
+    .some((l) => l.trim().split(/\s+/)[0] === String(child.pid) && !l.includes("Z"))
+)
   throw new Error("owned schedule stream process remains");
 if (failure) throw new Error(failure);
 const want = `${chunk} tail`;
 if (code !== 0 || out !== want || !err.includes("[okra schedule] Task live completed (run #1)"))
   throw new Error(`schedule stream mismatch: ${JSON.stringify({ code, out, err })}`);
-console.log("SCHEDULE STREAM EXIT: 0 (a chunk with no line feed reached stdout while the agent ran)");
+console.log(
+  "SCHEDULE STREAM EXIT: 0 (a chunk with no line feed reached stdout while the agent ran)",
+);
