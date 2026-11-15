@@ -227,7 +227,7 @@ func ExecuteAgent(inv counsel.Invocation, events string, errors string, limit du
 	fs.Writes.Rename(errorSink, errors) catch {
 	case _:
 	}
-	let status = timeout.After(limit) { running.Wait() } catch {
+	let status = running.WaitFor(limit) catch {
 	case timeout.Expired:
 		let stopped = running.Stop()
 		return Executed{ExitCode: stopped, TimedOut: true, DurationMs: millis(time.Clock.Now()) - started}

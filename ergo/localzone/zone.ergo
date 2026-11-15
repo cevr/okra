@@ -26,8 +26,8 @@ func Read(wall int64) Option[int64] needs go.Foreign {
 //     of these as UTC, on every host; the port refuses a local time there
 //     (declared).
 // The data of a carried name is read from the host's zoneinfo first, then
-// from the carried tzdata (time.LoadLocation; the build's timetzdata tag;
-// ergo-gaps: carried zone data).
+// from the carried tzdata (time.LoadLocation; `import go time/tzdata` in
+// each main).
 func Zone() Option[go.Ref[time.Location]] needs go.Foreign {
 	let (tz, set) = os.LookupEnv("TZ")
 	if !set || !olsonShaped(tz) { return Host() }
@@ -139,8 +139,8 @@ let day = int64(86400000)
 // The offsets a day before and after are the candidates: a zone changes
 // its offset at most once in two days.
 func Instant(loc go.Ref[time.Location], wall int64) int64 needs go.Foreign {
-	let before = Offset(loc, wall - day)
-	let after = Offset(loc, wall + day)
+	let before = Offset(loc, wall-day)
+	let after = Offset(loc, wall+day)
 	let early = wall - int64(before)*1000
 	let late = wall - int64(after)*1000
 	let earlyShows = Offset(loc, early) == before

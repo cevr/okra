@@ -82,7 +82,10 @@ func Run(args []string, topics []how.Topic, setup RepoSetup, kit SkillsSetup, im
 		// an interrupt (130) when standard input is not a terminal.
 		return os.Exit{Code: 1, Message: "[NOT_INTERACTIVE] choosing skills needs a terminal on standard input; name one skill (owner/repo@skill)"}
 	case prompt.Cancelled:
-		return os.Exit{Code: 130, Message: ""}
+		// Declared difference: the reference ends a cancelled prompt as an
+		// interrupt (130); os.Code stops at 125 (126 and up are the shell's),
+		// so a cancel is a failure with status 1.
+		return os.Exit{Code: 1, Message: "[CANCELLED] no skills chosen"}
 	case io.ReadFailed as e:
 		return os.Exit{Code: 1, Message: "[INPUT] " + e.Reason}
 	case os.Exit as e:

@@ -172,7 +172,7 @@ const mutants: Mutant[] = [
     ["eq-leap-base-1960", "schedule/date.ergo", "if leap { 1956 + (weekday*12)%28 }", "if leap { 1960 + (weekday*12)%28 }"],
   ] as const).map(([name, file, from, to]) => ({ name, file, from, to, guard: until })),
   // The build without Go's tzdata: a zone the host lacks no longer loads.
-  { name: "zone-data-not-carried", file: "cmd/okra-parity/main.ergo", from: "", to: "", guard: until, env: { GOFLAGS: "-p=1" } },
+  { name: "zone-data-not-carried", file: "cmd/okra-parity/main.ergo", from: "import go time/tzdata\n", to: "", guard: until },
 ];
 // The host's own zone (TZ unset) reads January and July noon as UTC: only
 // then can no run tell the host's zone from UTC.

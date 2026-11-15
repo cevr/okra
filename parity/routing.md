@@ -12,7 +12,18 @@ Effect-only global flags are dropped (owner q95), not sent to TS. The package
 No installed link is changed. `scripts/build.ts` no longer links HOME/.bun/bin.
 `bun run build` builds `okra-ts` (the rollback); `ERGO=/path/to/pinned/ergo bun
 run build:ergo` generates guide assets and the version line, then builds
-`okra-ergo` and the offline `okra-ergo-parity`. Publishing is not changed.
+`okra-ergo` and the offline `okra-ergo-parity`.
+
+## Package
+
+The npm package ships `bin/okra` and `npm/<os>-<arch>/okra` for darwin and
+linux (arm64, x64), built by `scripts/release.ts` with the pinned compiler, and
+no TypeScript. In the package the launcher runs the binary for `uname -s`/`-m`;
+an unsupported platform or a missing binary fails with one line and status 1,
+and `OKRA_IMPL=ts` fails (no `okra-ts` there). A source checkout's
+`bin/okra-ergo` wins when it is present. `parity/launcher.ts` holds this over
+fake platforms and the links npm and bun make; `scripts/smoke.ts` installs the
+packed tarball and runs it.
 
 ## Limits
 
@@ -63,7 +74,9 @@ run build:ergo` generates guide assets and the version line, then builds
 - `skills add` with several candidates opens a multi-select (std prompt) on
   standard error. Installed skills show as `name (installed)` and are never
   installed; while one is not installed, an empty answer asks again. Escape,
-  Ctrl-C or Ctrl-D cancel with status 130. When standard input is not a
+  Ctrl-C or Ctrl-D cancel: the reference ends as an interrupt (status 130);
+  the port fails with status 1 and `[CANCELLED] no skills chosen`, since
+  `os.Exit` codes stop at 125 (126 and up are the shell's). When standard input is not a
   terminal, the reference draws its prompt on stdout and ends as an interrupt
   (status 130); the port writes nothing and fails with status 1 and the line
   `[NOT_INTERACTIVE] choosing skills needs a terminal on standard input; name
@@ -109,7 +122,7 @@ argv and folder, and each launchctl call compare byte for byte, except:
   `parity/until.ts` holds these rules over seeded texts in nine zones,
   including local wall clocks within 15 hours of both edges of the range.
   Zone data: the port reads the host's zoneinfo first, then the tzdata the
-  binary carries (Go 2026c, built with `-tags=timetzdata`), so a zone the
+  binary carries (Go 2026c, carried by `import go time/tzdata` in its main), so a zone the
   host lacks (`America/Godthab` on hosts without backward names) still
   loads; Bun reads ICU's data (ICU 78.3). The same instant holds where the
   two data sets agree. Measured on this host (`O6/r3-tzcmp-*.txt` in the run

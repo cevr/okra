@@ -21,10 +21,12 @@ import os
 import rand
 import term
 import time
+// The binary carries Go's zone data: a zone the host lacks still loads.
+import go time/tzdata
 
 // Registry documents and tarballs are buffered, as the reference buffers
 // them; the budget bounds memory. Redirects follow fetch's default limit.
-let registryLimits = http.Limits{MaxBodyBytes: 536870912, MaxHeaderBytes: 1048576}
+let registryLimits = http.Limits{MaxBodyBytes: 536870912, MaxHeaderBytes: 1048576, IdleTimeout: 30s, ReadHeaderTimeout: 30s, ReadBodyTimeout: 30s}
 
 func main() fails os.Exit needs Ambient | go.Foreign {
 	let process = os.NewHost()
@@ -36,6 +38,8 @@ func main() fails os.Exit needs Ambient | go.Foreign {
 	let network = http.NewNet(http.AnyOrigin, registryLimits, http.Follow{MaxHops: 20}) catch {
 	case http.InvalidClient as e:
 		return os.Exit{Code: 1, Message: "[NETWORK] " + e.Reason}
+	case http.InvalidLimits:
+		return os.Exit{Code: 1, Message: "[NETWORK] invalid HTTP limits"}
 	}
 	let homeText = match home {
 	case None:

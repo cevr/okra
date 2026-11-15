@@ -23,6 +23,8 @@ import strconv
 import strings
 import term
 import time
+// The binary carries Go's zone data: a zone the host lacks still loads.
+import go time/tzdata
 
 // loopback admits only a literal IPv4 loopback HTTP origin with a port.
 func loopback(value Option[string]) string fails os.Exit {
@@ -52,9 +54,11 @@ func main() fails os.Exit needs Ambient | go.Foreign {
 	let home = process.Getenv("HOME")
 	let dir = cachefile.Dir(home)
 	let origin = try loopback(process.Getenv("OKRA_PARITY_ORIGIN"))
-	let network = http.NewNet(http.Origins{Values: []string{origin}}, http.Limits{MaxBodyBytes: 67108864, MaxHeaderBytes: 65536}, http.Follow{MaxHops: 20}) catch {
+	let network = http.NewNet(http.Origins{Values: []string{origin}}, http.Limits{MaxBodyBytes: 67108864, MaxHeaderBytes: 65536, IdleTimeout: 30s, ReadHeaderTimeout: 30s, ReadBodyTimeout: 30s}, http.Follow{MaxHops: 20}) catch {
 	case http.InvalidClient:
 		return os.Exit{Code: 1, Message: "Parity requires a loopback registry origin"}
+	case http.InvalidLimits:
+		return os.Exit{Code: 1, Message: "invalid HTTP limits"}
 	}
 	let transport = registryhttp.Rewriting([]registryhttp.Rewrite{
 		registryhttp.Rewrite{From: "https://registry.npmjs.org/", To: origin + "/npm/"},
@@ -104,6 +108,6 @@ func frozen(value Option[string]) Option[int64] fails os.Exit {
 	case _:
 		return os.Exit{Code: 1, Message: "OKRA_PARITY_NOW must be integer milliseconds"}
 	}
-	if ms % 1000 != 0 { return os.Exit{Code: 1, Message: "OKRA_PARITY_NOW must be whole seconds"} }
+	if ms%1000 != 0 { return os.Exit{Code: 1, Message: "OKRA_PARITY_NOW must be whole seconds"} }
 	Some[int64]{Value: ms / 1000}
 }

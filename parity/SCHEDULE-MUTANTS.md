@@ -74,7 +74,7 @@ the two local-time mutants.
 | zone-olson-check-dropped    | `:EST5EDT` is not EST5EDT: ICU's id check fails on the whole TZ      |
 | host-zone-read-as-utc       | a TZ that fails ICU's id check is the host's zone, not UTC           |
 | eq-leap-base-1960           | a leap year outside the range takes 2008's offset family, not 2012's |
-| zone-data-not-carried       | built without `-tags=timetzdata`, a zone the host lacks fails        |
+| zone-data-not-carried       | main without `import go time/tzdata`, a zone the host lacks fails   |
 
 `zone-data-not-carried` edits no source: it builds with `GOFLAGS=-p=1`. It
 dies only on a host whose zoneinfo lacks `America/Godthab` (this one).
