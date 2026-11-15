@@ -7,6 +7,26 @@ on:
     branches: [main]
 
 jobs:
+  # A pull request that changes the package must carry a changeset, or merging
+  # it publishes nothing. The version PR consumes changesets, so it is skipped.
+  changeset:
+    name: Changeset
+    if: github.event_name == 'pull_request' && github.head_ref != 'changeset-release/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install
+
+      - name: Changeset status
+        run: bunx changeset status --since=origin/main
+
   # The published CLI is the Ergo build. This job builds the compiler at the pin
   # in ergo-toolchain.json, checks and tests every Ergo package, builds both
   # programs, and runs each subcommand's parity suite: the TypeScript CLI is
