@@ -197,4 +197,42 @@ if (!only || frozenMutants.some((m) => m.name === only)) {
     console.log(`killed ${mutant.name}: ${misses.map((m) => m.split(":")[0]).join(", ")} guard`);
   }
 }
+// frozen.ts sets umask 022 for every suite that reads records. The guard runs
+// the repo session `empty` (it makes .cache folders) under umask 002: it must
+// pass with the real frozen.ts, and fail when the umask line is dropped.
+const umaskMutant = { from: "process.umask(0o022);\n", to: "" };
+async function underUmask002(edit?: Edit) {
+  const dir = await mkdtemp(join(scratch, "umask-mutant-"));
+  await cp(join(root, "parity"), join(dir, "parity"), { recursive: true });
+  if (edit) {
+    const path = join(dir, "parity/frozen.ts");
+    const source = await readFile(path, "utf8");
+    if (source.split(edit.from).length !== 2) throw new Error("umask edit is not unique");
+    await writeFile(path, source.replace(edit.from, edit.to));
+  }
+  const args = [
+    join(dir, "parity/repo.ts"),
+    `--binary=${join(root, "bin/okra-ergo-parity")}`,
+    "--seed=42",
+    "--case=empty",
+  ];
+  const result = await run(
+    "sh",
+    ["-c", 'umask 002; exec "$0" "$@"', process.execPath, ...args],
+    dir,
+    {
+      OKRA_PARITY_SCRATCH: scratch,
+    },
+  );
+  return { code: result.code, output: result.out + result.err };
+}
+if (!only || only === "umask-not-fixed") {
+  const base = await underUmask002();
+  if (base.code !== 0)
+    throw new Error(`repo empty fails under umask 002: ${base.output.slice(-400)}`);
+  const mutated = await underUmask002(umaskMutant);
+  if (mutated.code === 0 || !mutated.output.includes("parity mismatch"))
+    throw new Error(`umask-not-fixed survived: ${mutated.output.slice(-400)}`);
+  console.log("killed umask-not-fixed: repo empty under umask 002");
+}
 console.log(only ? `MUTANTS EXIT: 0 (mutant ${only} only)` : "MUTANTS EXIT: 0");

@@ -70,3 +70,5 @@ The shim-*-to-ts mutants of `parity/switch.ts` (O1-O6) are gone with the switch:
 - `frozen-missing-record-ignored`: a case with no record no longer fails. The guard removes `inherited-remove#0`, and that session must fail with `no frozen reference for`.
 
 Both guards are checked on the real `frozen.ts` first. No other run edits the records, so nothing else reaches these checks.
+
+- `umask-not-fixed`: `frozen.ts` no longer sets umask 022 for the suites, so a host with umask 002 fails every mode-bearing case. The guard runs repo session `empty` (it makes `.cache` folders) under umask 002. It must pass with the real `frozen.ts` and fail with `parity mismatch` without the umask line. Every earlier run used the host's 022, so none reached this.

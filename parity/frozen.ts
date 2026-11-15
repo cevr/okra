@@ -9,6 +9,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
+// The records hold file and folder modes made under umask 022. Every suite
+// that reads them runs, with the programs it starts (they inherit it), under
+// the same umask, so a host's own umask cannot fail a case.
+process.umask(0o022);
+
 export function frozen(suite: string, seed: number | string, selected: boolean) {
   const path = join(import.meta.dir, "frozen", `${suite}-${seed}.json`);
   if (!existsSync(path))
