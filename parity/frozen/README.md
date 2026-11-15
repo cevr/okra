@@ -8,6 +8,13 @@ printed, exited and wrote. That output was recorded once, at commit 3309dc3
 for counsel, schedule and image later took the same text edit as those skills'
 SKILL.md files, which the TypeScript CLI would print the same way.
 
+The repo records were made again from 3309dc3's TypeScript CLI (a `git
+archive` of it, with this harness's repo world) once CI showed that the files
+git writes into a clone's `.git` followed the host: the reflog named the host's
+committer, and git's template set the hooks and their modes. The world now
+fixes the committer and uses an empty template, and the remote's path has the
+recorded length (see `parity/repo.ts`).
+
 One file per suite and seed: `<suite>-<seed>.json`, with one entry per case
 step. The until property also records per host zone:
 `until-<seed>-<zone>.json`, where `<zone>` is the host's `/etc/localtime`.

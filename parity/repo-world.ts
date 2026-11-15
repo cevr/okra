@@ -276,9 +276,16 @@ export async function build(dir: string): Promise<World> {
       return new Response("not found", { status: 404 });
     },
   });
+  // The clone okra makes is compared with a recorded tree, so the files git
+  // writes into .git must not follow the host: the reflog names a fixed
+  // committer, and an empty template adds no hooks, description or excludes.
+  await mkdir(join(dir, "template"), { recursive: true });
   const gitEnv: Record<string, string> = {
     GIT_CONFIG_NOSYSTEM: "1",
     GIT_CONFIG_GLOBAL: "/dev/null",
+    GIT_TEMPLATE_DIR: join(dir, "template"),
+    GIT_COMMITTER_NAME: "Fixture",
+    GIT_COMMITTER_EMAIL: "fixture@example.invalid",
     GIT_ALLOW_PROTOCOL: "file",
     GIT_TERMINAL_PROMPT: "0",
     GIT_CONFIG_COUNT: String(forges.length),
