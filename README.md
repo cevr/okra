@@ -10,13 +10,32 @@ AI agent orchestration toolkit. Seven subcommands:
 - **`okra keys`** — Manage stored provider API keys
 - **`okra how`** — Print the embedded usage guide for any subcommand
 
+okra is written in [Ergo](https://github.com/cevr/ergo) and ships as a native
+binary. The TypeScript source in `src/` is the reference implementation: the
+parity suites run both programs and require the same output. It stays until it
+is retired.
+
 ## Install
 
 ```bash
-bun add --global @cvr/okra
+bun add --global @cvr/okra    # or: npm install --global @cvr/okra
 ```
 
-Bun links the package entry point to `~/.bun/bin/okra`.
+The package carries native binaries for macOS and Linux (arm64 and x64) and a
+small `sh` launcher, `bin/okra`, that runs the one for your platform. It has no
+postinstall step and needs no Bun or Node at run time.
+
+From a source checkout, build the compiler at the pin in `ergo-toolchain.json`
+(`go build ./cmd/ergo` in a checkout of that commit), then:
+
+```bash
+bun install
+ERGO=/path/to/ergo bun run build:ergo   # bin/okra-ergo and the offline parity entry
+ln -sf "$PWD/bin/okra" ~/.bun/bin/okra
+```
+
+`OKRA_IMPL=ts okra …` runs the TypeScript build (`bun run build`) instead, in a
+source checkout only.
 
 ## Usage
 
@@ -50,10 +69,25 @@ okra repo path effect-ts/effect-smol
 ```bash
 bun install     # install dependencies
 bun run gate    # typecheck + lint + fmt + test + build (parallel)
-bun run dev     # run from source
-bun test        # tests only
+bun run dev     # build the Ergo binary and run it
+bun test        # tests of the TypeScript reference
 ```
+
+Ergo port (`ergo/`, see [ergo/README.md](ergo/README.md)) and its parity
+suites, with `ERGO` naming the pinned compiler:
+
+```bash
+bun scripts/build.ts && bun scripts/build.ts --ergo   # both programs
+bun parity/run.ts            # keys, how
+bun parity/repo.ts --seed=42 # repo; likewise skills, image, counsel, schedule, until
+bun scripts/release.ts       # the four native binaries the package ships, in npm/
+bun scripts/smoke.ts         # pack, install with bun and npm, run the installed okra
+```
+
+CI (`.github/workflows/ci.yml`) builds the pinned compiler and runs every parity
+suite; the release workflow builds the binaries on Linux and macOS runners.
 
 ## Stack
 
-Effect 4.0.0, Bun, `effect/cli`, oxlint, oxfmt, lefthook.
+Ergo (native binary), with the TypeScript reference on Effect 4, Bun and
+`effect/cli`; oxlint, oxfmt, lefthook.
