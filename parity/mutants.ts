@@ -5,6 +5,7 @@ import { run } from "./process";
 const root = join(import.meta.dir, "..");
 const scratch = process.env.OKRA_PARITY_SCRATCH ?? "/tmp/opencode/linear-port";
 const compiler = join(scratch, "ergo");
+const only = process.argv.find((a) => a.startsWith("--only="))?.slice(7);
 const mutants = [
   {
     name: "inherited-remove-treated-as-missing",
@@ -88,6 +89,7 @@ const mutants = [
   },
 ];
 for (const mutant of mutants) {
+  if (only && only !== mutant.name) continue;
   const dir = await mkdtemp(join(scratch, "okra-mutant-"));
   const module = join(dir, "ergo");
   await cp(join(root, "ergo"), module, { recursive: true });
@@ -119,4 +121,80 @@ for (const mutant of mutants) {
   }
   console.log(`killed ${mutant.name}`);
 }
-console.log("MUTANTS EXIT: 0");
+
+// The recorded references (parity/frozen.ts): a record no case reaches and a
+// case with no record must each fail a run. The guards edit a copy's keys
+// records: one extra entry fails the full run, one removed entry fails the
+// session that needs it. Unmutated, both guards must see their failure; each
+// mutant turns one check off, and a guard must then miss its failure.
+const frozenMutants = [
+  {
+    name: "frozen-unused-record-ignored",
+    from: "      if (unused.length)\n",
+    to: "      if (false && unused.length)\n",
+  },
+  {
+    name: "frozen-missing-record-ignored",
+    from: "      if (!(key in table)) throw",
+    to: "      if (false) throw",
+  },
+];
+type Edit = { from: string; to: string };
+async function frozenRun(
+  edit: Edit | undefined,
+  change: (table: Record<string, unknown>) => void,
+  args: string[],
+) {
+  const dir = await mkdtemp(join(scratch, "frozen-mutant-"));
+  await cp(join(root, "parity"), join(dir, "parity"), { recursive: true });
+  if (edit) {
+    const path = join(dir, "parity/frozen.ts");
+    const source = await readFile(path, "utf8");
+    if (source.split(edit.from).length !== 2)
+      throw new Error(`frozen edit is not unique: ${edit.from}`);
+    await writeFile(path, source.replace(edit.from, edit.to));
+  }
+  const records = join(dir, "parity/frozen/keys-42.json");
+  const table = JSON.parse(await readFile(records, "utf8"));
+  change(table);
+  await writeFile(records, JSON.stringify(table));
+  const binary = `--binary=${join(root, "bin/okra-ergo")}`;
+  const result = await run(process.execPath, [join(dir, "parity/run.ts"), binary, ...args], dir, {
+    OKRA_PARITY_SCRATCH: scratch,
+  });
+  return { code: result.code, output: result.out + result.err };
+}
+// The guards a frozen.ts at `edit` lets through (none for the real one).
+async function frozenMisses(edit?: Edit) {
+  const misses: string[] = [];
+  const full = await frozenRun(
+    edit,
+    (t) => {
+      t["no-such-session#0"] = t["inherited-remove#0"];
+    },
+    [],
+  );
+  if (full.code === 0 || !full.output.includes("records no case reached: no-such-session#0"))
+    misses.push(`unused record: ${full.output.slice(-400)}`);
+  const one = await frozenRun(
+    edit,
+    (t) => {
+      delete t["inherited-remove#0"];
+    },
+    ["--case=inherited-remove"],
+  );
+  if (one.code === 0 || !one.output.includes("no frozen reference for inherited-remove#0"))
+    misses.push(`missing record: ${one.output.slice(-400)}`);
+  return misses;
+}
+if (!only || frozenMutants.some((m) => m.name === only)) {
+  const base = await frozenMisses();
+  if (base.length) throw new Error(`frozen guards fail on the real frozen.ts: ${base.join("; ")}`);
+  for (const mutant of frozenMutants) {
+    if (only && only !== mutant.name) continue;
+    const misses = await frozenMisses(mutant);
+    if (!misses.length) throw new Error(`${mutant.name} survived`);
+    console.log(`killed ${mutant.name}: ${misses.map((m) => m.split(":")[0]).join(", ")} guard`);
+  }
+}
+console.log(only ? `MUTANTS EXIT: 0 (mutant ${only} only)` : "MUTANTS EXIT: 0");

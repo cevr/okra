@@ -61,3 +61,12 @@ case cannot reach them, because a process case has no terminal.
 - `impl-switch-kept`: `OKRA_IMPL=ts` still selects another program (the switch and the TypeScript CLI are gone; owner 2026-11-15).
 
 The shim-*-to-ts mutants of `parity/switch.ts` (O1-O6) are gone with the switch: nothing can route to TypeScript, and `impl-switch-kept` holds that.
+
+## Recorded references (`parity/frozen.ts`)
+
+`bun parity/mutants.ts` (`--only=<name>` runs one):
+
+- `frozen-unused-record-ignored`: a full run no longer fails on a record that no case reached. The guard adds one entry to a copy's `keys-42.json`, and the full run must fail with `records no case reached`.
+- `frozen-missing-record-ignored`: a case with no record no longer fails. The guard removes `inherited-remove#0`, and that session must fail with `no frozen reference for`.
+
+Both guards are checked on the real `frozen.ts` first. No other run edits the records, so nothing else reaches these checks.
