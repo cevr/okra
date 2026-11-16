@@ -1,0 +1,161 @@
+import base64
+import fs
+import http
+import json
+import okraport/image
+import okraport/jsview
+import strings
+import go path/filepath
+
+type Auth { Token string, Account string, Version string }
+func readAuth(home string) Auth fails image.Failed needs fs.Files | go.Foreign {
+	let path = filepath.Join([]string{home, ".codex/auth.json"})
+	let text = fs.Files.ReadFile(path) catch {
+	case fs.NotFound:
+		let _ = try image.Fail("AUTH_MISSING", "No codex credentials at "+path+". Run `codex login` first.")
+		return Auth{Token: "", Account: "", Version: ""}
+	case _:
+		let _ = try image.Fail("AUTH_MISSING", "Cannot read "+path+". Run `codex login` to refresh credentials.")
+		return Auth{Token: "", Account: "", Version: ""}
+	}
+	let auth = parseAuth(text) catch {
+	case jsview.Invalid:
+		let _ = try image.Fail("AUTH_MISSING", "Malformed codex credentials at "+path+". Run `codex login` again.")
+		return Auth{Token: "", Account: "", Version: ""}
+	}
+	let mut version = "0.142.3"
+	match maybeRead(home + "/.codex/version.json") {
+	case None:
+	case Some[string] as t:
+		let latest = versionOf(t.Value) catch {
+		case _:
+			None
+		}
+		match latest {
+		case None:
+		case Some[string] as v:
+			version = v.Value
+		}
+	}
+	Auth{Token: auth.Token, Account: auth.Account, Version: version}
+}
+func parseAuth(text string) Auth fails jsview.Invalid {
+	let tokens = try jsview.Required(try jsview.Parse(text), "tokens")
+	Auth{Token: try jsview.Text(try jsview.Required(tokens, "access_token")), Account: try jsview.Text(try jsview.Required(tokens, "account_id")), Version: ""}
+}
+func versionOf(text string) Option[string] fails jsview.Invalid {
+	match try jsview.Member(try jsview.Parse(text), "latest_version") {
+	case None:
+		None
+	case Some[json.Value] as v:
+		match v.Value {
+		case json.Null:
+			None
+		case other:
+			Some[string]{Value: try jsview.Text(other)}
+		}
+	}
+}
+func object(fields []json.Member) json.Value      { json.Object{Members: fields} }
+func field(name string, value string) json.Member { json.Member{Key: name, Value: json.Str{Value: value}} }
+func request(input image.Input) string {
+	let text = "You are an image generation assistant.\n\n" + input.Prompt + image.SizeHint(input.Size)
+	let mut parts = []json.Value{object([]json.Member{field("type", "input_text"), field("text", text)})}
+	for ref in input.Refs { parts = parts.Append(object([]json.Member{field("type", "input_image"), field("image_url", "data:"+ref.Media+";base64,"+base64.Encode(base64.StdEncoding, ref.Data)), field("detail", "auto")})) }
+	encoded(object([]json.Member{
+		field("model", input.Model),
+		json.Member{Key: "input", Value: json.Array{Items: []json.Value{object([]json.Member{field("role", "user"), json.Member{Key: "content", Value: json.Array{Items: parts}}})}}},
+		json.Member{Key: "tools", Value: json.Array{Items: []json.Value{object([]json.Member{field("size", input.Size), field("output_format", input.Format), field("type", "image_generation")})}}},
+		json.Member{Key: "tool_choice", Value: object([]json.Member{field("type", "image_generation")})},
+		json.Member{Key: "store", Value: json.Boolean{Value: false}},
+		json.Member{Key: "stream", Value: json.Boolean{Value: true}},
+	}))
+}
+// completeImage consumes SSE events after the bounded response has ended.
+// Only a successful, completed image tool result counts, and the first one
+// wins, as in ImageGen. Chunk boundaries and missing content-type do not matter.
+func completeImage(text string) string fails image.Failed | jsview.Invalid {
+	let mut data = []string{}
+	let mut found Option[string] = None
+	for line in strings.Split(strings.ReplaceAll(text, "\r\n", "\n")+"\n\n", "\n") {
+		if line != "" {
+			if strings.HasPrefix(line, "data:") {
+				let value = line[5:]
+				data = data.Append(if strings.HasPrefix(value, " ") { value[1:] } else { value })
+			}
+			continue
+		}
+		let payload = strings.Join(data, "\n")
+		data = []string{}
+		if payload == "" || payload == "[DONE]" { continue }
+		let v = try jsview.Parse(payload)
+		let kind = try jsview.Text(try jsview.Required(v, "type"))
+		if kind != "response.output_item.done" || found != None { continue }
+		let item = try jsview.Required(v, "item")
+		if try jsview.Text(try jsview.Required(item, "type")) != "image_generation_call" { continue }
+		let status = try jsview.OptionalText(item, "status")
+		if status != None && status != (Some[string]{Value: "completed"}) { continue }
+		match try jsview.Member(item, "result") {
+		case None:
+		case Some[json.Value] as result:
+			match result.Value {
+			case json.Null:
+				return image.Fail("NO_IMAGE", "Backend returned an empty image result.")
+			case other:
+				found = Some[string]{Value: try decode64(try jsview.Text(other), true)}
+			}
+		}
+	}
+	match found {
+	case Some[string] as f:
+		f.Value
+	case None:
+		return image.Fail("NO_IMAGE", "Backend returned no image. Try rephrasing the prompt.")
+	}
+}
+func Codex(setup Setup, input image.Input, home string) string fails image.Failed needs fs.Files | http.Network | go.Foreign {
+	let auth = try readAuth(home)
+	let r = try send("Image generation failed: ", setup.Codex+"/responses", request(input), []http.Field{
+		http.Field{Name: "Authorization", Value: "Bearer " + auth.Token},
+		http.Field{Name: "chatgpt-account-id", Value: auth.Account},
+	}, []http.Field{
+		http.Field{Name: "Content-Type", Value: "application/json"},
+		http.Field{Name: "originator", Value: "codex_cli_rs"},
+		http.Field{Name: "version", Value: auth.Version},
+		http.Field{Name: "session_id", Value: "okra-image-session"},
+		http.Field{Name: "User-Agent", Value: "codex_cli_rs/" + auth.Version + " (okra)"},
+	})
+	if r.Status == 401 || r.Status == 403 { return image.Fail("AUTH_EXPIRED", "Codex token rejected (expired or invalid). Run `codex login`.") }
+	if r.Status < 200 || r.Status >= 300 { return image.Fail("GENERATION_FAILED", "Image generation failed: OpenAiClient.createResponseStream: "+codexError(r, setup.Codex+"/responses")) }
+	try completeImage(r.Body) catch {
+	case jsview.Invalid:
+		return image.Fail("GENERATION_FAILED", "Image generation failed: "+SchemaMismatch)
+	}
+}
+func codexError(r http.Response, url string) string {
+	if r.Status == 429 { return "Rate limit exceeded" }
+	if r.Status == 402 { return "Quota exhausted. Check your account billing and usage limits." }
+	let message = apiMessage(r.Body) catch {
+	case _:
+		""
+	}
+	if r.Status >= 500 { return if message == "" { "Server error" } else { message } }
+	let mut out = (if message == "" { "HTTP \(r.Status)" } else { message }) + " (POST " + url + ")"
+	if message == "" && r.Body != "" { out = out + " Response: " + (if len(r.Body) > 200 { r.Body[:200] + "..." } else { r.Body }) }
+	out
+}
+
+func Candidates(setup Setup, input image.Input, models []string, home string) string fails image.Failed needs fs.Files | http.Network | go.Foreign {
+	let mut last = image.Failed{Code: "NO_IMAGE", Message: "Backend returned no image. Try rephrasing the prompt."}
+	for model in models {
+		let attempt = image.Input{Prompt: input.Prompt, Model: model, Size: input.Size, Format: input.Format, Quality: input.Quality, Background: input.Background, Count: input.Count, Refs: input.Refs, Mask: input.Mask, Fidelity: input.Fidelity}
+		let bytes = Codex(setup, attempt, home) catch {
+		case image.Failed as f:
+			if !strings.Contains(f.Message, "model is not supported when using Codex") { return f }
+			last = f
+			continue
+		}
+		return bytes
+	}
+	return last
+}

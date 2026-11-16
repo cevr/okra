@@ -1,0 +1,181 @@
+import strconv
+import strings
+import utf8
+
+type Failed { Code string, Message string }
+func Fail(code string, message string) string fails Failed { Failed{Code: code, Message: message} }
+func Invalid(message string) string fails Failed           { try Fail("INVALID_INPUT", message) }
+
+type Route = Codex{} | Generate{} | Edit{}
+type Part { Data string, Media string }
+type Input {
+	Prompt     string,
+	Model      string,
+	Size       string,
+	Format     string,
+	Quality    Option[string],
+	Background Option[string],
+	Count      Option[int],
+	Refs       []Part,
+	Mask       Option[Part],
+	Fidelity   Option[string],
+}
+type Command {
+	Prompt     Option[string],
+	Model      Option[string],
+	Out        Option[string],
+	Size       string,
+	Format     string,
+	Quality    Option[string],
+	Background Option[string],
+	Count      Option[int],
+	Refs       []string,
+	Edit       bool,
+	Mask       Option[string],
+	Fidelity   Option[string],
+}
+let DefaultImageModel = "gpt-image-2.5-flare"
+let FallbackModel = "gpt-6-sol"
+
+func digits(s string) bool {
+	if s == "" { return false }
+	for c in s { if c < '0' || c > '9' { return false } }
+	true
+}
+func dated(model string, prefix string) bool {
+	if model == prefix { return true }
+	if !strings.HasPrefix(model, prefix+"-") { return false }
+	let date = model[len(prefix)+1:]
+	len(date) == 10 && date[4] == '-' && date[7] == '-' && digits(date[:4]) && digits(date[5:7]) && digits(date[8:])
+}
+func API(model string) bool     { strings.HasPrefix(model, "gpt-image") || strings.HasPrefix(model, "dall-e") }
+func flagName(c Command) string { if c.Edit { "edit" } else { if c.Mask != None { "mask" } else { "fidelity" } } }
+func Resolve(c Command, model string) Route fails Failed {
+	let wantsEdit = c.Edit || c.Mask != None
+	if !API(model) {
+		if wantsEdit || c.Fidelity != None { let _ = try Invalid("--" + flagName(c) + " needs an OpenAI image model — pass --model " + DefaultImageModel + ".") }
+		return Codex
+	}
+	match c.Quality {
+	case Some[string] as q:
+		if (q.Value == "xhigh" || q.Value == "max") && !dated(model, "gpt-image-2.5-flare") && !dated(model, "gpt-image-2.5-sunburst") { let _ = try Invalid("--quality " + q.Value + " needs a GPT Image 2.5 model.") }
+	case None:
+	}
+	if wantsEdit || len(c.Refs) > 0 {
+		if len(c.Refs) == 0 { let _ = try Invalid("--" + flagName(c) + " needs a source image — pass --ref <path> to edit.") }
+		if !strings.HasPrefix(model, "gpt-image") { let _ = try Invalid(model + " cannot edit images — use a GPT image model (e.g. --model " + DefaultImageModel + ").") }
+		if c.Fidelity != None && !dated(model, "gpt-image-1") && !dated(model, "gpt-image-1.5") { let _ = try Invalid("--fidelity is not supported by " + model + " — use gpt-image-1 or gpt-image-1.5.") }
+		return Edit
+	}
+	if c.Fidelity != None { let _ = try Invalid("--fidelity only applies when editing — pass --ref <path> to edit.") }
+	Generate
+}
+func Media(path string) Option[string] {
+	let dot = strings.LastIndex(path, ".")
+	if dot < 0 { return None }
+	match strings.ToLower(path[dot:]) {
+	case ".png":
+		Some[string]{Value: "image/png"}
+	case ".jpg", ".jpeg":
+		Some[string]{Value: "image/jpeg"}
+	case ".webp":
+		Some[string]{Value: "image/webp"}
+	case ".gif":
+		Some[string]{Value: "image/gif"}
+	case _:
+		None
+	}
+}
+func Slug(prompt string) string {
+	let mut out = ""
+	let mut separator = false
+	for c in strings.ToLower(prompt) {
+		if (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') {
+			if separator && out != "" { out = out + "-" }
+			out = out + utf8.RuneText(c)
+			separator = false
+		} else {
+			separator = true
+		}
+	}
+	if len(out) > 60 { out = out[:60] }
+	if out == "" { "image" } else { out }
+}
+func Suffix(path string, index int) string {
+	let dot = strings.LastIndex(path, ".")
+	let slash = strings.LastIndex(path, "/")
+	let backslash = strings.LastIndex(path, "\\")
+	if dot > slash && dot > backslash { path[:dot] + "-\(index)" + path[dot:] } else { path + "-\(index)" }
+}
+func Progress(route Route, input Input) string {
+	let editing = route == Edit
+	let label = match route {
+	case Codex:
+		"codex"
+	case Generate:
+		"OpenAI (" + input.Model + ")"
+	case Edit:
+		"OpenAI edit (" + input.Model + ")"
+	}
+	let mut note = ""
+	if len(input.Refs) > 0 { note = ", \(len(input.Refs)) " + (if editing { "source" } else { "ref" }) + (if len(input.Refs) > 1 { "s" } else { "" }) }
+	if input.Mask != None { note = note + ", mask" }
+	match input.Fidelity {
+	case None:
+	case Some[string] as f:
+		note = note + ", " + f.Value + " fidelity"
+	}
+	(if editing { "Editing" } else { "Generating" }) + " image (" + input.Size + ", " + input.Format + note + ") via " + label + "…"
+}
+type Dimensions { Width int, Height int }
+func Size(s string) Option[Dimensions] {
+	let parts = strings.Split(s, "x")
+	if len(parts) != 2 || !digits(parts[0]) || !digits(parts[1]) { return None }
+	let w = strconv.Atoi(parts[0]) catch {
+	case _:
+		return None
+	}
+	let h = strconv.Atoi(parts[1]) catch {
+	case _:
+		return None
+	}
+	Some[Dimensions]{Value: Dimensions{Width: w, Height: h}}
+}
+func SizeHint(s string) string {
+	match Size(s) {
+	case None:
+		""
+	case Some[Dimensions] as d:
+		let orientation = if d.Value.Width > d.Value.Height { "landscape" } else { if d.Value.Width < d.Value.Height { "portrait" } else { "square" } }
+		"\n\nOutput size: exactly " + s + " pixels (" + orientation + ")."
+	}
+}
+func readNumber(b string, at int, n int, little bool) int {
+	let mut out = 0
+	for i in 0..n {
+		let p = if little { at + n - 1 - i } else { at + i }
+		out = out*256 + int(b[p])
+	}
+	out
+}
+func DimensionsOf(b string) Option[Dimensions] {
+	if len(b) >= 24 && b[1:4] == "PNG" && b[12:16] == "IHDR" { return Some[Dimensions]{Value: Dimensions{Width: readNumber(b, 16, 4, false), Height: readNumber(b, 20, 4, false)}} }
+	if len(b) >= 4 && int(b[0]) == 255 && int(b[1]) == 216 {
+		let mut at = 2
+		for at+9 <= len(b) {
+			if int(b[at]) != 255 { return None }
+			let m = int(b[at+1])
+			if m >= 192 && m <= 207 && m != 196 && m != 200 && m != 204 { return Some[Dimensions]{Value: Dimensions{Width: readNumber(b, at+7, 2, false), Height: readNumber(b, at+5, 2, false)}} }
+			at = at + 2 + readNumber(b, at+2, 2, false)
+		}
+	}
+	if len(b) >= 30 && b[:4] == "RIFF" && b[8:12] == "WEBP" {
+		if b[12:16] == "VP8X" { return Some[Dimensions]{Value: Dimensions{Width: 1 + readNumber(b, 24, 3, true), Height: 1 + readNumber(b, 27, 3, true)}} }
+		if b[12:16] == "VP8L" {
+			let size = readNumber(b, 21, 4, true)
+			return Some[Dimensions]{Value: Dimensions{Width: 1 + size%16384, Height: 1 + (size/16384)%16384}}
+		}
+		if b[12:16] == "VP8 " { return Some[Dimensions]{Value: Dimensions{Width: readNumber(b, 26, 2, true) % 16384, Height: readNumber(b, 28, 2, true) % 16384}} }
+	}
+	None
+}

@@ -1,0 +1,401 @@
+import exec
+import flag
+import fs
+import http
+import io
+import json
+import okraport/counsel
+import okraport/imagehttp
+import okraport/jsonl
+import os
+import scope
+import strings
+import time
+import timeout
+import okraport/workdir
+
+let counselPromptArg = flag.OptionalArg("prompt", "Inline prompt to send to the opposite agent")
+let counselFileFlag = flag.String("file", "", "Read the prompt from a file").WithAlias("f").Repeated()
+let counselFromFlag = flag.Choice("from", "claude", []string{"claude", "codex"}, "Override source detection").Repeated()
+let counselOutputFlag = flag.String("output-dir", "/tmp/counsel", "Base directory for run artifacts").WithAlias("o").Repeated()
+let counselDeepFlag = flag.Bool("deep", false, "Use the deeper profile").Repeated()
+let counselDryRunFlag = flag.Bool("dry-run", false, "Resolve the route and command without executing").Repeated()
+
+// CounselCommand is one `okra counsel` request.
+type CounselCommand { Prompt Option[string], File Option[string], From Option[string], OutputDir string, Deep bool, DryRun bool }
+
+// BadFileFlag is the reference's parse-time refusal of --file: a path that
+// exists and is not a file, or whose existence cannot be checked.
+type BadFileFlag { Text string, Reason string }
+
+func counselCommand() flag.Command[Request] {
+	command("counsel", []flag.Flag{counselFileFlag, counselFromFlag, counselOutputFlag, counselDeepFlag, counselDryRunFlag}, []flag.ArgSpec{counselPromptArg}, func(v flag.Values) Request fails flag.Invalid {
+		Counsel{Command: CounselCommand{
+			Prompt:    counselPromptArg.Get(v),
+			File:      try optionalText("file", counselFileFlag.Get(v)),
+			From:      try optionalText("from", counselFromFlag.Get(v)),
+			OutputDir: defaultText(try optionalText("output-dir", counselOutputFlag.Get(v)), "/tmp/counsel"),
+			Deep:      try enabled("deep", counselDeepFlag.Get(v)),
+			DryRun:    try enabled("dry-run", counselDryRunFlag.Get(v)),
+		}}
+	})
+}
+
+// resolve is Node's path.resolve(base, ...parts): each absolute part starts
+// over, empty parts are skipped, and the result is clean.
+func resolve(base string, parts []string) string {
+	let mut acc = base
+	for p in parts {
+		if p == "" { continue }
+		if strings.HasPrefix(p, "/") { acc = p } else { acc = acc + "/" + p }
+	}
+	clean(acc)
+}
+
+func clean(path string) string {
+	let mut out = []string{}
+	for s in strings.Split(path, "/") {
+		if s == "" || s == "." { continue }
+		if s == ".." {
+			if len(out) > 0 { out = out[:len(out)-1] }
+			continue
+		}
+		out = out.Append(s)
+	}
+	"/" + strings.Join(out, "/")
+}
+
+func dirname(path string) string {
+	let i = strings.LastIndex(path, "/")
+	if i <= 0 { "/" } else { path[:i] }
+}
+
+// system is the reference's text of a file failure: its tag, then the
+// operation and the path.
+func system(tag string, method string, path string) string { tag + ": FileSystem." + method + " (" + path + ")" }
+
+func fail(code string, message string) counsel.Failed { counsel.Failed{Code: code, Message: message} }
+
+// jsBlank is whether JavaScript's trim leaves nothing of text.
+func jsBlank(text string) bool {
+	for c in text {
+		let space = c == ' ' || c == '\t' || c == '\n' || c == '\v' || c == '\f' || c == '\r' || c == 0xA0 || c == 0x1680 || (c >= 0x2000 && c <= 0x200A) || c == 0x2028 || c == 0x2029 || c == 0x202F || c == 0x205F || c == 0x3000 || c == 0xFEFF
+		if !space { return false }
+	}
+	true
+}
+
+// which is Bun.which: the first PATH entry that holds an executable file of
+// that name.
+func which(name string) Option[string] needs fs.Files | os.Process {
+	let path = match os.Process.Getenv("PATH") {
+	case None:
+		return None
+	case Some[string] as p:
+		p.Value
+	}
+	for dir in strings.Split(path, ":") {
+		if dir == "" { continue }
+		let candidate = if strings.HasSuffix(dir, "/") { dir + name } else { dir + "/" + name }
+		let info = fs.Files.Stat(candidate) catch {
+		case _:
+			continue
+		}
+		if !info.Dir && info.Perm%512/64%2+info.Perm%64/8%2+info.Perm%8%2 > 0 { return Some[string]{Value: candidate} }
+	}
+	None
+}
+
+type Prompt { Content string, Source string }
+
+func promptOf(c CounselCommand, dir string, stdin Option[string]) Prompt fails counsel.Failed needs fs.Files {
+	let piped = match stdin {
+	case Some[string] as s:
+		!jsBlank(s.Value)
+	case None:
+		false
+	}
+	let mut sources = 0
+	if c.Prompt != None { sources = sources + 1 }
+	if c.File != None { sources = sources + 1 }
+	if piped { sources = sources + 1 }
+	if sources > 1 { return fail("PROMPT_CONFLICT", "Provide exactly one prompt source: inline arg, --file, or stdin.") }
+	match c.Prompt {
+	case Some[string] as p:
+		return Prompt{Content: p.Value, Source: "inline"}
+	case None:
+	}
+	match c.File {
+	case Some[string] as f:
+		let path = resolve(dir, []string{f.Value})
+		let content = fs.Files.ReadFile(path) catch {
+		case fs.NotFound:
+			return fail("FILE_READ_FAILED", "Failed to read prompt file "+path+": "+system("NotFound", "readFile", path))
+		case fs.Denied:
+			return fail("FILE_READ_FAILED", "Failed to read prompt file "+path+": "+system("PermissionDenied", "readFile", path))
+		case fs.Failed as e:
+			return fail("FILE_READ_FAILED", "Failed to read prompt file "+path+": "+system(fileError(e.Reason), "readFile", path))
+		}
+		return Prompt{Content: content, Source: "file"}
+	case None:
+	}
+	match stdin {
+	case Some[string] as s:
+		if piped { return Prompt{Content: s.Value, Source: "stdin"} }
+	case None:
+	}
+	fail("PROMPT_MISSING", "Missing prompt. Pass an inline prompt, --file, or pipe stdin.")
+}
+
+// checkFile is the reference's parse-time check of --file.
+func checkFile(c CounselCommand, dir string) fails BadFileFlag needs fs.Files {
+	match c.File {
+	case None:
+	case Some[string] as f:
+		let path = resolve(dir, []string{f.Value})
+		let info = fs.Files.Stat(path) catch {
+		case fs.NotFound:
+			return
+		case fs.Denied:
+			return BadFileFlag{Text: f.Value, Reason: "Failed to check path existence: " + system("PermissionDenied", "access", path)}
+		case fs.Failed as e:
+			return BadFileFlag{Text: f.Value, Reason: "Failed to check path existence: " + system(fileError(e.Reason), "access", path)}
+		}
+		if info.Dir { return BadFileFlag{Text: f.Value, Reason: "Path is not a file: " + path} }
+	}
+}
+
+func invocations(target counsel.Provider, promptFile string, profile counsel.Profile, dir string, setup imagehttp.Setup) []counsel.Invocation fails counsel.Failed needs fs.Files | fs.Writes | os.Process | http.Network | time.Clock | Scheduler {
+	let name = counsel.Name(target)
+	let cmd = match which(name) {
+	case None:
+		return fail("TARGET_NOT_INSTALLED", "Target provider \""+name+"\" is not installed or not on PATH.")
+	case Some[string] as p:
+		p.Value
+	}
+	match target {
+	case counsel.Claude:
+		[]counsel.Invocation{counsel.ClaudeInvocation(cmd, promptFile, profile, dir)}
+	case counsel.Codex:
+		let home = os.Process.Getenv("HOME")
+		let models = if home == None || home == (Some[string]{Value: ""}) { []string{counsel.FallbackModel} } else { imagehttp.Models(defaultText(home, ""), setup) }
+		let mut out = []counsel.Invocation{}
+		for m in models { out = out.Append(counsel.CodexInvocation(cmd, promptFile, profile, dir, m)) }
+		out
+	}
+}
+
+// Executed is one agent run: its exit status, whether the hour ran out,
+// and how long it took.
+type Executed { ExitCode int, TimedOut bool, DurationMs int }
+
+func millis(t time.Time) int { int(time.UnixSeconds(t))*1000 + int(time.Nanosecond(t))/1000000 }
+
+// ExecuteAgent streams both files while inv runs. The caller's scope owns
+// the agent outside the timeout: its catch can end it and record the real
+// post-termination status. limit is explicit so an offline lifecycle driver
+// can replace Scheduler without adding a shipped environment override.
+func ExecuteAgent(inv counsel.Invocation, events string, errors string, limit duration) Executed fails counsel.Failed needs exec.Runner | fs.Writes | time.Clock | Scheduler {
+	let started = millis(time.Clock.Now())
+	let command = exec.WithDir(exec.New(inv.Cmd, inv.Args), inv.Cwd).WithGrace(15s)
+	let display = counsel.Display(concat([]string{inv.Cmd}, inv.Args))
+	// Start opens its sinks before spawning. Publish their paths only
+	// after a successful spawn, as the reference does. Renaming an open
+	// sink keeps streaming through the same fd, without buffering output
+	// or truncating a previous fallback attempt when the next spawn fails.
+	let eventSink = events + ".starting"
+	let errorSink = errors + ".starting"
+	scope.OnExit() {
+		fs.Writes.Remove(eventSink) catch {
+		case _:
+		}
+		fs.Writes.Remove(errorSink) catch {
+		case _:
+		}
+	}
+	let running = exec.Runner.Start(command, exec.Streams{Stdout: exec.ToFile{Path: eventSink, Append: false}, Stderr: exec.ToFile{Path: errorSink, Append: false}}) catch {
+	case exec.NotFound:
+		return fail("SPAWN_FAILED", "NotFound: ChildProcess.spawn ("+display+")")
+	case exec.Denied:
+		return fail("SPAWN_FAILED", "PermissionDenied: ChildProcess.spawn ("+display+")")
+	case exec.Failed:
+		return fail("SPAWN_FAILED", "Unknown: ChildProcess.spawn ("+display+")")
+	}
+	fs.Writes.Rename(eventSink, events) catch {
+	case _:
+	}
+	fs.Writes.Rename(errorSink, errors) catch {
+	case _:
+	}
+	let status = running.WaitFor(limit) catch {
+	case timeout.Expired:
+		let stopped = running.Stop()
+		return Executed{ExitCode: stopped, TimedOut: true, DurationMs: millis(time.Clock.Now()) - started}
+	}
+	Executed{ExitCode: status, TimedOut: false, DurationMs: millis(time.Clock.Now()) - started}
+}
+
+func concat(xs []string, ys []string) []string {
+	let mut out = xs
+	for y in ys { out = out.Append(y) }
+	out
+}
+
+func writeText(path string, text string) fails counsel.Failed needs fs.Writes {
+	fs.Writes.WriteFile(path, text) catch {
+	case fs.NotFound:
+		return fail("WRITE_FAILED", "Failed to write "+path+": "+system("NotFound", "writeFile", path))
+	case fs.Denied:
+		return fail("WRITE_FAILED", "Failed to write "+path+": "+system("PermissionDenied", "writeFile", path))
+	case fs.Failed as e:
+		return fail("WRITE_FAILED", "Failed to write "+path+": "+system(fileError(e.Reason), "writeFile", path))
+	}
+}
+
+// Internal is the reference's defect line when an event stream does not
+// parse: it ends the run with status 1 and no manifest.
+let internal = os.Exit{Code: 1, Message: "Internal error: SyntaxError: Failed to parse JSONL"}
+
+let suffixDigits = "0123456789abcdef"
+
+func suffix() string needs Random {
+	let mut s = ""
+	for _ in 0..6 {
+		let i = Random.IntN(16)
+		s = s + suffixDigits[i:i+1]
+	}
+	s
+}
+
+// RunCounsel sends the prompt to the opposite agent and records the run.
+func RunCounsel(c CounselCommand, setup imagehttp.Setup) fails counsel.Failed | BadFileFlag | os.Exit needs fs.Files | fs.Writes | os.Process | io.Stdin | io.Stdout | io.Stderr | exec.Runner | http.Network | time.Clock | Random | Scheduler | go.Foreign {
+	let dir = workdir.Cwd()
+	try checkFile(c, dir)
+	let mut stdin Option[string] = None
+	if c.Prompt == None && c.File == None && !io.Stdin.IsTerminal() {
+		let text = io.Stdin.ReadAll() catch {
+		case io.ReadFailed as e:
+			return fail("READ_FAILED", e.Reason)
+		}
+		if text != "" { stdin = Some[string]{Value: text} }
+	}
+	let prompt = try promptOf(c, dir, stdin)
+	let source = match c.From {
+	case Some[string] as f:
+		if f.Value == "claude" { counsel.Claude } else { counsel.Codex }
+	case None:
+		try counsel.Detect(counsel.Markers{ClaudeCode: os.Process.Getenv("CLAUDECODE"), ClaudeEntry: os.Process.Getenv("CLAUDE_CODE_ENTRYPOINT"), CodexThread: os.Process.Getenv("CODEX_THREAD_ID"), CodexCI: os.Process.Getenv("CODEX_CI")})
+	}
+	let target = counsel.Opposite(source)
+	let profile = if c.Deep { counsel.Deep } else { counsel.Standard }
+	let now = time.Clock.Now()
+	let slug = counsel.Slug(source, target, now, suffix())
+	let bucket = counsel.Bucket(dir)
+	let outputDir = resolve(dir, []string{c.OutputDir, bucket, slug})
+	let promptFile = outputDir + "/prompt.md"
+	let runs = try invocations(target, promptFile, profile, dir, setup)
+	let first = runs[0]
+	if c.DryRun {
+		io.Stdout.Println(counsel.EncodePreview(counsel.Preview{Source: counsel.Name(source), Target: counsel.Name(target), Profile: counsel.ProfileName(profile), PromptSource: prompt.Source, OutputBucket: bucket, OutputDir: outputDir, PromptFilePath: promptFile, Invocation: counsel.InvocationPreview{Cmd: first.Cmd, Args: first.Args, Cwd: first.Cwd, Model: first.Model}}))
+		return
+	}
+	fs.Writes.MkdirAll(outputDir) catch {
+	case fs.Denied:
+		return fail("WRITE_FAILED", "Failed to create "+outputDir+": PermissionDenied: FileSystem.makeDirectory ("+outputDir+")")
+	case fs.Failed as f:
+		return fail("WRITE_FAILED", "Failed to create "+outputDir+": "+fileError(f.Reason)+": FileSystem.makeDirectory ("+outputDir+")")
+	}
+	try writeText(promptFile, prompt.Content)
+	let name = counsel.Name(target)
+	let eventsFile = outputDir + "/events.jsonl"
+	let stderrFile = outputDir + "/" + name + ".stderr"
+	let mut attempted = first
+	let mut executed = try ExecuteAgent(first, eventsFile, stderrFile, 3600s)
+	let mut events = jsonl.Parse(try readEvents(eventsFile)) catch {
+	case jsonl.Unparsable:
+		return internal
+	}
+	let mut outcome = read(target, events)
+	for fallback in runs[1:] {
+		if !counsel.Rejected(target, outcome) { break }
+		attempted = fallback
+		executed = try ExecuteAgent(fallback, eventsFile, stderrFile, 3600s)
+		events = jsonl.Parse(try readEvents(eventsFile)) catch {
+		case jsonl.Unparsable:
+			return internal
+		}
+		outcome = read(target, events)
+	}
+	let model = match target {
+	case counsel.Claude:
+		defaultText(counsel.ClaudeModel(events), attempted.Model)
+	case counsel.Codex:
+		attempted.Model
+	}
+	let outputFile = outputDir + "/" + name + ".md"
+	let answer = match outcome {
+	case counsel.Answered as a:
+		a.Text
+	case _:
+		""
+	}
+	try writeText(outputFile, answer)
+	let failure = counsel.FailureOf(target, executed.TimedOut, executed.ExitCode, outcome)
+	let status = counsel.StatusOf(executed.TimedOut, executed.ExitCode, outcome)
+	let manifest = counsel.Manifest{
+		Timestamp:      counsel.Stamp(now),
+		Slug:           slug,
+		Cwd:            dir,
+		OutputBucket:   bucket,
+		PromptSource:   prompt.Source,
+		Source:         counsel.Name(source),
+		Target:         name,
+		Profile:        counsel.ProfileName(profile),
+		Status:         status,
+		Model:          model,
+		Failure:        optional(failure),
+		ExitCode:       executed.ExitCode,
+		DurationMs:     executed.DurationMs,
+		PromptFilePath: promptFile,
+		OutputFile:     outputFile,
+		StderrFile:     stderrFile,
+		EventsFile:     eventsFile,
+	}
+	try writeText(outputDir+"/manifest.json", counsel.EncodeManifest(manifest)+"\n")
+	io.Stdout.Println(dirname(outputFile))
+	match failure {
+	case None:
+	case Some[string] as f:
+		// A failure is never a success, so the status is 124 or 1.
+		return os.Exit{Code: if status == "timeout" { 124 } else { 1 }, Message: name + " failed: " + f.Value}
+	}
+}
+
+func optional(v Option[string]) json.Optional[string] {
+	match v {
+	case None:
+		json.Absent
+	case Some[string] as s:
+		json.Present[string]{Value: s.Value}
+	}
+}
+
+func read(target counsel.Provider, events []json.Value) counsel.Outcome {
+	match target {
+	case counsel.Claude:
+		counsel.ReadClaude(events)
+	case counsel.Codex:
+		counsel.ReadCodex(events)
+	}
+}
+
+func readEvents(path string) string fails counsel.Failed needs fs.Files {
+	fs.Files.ReadFile(path) catch {
+	case fs.NotFound:
+		return fail("READ_FAILED", "Failed to read events: "+system("NotFound", "readFile", path))
+	case fs.Denied:
+		return fail("READ_FAILED", "Failed to read events: "+system("PermissionDenied", "readFile", path))
+	case fs.Failed as e:
+		return fail("READ_FAILED", "Failed to read events: "+system(fileError(e.Reason), "readFile", path))
+	}
+}

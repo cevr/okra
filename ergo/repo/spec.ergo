@@ -1,0 +1,178 @@
+import strings
+
+// Registry is where a package's source comes from.
+type Registry = GitHub{} | Npm{} | Pypi{} | Crates{}
+
+// Spec names one package of one registry, with an optional version (a git
+// ref for GitHub). Only Parse makes one from user text.
+type Spec { Registry Registry, Name string, Version Option[string] }
+
+// InvalidSpec is a spec text that no registry's grammar accepts. Message is
+// the whole user-facing line after the code.
+type InvalidSpec { Message string }
+
+func RegistryName(r Registry) string {
+	match r {
+	case GitHub:
+		"github"
+	case Npm:
+		"npm"
+	case Pypi:
+		"pypi"
+	case Crates:
+		"crates"
+	}
+}
+
+func RegistryOf(name string) Option[Registry] {
+	match name {
+	case "github":
+		Some[Registry]{Value: GitHub}
+	case "npm":
+		Some[Registry]{Value: Npm}
+	case "pypi":
+		Some[Registry]{Value: Pypi}
+	case "crates":
+		Some[Registry]{Value: Crates}
+	case _:
+		None
+	}
+}
+
+// Text is the spec as the user would type it: a registry prefix (none for
+// GitHub), the name and "@version".
+func Text(s Spec) string {
+	let prefix = match s.Registry {
+	case GitHub:
+		""
+	case _:
+		RegistryName(s.Registry) + ":"
+	}
+	let version = match s.Version {
+	case None:
+		""
+	case Some[string] as v:
+		"@" + v.Value
+	}
+	prefix + s.Name + version
+}
+
+// Matches is the cache identity: the same registry, the same name (GitHub
+// names ignore case) and the same version, where no version equals "".
+func Matches(a Spec, b Spec) bool {
+	if RegistryName(a.Registry) != RegistryName(b.Registry) { return false }
+	let an = match a.Registry {
+	case GitHub:
+		Lower(a.Name)
+	case _:
+		a.Name
+	}
+	let bn = match b.Registry {
+	case GitHub:
+		Lower(b.Name)
+	case _:
+		b.Name
+	}
+	an == bn && orEmpty(a.Version) == orEmpty(b.Version)
+}
+
+func orEmpty(v Option[string]) string {
+	match v {
+	case None:
+		""
+	case Some[string] as s:
+		s.Value
+	}
+}
+
+// lineFree is JavaScript's `.+`: at least one character and no line
+// terminator (\n, \r, U+2028, U+2029).
+func lineFree(s string) bool {
+	if s == "" { return false }
+	for c in s { if c == '\n' || c == '\r' || c == 0x2028 || c == 0x2029 { return false } }
+	true
+}
+
+func some(s string) Option[string] { Some[string]{Value: s} }
+
+func failed(reason string, input string) InvalidSpec { InvalidSpec{Message: reason + ": " + input} }
+
+func parseGithub(text string, input string) Spec fails InvalidSpec {
+	// ^([^@#]+)[@#](.+)$
+	let mut at = -1
+	for i, c in text {
+		if c == '@' || c == '#' {
+			at = i
+			break
+		}
+	}
+	if at > 0 && lineFree(text[at+1:]) {
+		let name = text[:at]
+		if !strings.Contains(name, "/") { return failed("GitHub spec must be owner/repo format", input) }
+		return Spec{Registry: GitHub, Name: Lower(name), Version: some(text[at+1:])}
+	}
+	if !strings.Contains(text, "/") { return failed("GitHub spec must be owner/repo format", input) }
+	Spec{Registry: GitHub, Name: Lower(text), Version: None}
+}
+
+func parseNpm(text string, input string) Spec fails InvalidSpec {
+	if strings.HasPrefix(text, "@") {
+		// ^(@[^@]+)(?:@(.+))?$
+		let rest = text[1:]
+		let at = strings.Index(rest, "@")
+		if at < 0 {
+			if rest == "" { return failed("Invalid scoped npm package spec", input) }
+			return Spec{Registry: Npm, Name: text, Version: None}
+		}
+		if at == 0 || !lineFree(rest[at+1:]) { return failed("Invalid scoped npm package spec", input) }
+		return Spec{Registry: Npm, Name: text[:at+1], Version: some(rest[at+1:])}
+	}
+	let parts = strings.Split(text, "@")
+	if len(parts) > 2 { return failed("Invalid npm package spec", input) }
+	if parts[0] == "" { return failed("Package name is required", input) }
+	Spec{Registry: Npm, Name: parts[0], Version: if len(parts) == 2 { some(parts[1]) } else { None }}
+}
+
+func parsePypi(text string, input string) Spec fails InvalidSpec {
+	// ^([^@=]+)(?:[@=]=?(.+))?$
+	let mut at = -1
+	for i, c in text {
+		if c == '@' || c == '=' {
+			at = i
+			break
+		}
+	}
+	if at == 0 || text == "" { return failed("Invalid PyPI package spec", input) }
+	if at < 0 { return Spec{Registry: Pypi, Name: Trim(text), Version: None} }
+	let rest = text[at+1:]
+	let version = if strings.HasPrefix(rest, "=") && lineFree(rest[1:]) {
+		rest[1:]
+	} else if lineFree(rest) {
+		rest
+	} else {
+		return failed("Invalid PyPI package spec", input)
+	}
+	Spec{Registry: Pypi, Name: Trim(text[:at]), Version: some(Trim(version))}
+}
+
+func parseCrates(text string, input string) Spec fails InvalidSpec {
+	let parts = strings.Split(text, "@")
+	if len(parts) > 2 { return failed("Invalid crates.io spec", input) }
+	if parts[0] == "" { return failed("Crate name is required", input) }
+	Spec{Registry: Crates, Name: Trim(parts[0]), Version: if len(parts) == 2 { some(Trim(parts[1])) } else { None }}
+}
+
+// Parse reads a spec: npm:, pypi:, pip:, crates:, cargo:, rust: and github:
+// prefixes; otherwise owner/repo is GitHub and anything else is npm.
+func Parse(input string) Spec fails InvalidSpec {
+	let text = Trim(input)
+	for prefix in []string{"crates:", "cargo:", "rust:"} {
+		if strings.HasPrefix(text, prefix) { return try parseCrates(text[len(prefix):], input) }
+	}
+	if strings.HasPrefix(text, "npm:") { return try parseNpm(text[4:], input) }
+	if strings.HasPrefix(text, "pypi:") { return try parsePypi(text[5:], input) }
+	if strings.HasPrefix(text, "pip:") { return try parsePypi(text[4:], input) }
+	if strings.HasPrefix(text, "github:") { return try parseGithub(text[7:], input) }
+	if strings.Contains(text, "/") && !strings.HasPrefix(text, "@") { return try parseGithub(text, input) }
+	try parseNpm(text, input)
+}

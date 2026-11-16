@@ -1,0 +1,43 @@
+// Offline lifecycle driver. Its scheduler expires only after the fake
+// agent reports that both file sinks have received their partial bytes.
+// No host deadline or settling sleep decides when to stop the agent.
+import exec
+import fs
+import okraport/cli
+import okraport/counsel
+import os
+import time
+
+type ReadyDeadline { Runner exec.Runner, Files fs.Files, FIFO string, Events string, Errors string }
+
+func Sleep(g ReadyDeadline, _ duration) {
+	let ready = g.Runner.Run(exec.New("cat", []string{g.FIFO})) catch {
+	case _:
+		Unreachable("fake readiness reader did not start")
+	}
+	if ready.Status != 0 || ready.Stdout != "ready" { Unreachable("fake readiness event missing") }
+	let events = g.Files.ReadFile(g.Events) catch {
+	case _:
+		Unreachable("live events file missing")
+	}
+	let errors = g.Files.ReadFile(g.Errors) catch {
+	case _:
+		Unreachable("live stderr file missing")
+	}
+	if events != "partial event" || errors != "partial error" { Unreachable("live sink bytes differ") }
+}
+
+func main() needs Ambient | Console {
+	let args = os.NewHost().Args()
+	let dir = args[0]
+	let runner = exec.NewHost()
+	let disk = fs.NewHost()
+	let deadline = ReadyDeadline{Runner: runner, Files: disk, FIFO: dir + "/ready", Events: dir + "/events", Errors: dir + "/errors"}
+	let result = with context { exec.Runner: runner, fs.Writes: disk, Scheduler: deadline, time.Clock: time.NewHost() } {
+		cli.ExecuteAgent(counsel.Invocation{Cmd: dir + "/agent", Args: []string{}, Cwd: dir, Model: "fixture"}, dir+"/events", dir+"/errors", 3600s)
+	} catch {
+	case counsel.Failed as e:
+		Unreachable(e.Code + ": " + e.Message)
+	}
+	Console.Println("status \(result.ExitCode) timeout \(result.TimedOut)")
+}

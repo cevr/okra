@@ -1,0 +1,101 @@
+import math
+import strconv
+import strings
+
+// The reference keeps schedule fields and counts as JavaScript numbers:
+// parseInt makes them, String and JSON.stringify print them. A float64 is
+// the same value, so the port keeps them as float64 and prints them as
+// JavaScript does. NaN only comes from a cron field with no digits; the
+// task check refuses it before anything is written.
+
+// ParseInt is parseInt(text, 10): white space, a sign, then the longest
+// run of decimal digits. No digit is NaN; a run too long for a float64 is
+// Infinity.
+func ParseInt(text string) float64 {
+	let s = TrimStart(text)
+	let mut negative = false
+	let mut rest = s
+	if strings.HasPrefix(s, "-") {
+		negative = true
+		rest = s[1:]
+	} else if strings.HasPrefix(s, "+") {
+		rest = s[1:]
+	}
+	let mut end = 0
+	for i, c in rest {
+		if c < '0' || c > '9' { break }
+		end = i + 1
+	}
+	if end == 0 { return math.NaN() }
+	let value = strconv.ParseFloat(rest[:end]) catch {
+	case strconv.OutOfRange:
+		math.Inf(1)
+	case strconv.Malformed:
+		math.NaN()
+	}
+	if negative { -value } else { value }
+}
+
+// ParseFloatText is the number a JSON number's text names; one too large
+// for a float64 is Infinity, as JSON.parse gives it.
+func ParseFloatText(text string) float64 {
+	strconv.ParseFloat(text) catch {
+	case strconv.OutOfRange:
+		if strings.HasPrefix(text, "-") { math.Inf(-1) } else { math.Inf(1) }
+	case strconv.Malformed:
+		math.NaN()
+	}
+}
+
+// Finite is whether n is a number Schema.Finite admits.
+func Finite(n float64) bool { !math.IsNaN(n) && !math.IsInf(n, 0) }
+
+// Number is Number(text) for the digit runs a range field holds: decimal
+// digits only, else NaN.
+func Number(text string) float64 {
+	if text == "" { return math.NaN() }
+	for c in text { if c < '0' || c > '9' { return math.NaN() } }
+	strconv.ParseFloat(text) catch {
+	case _:
+		math.Inf(1)
+	}
+}
+
+// Text is String(n): JavaScript's shortest text of a number, which
+// JSON.stringify also writes for a finite number.
+func Text(n float64) string {
+	if math.IsNaN(n) { return "NaN" }
+	if math.IsInf(n, 1) { return "Infinity" }
+	if math.IsInf(n, -1) { return "-Infinity" }
+	if n == 0 { return "0" }
+	if n < 0 { return "-" + Text(-n) }
+	// Go's shortest digits are JavaScript's; only the layout differs.
+	let e = strconv.FormatFloat(n, 'e', -1)
+	let at = strings.Index(e, "e")
+	let digits = strings.ReplaceAll(e[:at], ".", "")
+	let exponent = strconv.Atoi(strings.TrimPrefix(e[at+1:], "+")) catch {
+	case _:
+		0
+	}
+	let k = len(digits)
+	let point = exponent + 1
+	if k <= point && point <= 21 { return digits + strings.Repeat("0", point-k) }
+	if 0 < point && point <= 21 { return digits[:point] + "." + digits[point:] }
+	if -6 < point && point <= 0 { return "0." + strings.Repeat("0", -point) + digits }
+	let sign = if point-1 < 0 { "-" } else { "+" }
+	let magnitude = if point-1 < 0 { 1 - point } else { point - 1 }
+	let mantissa = if k == 1 { digits } else { digits[:1] + "." + digits[1:] }
+	mantissa + "e" + sign + strconv.Itoa(magnitude)
+}
+
+// Index is the array index a number names: an integer from 0 below n.
+func Index(x float64, n int) Option[int] {
+	if !Finite(x) || x < 0 || x >= float64(n) || x != math.Trunc(x) { return None }
+	Some[int]{Value: int(x)}
+}
+
+// TextOfDouble: Text prints an integral value below 2^53 as its digits.
+law IntegerText(n int32) { Text(float64(n)) == strconv.Itoa(int(n)) }
+
+// ParseIntReadsText: ParseInt reads back the text of an integer.
+law ParseIntReadsText(n int32) { ParseInt(Text(float64(n))) == float64(n) }

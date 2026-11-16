@@ -1,0 +1,220 @@
+import json
+import okraport/jsview
+
+// jsonl reads newline-delimited JSON as the reference's Bun.JSONL.parse does.
+// Values follow one another, each after optional blank space and newlines;
+// after a value only spaces, tabs and carriage returns may come before the
+// next newline. The read stops at the first value that does not parse, and
+// keeps the values before it. Two stops differ: a value cut off by the end of
+// the text (an incomplete last line) and a value that is wrong. Parse fails
+// Unparsable only for a wrong first value; a cut-off first value is no value.
+
+type Unparsable {}
+
+// Step is the result of scanning one value or token from a position.
+type Step = Done{End int} | Cut{} | Wrong{}
+
+// Parse is the values of text, in order.
+func Parse(text string) []json.Value fails Unparsable {
+	let n = len(text)
+	let mut values = []json.Value{}
+	let mut p = 0
+	for {
+		for p < n && (text[p] == ' ' || text[p] == '\t' || text[p] == '\r' || text[p] == '\n') { p = p + 1 }
+		if p == n { return values }
+		match value(text, p, 0) {
+		case Cut:
+			return values
+		case Wrong:
+			if len(values) == 0 { return Unparsable }
+			return values
+		case Done as d:
+			let v = jsview.Parse(text[p:d.End]) catch {
+			case jsview.Invalid:
+				Unreachable("a scanned JSON value does not decode")
+			}
+			values = values.Append(v)
+			p = d.End
+		}
+		for p < n && (text[p] == ' ' || text[p] == '\t' || text[p] == '\r') { p = p + 1 }
+		if p == n { return values }
+		if text[p] != '\n' { return values }
+		p = p + 1
+	}
+}
+
+func space(text string, p int) int {
+	let mut i = p
+	for i < len(text) && (text[i] == ' ' || text[i] == '\t' || text[i] == '\r' || text[i] == '\n') { i = i + 1 }
+	i
+}
+
+func identChar(c byte) bool {
+	(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '$'
+}
+
+func digit(c byte) bool { c >= '0' && c <= '9' }
+
+func hexDigit(c byte) bool { digit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') }
+
+// unexpected is the stop at a token that is valid JSON but not allowed here,
+// ending at end: cut off when it reaches the end of the text, else wrong.
+func unexpected(text string, end int) Step {
+	if end >= len(text) { Cut } else { Wrong }
+}
+
+// word scans an identifier-like run from p. A run that is a JSON literal is
+// that value; any other run is an unexpected token.
+func word(text string, p int) Step {
+	for lit in []string{"true", "false", "null"} {
+		if len(text)-p >= len(lit) && text[p:p+len(lit)] == lit { return Done{End: p + len(lit)} }
+	}
+	let mut i = p
+	for i < len(text) && identChar(text[i]) { i = i + 1 }
+	unexpected(text, i)
+}
+
+func numeral(text string, p int) Step {
+	let n = len(text)
+	let mut i = p
+	if text[i] == '-' {
+		i = i + 1
+		if i == n { return Cut }
+		if !digit(text[i]) { return Wrong }
+	}
+	if text[i] == '0' {
+		i = i + 1
+	} else {
+		for i < n && digit(text[i]) { i = i + 1 }
+	}
+	if i < n && text[i] == '.' {
+		i = i + 1
+		if i == n { return Cut }
+		if !digit(text[i]) { return Wrong }
+		for i < n && digit(text[i]) { i = i + 1 }
+	}
+	if i < n && (text[i] == 'e' || text[i] == 'E') {
+		let mut j = i + 1
+		if j < n && (text[j] == '+' || text[j] == '-') { j = j + 1 }
+		if j < n && digit(text[j]) {
+			for j < n && digit(text[j]) { j = j + 1 }
+			i = j
+		}
+	}
+	Done{End: i}
+}
+
+func str(text string, p int) Step {
+	let n = len(text)
+	let mut i = p + 1
+	for {
+		if i == n { return Cut }
+		let c = text[i]
+		if c == '"' { return Done{End: i + 1} }
+		if c < 0x20 { return Wrong }
+		if c == '\\' {
+			if i+1 == n { return Cut }
+			let e = text[i+1]
+			if e == 'u' {
+				if n-(i+2) < 4 { return Wrong }
+				for k in 0..4 { if !hexDigit(text[i+2+k]) { return Wrong } }
+				i = i + 6
+			} else if e == '"' || e == '\\' || e == '/' || e == 'b' || e == 'f' || e == 'n' || e == 'r' || e == 't' {
+				i = i + 2
+			} else {
+				return Wrong
+			}
+		} else {
+			i = i + 1
+		}
+	}
+}
+
+// token is the step of the one token at p (after blank space): a value
+// starter is scanned as a value by value; punctuation is one byte.
+func punct(c byte) bool { c == '{' || c == '[' || closer(c) }
+
+// closer is punctuation that cannot start a value.
+func closer(c byte) bool { c == '}' || c == ']' || c == ':' || c == ',' }
+
+// other is the step at a token that is not the one expected at p.
+func other(text string, p int, depth int) Step {
+	if p >= len(text) { return Cut }
+	let c = text[p]
+	if punct(c) { return unexpected(text, p+1) }
+	match value(text, p, depth) {
+	case Done as d:
+		unexpected(text, d.End)
+	case Cut:
+		Cut
+	case Wrong:
+		Wrong
+	}
+}
+
+// value scans one JSON value from p (no leading blank space).
+func value(text string, p int, depth int) Step {
+	let n = len(text)
+	if p >= n { return Cut }
+	let c = text[p]
+	if c == '"' { return str(text, p) }
+	if c == '-' || digit(c) { return numeral(text, p) }
+	if identChar(c) { return word(text, p) }
+	if c == '[' { return array(text, p, depth+1) }
+	if c == '{' { return object(text, p, depth+1) }
+	if punct(c) { return unexpected(text, p+1) }
+	Wrong
+}
+
+func array(text string, p int, depth int) Step {
+	let mut i = space(text, p+1)
+	if i < len(text) && text[i] == ']' { return Done{End: i + 1} }
+	for {
+		if i < len(text) && closer(text[i]) { return unexpected(text, i+1) }
+		match value(text, i, depth) {
+		case Cut:
+			return Cut
+		case Wrong:
+			return Wrong
+		case Done as d:
+			i = space(text, d.End)
+		}
+		if i >= len(text) { return Cut }
+		if text[i] == ']' { return Done{End: i + 1} }
+		if text[i] != ',' { return other(text, i, depth) }
+		i = space(text, i+1)
+	}
+}
+
+func object(text string, p int, depth int) Step {
+	let mut i = space(text, p+1)
+	if i < len(text) && text[i] == '}' { return Done{End: i + 1} }
+	for {
+		if i >= len(text) { return Cut }
+		if text[i] != '"' { return other(text, i, depth) }
+		match str(text, i) {
+		case Cut:
+			return Cut
+		case Wrong:
+			return Wrong
+		case Done as d:
+			i = space(text, d.End)
+		}
+		if i >= len(text) { return Cut }
+		if text[i] != ':' { return other(text, i, depth) }
+		i = space(text, i+1)
+		if i < len(text) && closer(text[i]) { return unexpected(text, i+1) }
+		match value(text, i, depth) {
+		case Cut:
+			return Cut
+		case Wrong:
+			return Wrong
+		case Done as d:
+			i = space(text, d.End)
+		}
+		if i >= len(text) { return Cut }
+		if text[i] == '}' { return Done{End: i + 1} }
+		if text[i] != ',' { return other(text, i, depth) }
+		i = space(text, i+1)
+	}
+}

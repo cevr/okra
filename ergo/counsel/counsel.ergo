@@ -1,0 +1,465 @@
+import hex
+import json
+import okraport/jsview
+import sha256
+import strings
+import time
+import utf8
+
+// counsel routes one prompt from the agent that runs it (the source) to the
+// opposite local agent (the target), and records the run. This package is
+// the domain: who asks whom, the command each agent runs, what its event
+// stream says, and the run's records. The CLI runs the program.
+
+// Failed is a counsel failure: its code and message, printed as
+// "[CODE] message" with exit status 1.
+type Failed { Code string, Message string }
+
+type Provider = Claude{} | Codex{}
+
+func Name(p Provider) string {
+	match p {
+	case Claude:
+		"claude"
+	case Codex:
+		"codex"
+	}
+}
+
+// Opposite is the agent a source routes to.
+func Opposite(p Provider) Provider {
+	match p {
+	case Claude:
+		Codex
+	case Codex:
+		Claude
+	}
+}
+
+// OppositeIsAnInvolution: routing back returns the source, and never to
+// itself.
+law OppositeIsAnInvolution(claude bool) {
+	let p = if claude { Claude } else { Codex }
+	Name(Opposite(Opposite(p))) == Name(p) && Name(Opposite(p)) != Name(p)
+}
+
+type Profile = Standard{} | Deep{}
+
+func ProfileName(p Profile) string {
+	match p {
+	case Standard:
+		"standard"
+	case Deep:
+		"deep"
+	}
+}
+
+func effort(p Profile) string {
+	match p {
+	case Standard:
+		"medium"
+	case Deep:
+		"max"
+	}
+}
+
+// Markers are the agent markers of the environment; an empty value is no
+// marker.
+type Markers { ClaudeCode Option[string], ClaudeEntry Option[string], CodexThread Option[string], CodexCI Option[string] }
+
+func set(v Option[string]) bool { v != None && v != Some[string]{Value: ""} }
+
+// Detect is the source the markers name. Both or neither is ambiguous.
+func Detect(m Markers) Provider fails Failed {
+	let claude = set(m.ClaudeCode) || set(m.ClaudeEntry)
+	let codex = set(m.CodexThread) || set(m.CodexCI)
+	if claude == codex { return Failed{Code: "AMBIGUOUS_PROVIDER", Message: "Cannot infer the current agent. Pass --from claude or --from codex."} }
+	if claude { Claude } else { Codex }
+}
+
+// Invocation is one agent program run.
+type Invocation { Cmd string, Args []string, Cwd string, Model string }
+
+let readOnlyTools = "Read,Glob,Grep,WebFetch,WebSearch"
+
+// FallbackModel is the Codex model used when no newer one is known.
+let FallbackModel = "gpt-6-sol"
+
+// Sanitize drops control characters other than tab from a path.
+func Sanitize(path string) string {
+	let mut out = ""
+	for c in path { if c == '\t' || c > 0x1f { out = out + utf8.RuneText(c) } }
+	out
+}
+
+func instruction(promptFile string) string {
+	"Read the file at " + Sanitize(promptFile) + " and follow the instructions within it."
+}
+
+func ClaudeInvocation(cmd string, promptFile string, p Profile, cwd string) Invocation {
+	Invocation{Cmd: cmd, Args: []string{"-p", "--output-format", "stream-json", "--verbose", "--model", "opus", "--effort", effort(p), "--tools", readOnlyTools, "--allowedTools", readOnlyTools, "--strict-mcp-config", "--no-session-persistence", instruction(promptFile)}, Cwd: cwd, Model: "opus"}
+}
+
+func CodexInvocation(cmd string, promptFile string, p Profile, cwd string, model string) Invocation {
+	Invocation{Cmd: cmd, Args: []string{"exec", "-C", cwd, "--json", "--color", "never", "--sandbox", "read-only", "--model", model, "-c", "web_search=live", "-c", "model_reasoning_effort=" + effort(p), "--skip-git-repo-check", instruction(promptFile)}, Cwd: cwd, Model: model}
+}
+
+// Outcome is what an agent's event stream says.
+type Outcome = Answered{Text string} | Refused{Message string} | Silent{}
+
+// Rejected is a Codex refusal of the model, which the next model may
+// answer.
+func Rejected(target Provider, o Outcome) bool {
+	match o {
+	case Refused as r:
+		target == Codex && strings.Contains(r.Message, "model is not supported when using Codex")
+	case _:
+		false
+	}
+}
+
+// typed is v's member key when v is an object whose member is that string.
+func typed(v json.Value, key string, want string) bool {
+	match v {
+	case json.Object:
+		let m = jsview.Member(v, key) catch {
+		case jsview.Invalid:
+			return false
+		}
+		m == Some[json.Value]{Value: json.Str{Value: want}}
+	case _:
+		false
+	}
+}
+
+func text(v json.Value, key string) Option[string] {
+	match jsview.Member(v, key) catch {
+	case jsview.Invalid:
+		return None
+	} {
+	case Some[json.Value] as m:
+		match m.Value {
+		case json.Str as s:
+			Some[string]{Value: s.Value}
+		case _:
+			None
+		}
+	case None:
+		None
+	}
+}
+
+// ReadCodex: the first turn.failed event refuses; otherwise the last agent
+// message answers.
+func ReadCodex(events []json.Value) Outcome {
+	let mut outcome Outcome = Silent
+	for e in events {
+		if typed(e, "type", "turn.failed") {
+			match jsview.Member(e, "error") catch {
+			case jsview.Invalid:
+				None
+			} {
+			case Some[json.Value] as err:
+				if isObject(err.Value) {
+					match text(err.Value, "message") {
+					case Some[string] as m:
+						return Refused{Message: m.Value}
+					case None:
+					}
+				}
+			case None:
+			}
+		}
+		if typed(e, "type", "item.completed") {
+			match jsview.Member(e, "item") catch {
+			case jsview.Invalid:
+				None
+			} {
+			case Some[json.Value] as item:
+				if typed(item.Value, "type", "agent_message") {
+					match text(item.Value, "text") {
+					case Some[string] as t:
+						outcome = Answered{Text: t.Value}
+					case None:
+					}
+				}
+			case None:
+			}
+		}
+	}
+	outcome
+}
+
+func isObject(v json.Value) bool {
+	match v {
+	case json.Object:
+		true
+	case _:
+		false
+	}
+}
+
+// optional is a member that is absent (None, ok) or of the wanted kind.
+type Field = Missing{} | Present{Value json.Value} | Mistyped{}
+
+func field(v json.Value, key string) Field {
+	match jsview.Member(v, key) catch {
+	case jsview.Invalid:
+		return Mistyped
+	} {
+	case None:
+		Missing
+	case Some[json.Value] as m:
+		Present{Value: m.Value}
+	}
+}
+
+// ReadClaude: the first result event answers, or refuses when it is an
+// error or not a success.
+func ReadClaude(events []json.Value) Outcome {
+	for e in events {
+		if !typed(e, "type", "result") { continue }
+		let subtype = match text(e, "subtype") {
+		case None:
+			continue
+		case Some[string] as s:
+			s.Value
+		}
+		let isError = match field(e, "is_error") {
+		case Missing:
+			false
+		case Present as p:
+			match p.Value {
+			case json.Boolean as b:
+				b.Value
+			case _:
+				continue
+			}
+		case Mistyped:
+			continue
+		}
+		let result = match field(e, "result") {
+		case Missing:
+			None
+		case Present as p:
+			match p.Value {
+			case json.Str as s:
+				Some[string]{Value: s.Value}
+			case _:
+				continue
+			}
+		case Mistyped:
+			continue
+		}
+		if isError || subtype != "success" {
+			return match result {
+			case Some[string] as r:
+				Refused{Message: r.Value}
+			case None:
+				Refused{Message: subtype}
+			}
+		}
+		return match result {
+		case Some[string] as r:
+			Answered{Text: r.Value}
+		case None:
+			Answered{Text: ""}
+		}
+	}
+	Silent
+}
+
+// ClaudeModel is the model of the first init event.
+func ClaudeModel(events []json.Value) Option[string] {
+	for e in events {
+		if typed(e, "type", "system") && typed(e, "subtype", "init") {
+			match text(e, "model") {
+			case Some[string] as m:
+				return m
+			case None:
+			}
+		}
+	}
+	None
+}
+
+// StatusOf is a run's status.
+func StatusOf(timedOut bool, exitCode int, o Outcome) string {
+	if timedOut { return "timeout" }
+	if exitCode != 0 { return "error" }
+	match o {
+	case Answered:
+		"success"
+	case _:
+		"error"
+	}
+}
+
+// FailureOf is why a run did not succeed, if it did not.
+func FailureOf(target Provider, timedOut bool, exitCode int, o Outcome) Option[string] {
+	let name = Name(target)
+	if timedOut { return Some[string]{Value: name + " timed out"} }
+	match o {
+	case Refused as r:
+		return Some[string]{Value: r.Message}
+	case Silent:
+		return Some[string]{Value: name + " ended without an answer"}
+	case Answered:
+	}
+	if exitCode != 0 { return Some[string]{Value: name + " exited with code \(exitCode)"} }
+	None
+}
+
+// lowerASCII is the reference's String.toLowerCase as far as the bucket can
+// see it: ASCII letters, and the two non-ASCII letters whose lower case
+// holds an ASCII letter (KELVIN SIGN, and LATIN CAPITAL I WITH DOT ABOVE,
+// which lowers to i and a combining dot).
+func bucketPart(segment string) string {
+	let mut out = ""
+	let mut dash = false
+	for c in segment {
+		let mut ascii = ""
+		let mut tail = false
+		if (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') {
+			ascii = utf8.RuneText(c)
+		} else if c >= 'A' && c <= 'Z' {
+			ascii = utf8.RuneText(c + 32)
+		} else if c == 0x212A {
+			ascii = "k"
+		} else if c == 0x130 {
+			ascii = "i"
+			tail = true
+		}
+		if ascii == "" {
+			dash = true
+		} else {
+			if dash { out = out + "-" }
+			dash = false
+			out = out + ascii
+			if tail { dash = true }
+		}
+	}
+	let mut s = out
+	if dash { s = s + "-" }
+	strings.TrimPrefix(s, "-")
+}
+
+// Bucket names a working folder: its last two segments in slug form and
+// the start of the SHA-256 of the folder.
+func Bucket(cwd string) string {
+	let mut normalized = strings.ReplaceAll(cwd, "\\", "/")
+	for strings.HasSuffix(normalized, "/") { normalized = strings.TrimSuffix(normalized, "/") }
+	let mut segments = []string{}
+	for s in strings.Split(normalized, "/") { if s != "" { segments = segments.Append(s) } }
+	let from = if len(segments) > 2 { len(segments) - 2 } else { 0 }
+	let mut tail = []string{}
+	for s in segments[from:] {
+		let part = strings.TrimSuffix(bucketPart(s), "-")
+		if part != "" { tail = tail.Append(part) }
+	}
+	let hash = hex.Encode(sha256.Sum(normalized))[:8]
+	if len(tail) > 0 { strings.Join(tail, "-") + "-" + hash } else { hash }
+}
+
+func pad(n int, width int) string {
+	let mut s = "\(n)"
+	for len(s) < width { s = "0" + s }
+	s
+}
+
+// Slug names one run: its UTC time, the route and a random suffix.
+func Slug(source Provider, target Provider, now time.Time, suffix string) string {
+	let c = time.Calendar(now)
+	pad(c.Year, 4) + pad(time.MonthNumber(c.Month), 2) + pad(c.Day, 2) + "-" + pad(c.Hour, 2) + pad(c.Minute, 2) + pad(c.Second, 2) + "-" + Name(source) + "-to-" + Name(target) + "-" + suffix
+}
+
+// Stamp is the time as JavaScript's toISOString writes it.
+func Stamp(now time.Time) string {
+	let c = time.Calendar(now)
+	pad(c.Year, 4) + "-" + pad(time.MonthNumber(c.Month), 2) + "-" + pad(c.Day, 2) + "T" + pad(c.Hour, 2) + ":" + pad(c.Minute, 2) + ":" + pad(c.Second, 2) + "." + pad(c.Nanosecond/1000000, 3) + "Z"
+}
+
+// Display is a command line as the reference's spawn failure names it: each
+// word quoted for a POSIX shell when it needs it, then control characters
+// escaped.
+func Display(words []string) string {
+	let mut out = []string{}
+	for w in words { out = out.Append(escape(quote(w))) }
+	strings.Join(out, " ")
+}
+
+func safe(c rune) bool {
+	(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '@' || c == '+' || c == ':' || c == ',' || c == '.' || c == '/' || c == '-'
+}
+
+func quote(w string) string {
+	let mut plain = w != ""
+	for c in w { if !safe(c) { plain = false } }
+	if plain { return w }
+	let mut out = ""
+	out = out + "'"
+	for c in w {
+		if c == '\'' || c == '\\' {
+			out = out + "'\\"
+			out = out + utf8.RuneText(c)
+			out = out + "'"
+		} else {
+			out = out + utf8.RuneText(c)
+		}
+	}
+	out = out + "'"
+	out
+}
+
+let hexDigits = "0123456789abcdef"
+
+func hexAt(n int) string {
+	let i = n % 16
+	hexDigits[i : i+1]
+}
+
+func escape(w string) string {
+	let mut out = ""
+	for c in w {
+		if c == '\n' {
+			out = out + "\\n"
+		} else if c == '\r' {
+			out = out + "\\r"
+		} else if c == '\t' {
+			out = out + "\\t"
+		} else if c <= 0x1f || (c >= 0x7f && c <= 0x9f) || c == 0x2028 || c == 0x2029 {
+			let n = int(c)
+			out = out + "\\u" + hexAt(n>>12) + hexAt(n>>8) + hexAt(n>>4) + hexAt(n)
+		} else {
+			out = out + utf8.RuneText(c)
+		}
+	}
+	out
+}
+
+// The run's records, as the reference writes them (keys in this order;
+// Failure left out when absent).
+type InvocationPreview { Cmd string, Args []string, Cwd string, Model string }
+type Preview { Source string, Target string, Profile string, PromptSource string, OutputBucket string, OutputDir string, PromptFilePath string, Invocation InvocationPreview }
+type Manifest {
+	Timestamp      string,
+	Slug           string,
+	Cwd            string,
+	OutputBucket   string,
+	PromptSource   string,
+	Source         string,
+	Target         string,
+	Profile        string,
+	Status         string,
+	Model          string,
+	Failure        json.Optional[string],
+	ExitCode       int,
+	DurationMs     int,
+	PromptFilePath string,
+	OutputFile     string,
+	StderrFile     string,
+	EventsFile     string,
+}
+
+func EncodePreview(p Preview) string   { json.Encode(json.Codec[Preview]{MaxBytes: 0, MaxDepth: 0}, p) }
+func EncodeManifest(m Manifest) string { json.Encode(json.Codec[Manifest]{MaxBytes: 0, MaxDepth: 0}, m) }

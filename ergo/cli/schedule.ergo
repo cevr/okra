@@ -1,0 +1,492 @@
+import exec
+import filepath
+import flag
+import fs
+import io
+import okraport/agentexec
+import okraport/launchd
+import okraport/localzone
+import okraport/repo
+import okraport/schedule
+import okraport/taskfile
+import okraport/workdir
+import os
+import strings
+import time
+
+// ScheduleCommand is one `okra schedule` request: create a task (a
+// prompt, its schedule, the agent and its stops), list, show logs,
+// remove, or run one (what launchd calls).
+type ScheduleCommand = CreateTask{Prompt Option[string], Schedule Option[string], Provider schedule.Provider, MaxRuns Option[float64], Until Option[string], StopWhen Option[string]} | ListTasks{JSON bool} | ShowLogs{ID Option[string], Follow bool} | RemoveTask{ID string} | RunTask{ID string}
+
+let schedulePromptArg = flag.OptionalArg("prompt", "What the agent is asked to do")
+let scheduleFlag = flag.String("schedule", "", "When to run: \"every weekday at 9am\", \"in 30 minutes\", a cron line").WithAlias("s").Repeated()
+let scheduleProviderFlag = flag.Choice("provider", "claude", []string{"claude", "codex"}, "Agent to run").WithAlias("p").Repeated()
+let scheduleMaxRunsFlag = flag.Int("max-runs", 0, "Stop after this many runs").Repeated()
+let scheduleUntilFlag = flag.String("until", "", "Stop after this date (ISO 8601 or YYYY-MM-DD)").Repeated()
+let scheduleStopWhenFlag = flag.String("stop-when", "", "Stop when the agent signals this condition (needs --max-runs or --until)").Repeated()
+let scheduleJSONFlag = flag.Bool("json", false, "Print the tasks as JSON").WithAlias("j").Repeated()
+let scheduleFollowFlag = flag.Bool("follow", false, "Follow the log").WithAlias("f").Repeated()
+let scheduleIDArg = flag.Arg("id", "Task id")
+let scheduleOptionalIDArg = flag.OptionalArg("id", "Task id; omit to list logs")
+
+let scheduleSubcommands = []string{"list", "remove", "run", "logs"}
+
+func scheduleID(v flag.Values) string {
+	match scheduleIDArg.Get(v) {
+	case None:
+		Unreachable("required id was not parsed")
+	case Some[string] as id:
+		id.Value
+	}
+}
+
+// scheduleGroup is `okra schedule <subcommand>`.
+func scheduleGroup() flag.Command[Request] {
+	flag.Group("schedule", "Schedule AI agent tasks via macOS launchd", []flag.Command[Request]{
+		command("list", []flag.Flag{scheduleJSONFlag}, []flag.ArgSpec{}, func(v flag.Values) Request fails flag.Invalid { Schedules{Command: ListTasks{JSON: try enabled("json", scheduleJSONFlag.Get(v))}} }),
+		command("remove", []flag.Flag{}, []flag.ArgSpec{scheduleIDArg}, func(v flag.Values) Request { Schedules{Command: RemoveTask{ID: scheduleID(v)}} }),
+		command("run", []flag.Flag{}, []flag.ArgSpec{scheduleIDArg}, func(v flag.Values) Request { Schedules{Command: RunTask{ID: scheduleID(v)}} }),
+		command("logs", []flag.Flag{scheduleFollowFlag}, []flag.ArgSpec{scheduleOptionalIDArg}, func(v flag.Values) Request fails flag.Invalid { Schedules{Command: ShowLogs{ID: scheduleOptionalIDArg.Get(v), Follow: try enabled("follow", scheduleFollowFlag.Get(v))}} }),
+	})
+}
+
+// scheduleCreate is `okra schedule [<prompt>] [flags]`: the group's own
+// leaf, chosen when the word after "schedule" names no subcommand.
+func scheduleCreate() flag.Command[Request] {
+	command("schedule", []flag.Flag{scheduleFlag, scheduleProviderFlag, scheduleMaxRunsFlag, scheduleUntilFlag, scheduleStopWhenFlag}, []flag.ArgSpec{schedulePromptArg}, func(v flag.Values) Request fails flag.Invalid {
+		let runs = scheduleMaxRunsFlag.Get(v)
+		try once("max-runs", len(runs))
+		let provider = defaultText(try optionalText("provider", scheduleProviderFlag.Get(v)), "claude")
+		Schedules{Command: CreateTask{
+			Prompt:   schedulePromptArg.Get(v),
+			Schedule: try optionalText("schedule", scheduleFlag.Get(v)),
+			Provider: if provider == "codex" { schedule.Codex } else { schedule.Claude },
+			MaxRuns:  if len(runs) == 0 { None } else { Some[float64]{Value: float64(runs[0])} },
+			Until:    try optionalText("until", scheduleUntilFlag.Get(v)),
+			StopWhen: try optionalText("stop-when", scheduleStopWhenFlag.Get(v)),
+		}}
+	})
+}
+
+// isScheduleCreate is whether args (after the program name) are a create:
+// "schedule" with no word after it, or a word that names no subcommand.
+func isScheduleCreate(args []string) bool {
+	if len(args) == 0 || args[0] != "schedule" { return false }
+	if len(args) == 1 { return true }
+	for name in scheduleSubcommands {
+		if args[1] == name { return false }
+	}
+	true
+}
+
+// Paths are the reference's folders under HOME.
+type Paths { Home string, Tasks string, Logs string, Agents string }
+
+func pathsOf(home string) Paths {
+	Paths{Home: home, Tasks: filepath.Join([]string{home, ".okra", "schedule", "tasks"}), Logs: filepath.Join([]string{home, ".okra", "schedule", "logs"}), Agents: filepath.Join([]string{home, "Library", "LaunchAgents"})}
+}
+
+func makeDir(what string, dir string) fails schedule.Failed needs fs.Writes {
+	fs.Writes.MkdirAll(dir) catch {
+	case fs.Denied:
+		return schedule.Fail("WRITE_FAILED", "Cannot create "+what+" dir: "+taskfile.Platform("PermissionDenied", "makeDirectory", dir))
+	case fs.Failed as e:
+		return schedule.Fail("WRITE_FAILED", "Cannot create "+what+" dir: "+taskfile.Platform(taskfile.Kind(e.Reason), "makeDirectory", dir))
+	}
+}
+
+// prepare is what the reference's services do before any schedule
+// command: HOME is set, and the tasks and logs folders exist.
+func prepare() Paths fails schedule.Failed needs os.Process | fs.Writes {
+	let home = match os.Process.Getenv("HOME") {
+	case None:
+		return schedule.Fail("CONFIG_ERROR", "HOME environment variable not set")
+	case Some[string] as h:
+		h.Value
+	}
+	let p = pathsOf(home)
+	try makeDir("tasks", p.Tasks)
+	try makeDir("logs", p.Logs)
+	p
+}
+
+// resolveExecutable is the reference's lookup of a program: the PATH,
+// then ~/.bun/bin, /usr/local/bin and ~/.local/bin, then the bare name.
+func resolveExecutable(name string, home string) string needs fs.Files | os.Process {
+	match which(name) {
+	case Some[string] as found:
+		return found.Value
+	case None:
+	}
+	for candidate in []string{home + "/.bun/bin/" + name, "/usr/local/bin/" + name, home + "/.local/bin/" + name} {
+		let _ = fs.Files.Stat(candidate) catch {
+		case _:
+			continue
+		}
+		return candidate
+	}
+	name
+}
+
+func nowMillis() int64 needs time.Clock { repo.NowMillis(time.Clock.Now()) }
+
+func hex8() string needs Random {
+	let mut s = ""
+	for _ in 0..8 {
+		let i = Random.IntN(16)
+		s = s + suffixDigits[i:i+1]
+	}
+	s
+}
+
+// seen is a command's trimmed standard output in the folder, or None when
+// it fails, does not start or prints nothing.
+func seen(name string, args []string, dir string) Option[string] needs exec.Runner {
+	let r = exec.Runner.Run(exec.WithDir(exec.New(name, args), dir)) catch {
+	case _:
+		return None
+	}
+	if r.Status != 0 { return None }
+	let out = schedule.Trim(schedule.DecodeUTF8(r.Stdout))
+	if out == "" { None } else { Some[string]{Value: out} }
+}
+
+func captureContext(dir string) Option[schedule.Context] needs exec.Runner {
+	schedule.ContextOf(schedule.Seen{
+		Branch: seen("git", []string{"rev-parse", "--abbrev-ref", "HEAD"}, dir),
+		Remote: seen("git", []string{"remote", "get-url", "origin"}, dir),
+		Commit: seen("git", []string{"rev-parse", "--short", "HEAD"}, dir),
+		Head:   seen("git", []string{"rev-parse", "--abbrev-ref", "origin/HEAD"}, dir),
+		PR:     seen("gh", []string{"pr", "view", "--json", "number,url"}, dir),
+	})
+}
+
+// untilDate is the --until stop: the instant as ISO text, and the day's
+// last millisecond for a date alone (YYYY-MM-DD). The text is the
+// ECMAScript format or one of Go's named layouts; one with no zone is
+// local time.
+func untilDate(input string) string fails schedule.Failed needs go.Foreign {
+	let invalid = schedule.Failed{Code: "INVALID_DATE", Message: "Invalid --until date: \"" + input + "\". Use ISO 8601 or YYYY-MM-DD."}
+	let read = match schedule.ReadUntil(input) {
+	case None:
+		return invalid
+	case Some[schedule.Written] as w:
+		match w.Value {
+		case schedule.Instant as i:
+			schedule.InRange(i.Millis)
+		case schedule.LocalTime as l:
+			// The offset of the wall clock JavaScriptCore reads it by.
+			let at = schedule.EquivalentWall(l.Wall)
+			match localzone.Read(at) {
+			case None:
+				return schedule.Failed{Code: "INVALID_DATE", Message: "Invalid --until date: \"" + input + "\". TZ names no time zone, so a local time cannot be read; add Z or an offset."}
+			case Some[int64] as t:
+				schedule.InRange(l.Wall - (at - t.Value))
+			}
+		}
+	}
+	let ms = match read {
+	case None:
+		return invalid
+	case Some[int64] as m:
+		m.Value
+	}
+	if isDateOnly(schedule.Trim(input)) { schedule.Iso(ms + 86400000 - 1) } else { schedule.Iso(ms) }
+}
+
+func isDateOnly(s string) bool {
+	if len(s) != 10 || s[4] != '-' || s[7] != '-' { return false }
+	for i in 0..len(s) {
+		if i == 4 || i == 7 { continue }
+		let c = s[i]
+		if c < '0' || c > '9' { return false }
+	}
+	true
+}
+
+// schemaFailed is the reference's defect when a parsed schedule holds a
+// number Schema refuses (NaN or an infinity).
+let schemaFailed = os.Exit{Code: 1, Message: "Internal error: Error: Schema validation failed"}
+
+func createTask(c CreateTask, p Paths) fails schedule.Failed | os.Exit needs schedule.Tasks | os.Process | io.Stderr | fs.Files | fs.Writes | exec.Runner | time.Clock | Random | go.Foreign {
+	let prompt = match c.Prompt {
+	case None:
+		return
+	case Some[string] as text:
+		text.Value
+	}
+	let raw = match c.Schedule {
+	case None:
+		return schedule.Fail("MISSING_FLAG", "Missing --schedule (-s). Usage: okra schedule \"<prompt>\" -s \"<schedule>\"")
+	case Some[string] as s:
+		s.Value
+	}
+	let now = nowMillis()
+	let when = match schedule.Parse(raw, now) {
+	case None:
+		return schedule.Fail("INVALID_SCHEDULE", "Cannot parse schedule: \""+raw+"\"")
+	case Some[schedule.Schedule] as s:
+		s.Value
+	}
+	if !schedule.Valid(when) { return schemaFailed }
+	let id = hex8()
+	let cwd = workdir.Cwd()
+	let found = captureContext(cwd)
+	let mut stops = []schedule.Stop{}
+	match c.MaxRuns {
+	case None:
+	case Some[float64] as n:
+		stops = stops.Append(schedule.MaxRuns{Count: n.Value})
+	}
+	match c.Until {
+	case None:
+	case Some[string] as u:
+		stops = stops.Append(schedule.AfterDate{Date: try untilDate(u.Value)})
+	}
+	let condition = match c.StopWhen {
+	case None:
+		None
+	case Some[string] as w:
+		if len(stops) == 0 { return schedule.Fail("MISSING_FALLBACK", "--stop-when requires a deterministic fallback (--max-runs or --until). The agent could run forever without one.") }
+		Some[string]{Value: w.Value}
+	}
+	let task = schedule.Task{ID: id, Prompt: prompt, Provider: c.Provider, Schedule: when, Cwd: cwd, CreatedAt: schedule.Iso(now), Status: schedule.Active, LastRun: None, RunCount: 0.0, Context: found, Stops: if len(stops) == 0 { None } else { Some[[]schedule.Stop]{Value: stops} }, When: condition}
+	try schedule.Tasks.Save(task)
+	let path = defaultText(os.Process.Getenv("PATH"), "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin")
+	let job = schedule.Job{Program: resolveExecutable("okra", p.Home), Home: p.Home, Log: filepath.Join([]string{p.Logs, id + ".log"}), Path: path}
+	try launchd.Install(launchd.Agents{Dir: p.Agents}, task, job)
+	io.Stderr.Eprintln("Scheduled task " + id)
+	io.Stderr.Eprintln("  Prompt:   " + prompt)
+	io.Stderr.Eprintln("  Provider: " + schedule.ProviderName(c.Provider))
+	io.Stderr.Eprintln("  Schedule: " + schedule.Describe(when))
+	if schedule.HasStops(task) { io.Stderr.Eprintln("  Stop:     " + schedule.DescribeStops(task)) }
+	match condition {
+	case None:
+	case Some[string] as w:
+		io.Stderr.Eprintln("  When:     " + w.Value)
+	}
+	io.Stderr.Eprintln("  CWD:      " + cwd)
+	match found {
+	case None:
+	case Some[schedule.Context] as x:
+		match x.Value.GitBranch {
+		case None:
+		case Some[string] as b:
+			io.Stderr.Eprintln("  Branch:   " + b.Value)
+		}
+		match x.Value.PRNumber {
+		case None:
+		case Some[float64] as n:
+			io.Stderr.Eprintln("  PR:       #" + schedule.Text(n.Value))
+		}
+	}
+}
+
+func listTasks(asJSON bool) fails schedule.Failed needs schedule.Tasks | os.Process | io.Stdout | io.Stderr {
+	let mut tasks = []schedule.Task{}
+	for item in try schedule.Tasks.All() {
+		match item {
+		case schedule.Good as g:
+			tasks = tasks.Append(g.Task)
+		case schedule.Corrupt as c:
+			io.Stderr.Eprintln("Warning: skipping corrupt task file " + c.File + ": " + c.Why)
+		}
+	}
+	if asJSON {
+		io.Stdout.Println(schedule.EncodeAll(tasks))
+		return
+	}
+	if len(tasks) == 0 {
+		io.Stderr.Eprintln("No scheduled tasks.")
+		return
+	}
+	io.Stdout.Println(schedule.PadEnd("ID", 10) + " " + schedule.PadEnd("Provider", 10) + " " + schedule.PadEnd("Schedule", 30) + " " + schedule.PadEnd("Status", 10) + " Prompt")
+	if io.Stdout.IsTerminal() && os.Process.Getenv("NO_COLOR") == None { io.Stdout.Println(strings.Repeat("─", 90)) }
+	for t in tasks {
+		let mut parts = []string{}
+		if schedule.HasStops(t) { parts = parts.Append(schedule.DescribeStops(t)) }
+		match t.When {
+		case None:
+		case Some[string] as w:
+			parts = parts.Append("when: " + schedule.Truncate(w.Value, 20))
+		}
+		let suffix = if len(parts) == 0 { "" } else { " (" + strings.Join(parts, ", ") + ")" }
+		io.Stdout.Println(schedule.PadEnd(t.ID, 10) + " " + schedule.PadEnd(schedule.ProviderName(t.Provider), 10) + " " + schedule.PadEnd(schedule.Describe(t.Schedule)+suffix, 30) + " " + schedule.PadEnd(schedule.StatusName(t.Status), 10) + " " + schedule.Truncate(t.Prompt, 40))
+	}
+}
+
+func showLogs(id Option[string], follow bool, p Paths) fails schedule.Failed needs io.Stdout | io.Stderr | fs.Files | exec.Runner {
+	let name = match id {
+	case None:
+		let files = fs.Files.ReadDir(p.Logs) catch {
+		case fs.NotFound:
+			io.Stderr.Eprintln("No logs found.")
+			return
+		case _:
+			return schedule.Fail("READ_FAILED", "Cannot read logs dir: "+p.Logs)
+		}
+		if len(files) == 0 {
+			io.Stderr.Eprintln("No logs found.")
+			return
+		}
+		io.Stderr.Eprintln("Available logs:")
+		for f in files {
+			if strings.HasSuffix(f, ".log") {
+				let at = strings.Index(f, ".log")
+				io.Stdout.Println(f[:at] + f[at+4:])
+			}
+		}
+		return
+	case Some[string] as i:
+		i.Value
+	}
+	let file = filepath.Join([]string{p.Logs, name + ".log"})
+	let _ = fs.Files.Stat(file) catch {
+	case fs.NotFound:
+		return schedule.Fail("NOT_FOUND", "No logs found for task "+name)
+	case _:
+		return schedule.Fail("READ_FAILED", "Cannot access log file: "+file)
+	}
+	if follow {
+		let running = exec.Runner.Start(exec.New("tail", []string{"-f", file}), exec.Streams{Stdout: exec.Inherit, Stderr: exec.Inherit}) catch {
+		case exec.NotFound:
+			return schedule.Fail("READ_FAILED", "Failed to tail log: "+launchd.SpawnText("NotFound", []string{"tail", "-f", file}))
+		case exec.Denied:
+			return schedule.Fail("READ_FAILED", "Failed to tail log: "+launchd.SpawnText("PermissionDenied", []string{"tail", "-f", file}))
+		case exec.Failed:
+			return schedule.Fail("READ_FAILED", "Failed to tail log: "+launchd.SpawnText("Unknown", []string{"tail", "-f", file}))
+		}
+		let _ = running.Wait()
+		return
+	}
+	let content = fs.Files.ReadFile(file) catch {
+	case _:
+		return schedule.Fail("READ_FAILED", "Cannot read log for "+name)
+	}
+	io.Stdout.Println(schedule.DecodeUTF8(content))
+}
+
+func removeTask(id string, p Paths) fails schedule.Failed needs schedule.Tasks | io.Stderr | exec.Runner | fs.Writes {
+	try launchd.Uninstall(launchd.Agents{Dir: p.Agents}, id)
+	try schedule.CheckID(id)
+	try schedule.Tasks.Delete(id)
+	fs.Writes.Remove(filepath.Join([]string{p.Logs, id + ".log"})) catch {
+	case _:
+	}
+	io.Stderr.Eprintln("Removed task " + id)
+}
+
+// Patch is what a run changes in a stored task; the rest is read again.
+type Patch { Status Option[schedule.Status], LastRun Option[string], RunCount Option[float64] }
+
+func update(id string, patch Patch) schedule.Task fails schedule.Failed needs schedule.Tasks {
+	let t = try schedule.Tasks.Load(id)
+	let mut next = t
+	match patch.Status {
+	case None:
+	case Some[schedule.Status] as s:
+		next = schedule.Task{..next, Status: s.Value}
+	}
+	match patch.LastRun {
+	case None:
+	case Some[string] as l:
+		next = schedule.Task{..next, LastRun: Some[string]{Value: l.Value}}
+	}
+	match patch.RunCount {
+	case None:
+	case Some[float64] as n:
+		next = schedule.Task{..next, RunCount: n.Value}
+	}
+	try schedule.Tasks.Save(next)
+	next
+}
+
+func complete(id string, reason string, p Paths) fails schedule.Failed needs schedule.Tasks | io.Stderr | exec.Runner | fs.Writes {
+	let _ = try update(id, Patch{Status: Some[schedule.Status]{Value: schedule.Completed}, LastRun: None, RunCount: None})
+	try launchd.Uninstall(launchd.Agents{Dir: p.Agents}, id)
+	io.Stderr.Eprintln("[okra schedule] Task " + id + " completed: " + reason)
+}
+
+func runTask(id string, p Paths) fails schedule.Failed needs schedule.Tasks | os.Process | io.Stdout | io.Stderr | fs.Files | fs.Writes | exec.Runner | time.Clock | Random {
+	let task = try schedule.Tasks.Load(id)
+	match schedule.Due(task, nowMillis()) {
+	case None:
+	case Some[schedule.Reason] as r:
+		try complete(task.ID, r.Value.Description, p)
+		return
+	}
+	let mut prompt = schedule.WithContext(task.Prompt, task.Cwd, task.Context)
+	let nonce = match task.When {
+	case None:
+		None
+	case Some[string] as w:
+		let n = "OKRA_STOP_" + hex8()
+		prompt = prompt + schedule.StopSignal(w.Value, n)
+		Some[string]{Value: n}
+	}
+	io.Stderr.Eprintln("[okra schedule] Running task " + task.ID + ": " + task.Prompt)
+	let name = schedule.ProviderName(task.Provider)
+	let program = resolveExecutable(name, p.Home)
+	let runs = task.RunCount + 1.0
+	let oneshot = match task.Schedule {
+	case schedule.Oneshot:
+		true
+	case schedule.Cron:
+		false
+	}
+	let output = agentexec.Invoke(name, agentexec.Command(task.Provider, program, prompt, task.Cwd)) catch {
+	case schedule.Failed as f:
+		let _ = try update(task.ID, Patch{Status: None, LastRun: Some[string]{Value: schedule.Iso(nowMillis())}, RunCount: Some[float64]{Value: runs}})
+		io.Stderr.Eprintln("[okra schedule] Task " + task.ID + " failed on run #" + schedule.Text(runs))
+		return f
+	}
+	let status = if oneshot { schedule.Completed } else { task.Status }
+	let _ = try update(task.ID, Patch{Status: Some[schedule.Status]{Value: status}, LastRun: Some[string]{Value: schedule.Iso(nowMillis())}, RunCount: Some[float64]{Value: runs}})
+	if oneshot {
+		try complete(task.ID, "oneshot", p)
+		return
+	}
+	let updated = try schedule.Tasks.Load(task.ID)
+	match schedule.Due(updated, nowMillis()) {
+	case None:
+	case Some[schedule.Reason] as r:
+		try complete(task.ID, r.Value.Description, p)
+		return
+	}
+	match task.When {
+	case None:
+	case Some[string] as condition:
+		match nonce {
+		case None:
+		case Some[string] as n:
+			if strings.Contains(output, n.Value) {
+				io.Stderr.Eprintln("[okra schedule] Signal detected for task " + task.ID + ", verifying...")
+				let answer = try agentexec.Capture(name, agentexec.Command(task.Provider, program, schedule.VerifyPrompt(output, condition.Value), task.Cwd))
+				if schedule.Confirms(answer) {
+					try complete(task.ID, "condition met: "+condition.Value, p)
+					return
+				}
+				io.Stderr.Eprintln("[okra schedule] Verification rejected signal for task " + task.ID + ", continuing")
+			}
+		}
+	}
+	io.Stderr.Eprintln("[okra schedule] Task " + task.ID + " completed (run #" + schedule.Text(runs) + ")")
+}
+
+// RunSchedule runs one schedule request.
+func RunSchedule(c ScheduleCommand) fails schedule.Failed | os.Exit needs schedule.Tasks | os.Process | io.Stdout | io.Stderr | fs.Files | fs.Writes | exec.Runner | time.Clock | Random | go.Foreign {
+	let p = try prepare()
+	match c {
+	case CreateTask as t:
+		try createTask(t, p)
+	case ListTasks as l:
+		try listTasks(l.JSON)
+	case ShowLogs as l:
+		try showLogs(l.ID, l.Follow, p)
+	case RemoveTask as r:
+		try removeTask(r.ID, p)
+	case RunTask as r:
+		try runTask(r.ID, p)
+	}
+}

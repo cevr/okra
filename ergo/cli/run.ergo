@@ -1,0 +1,154 @@
+import exec
+import flag
+import fs
+import http
+import io
+import okraport/counsel
+import okraport/how
+import okraport/keys
+import okraport/image
+import okraport/imagehttp
+import okraport/repo
+import okraport/schedule
+import okraport/skills
+import os
+import prompt
+import strings
+import term
+import time
+
+type Request = Manage{Command keys.Command} | Guide{Topic Option[string]} | Repos{Command RepoCommand} | Skills{Command SkillsCommand} | Images{Command image.Command} | Counsel{Command CounselCommand} | Schedules{Command ScheduleCommand}
+let providerArg = flag.Arg("provider", "Provider name, e.g. openai")
+let keyArg = flag.OptionalArg("key", "API key value; use --stdin to avoid shell history")
+let topicArg = flag.OptionalArg("topic", "Topic to explain; omit to list topics")
+let stdinFlag = flag.Bool("stdin", false, "Read the key from stdin").Repeated()
+
+func provider(v flag.Values) string {
+	match providerArg.Get(v) {
+	case None:
+		Unreachable("required provider was not parsed")
+	case Some[string] as p:
+		p.Value
+	}
+}
+func command(name string, flags []flag.Flag, args []flag.ArgSpec, build escaping func(v flag.Values) Request fails flag.Invalid | flag.Missing) flag.Command[Request] {
+	flag.Command[Request]{Name: name, Usage: "", Set: flag.Set{Name: name, Usage: "", Flags: flags, Args: args}, Build: build, Commands: []flag.Command[Request]{}}
+}
+func root() flag.Root[Request] {
+	flag.Root[Request]{Name: "okra", Usage: "AI agent orchestration toolkit", Version: Some[string]{Value: versionLine}, Commands: []flag.Command[Request]{
+		scheduleGroup(),
+		flag.Group("keys", "Manage stored API keys", []flag.Command[Request]{
+			command("set", []flag.Flag{stdinFlag}, []flag.ArgSpec{providerArg, keyArg}, func(v flag.Values) Request fails flag.Invalid {
+				let occurrences = stdinFlag.Get(v)
+				if len(occurrences) > 1 { return flag.Invalid{Name: "stdin", Text: "repeated", Reason: "at most 1 value"} }
+				Manage{Command: keys.SetKey{Provider: provider(v), Key: keyArg.Get(v), Stdin: len(occurrences) > 0 && occurrences[0]}}
+			}),
+			command("list", []flag.Flag{}, []flag.ArgSpec{}, func(_ flag.Values) Request { Manage{Command: keys.ListKeys} }),
+			command("get", []flag.Flag{}, []flag.ArgSpec{providerArg}, func(v flag.Values) Request { Manage{Command: keys.GetKey{Provider: provider(v)}} }),
+			command("rm", []flag.Flag{}, []flag.ArgSpec{providerArg}, func(v flag.Values) Request { Manage{Command: keys.RemoveKey{Provider: provider(v)}} }),
+		}),
+		command("how", []flag.Flag{}, []flag.ArgSpec{topicArg}, func(v flag.Values) Request { Guide{Topic: topicArg.Get(v)} }),
+		repoGroup(),
+		skillsGroup(),
+		imageCommand(),
+		counselCommand(),
+	}}
+}
+// parse reads args as the root does; `okra schedule` with no subcommand
+// is the schedule group's own create leaf.
+func parse(r flag.Root[Request], args []string) Request fails flag.Version | flag.Help | flag.Unknown | flag.NeedsValue | flag.Invalid | flag.Missing | flag.Extra | flag.UnknownCommand {
+	if isScheduleCreate(args) { return try flag.ParseCommand("okra", r.Usage, []flag.Command[Request]{scheduleCreate()}, args) }
+	try flag.ParseRoot(r, args)
+}
+func Run(args []string, topics []how.Topic, setup RepoSetup, kit SkillsSetup, images imagehttp.Setup) fails os.Exit needs keys.Store | repo.Catalog | skills.Locks | schedule.Tasks | os.Process | io.Stdin | io.Stdout | io.Stderr | fs.Files | fs.Writes | exec.Runner | http.Network | time.Clock | term.Terminal | Random | Scheduler | go.Foreign {
+	run(args, topics, setup, kit, images) catch {
+	case schedule.Failed as e:
+		// The reference adds a recovery hint to two codes.
+		let hint = if e.Code == "NOT_FOUND" { "\nRun 'okra schedule list' to see available tasks." } else if e.Code == "INVALID_SCHEDULE" { "\nSee 'okra schedule --help' for schedule formats." } else { "" }
+		return os.Exit{Code: 1, Message: "[" + e.Code + "] " + e.Message + hint}
+	case counsel.Failed as e:
+		return os.Exit{Code: 1, Message: "[" + e.Code + "] " + e.Message}
+	case BadFileFlag as e:
+		io.Stdout.Print(flag.RootUsage(root()))
+		return os.Exit{Code: 1, Message: "ERROR\n  Invalid value for flag --file: \"" + e.Text + "\". Expected: " + e.Reason}
+	case image.Failed as e:
+		return os.Exit{Code: 1, Message: "[" + e.Code + "] " + e.Message}
+	case RepoError as e:
+		return os.Exit{Code: 1, Message: "[" + e.Code + "] " + e.Message}
+	case skills.Failed as e:
+		return os.Exit{Code: 1, Message: "[" + e.Code + "] " + e.Message}
+	case prompt.NotInteractive:
+		// Declared difference: the reference draws its prompt and ends as
+		// an interrupt (130) when standard input is not a terminal.
+		return os.Exit{Code: 1, Message: "[NOT_INTERACTIVE] choosing skills needs a terminal on standard input; name one skill (owner/repo@skill)"}
+	case prompt.Cancelled:
+		// Declared difference: the reference ends a cancelled prompt as an
+		// interrupt (130); os.Code stops at 125 (126 and up are the shell's),
+		// so a cancel is a failure with status 1.
+		return os.Exit{Code: 1, Message: "[CANCELLED] no skills chosen"}
+	case io.ReadFailed as e:
+		return os.Exit{Code: 1, Message: "[INPUT] " + e.Reason}
+	case os.Exit as e:
+		return e
+	case keys.InvalidInput as e:
+		return os.Exit{Code: 1, Message: "[INVALID_INPUT] " + e.Message}
+	case keys.NotFound as e:
+		return os.Exit{Code: 1, Message: "[NOT_FOUND] " + e.Message}
+	case keys.InvalidEnvProvider:
+		return os.Exit{Code: 1, Message: "Internal error: TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function"}
+	case keys.StoreFailed as e:
+		return os.Exit{Code: 1, Message: "[STORE_FAILED] " + e.Message}
+	case how.NotFound as e:
+		return os.Exit{Code: 1, Message: "[NOT_FOUND] Unknown topic '" + e.Name + "'. Available topics: " + strings.Join(e.Known, ", ")}
+	}
+}
+func run(args []string, topics []how.Topic, setup RepoSetup, kit SkillsSetup, images imagehttp.Setup) fails os.Exit | keys.InvalidInput | keys.NotFound | keys.StoreFailed | keys.InvalidEnvProvider | how.NotFound | RepoError | skills.Failed | prompt.NotInteractive | prompt.Cancelled | io.ReadFailed | image.Failed | counsel.Failed | schedule.Failed | BadFileFlag needs keys.Store | repo.Catalog | skills.Locks | schedule.Tasks | os.Process | io.Stdin | io.Stdout | io.Stderr | fs.Files | fs.Writes | exec.Runner | http.Network | time.Clock | term.Terminal | Random | Scheduler | go.Foreign {
+	// The reference's root does nothing with no arguments, and prints the
+	// version for --version or -v anywhere before "--".
+	if len(args) == 0 { return }
+	for a in args {
+		if a == "--" { break }
+		if a == "--version" || a == "-v" {
+			io.Stdout.Println(versionLine)
+			return
+		}
+	}
+	if len(args) == 1 && args[0] == "keys" { return }
+	if len(args) == 1 && args[0] == "skills" {
+		try RunSkills(ListSkills, kit)
+		return
+	}
+	let r = root()
+	if len(args) == 1 && args[0] == "repo" {
+		// The reference prints the group's help for a bare group.
+		io.Stdout.Print(flag.RootUsage(r))
+		return
+	}
+	let request = parse(r, args) catch {
+	case flag.Help as h:
+		io.Stdout.Print(h.Text)
+		return
+	case flag.Version as v:
+		io.Stdout.Println(v.Text)
+		return
+	case err:
+		io.Stdout.Print(flag.RootUsage(r))
+		return os.Exit{Code: 1, Message: "ERROR\n  " + flag.Describe(err)}
+	}
+	match request {
+	case Manage as m:
+		try keys.Run(m.Command)
+	case Guide as g:
+		io.Stdout.Println(try how.Answer(topics, g.Topic))
+	case Repos as c:
+		try RunRepo(c.Command, setup)
+	case Skills as s:
+		try RunSkills(s.Command, kit)
+	case Images as i:
+		try RunImage(i.Command, images)
+	case Counsel as c:
+		try RunCounsel(c.Command, images)
+	case Schedules as s:
+		try RunSchedule(s.Command)
+	}
+}

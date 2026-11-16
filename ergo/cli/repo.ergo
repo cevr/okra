@@ -1,0 +1,352 @@
+import exec
+import filepath
+import fs
+import http
+import io
+import okraport/cachefile
+import okraport/gitexec
+import okraport/registryhttp
+import okraport/repo
+import slices
+import strconv
+import strings
+import time
+
+// RepoCommand is one parsed `okra repo` command.
+type RepoCommand = FetchRepo{Spec string, Force bool, Json bool} | ListRepos{Registry Option[string], Json bool, Sort string} | RemoveRepo{Spec string} | CleanRepos{All bool, Yes bool, Days Option[int], MaxSize Option[string], DryRun bool} | RepoPath{Spec string}
+
+// RepoSetup is what main decides for the repo commands: the cache folder
+// and how named registry URLs reach the bound network.
+type RepoSetup { Dir string, Transport registryhttp.Transport }
+
+// RepoError is a failure line "[CODE] message" with status 1.
+type RepoError { Code string, Message string }
+
+let autoPruneDays = 30
+let dayMillis int64 = 86400000
+
+func parseSpec(input string) repo.Spec fails RepoError {
+	repo.Parse(input) catch {
+	case repo.InvalidSpec as e:
+		return RepoError{Code: "SPEC_PARSE", Message: e.Message}
+	}
+}
+
+func save(i repo.Index) needs repo.Catalog {
+	// The reference logs a refused write as a warning and goes on.
+	repo.Catalog.Save(i) catch {
+	case repo.SaveFailed:
+	}
+}
+
+func removeTree(path string) needs fs.Files | go.Foreign {
+	cachefile.Remove(path) catch {
+	case cachefile.RemoveFailed:
+	}
+}
+
+func now() int64 needs time.Clock  { repo.NowMillis(time.Clock.Now()) }
+func iso() string needs time.Clock { repo.Iso(time.Clock.Now()) }
+
+// stale is whether an entry was last used before cutoff; an unreadable
+// date is NaN in the reference, and NaN is never before anything.
+func stale(e repo.Entry, cutoff int64) bool {
+	match repo.Millis(e.LastAccessedAt) {
+	case None:
+		false
+	case Some[int64] as ms:
+		ms.Value < cutoff
+	}
+}
+
+func autoPrune() needs repo.Catalog | fs.Files | time.Clock | io.Stderr | go.Foreign {
+	let index = repo.Catalog.Load()
+	if len(index.Entries) == 0 { return }
+	let cutoff = now() - int64(autoPruneDays)*dayMillis
+	let mut pruned = 0
+	for e in index.Entries {
+		if stale(e, cutoff) {
+			removeTree(e.Path)
+			let current = repo.Catalog.Load()
+			if repo.Has(current, e.Spec) { save(repo.Without(current, e.Spec)) }
+			pruned = pruned + 1
+		}
+	}
+	if pruned == 1 { io.Stderr.Eprintln("Pruned 1 stale repo (>\(autoPruneDays)d)") }
+	if pruned > 1 { io.Stderr.Eprintln("Pruned \(pruned) stale repos (>\(autoPruneDays)d)") }
+}
+
+func fetchJSON(path string, size int, ref Option[string], fresh bool) string {
+	let refText = match ref {
+	case None:
+		"null"
+	case Some[string] as r:
+		repo.Quote(r.Value)
+	}
+	"{\"path\":" + repo.Quote(path) + ",\"size\":\(size),\"ref\":" + refText + ",\"fresh\":" + (if fresh { "true" } else { "false" }) + "}"
+}
+
+func fetchRepo(c FetchRepo, setup RepoSetup) fails RepoError needs repo.Catalog | fs.Files | fs.Writes | exec.Runner | http.Network | time.Clock | io.Stdout | io.Stderr | go.Foreign {
+	let spec = try parseSpec(c.Spec)
+	let label = repo.Text(spec)
+	let existing = repo.Find(repo.Catalog.Load(), spec)
+	let dest = cachefile.Locate(setup.Dir, spec)
+	match existing {
+	case None:
+	case Some[repo.Entry] as found:
+		let e = found.Value
+		let isGit = gitexec.IsRepo(e.Path)
+		if c.Force {
+			io.Stderr.Eprintln("Force re-fetching " + label + "...")
+			removeTree(e.Path)
+			let current = repo.Catalog.Load()
+			if repo.Has(current, spec) { save(repo.Without(current, spec)) }
+		} else if isGit {
+			if spec.Version == None {
+				io.Stderr.Eprintln("Updating " + label + "...")
+				gitexec.Update(e.Path) catch {
+				case gitexec.Failed:
+					io.Stderr.Eprintln("Update failed, repo may be up to date: @cvr/okra/repo/RepoError")
+				}
+			} else {
+				io.Stderr.Eprintln("Already cached (pinned): " + label)
+			}
+			let size = cachefile.Size(e.Path)
+			let ref = gitexec.Describe(e.Path)
+			save(repo.Add(repo.Catalog.Load(), repo.Entry{Spec: spec, FetchedAt: e.FetchedAt, LastAccessedAt: iso(), SizeBytes: size, Path: e.Path}))
+			if spec.Version == None { io.Stderr.Eprintln("Updated: " + e.Path) }
+			io.Stderr.Eprintln("Ref: " + ref)
+			io.Stderr.Eprintln("Size: " + repo.FormatBytes(size))
+			io.Stdout.Println(if c.Json { fetchJSON(e.Path, size, Some[string]{Value: ref}, false) } else { e.Path })
+			autoPrune()
+			return
+		} else {
+			save(repo.Touch(repo.Catalog.Load(), spec, iso()))
+			io.Stderr.Eprintln("Already cached: " + label)
+			io.Stderr.Eprintln("Size: " + repo.FormatBytes(e.SizeBytes))
+			io.Stdout.Println(if c.Json { fetchJSON(e.Path, e.SizeBytes, None, false) } else { e.Path })
+			autoPrune()
+			return
+		}
+	}
+	io.Stderr.Eprintln("Fetching " + label + "...")
+	cachefile.Ensure(filepath.Dir(dest))
+	registryhttp.Fetch(setup.Transport, spec, dest) catch {
+	case registryhttp.Failed as f:
+		return RepoError{Code: f.Code, Message: f.Message}
+	}
+	let size = cachefile.Size(dest)
+	let ref = if gitexec.IsRepo(dest) {
+		let r = gitexec.Describe(dest)
+		io.Stderr.Eprintln("Ref: " + r)
+		Some[string]{Value: r}
+	} else {
+		None
+	}
+	let stamp = iso()
+	save(repo.Add(repo.Catalog.Load(), repo.Entry{Spec: spec, FetchedAt: stamp, LastAccessedAt: stamp, SizeBytes: size, Path: dest}))
+	io.Stderr.Eprintln("Size: " + repo.FormatBytes(size))
+	io.Stdout.Println(if c.Json { fetchJSON(dest, size, ref, true) } else { dest })
+	autoPrune()
+}
+
+func total(entries []repo.Entry) int {
+	let mut sum = 0
+	for e in entries { sum = sum + e.SizeBytes }
+	sum
+}
+
+// dateOrder is Date.parse(b) - Date.parse(a); None is NaN.
+func dateOrder(a repo.Entry, b repo.Entry) Option[int64] {
+	match repo.Millis(a.LastAccessedAt) {
+	case None:
+		None
+	case Some[int64] as x:
+		match repo.Millis(b.LastAccessedAt) {
+		case None:
+			None
+		case Some[int64] as y:
+			Some[int64]{Value: y.Value - x.Value}
+		}
+	}
+}
+
+func listRepos(c ListRepos) needs repo.Catalog | time.Clock | io.Stdout | io.Stderr {
+	let mut entries = []repo.Entry{}
+	for e in repo.Catalog.Load().Entries {
+		match c.Registry {
+		case None:
+			entries = entries.Append(e)
+		case Some[string] as r:
+			if repo.RegistryName(e.Spec.Registry) == r.Value { entries = entries.Append(e) }
+		}
+	}
+	let sorted = match c.Sort {
+	case "size":
+		repo.SortLike(entries, func(a repo.Entry, b repo.Entry) Option[int64] { Some[int64]{Value: int64(b.SizeBytes - a.SizeBytes)} })
+	case "name":
+		repo.SortLike(entries, func(a repo.Entry, b repo.Entry) Option[int64] { Some[int64]{Value: int64(repo.Collate(a.Spec.Name, b.Spec.Name))} })
+	case _:
+		repo.SortLike(entries, dateOrder)
+	}
+	if c.Json {
+		let mut items = []string{}
+		for e in sorted { items = items.Append(repo.EntryJSON(e, true)) }
+		io.Stdout.Println("{\"repos\":[" + strings.Join(items, ",") + "],\"total\":\(len(sorted)),\"totalSize\":\(total(sorted))}")
+		return
+	}
+	if len(sorted) == 0 {
+		io.Stderr.Eprintln("No repositories cached.")
+		io.Stderr.Eprintln("Use \"okra repo fetch <spec>\" to cache a repository.")
+		return
+	}
+	io.Stdout.Println("")
+	io.Stdout.Println("Cached Repositories (\(len(sorted)))")
+	io.Stdout.Println(strings.Repeat("═", 80))
+	let at = now()
+	for e in sorted {
+		io.Stdout.Println(repo.PadEnd(repo.RegistryName(e.Spec.Registry), 6) + "  " + repo.PadEnd(repo.Text(e.Spec), 40) + "  " + repo.PadStart(repo.FormatBytes(e.SizeBytes), 10) + "  " + repo.Relative(e.LastAccessedAt, at))
+	}
+	io.Stdout.Println(strings.Repeat("═", 80))
+	io.Stdout.Println("Total: " + repo.FormatBytes(total(sorted)))
+}
+
+func removeRepo(c RemoveRepo) fails RepoError needs repo.Catalog | fs.Files | io.Stdout | io.Stderr | go.Foreign {
+	let spec = try parseSpec(c.Spec)
+	let index = repo.Catalog.Load()
+	match repo.Find(index, spec) {
+	case None:
+		io.Stderr.Eprintln("Not found: " + repo.Text(spec))
+	case Some[repo.Entry] as found:
+		removeTree(found.Value.Path)
+		let current = repo.Catalog.Load()
+		if repo.Has(current, spec) { save(repo.Without(current, spec)) }
+		io.Stderr.Eprintln("Removed: " + repo.Text(spec))
+		io.Stderr.Eprintln("Freed: " + repo.FormatBytes(found.Value.SizeBytes))
+		io.Stdout.Println(found.Value.Path)
+	}
+}
+
+// ParseSize is --max-size: /^(\d+(?:\.\d+)?)\s*(B|K|KB|M|MB|G|GB)?$/i.
+func ParseSize(text string) Option[float64] {
+	let mut i = 0
+	for i < len(text) && text[i] >= '0' && text[i] <= '9' { i = i + 1 }
+	if i == 0 { return None }
+	if i < len(text) && text[i] == '.' {
+		let mut j = i + 1
+		for j < len(text) && text[j] >= '0' && text[j] <= '9' { j = j + 1 }
+		if j > i+1 { i = j }
+	}
+	let value = strconv.ParseFloat(text[:i]) catch {
+	case _:
+		return None
+	}
+	// White space may separate the number and the unit; nothing may follow.
+	let unit = strings.ToUpper(repo.TrimStart(text[i:]))
+	let factor = match unit {
+	case "", "B":
+		1.0
+	case "K", "KB":
+		1024.0
+	case "M", "MB":
+		1048576.0
+	case "G", "GB":
+		1073741824.0
+	case _:
+		return None
+	}
+	Some[float64]{Value: value * factor}
+}
+
+func cleanRepos(c CleanRepos, setup RepoSetup) fails RepoError needs repo.Catalog | fs.Files | fs.Writes | time.Clock | io.Stdout | io.Stderr | go.Foreign {
+	if !c.All && c.Days == None && c.MaxSize == None { return RepoError{Code: "MISSING_FLAGS", Message: "Specify --days, --max-size, or --all"} }
+	let entries = repo.Catalog.Load().Entries
+	if len(entries) == 0 {
+		io.Stderr.Eprintln("Cache is already empty.")
+		return
+	}
+	if c.All {
+		let size = total(entries)
+		if !c.Yes {
+			io.Stderr.Eprintln("This will remove \(len(entries)) cached repositories (" + repo.FormatBytes(size) + ").")
+			io.Stderr.Eprintln("Use --yes to confirm.")
+			return
+		}
+		cachefile.Clear(setup.Dir) catch {
+		case cachefile.RemoveFailed:
+		}
+		save(repo.EmptyIndex())
+		io.Stderr.Eprintln("Removed \(len(entries)) repositories.")
+		io.Stdout.Println("Freed: " + repo.FormatBytes(size))
+		return
+	}
+	let mut chosen = entries
+	match c.Days {
+	case None:
+	case Some[int] as d:
+		let cutoff = now() - int64(d.Value)*dayMillis
+		chosen = slices.Filter(chosen, func(e repo.Entry) bool { stale(e, cutoff) })
+	}
+	match c.MaxSize {
+	case None:
+	case Some[string] as text:
+		match ParseSize(text.Value) {
+		case None:
+			io.Stderr.Eprintln("Invalid size format: " + text.Value)
+			io.Stderr.Eprintln("Use formats like: 100M, 1G, 500KB")
+			return
+		case Some[float64] as limit:
+			chosen = slices.Filter(chosen, func(e repo.Entry) bool { float64(e.SizeBytes) > limit.Value })
+		}
+	}
+	if len(chosen) == 0 {
+		io.Stderr.Eprintln("No repositories match the criteria.")
+		return
+	}
+	let size = total(chosen)
+	if c.DryRun {
+		io.Stderr.Eprintln("Would remove \(len(chosen)) repositories:")
+		io.Stderr.Eprintln("")
+		for e in chosen { io.Stderr.Eprintln("  " + repo.PadEnd(repo.Text(e.Spec), 40) + "  " + repo.FormatBytes(e.SizeBytes)) }
+		io.Stderr.Eprintln("")
+		io.Stdout.Println("Total: " + repo.FormatBytes(size))
+		return
+	}
+	for e in chosen {
+		removeTree(e.Path)
+		let current = repo.Catalog.Load()
+		if repo.Has(current, e.Spec) { save(repo.Without(current, e.Spec)) }
+		io.Stderr.Eprintln("Removed: " + repo.Text(e.Spec))
+	}
+	io.Stderr.Eprintln("")
+	io.Stderr.Eprintln("Removed \(len(chosen)) repositories.")
+	io.Stdout.Println("Freed: " + repo.FormatBytes(size))
+}
+
+func repoPath(c RepoPath) fails RepoError needs repo.Catalog | io.Stdout {
+	let spec = try parseSpec(c.Spec)
+	match repo.Find(repo.Catalog.Load(), spec) {
+	case None:
+		RepoError{Code: "NOT_CACHED", Message: "Not cached: " + repo.Text(spec) + ". Run: okra repo fetch " + c.Spec}
+	case Some[repo.Entry] as e:
+		io.Stdout.Println(e.Value.Path)
+	}
+}
+
+// RunRepo runs one repo command. The cache folder exists before any
+// command runs, as the reference's service layer makes it.
+func RunRepo(c RepoCommand, setup RepoSetup) fails RepoError needs repo.Catalog | fs.Files | fs.Writes | exec.Runner | http.Network | time.Clock | io.Stdout | io.Stderr | go.Foreign {
+	cachefile.Ensure(setup.Dir)
+	match c {
+	case FetchRepo as f:
+		try fetchRepo(f, setup)
+	case ListRepos as l:
+		listRepos(l)
+	case RemoveRepo as r:
+		try removeRepo(r)
+	case CleanRepos as k:
+		try cleanRepos(k, setup)
+	case RepoPath as p:
+		try repoPath(p)
+	}
+}

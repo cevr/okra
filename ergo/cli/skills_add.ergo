@@ -1,0 +1,302 @@
+import exec
+import fs
+import http
+import io
+import okraport/github
+import okraport/skillfile
+import okraport/skills
+import okraport/skillsh
+import prompt
+import strings
+import tasks
+import term
+import time
+
+// installed is what is there already: skill names (front matter and
+// folder, kebab case) and the source locations of lock entries for them.
+type installedIndex { Names []string, Locations []string }
+
+func location(source string, skillPath string) string { source + "\x00" + skillPath }
+
+func loadInstalled(setup SkillsSetup) installedIndex fails skills.Failed needs skills.Locks | fs.Files {
+	let found = skillfile.List(setup.Dir)
+	let lock = try lockOrFail()
+	let mut names = []string{}
+	for s in found {
+		names = names.Append(skills.Kebab(s.Name))
+		names = names.Append(skills.Kebab(s.Folder))
+	}
+	let mut locations = []string{}
+	for n in skills.Entries(lock) { if contains(names, skills.Kebab(n.Name)) { locations = locations.Append(location(n.Entry.Source, n.Entry.SkillPath)) } }
+	installedIndex{Names: names, Locations: locations}
+}
+
+// Install is one planned install.
+type Install = FromRepo{Owner string, Repo string, SkillDir string, Ref Option[string], Source string} | FromFolder{Path string}
+
+type plan { Display string, Install Install }
+
+// Added is a finished install, as the lock records it.
+type Added { Name string, Source string, SkillPath string, Ref Option[string], Hash string }
+
+func fallbackName(skillDir string, repo string) string {
+	if skillDir == "" { return repo }
+	let parts = strings.Split(skillDir, "/")
+	parts[len(parts)-1]
+}
+
+func skillMdPathFor(skillDir string) string { if skillDir == "" { "SKILL.md" } else { skillDir + "/SKILL.md" } }
+
+func installFromRepo(setup SkillsSetup, i FromRepo) Added fails skills.Failed needs fs.Files | fs.Writes | http.Network | exec.Runner | Scheduler | go.Foreign {
+	let files = try github.FetchSkillDir(setup.Hub, i.Owner, i.Repo, i.SkillDir, orDefault(i.Ref))
+	let mut fm Option[skills.Frontmatter] = None
+	for f in files {
+		if f.Path == "SKILL.md" && fm == None { fm = skills.ParseFrontmatter(strings.ToValidUTF8(f.Content, "\uFFFD")) }
+	}
+	let name = match fm {
+	case None:
+		fallbackName(i.SkillDir, i.Repo)
+	case Some[skills.Frontmatter] as v:
+		skills.Kebab(v.Value.Name)
+	}
+	skillfile.Sync(setup.Dir, name, files)
+	Added{Name: name, Source: i.Source, SkillPath: skillMdPathFor(i.SkillDir), Ref: i.Ref, Hash: skills.Hash(files)}
+}
+
+func installFromFolder(setup SkillsSetup, path string) Added fails skills.Failed needs fs.Files | fs.Writes | go.Foreign {
+	let abs = skills.Resolve(cwd(), path)
+	let md = abs + "/SKILL.md"
+	if !skillfile.Exists(md) { return skills.NoSkills("No SKILL.md found in " + abs) }
+	let files = skillfile.Walk(abs, false)
+	let mut fm Option[skills.Frontmatter] = None
+	for f in files {
+		if f.Path == "SKILL.md" && fm == None { fm = skills.ParseFrontmatter(strings.ToValidUTF8(f.Content, "\uFFFD")) }
+	}
+	let name = match fm {
+	case None:
+		skills.Basename(abs)
+	case Some[skills.Frontmatter] as v:
+		skills.Kebab(v.Value.Name)
+	}
+	skillfile.Sync(setup.Dir, name, files)
+	Added{Name: name, Source: "local:" + skills.CollapseHome(abs, setup.Home), SkillPath: "SKILL.md", Ref: None, Hash: skills.Hash(files)}
+}
+
+func runInstall(setup SkillsSetup, i Install) Added fails skills.Failed needs fs.Files | fs.Writes | http.Network | exec.Runner | Scheduler | go.Foreign {
+	match i {
+	case FromRepo as r:
+		try installFromRepo(setup, r)
+	case FromFolder as f:
+		try installFromFolder(setup, f.Path)
+	}
+}
+
+type choice { Name string, Install Install, Installed bool }
+
+// choose is the reference's selectFrom: one candidate installs unless it is
+// there already; more than one opens a multi-select (std prompt) whose
+// installed options are labelled and never installed. While any option is
+// not installed, an answer with none of them asks again (the reference's
+// minimum of one).
+func choose(message string, choices []choice) []plan fails prompt.NotInteractive | prompt.Cancelled | io.ReadFailed needs term.Terminal | io.Stderr {
+	if len(choices) == 1 {
+		if choices[0].Installed { return []plan{} }
+		return []plan{plan{Display: choices[0].Name, Install: choices[0].Install}}
+	}
+	let mut labels = []string{}
+	let mut open = false
+	for c in choices {
+		labels = labels.Append(if c.Installed { c.Name + " (installed)" } else { c.Name })
+		if !c.Installed { open = true }
+	}
+	for {
+		let mut out = []plan{}
+		for i in try prompt.MultiSelect(message, labels) {
+			if !choices[i].Installed { out = out.Append(plan{Display: choices[i].Name, Install: choices[i].Install}) }
+		}
+		if len(out) > 0 || !open { return out }
+	}
+}
+
+func planRepo(setup SkillsSetup, g skills.GitHubRepo, have installedIndex) []plan fails skills.Failed | prompt.NotInteractive | prompt.Cancelled | io.ReadFailed needs http.Network | exec.Runner | io.Stderr | Scheduler | term.Terminal {
+	let source = g.Owner + "/" + g.Repo + (match g.Ref {
+	case None:
+		""
+	case Some[string] as r:
+		"#" + r.Value
+	})
+	match g.Subpath {
+	case Some[string] as sub:
+		let dir = if strings.HasSuffix(sub.Value, "SKILL.md") { skillDirOf(sub.Value) } else { sub.Value }
+		return []plan{plan{Display: fallbackName(dir, g.Repo), Install: FromRepo{Owner: g.Owner, Repo: g.Repo, SkillDir: dir, Ref: g.Ref, Source: source}}}
+	case None:
+	}
+	io.Stderr.Eprintln("Discovering skills in " + g.Owner + "/" + g.Repo + "...")
+	let found = try github.Discover(setup.Hub, g.Owner, g.Repo, g.Ref)
+	if len(found) == 0 { return skills.NoSkills("No skills found in this repository.") }
+	let mut choices = []choice{}
+	for f in found {
+		let there = contains(have.Names, skills.Kebab(f.DirName)) || contains(have.Locations, location(source, f.SkillMd))
+		choices = choices.Append(choice{Name: f.DirName, Install: FromRepo{Owner: g.Owner, Repo: g.Repo, SkillDir: f.SkillDir, Ref: g.Ref, Source: source}, Installed: there})
+	}
+	try choose("Select skills to install from "+g.Owner+"/"+g.Repo, choices)
+}
+
+func rawOrNone(h github.Hub, owner string, repo string, path string) Option[string] needs http.Network | exec.Runner | Scheduler {
+	let text = github.FetchRaw(h, owner, repo, path, "main") catch {
+	case skills.Failed:
+		return None
+	}
+	Some[string]{Value: text}
+}
+
+func namesMatch(content string, skill string) bool {
+	match skills.ParseFrontmatter(strings.ToValidUTF8(content, "\uFFFD")) {
+	case None:
+		false
+	case Some[skills.Frontmatter] as fm:
+		skills.Kebab(fm.Value.Name) == skills.Kebab(skill)
+	}
+}
+
+func planRepoSkill(setup SkillsSetup, owner string, repo string, skill string) []plan fails skills.Failed needs http.Network | exec.Runner | Scheduler {
+	let source = owner + "/" + repo + "@" + skill
+	let one = func(dir string) []plan { []plan{plan{Display: skill, Install: FromRepo{Owner: owner, Repo: repo, SkillDir: dir, Ref: None, Source: source}}} }
+	for dir in []string{"skills/" + skill, "skill/" + skill, skill} {
+		if rawOrNone(setup.Hub, owner, repo, dir+"/SKILL.md") != None { return one(dir) }
+	}
+	match rawOrNone(setup.Hub, owner, repo, "SKILL.md") {
+	case Some[string] as root:
+		if namesMatch(root.Value, skill) { return one("") }
+	case None:
+	}
+	for f in try github.Discover(setup.Hub, owner, repo, None) {
+		if namesMatch(try github.FetchRaw(setup.Hub, owner, repo, f.SkillMd, "main"), skill) { return one(f.SkillDir) }
+	}
+	return skills.NotFound("Skill not found: " + skill)
+}
+
+func planFolder(setup SkillsSetup, l skills.LocalPath, have installedIndex) []plan fails skills.Failed | prompt.NotInteractive | prompt.Cancelled | io.ReadFailed needs fs.Files | go.Foreign | io.Stderr | term.Terminal {
+	let mut choices = []choice{}
+	for c in try localCandidates(setup, l.Path) { choices = choices.Append(choice{Name: c.Name, Install: FromFolder{Path: c.Path}, Installed: contains(have.Names, skills.Kebab(c.Name))}) }
+	try choose("Select skills to install from "+l.Path, choices)
+}
+
+func planSearch(setup SkillsSetup, query string) []plan fails skills.Failed needs http.Network | exec.Runner | io.Stderr | Scheduler {
+	io.Stderr.Eprintln("Searching for \"" + query + "\"...")
+	let answer = try skillsh.Search(setup.Search, query)
+	if len(answer.Hits) == 0 { return skills.NoSkills("No skills found for \"" + query + "\"") }
+	let mut exact Option[skillsh.Hit] = None
+	for h in answer.Hits {
+		if exact == None && (h.SkillId == query || skills.Lower(h.Name) == skills.Lower(query)) { exact = Some[skillsh.Hit]{Value: h} }
+	}
+	let hit = match exact {
+	case Some[skillsh.Hit] as e:
+		e.Value
+	case None:
+		if len(answer.Hits) > 1 {
+			io.Stderr.Eprintln("\(len(answer.Hits)) results found, installing best match:")
+			for i, h in answer.Hits { if i < 3 { io.Stderr.Eprintln("  " + h.Name + " (" + h.Source + ")") } }
+			io.Stderr.Eprintln("")
+		}
+		answer.Hits[0]
+	}
+	io.Stderr.Eprintln("Installing: " + hit.Name + " (" + hit.Source + ")")
+	match skills.ParseSource(hit.Source) {
+	case skills.GitHubRepo as g:
+		try planRepoSkill(setup, g.Owner, g.Repo, hit.SkillId)
+	case skills.RepoSkill as s:
+		try planRepoSkill(setup, s.Owner, s.Repo, hit.SkillId)
+	case _:
+		return skills.FetchFailed(hit.Source, "Unexpected source format from search API")
+	}
+}
+
+func planSource(setup SkillsSetup, input string, have installedIndex) []plan fails skills.Failed | prompt.NotInteractive | prompt.Cancelled | io.ReadFailed needs fs.Files | http.Network | exec.Runner | io.Stderr | Scheduler | go.Foreign | term.Terminal {
+	match skills.ParseSource(input) {
+	case skills.GitHubRepo as g:
+		try planRepo(setup, g, have)
+	case skills.RepoSkill as s:
+		try planRepoSkill(setup, s.Owner, s.Repo, s.Skill)
+	case skills.LocalPath as l:
+		try planFolder(setup, l, have)
+	case skills.SearchQuery as q:
+		try planSearch(setup, q.Query)
+	}
+}
+
+type keyed { Key string, Install Install }
+type sourceNote { Source string, Note string }
+type installed { Key string, Added Option[Added], Note string }
+
+func addSkills(setup SkillsSetup, sources []string) fails skills.Failed | prompt.NotInteractive | prompt.Cancelled | io.ReadFailed needs skills.Locks | fs.Files | fs.Writes | http.Network | exec.Runner | Scheduler | time.Clock | io.Stdout | io.Stderr | go.Foreign | term.Terminal {
+	let have = try loadInstalled(setup)
+	let mut items = []keyed{}
+	let mut seen = Map[string, int]{}
+	let mut planFailures = []sourceNote{}
+	for source in sources {
+		let plans = try planSource(setup, source, have) catch {
+		case skills.Failed as f:
+			planFailures = planFailures.Append(sourceNote{Source: source, Note: f.Message})
+			continue
+		}
+		for p in plans {
+			let count = match seen.Get(p.Display) {
+			case None:
+				0
+			case Some[int] as c:
+				c.Value
+			}
+			items = items.Append(keyed{Key: if count == 0 { p.Display } else { p.Display + " (" + source + ")" }, Install: p.Install})
+			seen[p.Display] = count + 1
+		}
+	}
+	if len(items) == 0 {
+		for f in planFailures { io.Stderr.Eprintln("  Failed: " + f.Source + ": " + f.Note) }
+		if len(planFailures) == 0 { io.Stdout.Println("Nothing to install.") }
+		return
+	}
+	let results = tasks.Transform(items, 5, func(k keyed) installed needs fs.Files | fs.Writes | http.Network | exec.Runner | Scheduler | io.Stderr | go.Foreign {
+		let done = runInstall(setup, k.Install) catch {
+		case skills.Failed as f:
+			io.Stderr.Eprintln(skills.ProgressLine(k.Key, "failed"))
+			return installed{Key: k.Key, Added: None, Note: f.Message}
+		}
+		io.Stderr.Eprintln(skills.ProgressLine(k.Key, "installed"))
+		installed{Key: k.Key, Added: Some[Added]{Value: done}, Note: ""}
+	})
+	let mut added = []Added{}
+	for r in results {
+		match r.Added {
+		case Some[Added] as a:
+			added = added.Append(a.Value)
+		case None:
+		}
+	}
+	if len(added) > 0 {
+		let now = isoNow()
+		let mut lock = try lockOrFail()
+		for a in added {
+			let installedAt = match skills.Get(lock, a.Name) {
+			case None:
+				now
+			case Some[skills.Entry] as e:
+				e.Value.InstalledAt
+			}
+			lock = skills.Put(lock, a.Name, skills.Entry{Source: a.Source, SkillPath: a.SkillPath, Ref: a.Ref, Hash: Some[string]{Value: a.Hash}, InstalledAt: installedAt, UpdatedAt: now})
+		}
+		try saveOrFail(lock)
+	}
+	for f in planFailures { io.Stderr.Eprintln("  Failed: " + f.Source + ": " + f.Note) }
+	let mut failed = len(planFailures)
+	for r in results {
+		if r.Added == None {
+			io.Stderr.Eprintln("  Failed: " + r.Key + ": " + r.Note)
+			failed = failed + 1
+		}
+	}
+	let mut parts = []string{}
+	if len(added) > 0 { parts = parts.Append("\(len(added)) installed") }
+	if failed > 0 { parts = parts.Append("\(failed) failed") }
+	if len(parts) > 0 { io.Stdout.Println("\n" + strings.Join(parts, ", ") + ".") }
+}

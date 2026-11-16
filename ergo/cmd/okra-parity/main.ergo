@@ -1,0 +1,113 @@
+import exec
+import filepath
+import fs
+import http
+import io
+import okraport/cachefile
+import okraport/cli
+import okraport/how
+import okraport/keyfile
+import okraport/keys
+import okraport/imagehttp
+import okraport/registryhttp
+import okraport/repo
+import okraport/github
+import okraport/skillfile
+import okraport/skills
+import okraport/skillsh
+import okraport/schedule
+import okraport/taskfile
+import os
+import rand
+import strconv
+import strings
+import term
+import time
+// The binary carries Go's zone data: a zone the host lacks still loads.
+import go time/tzdata
+
+// loopback admits only a literal IPv4 loopback HTTP origin with a port.
+func loopback(value Option[string]) string fails os.Exit {
+	let refused = os.Exit{Code: 1, Message: "Parity requires a loopback registry origin"}
+	let origin = match value {
+	case Some[string] as o:
+		o.Value
+	case None:
+		return refused
+	}
+	let prefix = "http://127.0.0.1:"
+	if !strings.HasPrefix(origin, prefix) { return refused }
+	let port = strconv.Atoi(origin[len(prefix):]) catch {
+	case _:
+		return refused
+	}
+	if port < 1 || port > 65535 || origin != prefix+"\(port)" { return refused }
+	origin
+}
+
+// Offline entry for the parity harness: the same CLI, with every registry
+// URL sent to one loopback fake and no other origin reachable. The shipped
+// entry reads no such variable.
+func main() fails os.Exit needs Ambient | go.Foreign {
+	let process = os.NewHost()
+	let disk = fs.NewHost()
+	let home = process.Getenv("HOME")
+	let dir = cachefile.Dir(home)
+	let origin = try loopback(process.Getenv("OKRA_PARITY_ORIGIN"))
+	let network = http.NewNet(http.Origins{Values: []string{origin}}, http.Limits{MaxBodyBytes: 67108864, MaxHeaderBytes: 65536, IdleTimeout: 30s, ReadHeaderTimeout: 30s, ReadBodyTimeout: 30s}, http.Follow{MaxHops: 20}) catch {
+	case http.InvalidClient:
+		return os.Exit{Code: 1, Message: "Parity requires a loopback registry origin"}
+	case http.InvalidLimits:
+		return os.Exit{Code: 1, Message: "invalid HTTP limits"}
+	}
+	let transport = registryhttp.Rewriting([]registryhttp.Rewrite{
+		registryhttp.Rewrite{From: "https://registry.npmjs.org/", To: origin + "/npm/"},
+		registryhttp.Rewrite{From: "https://pypi.org/", To: origin + "/pypi/"},
+		registryhttp.Rewrite{From: "https://files.pythonhosted.org/", To: origin + "/files/"},
+		registryhttp.Rewrite{From: "https://crates.io/", To: origin + "/crates/"},
+	})
+	let homeText = match home {
+	case None:
+		""
+	case Some[string] as h:
+		h.Value
+	}
+	// GitHub REST, raw files and skills.sh go to the loopback fake; the
+	// token is bound to the rewritten origin (github.credentials).
+	let hub = github.New([]github.Rewrite{
+		github.Rewrite{From: "https://api.github.com/", To: origin + "/api/"},
+		github.Rewrite{From: "https://raw.githubusercontent.com/", To: origin + "/raw/"},
+	}, process.Getenv("GITHUB_TOKEN"))
+	let kit = cli.SkillsSetup{Dir: skillfile.Dir(process.Getenv("SKILLS_DIR"), home), Home: homeText, Hub: hub, Search: []skillsh.Rewrite{skillsh.Rewrite{From: "https://skills.sh/", To: origin + "/search/"}}}
+	let tasks = taskfile.New(disk, disk, filepath.Join([]string{homeText, ".okra", "schedule", "tasks"}))
+	with context { keys.Store: keyfile.New(disk, disk, home), repo.Catalog: cachefile.New(disk, disk, dir), skills.Locks: skillfile.New(disk, disk, kit.Dir), schedule.Tasks: tasks, term.Terminal: term.NewHost(), Scheduler: NewLiveScheduler(), Random: rand.NewHost(), os.Process: process, io.Stdin: io.NewStdin(), io.Stdout: io.NewHost(), io.Stderr: io.NewErrors(), fs.Files: disk, fs.Writes: disk, exec.Runner: exec.NewHost(), http.Network: network } {
+		// OKRA_PARITY_NOW (Unix milliseconds, whole seconds) freezes the
+		// clock, as the schedule reference's Date.now is frozen.
+		match try frozen(process.Getenv("OKRA_PARITY_NOW")) {
+		case Some[int64] as sec:
+			with context { time.Clock: time.NewManual(sec.Value) } {
+				try cli.Run(process.Args(), how.All(), cli.RepoSetup{Dir: dir, Transport: transport}, kit, imagehttp.Offline(origin))
+			}
+		case None:
+			with context { time.Clock: time.NewHost() } {
+				try cli.Run(process.Args(), how.All(), cli.RepoSetup{Dir: dir, Transport: transport}, kit, imagehttp.Offline(origin))
+			}
+		}
+	}
+}
+
+// frozen is OKRA_PARITY_NOW in seconds: whole-second milliseconds only.
+func frozen(value Option[string]) Option[int64] fails os.Exit {
+	let text = match value {
+	case None:
+		return None
+	case Some[string] as v:
+		v.Value
+	}
+	let ms = strconv.ParseInt(text, 10, 64) catch {
+	case _:
+		return os.Exit{Code: 1, Message: "OKRA_PARITY_NOW must be integer milliseconds"}
+	}
+	if ms%1000 != 0 { return os.Exit{Code: 1, Message: "OKRA_PARITY_NOW must be whole seconds"} }
+	Some[int64]{Value: ms / 1000}
+}

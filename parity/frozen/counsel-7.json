@@ -1,0 +1,1354 @@
+{
+ "dry-claude-to-codex": {
+  "out": "{\"source\":\"claude\",\"target\":\"codex\",\"profile\":\"standard\",\"promptSource\":\"inline\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"/tmp/counsel/<BUCKET>/<SLUG>\",\"promptFilePath\":\"/tmp/counsel/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/codex\",\"args\":[\"exec\",\"-C\",\"<DIR>\",\"--json\",\"--color\",\"never\",\"--sandbox\",\"read-only\",\"--model\",\"gpt-6-sol\",\"-c\",\"web_search=live\",\"-c\",\"model_reasoning_effort=medium\",\"--skip-git-repo-check\",\"Read the file at /tmp/counsel/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>\",\"model\":\"gpt-6-sol\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "dry-codex-to-claude-deep": {
+  "out": "{\"source\":\"codex\",\"target\":\"claude\",\"profile\":\"deep\",\"promptSource\":\"inline\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"/tmp/counsel/<BUCKET>/<SLUG>\",\"promptFilePath\":\"/tmp/counsel/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/claude\",\"args\":[\"-p\",\"--output-format\",\"stream-json\",\"--verbose\",\"--model\",\"opus\",\"--effort\",\"max\",\"--tools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--allowedTools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--strict-mcp-config\",\"--no-session-persistence\",\"Read the file at /tmp/counsel/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>\",\"model\":\"opus\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "dry-codex-deep": {
+  "out": "{\"source\":\"claude\",\"target\":\"codex\",\"profile\":\"deep\",\"promptSource\":\"inline\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"/tmp/counsel/<BUCKET>/<SLUG>\",\"promptFilePath\":\"/tmp/counsel/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/codex\",\"args\":[\"exec\",\"-C\",\"<DIR>\",\"--json\",\"--color\",\"never\",\"--sandbox\",\"read-only\",\"--model\",\"gpt-6-sol\",\"-c\",\"web_search=live\",\"-c\",\"model_reasoning_effort=max\",\"--skip-git-repo-check\",\"Read the file at /tmp/counsel/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>\",\"model\":\"gpt-6-sol\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "dry-relative-out": {
+  "out": "{\"source\":\"codex\",\"target\":\"claude\",\"profile\":\"standard\",\"promptSource\":\"inline\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"<DIR>/b/c/<BUCKET>/<SLUG>\",\"promptFilePath\":\"<DIR>/b/c/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/claude\",\"args\":[\"-p\",\"--output-format\",\"stream-json\",\"--verbose\",\"--model\",\"opus\",\"--effort\",\"medium\",\"--tools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--allowedTools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--strict-mcp-config\",\"--no-session-persistence\",\"Read the file at <DIR>/b/c/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>\",\"model\":\"opus\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "dry-absolute-out": {
+  "out": "{\"source\":\"codex\",\"target\":\"claude\",\"profile\":\"standard\",\"promptSource\":\"inline\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"/var/tmp/x/y/<BUCKET>/<SLUG>\",\"promptFilePath\":\"/var/tmp/x/y/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/claude\",\"args\":[\"-p\",\"--output-format\",\"stream-json\",\"--verbose\",\"--model\",\"opus\",\"--effort\",\"medium\",\"--tools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--allowedTools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--strict-mcp-config\",\"--no-session-persistence\",\"Read the file at /var/tmp/x/y/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>\",\"model\":\"opus\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "dry-empty-out": {
+  "out": "{\"source\":\"codex\",\"target\":\"claude\",\"profile\":\"standard\",\"promptSource\":\"inline\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"<DIR>/<BUCKET>/<SLUG>\",\"promptFilePath\":\"<DIR>/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/claude\",\"args\":[\"-p\",\"--output-format\",\"stream-json\",\"--verbose\",\"--model\",\"opus\",\"--effort\",\"medium\",\"--tools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--allowedTools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--strict-mcp-config\",\"--no-session-persistence\",\"Read the file at <DIR>/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>\",\"model\":\"opus\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "dry-empty-prompt": {
+  "out": "{\"source\":\"codex\",\"target\":\"claude\",\"profile\":\"standard\",\"promptSource\":\"inline\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"/tmp/counsel/<BUCKET>/<SLUG>\",\"promptFilePath\":\"/tmp/counsel/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/claude\",\"args\":[\"-p\",\"--output-format\",\"stream-json\",\"--verbose\",\"--model\",\"opus\",\"--effort\",\"medium\",\"--tools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--allowedTools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--strict-mcp-config\",\"--no-session-persistence\",\"Read the file at /tmp/counsel/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>\",\"model\":\"opus\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "marker-claudecode": {
+  "out": "{\"source\":\"claude\",\"target\":\"codex\",\"profile\":\"standard\",\"promptSource\":\"inline\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"/tmp/counsel/<BUCKET>/<SLUG>\",\"promptFilePath\":\"/tmp/counsel/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/codex\",\"args\":[\"exec\",\"-C\",\"<DIR>\",\"--json\",\"--color\",\"never\",\"--sandbox\",\"read-only\",\"--model\",\"gpt-6-sol\",\"-c\",\"web_search=live\",\"-c\",\"model_reasoning_effort=medium\",\"--skip-git-repo-check\",\"Read the file at /tmp/counsel/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>\",\"model\":\"gpt-6-sol\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "marker-entrypoint": {
+  "out": "{\"source\":\"claude\",\"target\":\"codex\",\"profile\":\"standard\",\"promptSource\":\"inline\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"/tmp/counsel/<BUCKET>/<SLUG>\",\"promptFilePath\":\"/tmp/counsel/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/codex\",\"args\":[\"exec\",\"-C\",\"<DIR>\",\"--json\",\"--color\",\"never\",\"--sandbox\",\"read-only\",\"--model\",\"gpt-6-sol\",\"-c\",\"web_search=live\",\"-c\",\"model_reasoning_effort=medium\",\"--skip-git-repo-check\",\"Read the file at /tmp/counsel/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>\",\"model\":\"gpt-6-sol\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "marker-codex-thread": {
+  "out": "{\"source\":\"codex\",\"target\":\"claude\",\"profile\":\"standard\",\"promptSource\":\"inline\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"/tmp/counsel/<BUCKET>/<SLUG>\",\"promptFilePath\":\"/tmp/counsel/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/claude\",\"args\":[\"-p\",\"--output-format\",\"stream-json\",\"--verbose\",\"--model\",\"opus\",\"--effort\",\"medium\",\"--tools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--allowedTools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--strict-mcp-config\",\"--no-session-persistence\",\"Read the file at /tmp/counsel/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>\",\"model\":\"opus\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "marker-codex-ci": {
+  "out": "{\"source\":\"codex\",\"target\":\"claude\",\"profile\":\"standard\",\"promptSource\":\"inline\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"/tmp/counsel/<BUCKET>/<SLUG>\",\"promptFilePath\":\"/tmp/counsel/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/claude\",\"args\":[\"-p\",\"--output-format\",\"stream-json\",\"--verbose\",\"--model\",\"opus\",\"--effort\",\"medium\",\"--tools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--allowedTools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--strict-mcp-config\",\"--no-session-persistence\",\"Read the file at /tmp/counsel/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>\",\"model\":\"opus\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "marker-both": {
+  "out": "",
+  "err": "[AMBIGUOUS_PROVIDER] Cannot infer the current agent. Pass --from claude or --from codex.\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "marker-none": {
+  "out": "",
+  "err": "[AMBIGUOUS_PROVIDER] Cannot infer the current agent. Pass --from claude or --from codex.\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "marker-empty": {
+  "out": "",
+  "err": "[AMBIGUOUS_PROVIDER] Cannot infer the current agent. Pass --from claude or --from codex.\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "from-overrides": {
+  "out": "{\"source\":\"codex\",\"target\":\"claude\",\"profile\":\"standard\",\"promptSource\":\"inline\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"/tmp/counsel/<BUCKET>/<SLUG>\",\"promptFilePath\":\"/tmp/counsel/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/claude\",\"args\":[\"-p\",\"--output-format\",\"stream-json\",\"--verbose\",\"--model\",\"opus\",\"--effort\",\"medium\",\"--tools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--allowedTools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--strict-mcp-config\",\"--no-session-persistence\",\"Read the file at /tmp/counsel/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>\",\"model\":\"opus\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "prompt-file": {
+  "out": "{\"source\":\"codex\",\"target\":\"claude\",\"profile\":\"standard\",\"promptSource\":\"file\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"/tmp/counsel/<BUCKET>/<SLUG>\",\"promptFilePath\":\"/tmp/counsel/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/claude\",\"args\":[\"-p\",\"--output-format\",\"stream-json\",\"--verbose\",\"--model\",\"opus\",\"--effort\",\"medium\",\"--tools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--allowedTools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--strict-mcp-config\",\"--no-session-persistence\",\"Read the file at /tmp/counsel/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>\",\"model\":\"opus\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "prompt-file-eq": {
+  "out": "{\"source\":\"codex\",\"target\":\"claude\",\"profile\":\"standard\",\"promptSource\":\"file\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"/tmp/counsel/<BUCKET>/<SLUG>\",\"promptFilePath\":\"/tmp/counsel/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/claude\",\"args\":[\"-p\",\"--output-format\",\"stream-json\",\"--verbose\",\"--model\",\"opus\",\"--effort\",\"medium\",\"--tools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--allowedTools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--strict-mcp-config\",\"--no-session-persistence\",\"Read the file at /tmp/counsel/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>\",\"model\":\"opus\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "prompt-stdin": {
+  "out": "{\"source\":\"codex\",\"target\":\"claude\",\"profile\":\"standard\",\"promptSource\":\"stdin\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"/tmp/counsel/<BUCKET>/<SLUG>\",\"promptFilePath\":\"/tmp/counsel/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/claude\",\"args\":[\"-p\",\"--output-format\",\"stream-json\",\"--verbose\",\"--model\",\"opus\",\"--effort\",\"medium\",\"--tools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--allowedTools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--strict-mcp-config\",\"--no-session-persistence\",\"Read the file at /tmp/counsel/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>\",\"model\":\"opus\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "prompt-stdin-blank": {
+  "out": "",
+  "err": "[PROMPT_MISSING] Missing prompt. Pass an inline prompt, --file, or pipe stdin.\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "prompt-stdin-nel": {
+  "out": "{\"source\":\"codex\",\"target\":\"claude\",\"profile\":\"standard\",\"promptSource\":\"stdin\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"/tmp/counsel/<BUCKET>/<SLUG>\",\"promptFilePath\":\"/tmp/counsel/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/claude\",\"args\":[\"-p\",\"--output-format\",\"stream-json\",\"--verbose\",\"--model\",\"opus\",\"--effort\",\"medium\",\"--tools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--allowedTools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--strict-mcp-config\",\"--no-session-persistence\",\"Read the file at /tmp/counsel/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>\",\"model\":\"opus\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "prompt-stdin-ignored": {
+  "out": "{\"source\":\"codex\",\"target\":\"claude\",\"profile\":\"standard\",\"promptSource\":\"inline\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"/tmp/counsel/<BUCKET>/<SLUG>\",\"promptFilePath\":\"/tmp/counsel/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/claude\",\"args\":[\"-p\",\"--output-format\",\"stream-json\",\"--verbose\",\"--model\",\"opus\",\"--effort\",\"medium\",\"--tools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--allowedTools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--strict-mcp-config\",\"--no-session-persistence\",\"Read the file at /tmp/counsel/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>\",\"model\":\"opus\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "conflict-file": {
+  "out": "",
+  "err": "[PROMPT_CONFLICT] Provide exactly one prompt source: inline arg, --file, or stdin.\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "conflict-stdin": {
+  "out": "{\"source\":\"codex\",\"target\":\"claude\",\"profile\":\"standard\",\"promptSource\":\"file\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"/tmp/counsel/<BUCKET>/<SLUG>\",\"promptFilePath\":\"/tmp/counsel/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/claude\",\"args\":[\"-p\",\"--output-format\",\"stream-json\",\"--verbose\",\"--model\",\"opus\",\"--effort\",\"medium\",\"--tools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--allowedTools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--strict-mcp-config\",\"--no-session-persistence\",\"Read the file at /tmp/counsel/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>\",\"model\":\"opus\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "missing": {
+  "out": "",
+  "err": "[PROMPT_MISSING] Missing prompt. Pass an inline prompt, --file, or pipe stdin.\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "file-missing": {
+  "out": "",
+  "err": "[FILE_READ_FAILED] Failed to read prompt file <DIR>/nofile: NotFound: FileSystem.readFile (<DIR>/nofile)\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "file-denied": {
+  "out": "",
+  "err": "[FILE_READ_FAILED] Failed to read prompt file <DIR>/secret.md: PermissionDenied: FileSystem.readFile (<DIR>/secret.md)\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "file-dir": {
+  "out": "DESCRIPTION\n  Route a prompt to the opposite local coding agent\n\nUSAGE\n  okra counsel [flags] [<prompt>]\n\nARGUMENTS\n  prompt string    Inline prompt to send to the opposite agent (optional)\n\nFLAGS\n  --file, -f file            Read the prompt from a file\n  --from choice              Override source detection (choices: claude, codex)\n  --output-dir, -o string    Base directory for run artifacts\n  --deep                     Use the deeper profile\n  --dry-run                  Resolve the route and command without executing\n\nGLOBAL FLAGS\n  --help, -h                                                          Show help information\n  --version, -v                                                       Show version information\n  --wizard                                                            Start wizard mode for a command\n  --completions <bash|zsh|fish|powershell|sh|pwsh>                    Print shell completion script (choices: bash, zsh, fish, powershell, sh, pwsh)\n  --log-level <all|trace|debug|info|warn|warning|error|fatal|none>    Sets the minimum log level (choices: all, trace, debug, info, warn, warning, error, fatal, none)\n\nEXAMPLES\n  # Send an inline prompt to the opposite agent\n  okra counsel \"Review the auth refactor for blind spots\"\n\n  # Run the deeper profile with a prompt file\n  okra counsel --deep -f prompt.md\n\n  # Read the prompt from stdin\n  echo \"Challenge this migration plan\" | okra counsel\n",
+  "err": "\nERROR\n  Invalid value for flag --file: \"sub\". Expected: Path is not a file: <DIR>/sub\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "file-under-file": {
+  "out": "DESCRIPTION\n  Route a prompt to the opposite local coding agent\n\nUSAGE\n  okra counsel [flags] [<prompt>]\n\nARGUMENTS\n  prompt string    Inline prompt to send to the opposite agent (optional)\n\nFLAGS\n  --file, -f file            Read the prompt from a file\n  --from choice              Override source detection (choices: claude, codex)\n  --output-dir, -o string    Base directory for run artifacts\n  --deep                     Use the deeper profile\n  --dry-run                  Resolve the route and command without executing\n\nGLOBAL FLAGS\n  --help, -h                                                          Show help information\n  --version, -v                                                       Show version information\n  --wizard                                                            Start wizard mode for a command\n  --completions <bash|zsh|fish|powershell|sh|pwsh>                    Print shell completion script (choices: bash, zsh, fish, powershell, sh, pwsh)\n  --log-level <all|trace|debug|info|warn|warning|error|fatal|none>    Sets the minimum log level (choices: all, trace, debug, info, warn, warning, error, fatal, none)\n\nEXAMPLES\n  # Send an inline prompt to the opposite agent\n  okra counsel \"Review the auth refactor for blind spots\"\n\n  # Run the deeper profile with a prompt file\n  okra counsel --deep -f prompt.md\n\n  # Read the prompt from stdin\n  echo \"Challenge this migration plan\" | okra counsel\n",
+  "err": "\nERROR\n  Invalid value for flag --file: \"prompt.md/x\". Expected: Failed to check path existence: BadResource: FileSystem.access (<DIR>/prompt.md/x)\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "file-loop": {
+  "out": "DESCRIPTION\n  Route a prompt to the opposite local coding agent\n\nUSAGE\n  okra counsel [flags] [<prompt>]\n\nARGUMENTS\n  prompt string    Inline prompt to send to the opposite agent (optional)\n\nFLAGS\n  --file, -f file            Read the prompt from a file\n  --from choice              Override source detection (choices: claude, codex)\n  --output-dir, -o string    Base directory for run artifacts\n  --deep                     Use the deeper profile\n  --dry-run                  Resolve the route and command without executing\n\nGLOBAL FLAGS\n  --help, -h                                                          Show help information\n  --version, -v                                                       Show version information\n  --wizard                                                            Start wizard mode for a command\n  --completions <bash|zsh|fish|powershell|sh|pwsh>                    Print shell completion script (choices: bash, zsh, fish, powershell, sh, pwsh)\n  --log-level <all|trace|debug|info|warn|warning|error|fatal|none>    Sets the minimum log level (choices: all, trace, debug, info, warn, warning, error, fatal, none)\n\nEXAMPLES\n  # Send an inline prompt to the opposite agent\n  okra counsel \"Review the auth refactor for blind spots\"\n\n  # Run the deeper profile with a prompt file\n  okra counsel --deep -f prompt.md\n\n  # Read the prompt from stdin\n  echo \"Challenge this migration plan\" | okra counsel\n",
+  "err": "\nERROR\n  Invalid value for flag --file: \"loop1\". Expected: Failed to check path existence: BadResource: FileSystem.access (<DIR>/loop1)\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "bad-from": {
+  "out": "DESCRIPTION\n  Route a prompt to the opposite local coding agent\n\nUSAGE\n  okra counsel [flags] [<prompt>]\n\nARGUMENTS\n  prompt string    Inline prompt to send to the opposite agent (optional)\n\nFLAGS\n  --file, -f file            Read the prompt from a file\n  --from choice              Override source detection (choices: claude, codex)\n  --output-dir, -o string    Base directory for run artifacts\n  --deep                     Use the deeper profile\n  --dry-run                  Resolve the route and command without executing\n\nGLOBAL FLAGS\n  --help, -h                                                          Show help information\n  --version, -v                                                       Show version information\n  --wizard                                                            Start wizard mode for a command\n  --completions <bash|zsh|fish|powershell|sh|pwsh>                    Print shell completion script (choices: bash, zsh, fish, powershell, sh, pwsh)\n  --log-level <all|trace|debug|info|warn|warning|error|fatal|none>    Sets the minimum log level (choices: all, trace, debug, info, warn, warning, error, fatal, none)\n\nEXAMPLES\n  # Send an inline prompt to the opposite agent\n  okra counsel \"Review the auth refactor for blind spots\"\n\n  # Run the deeper profile with a prompt file\n  okra counsel --deep -f prompt.md\n\n  # Read the prompt from stdin\n  echo \"Challenge this migration plan\" | okra counsel\n",
+  "err": "\nERROR\n  Invalid value for flag --from: \"bob\". Expected: \"claude\" | \"codex\"\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "two-prompts": {
+  "out": "DESCRIPTION\n  Route a prompt to the opposite local coding agent\n\nUSAGE\n  okra counsel [flags] [<prompt>]\n\nARGUMENTS\n  prompt string    Inline prompt to send to the opposite agent (optional)\n\nFLAGS\n  --file, -f file            Read the prompt from a file\n  --from choice              Override source detection (choices: claude, codex)\n  --output-dir, -o string    Base directory for run artifacts\n  --deep                     Use the deeper profile\n  --dry-run                  Resolve the route and command without executing\n\nGLOBAL FLAGS\n  --help, -h                                                          Show help information\n  --version, -v                                                       Show version information\n  --wizard                                                            Start wizard mode for a command\n  --completions <bash|zsh|fish|powershell|sh|pwsh>                    Print shell completion script (choices: bash, zsh, fish, powershell, sh, pwsh)\n  --log-level <all|trace|debug|info|warn|warning|error|fatal|none>    Sets the minimum log level (choices: all, trace, debug, info, warn, warning, error, fatal, none)\n\nEXAMPLES\n  # Send an inline prompt to the opposite agent\n  okra counsel \"Review the auth refactor for blind spots\"\n\n  # Run the deeper profile with a prompt file\n  okra counsel --deep -f prompt.md\n\n  # Read the prompt from stdin\n  echo \"Challenge this migration plan\" | okra counsel\n",
+  "err": "\nERROR\n  Unexpected positional argument: \"y\"\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "file-twice": {
+  "out": "DESCRIPTION\n  Route a prompt to the opposite local coding agent\n\nUSAGE\n  okra counsel [flags] [<prompt>]\n\nARGUMENTS\n  prompt string    Inline prompt to send to the opposite agent (optional)\n\nFLAGS\n  --file, -f file            Read the prompt from a file\n  --from choice              Override source detection (choices: claude, codex)\n  --output-dir, -o string    Base directory for run artifacts\n  --deep                     Use the deeper profile\n  --dry-run                  Resolve the route and command without executing\n\nGLOBAL FLAGS\n  --help, -h                                                          Show help information\n  --version, -v                                                       Show version information\n  --wizard                                                            Start wizard mode for a command\n  --completions <bash|zsh|fish|powershell|sh|pwsh>                    Print shell completion script (choices: bash, zsh, fish, powershell, sh, pwsh)\n  --log-level <all|trace|debug|info|warn|warning|error|fatal|none>    Sets the minimum log level (choices: all, trace, debug, info, warn, warning, error, fatal, none)\n\nEXAMPLES\n  # Send an inline prompt to the opposite agent\n  okra counsel \"Review the auth refactor for blind spots\"\n\n  # Run the deeper profile with a prompt file\n  okra counsel --deep -f prompt.md\n\n  # Read the prompt from stdin\n  echo \"Challenge this migration plan\" | okra counsel\n",
+  "err": "\nERROR\n  Invalid value for flag --file: \"2 occurrences\". Expected: at most 1 value\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "unknown-flag": {
+  "out": "DESCRIPTION\n  Route a prompt to the opposite local coding agent\n\nUSAGE\n  okra counsel [flags] [<prompt>]\n\nARGUMENTS\n  prompt string    Inline prompt to send to the opposite agent (optional)\n\nFLAGS\n  --file, -f file            Read the prompt from a file\n  --from choice              Override source detection (choices: claude, codex)\n  --output-dir, -o string    Base directory for run artifacts\n  --deep                     Use the deeper profile\n  --dry-run                  Resolve the route and command without executing\n\nGLOBAL FLAGS\n  --help, -h                                                          Show help information\n  --version, -v                                                       Show version information\n  --wizard                                                            Start wizard mode for a command\n  --completions <bash|zsh|fish|powershell|sh|pwsh>                    Print shell completion script (choices: bash, zsh, fish, powershell, sh, pwsh)\n  --log-level <all|trace|debug|info|warn|warning|error|fatal|none>    Sets the minimum log level (choices: all, trace, debug, info, warn, warning, error, fatal, none)\n\nEXAMPLES\n  # Send an inline prompt to the opposite agent\n  okra counsel \"Review the auth refactor for blind spots\"\n\n  # Run the deeper profile with a prompt file\n  okra counsel --deep -f prompt.md\n\n  # Read the prompt from stdin\n  echo \"Challenge this migration plan\" | okra counsel\n",
+  "err": "\nERROR\n  Unrecognized flag: --nope in command okra counsel\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "not-installed": {
+  "out": "",
+  "err": "[TARGET_NOT_INSTALLED] Target provider \"claude\" is not installed or not on PATH.\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "not-executable": {
+  "out": "",
+  "err": "[TARGET_NOT_INSTALLED] Target provider \"codex\" is not installed or not on PATH.\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "agent-dir": {
+  "out": "",
+  "err": "[TARGET_NOT_INSTALLED] Target provider \"codex\" is not installed or not on PATH.\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "codex-models-fresh": {
+  "out": "{\"source\":\"claude\",\"target\":\"codex\",\"profile\":\"standard\",\"promptSource\":\"inline\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"/tmp/counsel/<BUCKET>/<SLUG>\",\"promptFilePath\":\"/tmp/counsel/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/codex\",\"args\":[\"exec\",\"-C\",\"<DIR>\",\"--json\",\"--color\",\"never\",\"--sandbox\",\"read-only\",\"--model\",\"gpt-6.2-sol\",\"-c\",\"web_search=live\",\"-c\",\"model_reasoning_effort=medium\",\"--skip-git-repo-check\",\"Read the file at /tmp/counsel/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>\",\"model\":\"gpt-6.2-sol\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   ".codex/ 493",
+   ".codex/models_cache.json 420 f53f2d6754b90346 \"{\\\"models\\\":[{\\\"slug\\\":\\\"gpt-6-sol\\\",\\\"visibility\\\":\\\"list\\\"},{\\\"slug\\\":\\\"gpt-6.1-sol\\\",\\\"visibility\\\":\\\"list\\\"},{\\\"slug\\\":\\\"gpt-6.2-sol\\\",\\\"visibility\\\":\\\"list\\\"},{\\\"slug\\\":\\\"gpt-9-sol\\\",\\\"visibility\\\":\\\"list\\\"}]}\"",
+   ".okra/ 493",
+   ".okra/models.json 420 5d257f868d6d3887 \"{\\\"format\\\":1,\\\"fetchedAt\\\":\\\"<CLOCK>\\\",\\\"catalog\\\":{\\\"openai\\\":{\\\"models\\\":{\\\"gpt-6-sol\\\":{\\\"family\\\":\\\"gpt-sol\\\",\\\"release_date\\\":\\\"2026-09-22\\\"},\\\"gpt-6.1-sol\\\":{\\\"family\\\":\\\"gpt-sol\\\",\\\"release_date\\\":\\\"2026-09-29\\\"},\\\"gpt-6.2-sol\\\":{\\\"family\\\":\\\"gpt-sol\\\",\\\"release_date\\\":\\\"2026-10-03\\\"},\\\"gpt-9-sol\\\":{\\\"family\\\":\\\"gpt-sol\\\",\\\"release_date\\\":\\\"2026-10-01\\\",\\\"status\\\":\\\"deprecated\\\"}}}}}\\n\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "codex-models-fetch": {
+  "out": "{\"source\":\"claude\",\"target\":\"codex\",\"profile\":\"standard\",\"promptSource\":\"inline\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"/tmp/counsel/<BUCKET>/<SLUG>\",\"promptFilePath\":\"/tmp/counsel/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/codex\",\"args\":[\"exec\",\"-C\",\"<DIR>\",\"--json\",\"--color\",\"never\",\"--sandbox\",\"read-only\",\"--model\",\"gpt-6.2-sol\",\"-c\",\"web_search=live\",\"-c\",\"model_reasoning_effort=medium\",\"--skip-git-repo-check\",\"Read the file at /tmp/counsel/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>\",\"model\":\"gpt-6.2-sol\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   ".codex/ 493",
+   ".codex/models_cache.json 420 f53f2d6754b90346 \"{\\\"models\\\":[{\\\"slug\\\":\\\"gpt-6-sol\\\",\\\"visibility\\\":\\\"list\\\"},{\\\"slug\\\":\\\"gpt-6.1-sol\\\",\\\"visibility\\\":\\\"list\\\"},{\\\"slug\\\":\\\"gpt-6.2-sol\\\",\\\"visibility\\\":\\\"list\\\"},{\\\"slug\\\":\\\"gpt-9-sol\\\",\\\"visibility\\\":\\\"list\\\"}]}\"",
+   ".okra/ 493",
+   ".okra/models.json 420 5d257f868d6d3887 \"{\\\"format\\\":1,\\\"fetchedAt\\\":\\\"<CLOCK>\\\",\\\"catalog\\\":{\\\"openai\\\":{\\\"models\\\":{\\\"gpt-6-sol\\\":{\\\"family\\\":\\\"gpt-sol\\\",\\\"release_date\\\":\\\"2026-09-22\\\"},\\\"gpt-6.1-sol\\\":{\\\"family\\\":\\\"gpt-sol\\\",\\\"release_date\\\":\\\"2026-09-29\\\"},\\\"gpt-6.2-sol\\\":{\\\"family\\\":\\\"gpt-sol\\\",\\\"release_date\\\":\\\"2026-10-03\\\"},\\\"gpt-9-sol\\\":{\\\"family\\\":\\\"gpt-sol\\\",\\\"release_date\\\":\\\"2026-10-01\\\",\\\"status\\\":\\\"deprecated\\\"}}}}}\\n\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": [
+   "GET /catalog/api.json @cvr/okra"
+  ]
+ },
+ "claude-ok": {
+  "out": "<DIR>/out/<BUCKET>/<SLUG>\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "out/ 493",
+   "out/<BUCKET>/ 493",
+   "out/<BUCKET>/<SLUG>/ 493",
+   "out/<BUCKET>/<SLUG>/claude.md 420 1ed8b62750676f32 \"Looks fine.\\nOne risk.\"",
+   "out/<BUCKET>/<SLUG>/claude.stderr 420 f9c47ccd8b950d3b \"claude warning\\n\"",
+   "out/<BUCKET>/<SLUG>/events.jsonl 420 bc5e17e82760dd94 \"{\\\"type\\\":\\\"system\\\",\\\"subtype\\\":\\\"init\\\",\\\"model\\\":\\\"claude-opus-fixture\\\"}\\n{\\\"type\\\":\\\"assistant\\\",\\\"message\\\":{\\\"content\\\":[]}}\\n{\\\"type\\\":\\\"result\\\",\\\"subtype\\\":\\\"success\\\",\\\"result\\\":\\\"Looks fine.\\\\nOne risk.\\\"}\\n\"",
+   "out/<BUCKET>/<SLUG>/manifest.json 420 b7ec7dd5a8821ecd ",
+   "out/<BUCKET>/<SLUG>/prompt.md 420 c97ace4c8fef2cee \"review\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/claude\u0000-p\u0000--output-format\u0000stream-json\u0000--verbose\u0000--model\u0000opus\u0000--effort\u0000medium\u0000--tools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--allowedTools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--strict-mcp-config\u0000--no-session-persistence\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n",
+  "requests": []
+ },
+ "claude-deep-file": {
+  "out": "<DIR>/out/<BUCKET>/<SLUG>\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "out/ 493",
+   "out/<BUCKET>/ 493",
+   "out/<BUCKET>/<SLUG>/ 493",
+   "out/<BUCKET>/<SLUG>/claude.md 420 1ed8b62750676f32 \"Looks fine.\\nOne risk.\"",
+   "out/<BUCKET>/<SLUG>/claude.stderr 420 f9c47ccd8b950d3b \"claude warning\\n\"",
+   "out/<BUCKET>/<SLUG>/events.jsonl 420 bc5e17e82760dd94 \"{\\\"type\\\":\\\"system\\\",\\\"subtype\\\":\\\"init\\\",\\\"model\\\":\\\"claude-opus-fixture\\\"}\\n{\\\"type\\\":\\\"assistant\\\",\\\"message\\\":{\\\"content\\\":[]}}\\n{\\\"type\\\":\\\"result\\\",\\\"subtype\\\":\\\"success\\\",\\\"result\\\":\\\"Looks fine.\\\\nOne risk.\\\"}\\n\"",
+   "out/<BUCKET>/<SLUG>/manifest.json 420 0854bb93a988d2d0 ",
+   "out/<BUCKET>/<SLUG>/prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/claude\u0000-p\u0000--output-format\u0000stream-json\u0000--verbose\u0000--model\u0000opus\u0000--effort\u0000max\u0000--tools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--allowedTools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--strict-mcp-config\u0000--no-session-persistence\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n",
+  "requests": []
+ },
+ "claude-stdin": {
+  "out": "<DIR>/out/<BUCKET>/<SLUG>\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "out/ 493",
+   "out/<BUCKET>/ 493",
+   "out/<BUCKET>/<SLUG>/ 493",
+   "out/<BUCKET>/<SLUG>/claude.md 420 1ed8b62750676f32 \"Looks fine.\\nOne risk.\"",
+   "out/<BUCKET>/<SLUG>/claude.stderr 420 f9c47ccd8b950d3b \"claude warning\\n\"",
+   "out/<BUCKET>/<SLUG>/events.jsonl 420 bc5e17e82760dd94 \"{\\\"type\\\":\\\"system\\\",\\\"subtype\\\":\\\"init\\\",\\\"model\\\":\\\"claude-opus-fixture\\\"}\\n{\\\"type\\\":\\\"assistant\\\",\\\"message\\\":{\\\"content\\\":[]}}\\n{\\\"type\\\":\\\"result\\\",\\\"subtype\\\":\\\"success\\\",\\\"result\\\":\\\"Looks fine.\\\\nOne risk.\\\"}\\n\"",
+   "out/<BUCKET>/<SLUG>/manifest.json 420 961f47c841a0009c ",
+   "out/<BUCKET>/<SLUG>/prompt.md 420 8e2bd8c6a51291eb \"Î» prompt\\n\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/claude\u0000-p\u0000--output-format\u0000stream-json\u0000--verbose\u0000--model\u0000opus\u0000--effort\u0000medium\u0000--tools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--allowedTools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--strict-mcp-config\u0000--no-session-persistence\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n",
+  "requests": []
+ },
+ "claude-error-subtype": {
+  "out": "<DIR>/out/<BUCKET>/<SLUG>\n",
+  "err": "claude failed: error_max_turns\n",
+  "code": 1,
+  "files": [
+   "out/ 493",
+   "out/<BUCKET>/ 493",
+   "out/<BUCKET>/<SLUG>/ 493",
+   "out/<BUCKET>/<SLUG>/claude.md 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/claude.stderr 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/events.jsonl 420 86633b047b99a6c1 \"{\\\"type\\\":\\\"result\\\",\\\"subtype\\\":\\\"error_max_turns\\\",\\\"is_error\\\":true}\\n\"",
+   "out/<BUCKET>/<SLUG>/manifest.json 420 22d9c81a0813516a ",
+   "out/<BUCKET>/<SLUG>/prompt.md 420 2d711642b726b044 \"x\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/claude\u0000-p\u0000--output-format\u0000stream-json\u0000--verbose\u0000--model\u0000opus\u0000--effort\u0000medium\u0000--tools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--allowedTools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--strict-mcp-config\u0000--no-session-persistence\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n",
+  "requests": []
+ },
+ "claude-is-error": {
+  "out": "<DIR>/out/<BUCKET>/<SLUG>\n",
+  "err": "claude failed: boom\n",
+  "code": 1,
+  "files": [
+   "out/ 493",
+   "out/<BUCKET>/ 493",
+   "out/<BUCKET>/<SLUG>/ 493",
+   "out/<BUCKET>/<SLUG>/claude.md 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/claude.stderr 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/events.jsonl 420 f28f867caf9e2361 \"{\\\"type\\\":\\\"result\\\",\\\"subtype\\\":\\\"success\\\",\\\"is_error\\\":true,\\\"result\\\":\\\"boom\\\"}\\n\"",
+   "out/<BUCKET>/<SLUG>/manifest.json 420 ed2a57b97faf4aa2 ",
+   "out/<BUCKET>/<SLUG>/prompt.md 420 2d711642b726b044 \"x\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/claude\u0000-p\u0000--output-format\u0000stream-json\u0000--verbose\u0000--model\u0000opus\u0000--effort\u0000medium\u0000--tools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--allowedTools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--strict-mcp-config\u0000--no-session-persistence\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n",
+  "requests": []
+ },
+ "claude-mistyped": {
+  "out": "<DIR>/out/<BUCKET>/<SLUG>\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "out/ 493",
+   "out/<BUCKET>/ 493",
+   "out/<BUCKET>/<SLUG>/ 493",
+   "out/<BUCKET>/<SLUG>/claude.md 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/claude.stderr 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/events.jsonl 420 cffe0086c7b2dfec \"{\\\"type\\\":\\\"result\\\",\\\"subtype\\\":5}\\n{\\\"type\\\":\\\"result\\\",\\\"subtype\\\":\\\"success\\\",\\\"is_error\\\":null,\\\"result\\\":\\\"null flag\\\"}\\n{\\\"type\\\":\\\"result\\\",\\\"subtype\\\":\\\"success\\\",\\\"result\\\":7}\\n[1]\\n\\\"result\\\"\\n{\\\"type\\\":\\\"result\\\",\\\"subtype\\\":\\\"success\\\"}\\n{\\\"type\\\":\\\"result\\\",\\\"subtype\\\":\\\"success\\\",\\\"result\\\":\\\"late\\\"}\\n\"",
+   "out/<BUCKET>/<SLUG>/manifest.json 420 e364e3e288cc13b3 ",
+   "out/<BUCKET>/<SLUG>/prompt.md 420 2d711642b726b044 \"x\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/claude\u0000-p\u0000--output-format\u0000stream-json\u0000--verbose\u0000--model\u0000opus\u0000--effort\u0000medium\u0000--tools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--allowedTools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--strict-mcp-config\u0000--no-session-persistence\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n",
+  "requests": []
+ },
+ "claude-silent": {
+  "out": "<DIR>/out/<BUCKET>/<SLUG>\n",
+  "err": "claude failed: claude ended without an answer\n",
+  "code": 1,
+  "files": [
+   "out/ 493",
+   "out/<BUCKET>/ 493",
+   "out/<BUCKET>/<SLUG>/ 493",
+   "out/<BUCKET>/<SLUG>/claude.md 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/claude.stderr 420 6cbbe0e22e93a3e3 \"no output\\n\"",
+   "out/<BUCKET>/<SLUG>/events.jsonl 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/manifest.json 420 8acac9a3b0b05f62 ",
+   "out/<BUCKET>/<SLUG>/prompt.md 420 2d711642b726b044 \"x\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/claude\u0000-p\u0000--output-format\u0000stream-json\u0000--verbose\u0000--model\u0000opus\u0000--effort\u0000medium\u0000--tools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--allowedTools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--strict-mcp-config\u0000--no-session-persistence\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n",
+  "requests": []
+ },
+ "claude-garbage": {
+  "out": "",
+  "err": "Internal error: SyntaxError: Failed to parse JSONL\n",
+  "code": 1,
+  "files": [
+   "out/ 493",
+   "out/<BUCKET>/ 493",
+   "out/<BUCKET>/<SLUG>/ 493",
+   "out/<BUCKET>/<SLUG>/claude.stderr 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/events.jsonl 420 678db7d4ad4550c1 \"Error: offline\\n\"",
+   "out/<BUCKET>/<SLUG>/prompt.md 420 2d711642b726b044 \"x\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/claude\u0000-p\u0000--output-format\u0000stream-json\u0000--verbose\u0000--model\u0000opus\u0000--effort\u0000medium\u0000--tools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--allowedTools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--strict-mcp-config\u0000--no-session-persistence\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n",
+  "requests": []
+ },
+ "claude-cut": {
+  "out": "<DIR>/out/<BUCKET>/<SLUG>\n",
+  "err": "claude failed: claude ended without an answer\n",
+  "code": 1,
+  "files": [
+   "out/ 493",
+   "out/<BUCKET>/ 493",
+   "out/<BUCKET>/<SLUG>/ 493",
+   "out/<BUCKET>/<SLUG>/claude.md 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/claude.stderr 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/events.jsonl 420 2cf24dba5fb0a30e \"hello\"",
+   "out/<BUCKET>/<SLUG>/manifest.json 420 1b3e3f530da86e93 ",
+   "out/<BUCKET>/<SLUG>/prompt.md 420 2d711642b726b044 \"x\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/claude\u0000-p\u0000--output-format\u0000stream-json\u0000--verbose\u0000--model\u0000opus\u0000--effort\u0000medium\u0000--tools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--allowedTools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--strict-mcp-config\u0000--no-session-persistence\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n",
+  "requests": []
+ },
+ "claude-later-garbage": {
+  "out": "<DIR>/out/<BUCKET>/<SLUG>\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "out/ 493",
+   "out/<BUCKET>/ 493",
+   "out/<BUCKET>/<SLUG>/ 493",
+   "out/<BUCKET>/<SLUG>/claude.md 420 ca978112ca1bbdca \"a\"",
+   "out/<BUCKET>/<SLUG>/claude.stderr 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/events.jsonl 420 d20d396010c7d7ed \"{\\\"type\\\":\\\"result\\\",\\\"subtype\\\":\\\"success\\\",\\\"result\\\":\\\"a\\\"}\\nnot json\\n\"",
+   "out/<BUCKET>/<SLUG>/manifest.json 420 e364e3e288cc13b3 ",
+   "out/<BUCKET>/<SLUG>/prompt.md 420 2d711642b726b044 \"x\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/claude\u0000-p\u0000--output-format\u0000stream-json\u0000--verbose\u0000--model\u0000opus\u0000--effort\u0000medium\u0000--tools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--allowedTools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--strict-mcp-config\u0000--no-session-persistence\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n",
+  "requests": []
+ },
+ "claude-crlf-blank": {
+  "out": "<DIR>/out/<BUCKET>/<SLUG>\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "out/ 493",
+   "out/<BUCKET>/ 493",
+   "out/<BUCKET>/<SLUG>/ 493",
+   "out/<BUCKET>/<SLUG>/claude.md 420 3e23e8160039594a \"b\"",
+   "out/<BUCKET>/<SLUG>/claude.stderr 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/events.jsonl 420 7ea73bbf524b26d1 \"\\r\\n\\n  {\\\"type\\\":\\\"system\\\",\\\"subtype\\\":\\\"init\\\",\\\"model\\\":\\\"m2\\\"}\\t\\r\\n{\\\"type\\\":\\\"result\\\",\\\"subtype\\\":\\\"success\\\",\\\"result\\\":\\\"b\\\"}\"",
+   "out/<BUCKET>/<SLUG>/manifest.json 420 83be8e3b2c4d8bf6 ",
+   "out/<BUCKET>/<SLUG>/prompt.md 420 2d711642b726b044 \"x\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/claude\u0000-p\u0000--output-format\u0000stream-json\u0000--verbose\u0000--model\u0000opus\u0000--effort\u0000medium\u0000--tools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--allowedTools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--strict-mcp-config\u0000--no-session-persistence\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n",
+  "requests": []
+ },
+ "claude-exit-with-answer": {
+  "out": "<DIR>/out/<BUCKET>/<SLUG>\n",
+  "err": "claude failed: claude exited with code 2\n",
+  "code": 1,
+  "files": [
+   "out/ 493",
+   "out/<BUCKET>/ 493",
+   "out/<BUCKET>/<SLUG>/ 493",
+   "out/<BUCKET>/<SLUG>/claude.md 420 2e7d2c03a9507ae2 \"c\"",
+   "out/<BUCKET>/<SLUG>/claude.stderr 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/events.jsonl 420 b5785efd5025bd4e \"{\\\"type\\\":\\\"result\\\",\\\"subtype\\\":\\\"success\\\",\\\"result\\\":\\\"c\\\"}\\n\"",
+   "out/<BUCKET>/<SLUG>/manifest.json 420 580524cf7b5ef58e ",
+   "out/<BUCKET>/<SLUG>/prompt.md 420 2d711642b726b044 \"x\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/claude\u0000-p\u0000--output-format\u0000stream-json\u0000--verbose\u0000--model\u0000opus\u0000--effort\u0000medium\u0000--tools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--allowedTools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--strict-mcp-config\u0000--no-session-persistence\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n",
+  "requests": []
+ },
+ "claude-duplicate-keys": {
+  "out": "<DIR>/out/<BUCKET>/<SLUG>\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "out/ 493",
+   "out/<BUCKET>/ 493",
+   "out/<BUCKET>/<SLUG>/ 493",
+   "out/<BUCKET>/<SLUG>/claude.md 420 16367aacb67a4a01 \"second\"",
+   "out/<BUCKET>/<SLUG>/claude.stderr 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/events.jsonl 420 36c8c91405ce62b9 \"{\\\"type\\\":\\\"x\\\",\\\"type\\\":\\\"result\\\",\\\"subtype\\\":\\\"success\\\",\\\"result\\\":\\\"first\\\",\\\"result\\\":\\\"second\\\"}\\n\"",
+   "out/<BUCKET>/<SLUG>/manifest.json 420 e364e3e288cc13b3 ",
+   "out/<BUCKET>/<SLUG>/prompt.md 420 2d711642b726b044 \"x\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/claude\u0000-p\u0000--output-format\u0000stream-json\u0000--verbose\u0000--model\u0000opus\u0000--effort\u0000medium\u0000--tools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--allowedTools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--strict-mcp-config\u0000--no-session-persistence\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n",
+  "requests": []
+ },
+ "claude-nested": {
+  "out": "<DIR>/out/<BUCKET>/<SLUG>\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "out/ 493",
+   "out/<BUCKET>/ 493",
+   "out/<BUCKET>/<SLUG>/ 493",
+   "out/<BUCKET>/<SLUG>/claude.md 420 18ac3e7343f01689 \"d\"",
+   "out/<BUCKET>/<SLUG>/claude.stderr 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/events.jsonl 420 8dae3b25e5fb4945 \"[[1],{\\\"b\\\":{\\\"c\\\":[{}]}},[[]]]\\n{\\\"type\\\":\\\"assistant\\\",\\\"message\\\":{\\\"content\\\":[{\\\"type\\\":\\\"text\\\"},[1,[2]]]}}\\n{\\\"type\\\":\\\"result\\\",\\\"subtype\\\":\\\"success\\\",\\\"result\\\":\\\"d\\\",\\\"usage\\\":{\\\"in\\\":[1,{\\\"x\\\":[]}]}}\\n\"",
+   "out/<BUCKET>/<SLUG>/manifest.json 420 e364e3e288cc13b3 ",
+   "out/<BUCKET>/<SLUG>/prompt.md 420 2d711642b726b044 \"x\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/claude\u0000-p\u0000--output-format\u0000stream-json\u0000--verbose\u0000--model\u0000opus\u0000--effort\u0000medium\u0000--tools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--allowedTools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--strict-mcp-config\u0000--no-session-persistence\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n",
+  "requests": []
+ },
+ "codex-ok": {
+  "out": "<DIR>/out/<BUCKET>/<SLUG>\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "out/ 493",
+   "out/<BUCKET>/ 493",
+   "out/<BUCKET>/<SLUG>/ 493",
+   "out/<BUCKET>/<SLUG>/codex.md 420 5b1fbed8a78764dc \"Answer Î» ð±\"",
+   "out/<BUCKET>/<SLUG>/codex.stderr 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/events.jsonl 420 25c911d3f0c32eea \"{\\\"type\\\":\\\"thread.started\\\",\\\"thread_id\\\":\\\"t\\\"}\\n{\\\"type\\\":\\\"item.completed\\\",\\\"item\\\":{\\\"type\\\":\\\"reasoning\\\",\\\"text\\\":\\\"thinking\\\"}}\\n{\\\"type\\\":\\\"item.completed\\\",\\\"item\\\":{\\\"type\\\":\\\"agent_message\\\",\\\"text\\\":\\\"first\\\"}}\\n{\\\"type\\\":\\\"item.completed\\\",\\\"item\\\":{\\\"type\\\":\\\"agent_message\\\",\\\"text\\\":\\\"Answer Î» ð±\\\"}}\\n{\\\"type\\\":\\\"turn.completed\\\"}\\n\"",
+   "out/<BUCKET>/<SLUG>/manifest.json 420 c28d8a3699d7bbdb ",
+   "out/<BUCKET>/<SLUG>/prompt.md 420 2d711642b726b044 \"x\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n",
+  "requests": []
+ },
+ "codex-turn-failed": {
+  "out": "<DIR>/out/<BUCKET>/<SLUG>\n",
+  "err": "codex failed: stream disconnected\n",
+  "code": 1,
+  "files": [
+   "out/ 493",
+   "out/<BUCKET>/ 493",
+   "out/<BUCKET>/<SLUG>/ 493",
+   "out/<BUCKET>/<SLUG>/codex.md 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/codex.stderr 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/events.jsonl 420 e62fa5d2421f048b \"{\\\"type\\\":\\\"item.completed\\\",\\\"item\\\":{\\\"type\\\":\\\"agent_message\\\",\\\"text\\\":\\\"partial\\\"}}\\n{\\\"type\\\":\\\"turn.failed\\\",\\\"error\\\":{\\\"message\\\":\\\"stream disconnected\\\"}}\\n{\\\"type\\\":\\\"turn.failed\\\",\\\"error\\\":{\\\"message\\\":\\\"second\\\"}}\\n\"",
+   "out/<BUCKET>/<SLUG>/manifest.json 420 19c4a7c2505417e9 ",
+   "out/<BUCKET>/<SLUG>/prompt.md 420 2d711642b726b044 \"x\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n",
+  "requests": []
+ },
+ "codex-silent": {
+  "out": "<DIR>/out/<BUCKET>/<SLUG>\n",
+  "err": "codex failed: codex ended without an answer\n",
+  "code": 1,
+  "files": [
+   "out/ 493",
+   "out/<BUCKET>/ 493",
+   "out/<BUCKET>/<SLUG>/ 493",
+   "out/<BUCKET>/<SLUG>/codex.md 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/codex.stderr 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/events.jsonl 420 4e1d4b8f54e1456a \"{\\\"type\\\":\\\"turn.completed\\\"}\\n\"",
+   "out/<BUCKET>/<SLUG>/manifest.json 420 8ff709fa1255a63e ",
+   "out/<BUCKET>/<SLUG>/prompt.md 420 2d711642b726b044 \"x\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n",
+  "requests": []
+ },
+ "codex-rejected-only": {
+  "out": "<DIR>/out/<BUCKET>/<SLUG>\n",
+  "err": "codex failed: The model is not supported when using Codex with a ChatGPT account.\n",
+  "code": 1,
+  "files": [
+   "out/ 493",
+   "out/<BUCKET>/ 493",
+   "out/<BUCKET>/<SLUG>/ 493",
+   "out/<BUCKET>/<SLUG>/codex.md 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/codex.stderr 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/events.jsonl 420 dca94b071f2e0264 \"{\\\"type\\\":\\\"turn.failed\\\",\\\"error\\\":{\\\"message\\\":\\\"The model is not supported when using Codex with a ChatGPT account.\\\"}}\\n\"",
+   "out/<BUCKET>/<SLUG>/manifest.json 420 00af65e86ce056b3 ",
+   "out/<BUCKET>/<SLUG>/prompt.md 420 2d711642b726b044 \"x\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n",
+  "requests": []
+ },
+ "codex-fallback": {
+  "out": "<DIR>/out/<BUCKET>/<SLUG>\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   ".codex/ 493",
+   ".codex/models_cache.json 420 f53f2d6754b90346 \"{\\\"models\\\":[{\\\"slug\\\":\\\"gpt-6-sol\\\",\\\"visibility\\\":\\\"list\\\"},{\\\"slug\\\":\\\"gpt-6.1-sol\\\",\\\"visibility\\\":\\\"list\\\"},{\\\"slug\\\":\\\"gpt-6.2-sol\\\",\\\"visibility\\\":\\\"list\\\"},{\\\"slug\\\":\\\"gpt-9-sol\\\",\\\"visibility\\\":\\\"list\\\"}]}\"",
+   ".okra/ 493",
+   ".okra/models.json 420 5d257f868d6d3887 \"{\\\"format\\\":1,\\\"fetchedAt\\\":\\\"<CLOCK>\\\",\\\"catalog\\\":{\\\"openai\\\":{\\\"models\\\":{\\\"gpt-6-sol\\\":{\\\"family\\\":\\\"gpt-sol\\\",\\\"release_date\\\":\\\"2026-09-22\\\"},\\\"gpt-6.1-sol\\\":{\\\"family\\\":\\\"gpt-sol\\\",\\\"release_date\\\":\\\"2026-09-29\\\"},\\\"gpt-6.2-sol\\\":{\\\"family\\\":\\\"gpt-sol\\\",\\\"release_date\\\":\\\"2026-10-03\\\"},\\\"gpt-9-sol\\\":{\\\"family\\\":\\\"gpt-sol\\\",\\\"release_date\\\":\\\"2026-10-01\\\",\\\"status\\\":\\\"deprecated\\\"}}}}}\\n\"",
+   "out/ 493",
+   "out/<BUCKET>/ 493",
+   "out/<BUCKET>/<SLUG>/ 493",
+   "out/<BUCKET>/<SLUG>/codex.md 420 5b1fbed8a78764dc \"Answer Î» ð±\"",
+   "out/<BUCKET>/<SLUG>/codex.stderr 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/events.jsonl 420 25c911d3f0c32eea \"{\\\"type\\\":\\\"thread.started\\\",\\\"thread_id\\\":\\\"t\\\"}\\n{\\\"type\\\":\\\"item.completed\\\",\\\"item\\\":{\\\"type\\\":\\\"reasoning\\\",\\\"text\\\":\\\"thinking\\\"}}\\n{\\\"type\\\":\\\"item.completed\\\",\\\"item\\\":{\\\"type\\\":\\\"agent_message\\\",\\\"text\\\":\\\"first\\\"}}\\n{\\\"type\\\":\\\"item.completed\\\",\\\"item\\\":{\\\"type\\\":\\\"agent_message\\\",\\\"text\\\":\\\"Answer Î» ð±\\\"}}\\n{\\\"type\\\":\\\"turn.completed\\\"}\\n\"",
+   "out/<BUCKET>/<SLUG>/manifest.json 420 c28d8a3699d7bbdb ",
+   "out/<BUCKET>/<SLUG>/prompt.md 420 2d711642b726b044 \"x\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6.2-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6.1-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n",
+  "requests": []
+ },
+ "codex-fallback-stops": {
+  "out": "<DIR>/out/<BUCKET>/<SLUG>\n",
+  "err": "codex failed: quota\n",
+  "code": 1,
+  "files": [
+   ".codex/ 493",
+   ".codex/models_cache.json 420 f53f2d6754b90346 \"{\\\"models\\\":[{\\\"slug\\\":\\\"gpt-6-sol\\\",\\\"visibility\\\":\\\"list\\\"},{\\\"slug\\\":\\\"gpt-6.1-sol\\\",\\\"visibility\\\":\\\"list\\\"},{\\\"slug\\\":\\\"gpt-6.2-sol\\\",\\\"visibility\\\":\\\"list\\\"},{\\\"slug\\\":\\\"gpt-9-sol\\\",\\\"visibility\\\":\\\"list\\\"}]}\"",
+   ".okra/ 493",
+   ".okra/models.json 420 5d257f868d6d3887 \"{\\\"format\\\":1,\\\"fetchedAt\\\":\\\"<CLOCK>\\\",\\\"catalog\\\":{\\\"openai\\\":{\\\"models\\\":{\\\"gpt-6-sol\\\":{\\\"family\\\":\\\"gpt-sol\\\",\\\"release_date\\\":\\\"2026-09-22\\\"},\\\"gpt-6.1-sol\\\":{\\\"family\\\":\\\"gpt-sol\\\",\\\"release_date\\\":\\\"2026-09-29\\\"},\\\"gpt-6.2-sol\\\":{\\\"family\\\":\\\"gpt-sol\\\",\\\"release_date\\\":\\\"2026-10-03\\\"},\\\"gpt-9-sol\\\":{\\\"family\\\":\\\"gpt-sol\\\",\\\"release_date\\\":\\\"2026-10-01\\\",\\\"status\\\":\\\"deprecated\\\"}}}}}\\n\"",
+   "out/ 493",
+   "out/<BUCKET>/ 493",
+   "out/<BUCKET>/<SLUG>/ 493",
+   "out/<BUCKET>/<SLUG>/codex.md 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/codex.stderr 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/events.jsonl 420 9c2146aba75c6566 \"{\\\"type\\\":\\\"turn.failed\\\",\\\"error\\\":{\\\"message\\\":\\\"quota\\\"}}\\n\"",
+   "out/<BUCKET>/<SLUG>/manifest.json 420 d9a73b257e79ded0 ",
+   "out/<BUCKET>/<SLUG>/prompt.md 420 2d711642b726b044 \"x\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6.2-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6.1-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n",
+  "requests": []
+ },
+ "codex-fallback-all": {
+  "out": "<DIR>/out/<BUCKET>/<SLUG>\n",
+  "err": "codex failed: The model is not supported when using Codex with a ChatGPT account.\n",
+  "code": 1,
+  "files": [
+   ".codex/ 493",
+   ".codex/models_cache.json 420 f53f2d6754b90346 \"{\\\"models\\\":[{\\\"slug\\\":\\\"gpt-6-sol\\\",\\\"visibility\\\":\\\"list\\\"},{\\\"slug\\\":\\\"gpt-6.1-sol\\\",\\\"visibility\\\":\\\"list\\\"},{\\\"slug\\\":\\\"gpt-6.2-sol\\\",\\\"visibility\\\":\\\"list\\\"},{\\\"slug\\\":\\\"gpt-9-sol\\\",\\\"visibility\\\":\\\"list\\\"}]}\"",
+   ".okra/ 493",
+   ".okra/models.json 420 5d257f868d6d3887 \"{\\\"format\\\":1,\\\"fetchedAt\\\":\\\"<CLOCK>\\\",\\\"catalog\\\":{\\\"openai\\\":{\\\"models\\\":{\\\"gpt-6-sol\\\":{\\\"family\\\":\\\"gpt-sol\\\",\\\"release_date\\\":\\\"2026-09-22\\\"},\\\"gpt-6.1-sol\\\":{\\\"family\\\":\\\"gpt-sol\\\",\\\"release_date\\\":\\\"2026-09-29\\\"},\\\"gpt-6.2-sol\\\":{\\\"family\\\":\\\"gpt-sol\\\",\\\"release_date\\\":\\\"2026-10-03\\\"},\\\"gpt-9-sol\\\":{\\\"family\\\":\\\"gpt-sol\\\",\\\"release_date\\\":\\\"2026-10-01\\\",\\\"status\\\":\\\"deprecated\\\"}}}}}\\n\"",
+   "out/ 493",
+   "out/<BUCKET>/ 493",
+   "out/<BUCKET>/<SLUG>/ 493",
+   "out/<BUCKET>/<SLUG>/codex.md 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/codex.stderr 420 e3b0c44298fc1c14 \"\"",
+   "out/<BUCKET>/<SLUG>/events.jsonl 420 dca94b071f2e0264 \"{\\\"type\\\":\\\"turn.failed\\\",\\\"error\\\":{\\\"message\\\":\\\"The model is not supported when using Codex with a ChatGPT account.\\\"}}\\n\"",
+   "out/<BUCKET>/<SLUG>/manifest.json 420 00af65e86ce056b3 ",
+   "out/<BUCKET>/<SLUG>/prompt.md 420 2d711642b726b044 \"x\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6.2-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6.1-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>\n\n--\n",
+  "requests": []
+ },
+ "write-under-file": {
+  "out": "",
+  "err": "[WRITE_FAILED] Failed to create <DIR>/prompt.md/sub/<BUCKET>/<SLUG>: BadResource: FileSystem.makeDirectory (<DIR>/prompt.md/sub/<BUCKET>/<SLUG>)\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "write-denied": {
+  "out": "",
+  "err": "[WRITE_FAILED] Failed to create <DIR>/locked/out/<BUCKET>/<SLUG>: PermissionDenied: FileSystem.makeDirectory (<DIR>/locked/out/<BUCKET>/<SLUG>)\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "spawn-failed": {
+  "out": "",
+  "err": "[SPAWN_FAILED] NotFound: ChildProcess.spawn (<DIR>/bin/claude -p --output-format stream-json --verbose --model opus --effort medium --tools Read,Glob,Grep,WebFetch,WebSearch --allowedTools Read,Glob,Grep,WebFetch,WebSearch --strict-mcp-config --no-session-persistence 'Read the file at <DIR>/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.')\n",
+  "code": 1,
+  "files": [
+   "out/ 493",
+   "out/<BUCKET>/ 493",
+   "out/<BUCKET>/<SLUG>/ 493",
+   "out/<BUCKET>/<SLUG>/prompt.md 420 df67bc4d3d245036 \"it's a \\\\ test\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "bucket-names": {
+  "out": "<DIR>/Wörk Dir_İK/--My.Proj--/out/<BUCKET>/<SLUG>\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "Wörk Dir_İK/ 493",
+   "Wörk Dir_İK/--My.Proj--/ 493",
+   "Wörk Dir_İK/--My.Proj--/out/ 493",
+   "Wörk Dir_İK/--My.Proj--/out/<BUCKET>/ 493",
+   "Wörk Dir_İK/--My.Proj--/out/<BUCKET>/<SLUG>/ 493",
+   "Wörk Dir_İK/--My.Proj--/out/<BUCKET>/<SLUG>/claude.md 420 1ed8b62750676f32 \"Looks fine.\\nOne risk.\"",
+   "Wörk Dir_İK/--My.Proj--/out/<BUCKET>/<SLUG>/claude.stderr 420 f9c47ccd8b950d3b \"claude warning\\n\"",
+   "Wörk Dir_İK/--My.Proj--/out/<BUCKET>/<SLUG>/events.jsonl 420 bc5e17e82760dd94 \"{\\\"type\\\":\\\"system\\\",\\\"subtype\\\":\\\"init\\\",\\\"model\\\":\\\"claude-opus-fixture\\\"}\\n{\\\"type\\\":\\\"assistant\\\",\\\"message\\\":{\\\"content\\\":[]}}\\n{\\\"type\\\":\\\"result\\\",\\\"subtype\\\":\\\"success\\\",\\\"result\\\":\\\"Looks fine.\\\\nOne risk.\\\"}\\n\"",
+   "Wörk Dir_İK/--My.Proj--/out/<BUCKET>/<SLUG>/manifest.json 420 b7c8c0b7147ca82c ",
+   "Wörk Dir_İK/--My.Proj--/out/<BUCKET>/<SLUG>/prompt.md 420 2d711642b726b044 \"x\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/claude\u0000-p\u0000--output-format\u0000stream-json\u0000--verbose\u0000--model\u0000opus\u0000--effort\u0000medium\u0000--tools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--allowedTools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--strict-mcp-config\u0000--no-session-persistence\u0000Read the file at <DIR>/Wörk Dir_İK/--My.Proj--/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>/Wörk Dir_İK/--My.Proj--\n\n--\n",
+  "requests": []
+ },
+ "bucket-root-like": {
+  "out": "{\"source\":\"codex\",\"target\":\"claude\",\"profile\":\"standard\",\"promptSource\":\"inline\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"/tmp/counsel/<BUCKET>/<SLUG>\",\"promptFilePath\":\"/tmp/counsel/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/claude\",\"args\":[\"-p\",\"--output-format\",\"stream-json\",\"--verbose\",\"--model\",\"opus\",\"--effort\",\"medium\",\"--tools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--allowedTools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--strict-mcp-config\",\"--no-session-persistence\",\"Read the file at /tmp/counsel/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>/a/b/c/___\",\"model\":\"opus\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "a/ 493",
+   "a/b/ 493",
+   "a/b/c/ 493",
+   "a/b/c/___/ 493",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "seed-7-0": {
+  "out": "{\"source\":\"claude\",\"target\":\"codex\",\"profile\":\"standard\",\"promptSource\":\"inline\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"<DIR>/ü_/Ax.y/x.y_/out/<BUCKET>/<SLUG>\",\"promptFilePath\":\"<DIR>/ü_/Ax.y/x.y_/out/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/codex\",\"args\":[\"exec\",\"-C\",\"<DIR>/ü_/Ax.y/x.y_\",\"--json\",\"--color\",\"never\",\"--sandbox\",\"read-only\",\"--model\",\"gpt-6-sol\",\"-c\",\"web_search=live\",\"-c\",\"model_reasoning_effort=medium\",\"--skip-git-repo-check\",\"Read the file at <DIR>/ü_/Ax.y/x.y_/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>/ü_/Ax.y/x.y_\",\"model\":\"gpt-6-sol\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493",
+   "ü_/ 493",
+   "ü_/Ax.y/ 493",
+   "ü_/Ax.y/x.y_/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "seed-7-1": {
+  "out": "<DIR>/b cb c/Ax.y/b cQ9/out/<BUCKET>/<SLUG>\n",
+  "err": "codex failed: f618\n",
+  "code": 1,
+  "files": [
+   "b cb c/ 493",
+   "b cb c/Ax.y/ 493",
+   "b cb c/Ax.y/b cQ9/ 493",
+   "b cb c/Ax.y/b cQ9/out/ 493",
+   "b cb c/Ax.y/b cQ9/out/<BUCKET>/ 493",
+   "b cb c/Ax.y/b cQ9/out/<BUCKET>/<SLUG>/ 493",
+   "b cb c/Ax.y/b cQ9/out/<BUCKET>/<SLUG>/codex.md 420 e3b0c44298fc1c14 \"\"",
+   "b cb c/Ax.y/b cQ9/out/<BUCKET>/<SLUG>/codex.stderr 420 e3b0c44298fc1c14 \"\"",
+   "b cb c/Ax.y/b cQ9/out/<BUCKET>/<SLUG>/events.jsonl 420 41167cb5874da8e7 \"{\\\"type\\\":\\\"turn.failed\\\",\\\"error\\\":{\\\"message\\\":\\\"f618\\\"}}\\n\"",
+   "b cb c/Ax.y/b cQ9/out/<BUCKET>/<SLUG>/manifest.json 420 e71e2fea97e7315b ",
+   "b cb c/Ax.y/b cQ9/out/<BUCKET>/<SLUG>/prompt.md 420 1550ebd139c1f583 \"prompt 618\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>/b cb c/Ax.y/b cQ9\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/b cb c/Ax.y/b cQ9/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>/b cb c/Ax.y/b cQ9\n\n--\n",
+  "requests": []
+ },
+ "seed-7-2": {
+  "out": "",
+  "err": "Internal error: SyntaxError: Failed to parse JSONL\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493",
+   "İ--/ 493",
+   "İ--/ü--/ 493",
+   "İ--/ü--/A_/ 493",
+   "İ--/ü--/A_/out/ 493",
+   "İ--/ü--/A_/out/<BUCKET>/ 493",
+   "İ--/ü--/A_/out/<BUCKET>/<SLUG>/ 493",
+   "İ--/ü--/A_/out/<BUCKET>/<SLUG>/claude.stderr 420 a2bbdb2de53523b8 \"e\\n\"",
+   "İ--/ü--/A_/out/<BUCKET>/<SLUG>/events.jsonl 420 d315edb045afdab6 \"tru\\n{\\\"type\\\":\\\"assistant\\\",\\\"message\\\":{\\\"content\\\":[{\\\"type\\\":\\\"text\\\",\\\"text\\\":\\\"t26\\\"},[]]}}\"",
+   "İ--/ü--/A_/out/<BUCKET>/<SLUG>/prompt.md 420 36ec07630c4d2e0e \"prompt 26\""
+  ],
+  "agents": "<DIR>/bin/claude\u0000-p\u0000--output-format\u0000stream-json\u0000--verbose\u0000--model\u0000opus\u0000--effort\u0000max\u0000--tools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--allowedTools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--strict-mcp-config\u0000--no-session-persistence\u0000Read the file at <DIR>/İ--/ü--/A_/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>/İ--/ü--/A_\n\n--\n",
+  "requests": []
+ },
+ "seed-7-3": {
+  "out": "{\"source\":\"claude\",\"target\":\"codex\",\"profile\":\"standard\",\"promptSource\":\"inline\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"<DIR>/KK/out/<BUCKET>/<SLUG>\",\"promptFilePath\":\"<DIR>/KK/out/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/codex\",\"args\":[\"exec\",\"-C\",\"<DIR>/KK\",\"--json\",\"--color\",\"never\",\"--sandbox\",\"read-only\",\"--model\",\"gpt-6-sol\",\"-c\",\"web_search=live\",\"-c\",\"model_reasoning_effort=medium\",\"--skip-git-repo-check\",\"Read the file at <DIR>/KK/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>/KK\",\"model\":\"gpt-6-sol\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "KK/ 493",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "seed-7-4": {
+  "out": "<DIR>/_A/out/<BUCKET>/<SLUG>\n",
+  "err": "codex failed: codex ended without an answer\n",
+  "code": 1,
+  "files": [
+   "_A/ 493",
+   "_A/out/ 493",
+   "_A/out/<BUCKET>/ 493",
+   "_A/out/<BUCKET>/<SLUG>/ 493",
+   "_A/out/<BUCKET>/<SLUG>/codex.md 420 e3b0c44298fc1c14 \"\"",
+   "_A/out/<BUCKET>/<SLUG>/codex.stderr 420 e3b0c44298fc1c14 \"\"",
+   "_A/out/<BUCKET>/<SLUG>/events.jsonl 420 f109b002d2f351fa \"[1,2]\\n\"",
+   "_A/out/<BUCKET>/<SLUG>/manifest.json 420 b7cd224d62218252 ",
+   "_A/out/<BUCKET>/<SLUG>/prompt.md 420 ffba35f83a40e3df \"prompt 510\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>/_A\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/_A/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>/_A\n\n--\n",
+  "requests": []
+ },
+ "seed-7-5": {
+  "out": "",
+  "err": "Internal error: SyntaxError: Failed to parse JSONL\n",
+  "code": 1,
+  "files": [
+   "--x.y/ 493",
+   "--x.y/out/ 493",
+   "--x.y/out/<BUCKET>/ 493",
+   "--x.y/out/<BUCKET>/<SLUG>/ 493",
+   "--x.y/out/<BUCKET>/<SLUG>/codex.stderr 420 e3b0c44298fc1c14 \"\"",
+   "--x.y/out/<BUCKET>/<SLUG>/events.jsonl 420 cc87c7542de3b324 \"Error 874: y\\n\"",
+   "--x.y/out/<BUCKET>/<SLUG>/prompt.md 420 23f668190978150c \"prompt 874\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>/--x.y\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/--x.y/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>/--x.y\n\n--\n",
+  "requests": []
+ },
+ "seed-7-6": {
+  "out": "<DIR>/ü_/A--/out/<BUCKET>/<SLUG>\n",
+  "err": "codex failed: codex ended without an answer\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493",
+   "ü_/ 493",
+   "ü_/A--/ 493",
+   "ü_/A--/out/ 493",
+   "ü_/A--/out/<BUCKET>/ 493",
+   "ü_/A--/out/<BUCKET>/<SLUG>/ 493",
+   "ü_/A--/out/<BUCKET>/<SLUG>/codex.md 420 e3b0c44298fc1c14 \"\"",
+   "ü_/A--/out/<BUCKET>/<SLUG>/codex.stderr 420 e3b0c44298fc1c14 \"\"",
+   "ü_/A--/out/<BUCKET>/<SLUG>/events.jsonl 420 f251ddc12234e0da \"1 2\\n\"",
+   "ü_/A--/out/<BUCKET>/<SLUG>/manifest.json 420 09ce2e5046d0d6f6 ",
+   "ü_/A--/out/<BUCKET>/<SLUG>/prompt.md 420 59b8a26ce22cddfe \"prompt 302\""
+  ],
+  "agents": "<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>/ü_/A--\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/ü_/A--/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>/ü_/A--\n\n--\n",
+  "requests": []
+ },
+ "seed-7-7": {
+  "out": "",
+  "err": "Internal error: SyntaxError: Failed to parse JSONL\n",
+  "code": 1,
+  "files": [
+   "--ü/ 493",
+   "--ü/İK/ 493",
+   "--ü/İK/b cü/ 493",
+   "--ü/İK/b cü/out/ 493",
+   "--ü/İK/b cü/out/<BUCKET>/ 493",
+   "--ü/İK/b cü/out/<BUCKET>/<SLUG>/ 493",
+   "--ü/İK/b cü/out/<BUCKET>/<SLUG>/codex.stderr 420 e3b0c44298fc1c14 \"\"",
+   "--ü/İK/b cü/out/<BUCKET>/<SLUG>/events.jsonl 420 645b8b81a3654429 \"\\n{\\\"type\\\":\\\"result\\\"\\n1 2\\n\"",
+   "--ü/İK/b cü/out/<BUCKET>/<SLUG>/prompt.md 420 1fc677407324a953 \"prompt 324\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>/--ü/İK/b cü\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/--ü/İK/b cü/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>/--ü/İK/b cü\n\n--\n",
+  "requests": []
+ },
+ "seed-7-8": {
+  "out": "<DIR>/--K/out/<BUCKET>/<SLUG>\n",
+  "err": "codex failed: codex ended without an answer\n",
+  "code": 1,
+  "files": [
+   "--K/ 493",
+   "--K/out/ 493",
+   "--K/out/<BUCKET>/ 493",
+   "--K/out/<BUCKET>/<SLUG>/ 493",
+   "--K/out/<BUCKET>/<SLUG>/codex.md 420 e3b0c44298fc1c14 \"\"",
+   "--K/out/<BUCKET>/<SLUG>/codex.stderr 420 e3b0c44298fc1c14 \"\"",
+   "--K/out/<BUCKET>/<SLUG>/events.jsonl 420 f251ddc12234e0da \"1 2\\n\"",
+   "--K/out/<BUCKET>/<SLUG>/manifest.json 420 8d5c757f3f48e11e ",
+   "--K/out/<BUCKET>/<SLUG>/prompt.md 420 25ee62c49ff0ab90 \"prompt 846\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>/--K\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/--K/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>/--K\n\n--\n",
+  "requests": []
+ },
+ "seed-7-9": {
+  "out": "<DIR>/Q9Q9/out/<BUCKET>/<SLUG>\n",
+  "err": "claude failed: claude ended without an answer\n",
+  "code": 1,
+  "files": [
+   "Q9Q9/ 493",
+   "Q9Q9/out/ 493",
+   "Q9Q9/out/<BUCKET>/ 493",
+   "Q9Q9/out/<BUCKET>/<SLUG>/ 493",
+   "Q9Q9/out/<BUCKET>/<SLUG>/claude.md 420 e3b0c44298fc1c14 \"\"",
+   "Q9Q9/out/<BUCKET>/<SLUG>/claude.stderr 420 a2bbdb2de53523b8 \"e\\n\"",
+   "Q9Q9/out/<BUCKET>/<SLUG>/events.jsonl 420 8f0b8c6b1658c0d4 \"{\\\"type\\\":\\\"turn.failed\\\",\\\"error\\\":{\\\"message\\\":\\\"f202\\\"}}\\n[1,]\"",
+   "Q9Q9/out/<BUCKET>/<SLUG>/manifest.json 420 5e0f62fe3b8fdc16 ",
+   "Q9Q9/out/<BUCKET>/<SLUG>/prompt.md 420 f1009a9858b795a7 \"prompt 202\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/claude\u0000-p\u0000--output-format\u0000stream-json\u0000--verbose\u0000--model\u0000opus\u0000--effort\u0000max\u0000--tools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--allowedTools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--strict-mcp-config\u0000--no-session-persistence\u0000Read the file at <DIR>/Q9Q9/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>/Q9Q9\n\n--\n",
+  "requests": []
+ },
+ "seed-7-10": {
+  "out": "{\"source\":\"codex\",\"target\":\"claude\",\"profile\":\"deep\",\"promptSource\":\"inline\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"<DIR>/_x.y/üA/Q9--/out/<BUCKET>/<SLUG>\",\"promptFilePath\":\"<DIR>/_x.y/üA/Q9--/out/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/claude\",\"args\":[\"-p\",\"--output-format\",\"stream-json\",\"--verbose\",\"--model\",\"opus\",\"--effort\",\"max\",\"--tools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--allowedTools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--strict-mcp-config\",\"--no-session-persistence\",\"Read the file at <DIR>/_x.y/üA/Q9--/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>/_x.y/üA/Q9--\",\"model\":\"opus\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "_x.y/ 493",
+   "_x.y/üA/ 493",
+   "_x.y/üA/Q9--/ 493",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "seed-7-11": {
+  "out": "<DIR>/b cü/out/<BUCKET>/<SLUG>\n",
+  "err": "codex failed: codex ended without an answer\n",
+  "code": 1,
+  "files": [
+   "b cü/ 493",
+   "b cü/out/ 493",
+   "b cü/out/<BUCKET>/ 493",
+   "b cü/out/<BUCKET>/<SLUG>/ 493",
+   "b cü/out/<BUCKET>/<SLUG>/codex.md 420 e3b0c44298fc1c14 \"\"",
+   "b cü/out/<BUCKET>/<SLUG>/codex.stderr 420 e3b0c44298fc1c14 \"\"",
+   "b cü/out/<BUCKET>/<SLUG>/events.jsonl 420 e3b0c44298fc1c14 \"\"",
+   "b cü/out/<BUCKET>/<SLUG>/manifest.json 420 29182607ca889efa ",
+   "b cü/out/<BUCKET>/<SLUG>/prompt.md 420 e856d89b7754c14e \"prompt 101\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>/b cü\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/b cü/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>/b cü\n\n--\n",
+  "requests": []
+ },
+ "seed-7-12": {
+  "out": "{\"source\":\"codex\",\"target\":\"claude\",\"profile\":\"deep\",\"promptSource\":\"inline\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"<DIR>/Aü/x.yü/out/<BUCKET>/<SLUG>\",\"promptFilePath\":\"<DIR>/Aü/x.yü/out/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/claude\",\"args\":[\"-p\",\"--output-format\",\"stream-json\",\"--verbose\",\"--model\",\"opus\",\"--effort\",\"max\",\"--tools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--allowedTools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--strict-mcp-config\",\"--no-session-persistence\",\"Read the file at <DIR>/Aü/x.yü/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>/Aü/x.yü\",\"model\":\"opus\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "Aü/ 493",
+   "Aü/x.yü/ 493",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "seed-7-13": {
+  "out": "<DIR>/İ--/İ_/x.yK/out/<BUCKET>/<SLUG>\n",
+  "err": "claude failed: claude ended without an answer\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493",
+   "İ--/ 493",
+   "İ--/İ_/ 493",
+   "İ--/İ_/x.yK/ 493",
+   "İ--/İ_/x.yK/out/ 493",
+   "İ--/İ_/x.yK/out/<BUCKET>/ 493",
+   "İ--/İ_/x.yK/out/<BUCKET>/<SLUG>/ 493",
+   "İ--/İ_/x.yK/out/<BUCKET>/<SLUG>/claude.md 420 e3b0c44298fc1c14 \"\"",
+   "İ--/İ_/x.yK/out/<BUCKET>/<SLUG>/claude.stderr 420 a2bbdb2de53523b8 \"e\\n\"",
+   "İ--/İ_/x.yK/out/<BUCKET>/<SLUG>/events.jsonl 420 9e5897596d17dd5f \"null\\n{\\\"type\\\":\\\"turn.failed\\\",\\\"error\\\":{\\\"message\\\":\\\"f575\\\"}}\\n[1,]\"",
+   "İ--/İ_/x.yK/out/<BUCKET>/<SLUG>/manifest.json 420 339f9ee55a135536 ",
+   "İ--/İ_/x.yK/out/<BUCKET>/<SLUG>/prompt.md 420 ffd617cee07f5ffc \"prompt 575\""
+  ],
+  "agents": "<DIR>/bin/claude\u0000-p\u0000--output-format\u0000stream-json\u0000--verbose\u0000--model\u0000opus\u0000--effort\u0000max\u0000--tools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--allowedTools\u0000Read,Glob,Grep,WebFetch,WebSearch\u0000--strict-mcp-config\u0000--no-session-persistence\u0000Read the file at <DIR>/İ--/İ_/x.yK/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>/İ--/İ_/x.yK\n\n--\n",
+  "requests": []
+ },
+ "seed-7-14": {
+  "out": "<DIR>/_ü/b cQ9/üİ/out/<BUCKET>/<SLUG>\n",
+  "err": "codex failed: codex ended without an answer\n",
+  "code": 1,
+  "files": [
+   "_ü/ 493",
+   "_ü/b cQ9/ 493",
+   "_ü/b cQ9/üİ/ 493",
+   "_ü/b cQ9/üİ/out/ 493",
+   "_ü/b cQ9/üİ/out/<BUCKET>/ 493",
+   "_ü/b cQ9/üİ/out/<BUCKET>/<SLUG>/ 493",
+   "_ü/b cQ9/üİ/out/<BUCKET>/<SLUG>/codex.md 420 e3b0c44298fc1c14 \"\"",
+   "_ü/b cQ9/üİ/out/<BUCKET>/<SLUG>/codex.stderr 420 e3b0c44298fc1c14 \"\"",
+   "_ü/b cQ9/üİ/out/<BUCKET>/<SLUG>/events.jsonl 420 e3b0c44298fc1c14 \"\"",
+   "_ü/b cQ9/üİ/out/<BUCKET>/<SLUG>/manifest.json 420 1ea8cc90fc7b9ef8 ",
+   "_ü/b cQ9/üİ/out/<BUCKET>/<SLUG>/prompt.md 420 8f32e06b01204f44 \"prompt 937\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>/_ü/b cQ9/üİ\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/_ü/b cQ9/üİ/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>/_ü/b cQ9/üİ\n\n--\n",
+  "requests": []
+ },
+ "seed-7-15": {
+  "out": "{\"source\":\"claude\",\"target\":\"codex\",\"profile\":\"standard\",\"promptSource\":\"inline\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"<DIR>/Q9b c/out/<BUCKET>/<SLUG>\",\"promptFilePath\":\"<DIR>/Q9b c/out/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/codex\",\"args\":[\"exec\",\"-C\",\"<DIR>/Q9b c\",\"--json\",\"--color\",\"never\",\"--sandbox\",\"read-only\",\"--model\",\"gpt-6-sol\",\"-c\",\"web_search=live\",\"-c\",\"model_reasoning_effort=medium\",\"--skip-git-repo-check\",\"Read the file at <DIR>/Q9b c/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>/Q9b c\",\"model\":\"gpt-6-sol\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "Q9b c/ 493",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "seed-7-16": {
+  "out": "<DIR>/üb c/İ--/out/<BUCKET>/<SLUG>\n",
+  "err": "codex failed: codex ended without an answer\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493",
+   "üb c/ 493",
+   "üb c/İ--/ 493",
+   "üb c/İ--/out/ 493",
+   "üb c/İ--/out/<BUCKET>/ 493",
+   "üb c/İ--/out/<BUCKET>/<SLUG>/ 493",
+   "üb c/İ--/out/<BUCKET>/<SLUG>/codex.md 420 e3b0c44298fc1c14 \"\"",
+   "üb c/İ--/out/<BUCKET>/<SLUG>/codex.stderr 420 e3b0c44298fc1c14 \"\"",
+   "üb c/İ--/out/<BUCKET>/<SLUG>/events.jsonl 420 27bc21cf0d34000f \"{\\\"type\\\":\\\"result\\\",\\\"subtype\\\":\\\"success\\\",\\\"result\\\":\\\"ok 654\\\"}\\n\"",
+   "üb c/İ--/out/<BUCKET>/<SLUG>/manifest.json 420 807dc0f34487ffd5 ",
+   "üb c/İ--/out/<BUCKET>/<SLUG>/prompt.md 420 2566cca96fbffac0 \"prompt 654\""
+  ],
+  "agents": "<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>/üb c/İ--\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/üb c/İ--/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>/üb c/İ--\n\n--\n",
+  "requests": []
+ },
+ "seed-7-17": {
+  "out": "<DIR>/İK/--b c/_A/out/<BUCKET>/<SLUG>\n",
+  "err": "codex failed: codex ended without an answer\n",
+  "code": 1,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493",
+   "İK/ 493",
+   "İK/--b c/ 493",
+   "İK/--b c/_A/ 493",
+   "İK/--b c/_A/out/ 493",
+   "İK/--b c/_A/out/<BUCKET>/ 493",
+   "İK/--b c/_A/out/<BUCKET>/<SLUG>/ 493",
+   "İK/--b c/_A/out/<BUCKET>/<SLUG>/codex.md 420 e3b0c44298fc1c14 \"\"",
+   "İK/--b c/_A/out/<BUCKET>/<SLUG>/codex.stderr 420 e3b0c44298fc1c14 \"\"",
+   "İK/--b c/_A/out/<BUCKET>/<SLUG>/events.jsonl 420 0a34749e7ce2704e \"{\\\"type\\\":\\\"assistant\\\",\\\"message\\\":{\\\"content\\\":[{\\\"type\\\":\\\"text\\\",\\\"text\\\":\\\"t332\\\"},[]]}}\\n01\\n[1,2]\\n\"",
+   "İK/--b c/_A/out/<BUCKET>/<SLUG>/manifest.json 420 fc251a67f108580a ",
+   "İK/--b c/_A/out/<BUCKET>/<SLUG>/prompt.md 420 5078d556b36b307e \"prompt 332\""
+  ],
+  "agents": "<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>/İK/--b c/_A\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/İK/--b c/_A/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>/İK/--b c/_A\n\n--\n",
+  "requests": []
+ },
+ "seed-7-18": {
+  "out": "<DIR>/Kx.y/--A/üü/out/<BUCKET>/<SLUG>\n",
+  "err": "codex failed: codex ended without an answer\n",
+  "code": 1,
+  "files": [
+   "Kx.y/ 493",
+   "Kx.y/--A/ 493",
+   "Kx.y/--A/üü/ 493",
+   "Kx.y/--A/üü/out/ 493",
+   "Kx.y/--A/üü/out/<BUCKET>/ 493",
+   "Kx.y/--A/üü/out/<BUCKET>/<SLUG>/ 493",
+   "Kx.y/--A/üü/out/<BUCKET>/<SLUG>/codex.md 420 e3b0c44298fc1c14 \"\"",
+   "Kx.y/--A/üü/out/<BUCKET>/<SLUG>/codex.stderr 420 e3b0c44298fc1c14 \"\"",
+   "Kx.y/--A/üü/out/<BUCKET>/<SLUG>/events.jsonl 420 f251ddc12234e0da \"1 2\\n\"",
+   "Kx.y/--A/üü/out/<BUCKET>/<SLUG>/manifest.json 420 77351000a45c5754 ",
+   "Kx.y/--A/üü/out/<BUCKET>/<SLUG>/prompt.md 420 14e6f8794d144abf \"prompt 238\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>/Kx.y/--A/üü\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/Kx.y/--A/üü/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>/Kx.y/--A/üü\n\n--\n",
+  "requests": []
+ },
+ "seed-7-19": {
+  "out": "{\"source\":\"codex\",\"target\":\"claude\",\"profile\":\"deep\",\"promptSource\":\"inline\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"<DIR>/x.y_/Ab c/out/<BUCKET>/<SLUG>\",\"promptFilePath\":\"<DIR>/x.y_/Ab c/out/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/claude\",\"args\":[\"-p\",\"--output-format\",\"stream-json\",\"--verbose\",\"--model\",\"opus\",\"--effort\",\"max\",\"--tools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--allowedTools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--strict-mcp-config\",\"--no-session-persistence\",\"Read the file at <DIR>/x.y_/Ab c/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>/x.y_/Ab c\",\"model\":\"opus\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493",
+   "x.y_/ 493",
+   "x.y_/Ab c/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "seed-7-20": {
+  "out": "{\"source\":\"codex\",\"target\":\"claude\",\"profile\":\"deep\",\"promptSource\":\"inline\",\"outputBucket\":\"<BUCKET>\",\"outputDir\":\"<DIR>/Q9_/Ax.y/Kü/out/<BUCKET>/<SLUG>\",\"promptFilePath\":\"<DIR>/Q9_/Ax.y/Kü/out/<BUCKET>/<SLUG>/prompt.md\",\"invocation\":{\"cmd\":\"<DIR>/bin/claude\",\"args\":[\"-p\",\"--output-format\",\"stream-json\",\"--verbose\",\"--model\",\"opus\",\"--effort\",\"max\",\"--tools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--allowedTools\",\"Read,Glob,Grep,WebFetch,WebSearch\",\"--strict-mcp-config\",\"--no-session-persistence\",\"Read the file at <DIR>/Q9_/Ax.y/Kü/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\"],\"cwd\":\"<DIR>/Q9_/Ax.y/Kü\",\"model\":\"opus\"}}\n",
+  "err": "",
+  "code": 0,
+  "files": [
+   "Q9_/ 493",
+   "Q9_/Ax.y/ 493",
+   "Q9_/Ax.y/Kü/ 493",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "",
+  "requests": []
+ },
+ "seed-7-21": {
+  "out": "<DIR>/Q9--/Kİ/x.yİ/out/<BUCKET>/<SLUG>\n",
+  "err": "codex failed: codex ended without an answer\n",
+  "code": 1,
+  "files": [
+   "Q9--/ 493",
+   "Q9--/Kİ/ 493",
+   "Q9--/Kİ/x.yİ/ 493",
+   "Q9--/Kİ/x.yİ/out/ 493",
+   "Q9--/Kİ/x.yİ/out/<BUCKET>/ 493",
+   "Q9--/Kİ/x.yİ/out/<BUCKET>/<SLUG>/ 493",
+   "Q9--/Kİ/x.yİ/out/<BUCKET>/<SLUG>/codex.md 420 e3b0c44298fc1c14 \"\"",
+   "Q9--/Kİ/x.yİ/out/<BUCKET>/<SLUG>/codex.stderr 420 e3b0c44298fc1c14 \"\"",
+   "Q9--/Kİ/x.yİ/out/<BUCKET>/<SLUG>/events.jsonl 420 e3b0c44298fc1c14 \"\"",
+   "Q9--/Kİ/x.yİ/out/<BUCKET>/<SLUG>/manifest.json 420 04a132d48d9ad9f7 ",
+   "Q9--/Kİ/x.yİ/out/<BUCKET>/<SLUG>/prompt.md 420 64a2c2ed9f9b48bb \"prompt 685\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>/Q9--/Kİ/x.yİ\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/Q9--/Kİ/x.yİ/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>/Q9--/Kİ/x.yİ\n\n--\n",
+  "requests": []
+ },
+ "seed-7-22": {
+  "out": "<DIR>/_K/out/<BUCKET>/<SLUG>\n",
+  "err": "codex failed: codex ended without an answer\n",
+  "code": 1,
+  "files": [
+   "_K/ 493",
+   "_K/out/ 493",
+   "_K/out/<BUCKET>/ 493",
+   "_K/out/<BUCKET>/<SLUG>/ 493",
+   "_K/out/<BUCKET>/<SLUG>/codex.md 420 e3b0c44298fc1c14 \"\"",
+   "_K/out/<BUCKET>/<SLUG>/codex.stderr 420 e3b0c44298fc1c14 \"\"",
+   "_K/out/<BUCKET>/<SLUG>/events.jsonl 420 f251ddc12234e0da \"1 2\\n\"",
+   "_K/out/<BUCKET>/<SLUG>/manifest.json 420 08a56b2be090006d ",
+   "_K/out/<BUCKET>/<SLUG>/prompt.md 420 0e347f684f7ea914 \"prompt 270\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>/_K\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/_K/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>/_K\n\n--\n",
+  "requests": []
+ },
+ "seed-7-23": {
+  "out": "",
+  "err": "Internal error: SyntaxError: Failed to parse JSONL\n",
+  "code": 1,
+  "files": [
+   "AA/ 493",
+   "AA/out/ 493",
+   "AA/out/<BUCKET>/ 493",
+   "AA/out/<BUCKET>/<SLUG>/ 493",
+   "AA/out/<BUCKET>/<SLUG>/codex.stderr 420 e3b0c44298fc1c14 \"\"",
+   "AA/out/<BUCKET>/<SLUG>/events.jsonl 420 12bc4b4ece141c1f \"Error 66: y\\n\"",
+   "AA/out/<BUCKET>/<SLUG>/prompt.md 420 c8a10356cd74cc1e \"prompt 66\"",
+   "prompt.md 420 3d8abe3394ab1514 \"Prompt from a file.\\n\"",
+   "sub/ 493"
+  ],
+  "agents": "<DIR>/bin/codex\u0000exec\u0000-C\u0000<DIR>/AA\u0000--json\u0000--color\u0000never\u0000--sandbox\u0000read-only\u0000--model\u0000gpt-6-sol\u0000-c\u0000web_search=live\u0000-c\u0000model_reasoning_effort=medium\u0000--skip-git-repo-check\u0000Read the file at <DIR>/AA/out/<BUCKET>/<SLUG>/prompt.md and follow the instructions within it.\n<DIR>/AA\n\n--\n",
+  "requests": []
+ }
+}

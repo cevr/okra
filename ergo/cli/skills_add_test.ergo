@@ -1,0 +1,58 @@
+import io
+import prompt
+import strings
+import term
+
+// The multi-select of `skills add` runs on std term's Script (scripted
+// keys, no terminal) and draws on an io.Recorder.
+
+type picked { Names []string, Prompts string, Failure string }
+
+func folder(name string, installed bool) choice { choice{Name: name, Install: FromFolder{Path: "./" + name}, Installed: installed} }
+
+func picking(keys []term.Key, choices []choice) picked {
+	let prompts = io.NewRecorder()
+	let terminal = term.NewScript(keys, term.Window{Cols: 80, Rows: 24})
+	let got = with context { term.Terminal: terminal, io.Stderr: prompts } { attemptChoose(choices) }
+	picked{Names: got.Names, Prompts: prompts.Text(), Failure: got.Failure}
+}
+
+func attemptChoose(choices []choice) picked needs term.Terminal | io.Stderr {
+	let plans = choose("Select skills to install from ./src", choices) catch {
+	case prompt.NotInteractive:
+		return picked{Names: []string{}, Prompts: "", Failure: "not interactive"}
+	case prompt.Cancelled:
+		return picked{Names: []string{}, Prompts: "", Failure: "cancelled"}
+	case io.ReadFailed as e:
+		return picked{Names: []string{}, Prompts: "", Failure: "read: " + e.Reason}
+	}
+	let mut names = []string{}
+	for p in plans { names = names.Append(p.Display) }
+	picked{Names: names, Prompts: "", Failure: ""}
+}
+
+// Mutants: installed-choice-installs (the filter on Installed removed),
+// installed-not-labelled (the label suffix removed).
+test AddMarksOnlyWhatIsNotInstalled {
+	let choices = []choice{folder("a", true), folder("b", false), folder("c", false)}
+	let space = term.Char{Text: " "}
+	let r = picking([]term.Key{space, term.Down, term.Down, space, term.Return}, choices)
+	assert r.Failure == ""
+	assert strings.Join(r.Names, ",") == "c"
+	assert strings.Contains(r.Prompts, "Select skills to install from ./src") && strings.Contains(r.Prompts, "a (installed)")
+}
+
+// Mutants: empty-answer-accepted (the minimum of one dropped: an empty
+// answer installs nothing).
+test AddAsksAgainUntilOneIsChosen {
+	let choices = []choice{folder("a", false), folder("b", false)}
+	let r = picking([]term.Key{term.Return, term.Down, term.Char{Text: " "}, term.Return}, choices)
+	assert r.Failure == ""
+	assert strings.Join(r.Names, ",") == "b"
+	// Two prompts ended (each ends with a carriage return and line feed).
+	assert strings.Count(r.Prompts, "\r\n") == 2
+	let all = picking([]term.Key{term.Return}, []choice{folder("a", true), folder("b", true)})
+	assert all.Failure == "" && len(all.Names) == 0
+	let gone = picking([]term.Key{term.Escape}, choices)
+	assert gone.Failure == "cancelled"
+}

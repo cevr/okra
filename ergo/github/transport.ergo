@@ -1,0 +1,311 @@
+import exec
+import hex
+import http
+import json
+import okraport/jsview
+import okraport/skills
+import strings
+import sync
+import timeout
+import utf8
+
+// GitHub as the skills commands read it: the REST contents, trees and blobs
+// endpoints and raw file reads, through the gh program when it is signed in
+// and no GITHUB_TOKEN is set, else over HTTP. Every request has the
+// reference's 30-second limit.
+
+// Rewrite sends a URL that starts with From to To instead. Only an offline
+// parity entry passes any; production sends every URL as it is named.
+type Rewrite { From string, To string }
+
+type Mode = ViaHTTP{} | ViaGh{}
+
+// Hub is the GitHub transport. The mode is chosen on first use and kept.
+type Hub { rewrites []Rewrite, token Option[string], mode sync.Ref[Option[Mode]] }
+
+func New(rewrites []Rewrite, token Option[string]) Hub {
+	Hub{rewrites: rewrites, token: token, mode: sync.NewRef[Option[Mode]](None)}
+}
+
+func target(h Hub, url string) string {
+	for r in h.rewrites { if strings.HasPrefix(url, r.From) { return r.To + url[len(r.From):] } }
+	url
+}
+
+// origin is scheme://host[:port] of an absolute URL.
+func origin(url string) string {
+	let scheme = strings.Index(url, "://")
+	if scheme < 0 { return url }
+	let rest = url[scheme+3:]
+	let slash = strings.Index(rest, "/")
+	if slash < 0 { url } else { url[:scheme+3+slash] }
+}
+
+// credentials is the token, bound to the two GitHub origins only: it never
+// reaches skills.sh or a redirect target on another origin.
+func credentials(h Hub) []http.Credential {
+	match h.token {
+	case None:
+		[]http.Credential{}
+	case Some[string] as t:
+		// One credential per origin: rewrites may send both bases to one.
+		let mut out = []http.Credential{}
+		let mut seen = []string{}
+		for base in []string{"https://api.github.com/", "https://raw.githubusercontent.com/"} {
+			let o = origin(target(h, base))
+			let mut again = false
+			for s in seen { if s == o { again = true } }
+			if again { continue }
+			seen = seen.Append(o)
+			let c = http.ForOrigin(o, http.Field{Name: "Authorization", Value: "token " + t.Value}) catch {
+			case http.InvalidClient:
+				continue
+			}
+			out = out.Append(c)
+		}
+		out
+	}
+}
+
+let limit = 30s
+let timedOut = "timed out after 30 seconds"
+
+func fetchOnce(r http.URLRequest) Option[http.Response] needs http.Network {
+	let response = http.Fetch(r) catch {
+	case _:
+		return None
+	}
+	Some[http.Response]{Value: response}
+}
+
+func runOnce(c exec.Command) Option[exec.Result] needs exec.Runner {
+	let result = exec.Runner.Run(c) catch {
+	case exec.NotFound, exec.Denied, exec.Failed:
+		return None
+	}
+	Some[exec.Result]{Value: result}
+}
+
+// Get is one GET of url (as the reference names it) with the 2xx filter.
+func Get(h Hub, url string, accept Option[string], label string, withToken bool) string fails skills.Failed needs http.Network | Scheduler {
+	let mut header = []http.Field{}
+	match accept {
+	case None:
+	case Some[string] as a:
+		header = header.Append(http.Field{Name: "Accept", Value: a.Value})
+	}
+	header = header.Append(http.Field{Name: "User-Agent", Value: "@cvr/skills"})
+	let request = http.URLRequest{URL: target(h, url), Method: "GET", Header: header, Credentials: if withToken { credentials(h) } else { []http.Credential{} }, Body: ""}
+	let response = timeout.After(limit) { fetchOnce(request) } catch {
+	case timeout.Expired:
+		return skills.FetchFailed(label, timedOut)
+	}
+	match response {
+	case None:
+		// Declared difference: one text for every transport failure.
+		skills.FetchFailed(label, "HttpClientError: Transport error (GET "+url+")")
+	case Some[http.Response] as r:
+		if r.Value.Status < 200 || r.Value.Status > 299 { return skills.FetchFailed(label, "HttpClientError: StatusCode: non 2xx status code (\(r.Value.Status) GET "+url+")") }
+		r.Value.Body
+	}
+}
+
+let ghEnv = []string{"GH_PROMPT_DISABLED", "GH_NO_UPDATE_NOTIFIER"}
+
+func ghCommand(args []string) exec.Command {
+	let mut c = exec.New("gh", args)
+	for k in ghEnv { c = c.WithEnv(k, "1") }
+	c
+}
+
+// Gh runs `gh args` to its end and gives its standard output.
+func Gh(args []string) string fails skills.Failed needs exec.Runner | Scheduler {
+	let label = "gh:" + strings.Join(args, " ")
+	let result = timeout.After(limit) { runOnce(ghCommand(args)) } catch {
+	case timeout.Expired:
+		return skills.FetchFailed(label, timedOut)
+	}
+	match result {
+	case None:
+		// Declared difference: a gh that passed --version but then cannot
+		// start is named without the platform's text.
+		skills.FetchFailed(label, "gh could not be started")
+	case Some[exec.Result] as r:
+		if r.Value.Status != 0 {
+			let err = skills.Trim(r.Value.Stderr)
+			return skills.FetchFailed(label, if err == "" { "gh exited with code \(r.Value.Status)" } else { err })
+		}
+		r.Value.Stdout
+	}
+}
+
+func ghAvailable() bool needs exec.Runner | Scheduler {
+	let version = timeout.After(limit) { runOnce(ghCommand([]string{"--version"})) } catch {
+	case timeout.Expired:
+		return false
+	}
+	match version {
+	case None:
+		return false
+	case Some[exec.Result] as r:
+		if r.Value.Status != 0 { return false }
+	}
+	let _ = Gh([]string{"auth", "status"}) catch {
+	case skills.Failed:
+		return false
+	}
+	true
+}
+
+// ModeOf is the transport the reference picks: gh when no token is set and
+// gh is installed and signed in, otherwise HTTP.
+func ModeOf(h Hub) Mode needs exec.Runner | Scheduler {
+	match h.mode.Get() {
+	case Some[Mode] as m:
+		m.Value
+	case None:
+		let chosen = if h.token == None && ghAvailable() { ViaGh } else { ViaHTTP }
+		h.mode.Set(Some[Mode]{Value: chosen})
+		chosen
+	}
+}
+
+// URIComponent is encodeURIComponent.
+func URIComponent(s string) string {
+	let mut out = ""
+	for c in s {
+		let keep = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.' || c == '!' || c == '~' || c == '*' || c == '\'' || c == '(' || c == ')'
+		if keep {
+			out = out + utf8.RuneText(c)
+		} else {
+			let h = strings.ToUpper(hex.Encode(utf8.RuneText(c)))
+			for i in 0..len(h)/2 { out = out + "%" + h[2*i:2*i+2] }
+		}
+	}
+	out
+}
+
+func encodePath(path string) string {
+	let mut parts = []string{}
+	for p in strings.Split(path, "/") { parts = parts.Append(URIComponent(p)) }
+	strings.Join(parts, "/")
+}
+
+func refQuery(ref Option[string]) string {
+	match ref {
+	case None:
+		""
+	case Some[string] as r:
+		if r.Value == "" { "" } else { "?ref=" + URIComponent(r.Value) }
+	}
+}
+
+func contentsEndpoint(owner string, repo string, path string, ref Option[string]) string {
+	"repos/" + owner + "/" + repo + "/contents" + (if path == "" { "" } else { "/" + encodePath(path) }) + refQuery(ref)
+}
+
+func treeEndpoint(owner string, repo string, ref string, recursive bool) string {
+	"repos/" + owner + "/" + repo + "/git/trees/" + URIComponent(ref) + (if recursive { "?recursive=1" } else { "" })
+}
+
+// Content is one entry of a contents listing.
+type Content { Name string, Path string, Kind string }
+
+// TreeEntry is one entry of a git tree.
+type TreeEntry { Path string, Kind string, Sha string, Mode string }
+
+type Tree { Entries []TreeEntry, Truncated bool }
+
+func oneOf(v string, allowed []string) bool {
+	for a in allowed { if a == v { return true } }
+	false
+}
+
+func decodeContents(text string) []Content fails jsview.Invalid {
+	let mut out = []Content{}
+	for item in try jsview.Items(try jsview.Parse(text)) {
+		let kind = try jsview.Text(try jsview.Required(item, "type"))
+		if !oneOf(kind, []string{"file", "dir", "symlink", "submodule"}) { return jsview.Invalid }
+		out = out.Append(Content{Name: try jsview.Text(try jsview.Required(item, "name")), Path: try jsview.Text(try jsview.Required(item, "path")), Kind: kind})
+	}
+	out
+}
+
+func decodeTree(text string) Tree fails jsview.Invalid {
+	let v = try jsview.Parse(text)
+	let mut entries = []TreeEntry{}
+	for item in try jsview.Items(try jsview.Required(v, "tree")) {
+		let kind = try jsview.Text(try jsview.Required(item, "type"))
+		if !oneOf(kind, []string{"blob", "tree", "commit"}) { return jsview.Invalid }
+		entries = entries.Append(TreeEntry{Path: try jsview.Text(try jsview.Required(item, "path")), Kind: kind, Sha: try jsview.Text(try jsview.Required(item, "sha")), Mode: try jsview.Text(try jsview.Required(item, "mode"))})
+	}
+	let truncated = match try jsview.Required(v, "truncated") {
+	case json.Boolean as b:
+		b.Value
+	case _:
+		return jsview.Invalid
+	}
+	Tree{Entries: entries, Truncated: truncated}
+}
+
+// shapeCause is the declared stand-in for the reference's schema error text.
+let shapeCause = "unexpected response shape"
+
+let jsonAccept = "application/vnd.github.v3+json"
+let rawAccept = "application/vnd.github.raw"
+
+// ListContents lists a folder of a repo.
+func ListContents(h Hub, owner string, repo string, path string, ref Option[string]) []Content fails skills.Failed needs http.Network | exec.Runner | Scheduler {
+	let label = "github:" + owner + "/" + repo + "/" + path
+	let text = match ModeOf(h) {
+	case ViaGh:
+		try Gh([]string{"api", "-H", "Accept: " + jsonAccept, contentsEndpoint(owner, repo, path, ref)})
+	case ViaHTTP:
+		let url = "https://api.github.com/repos/" + owner + "/" + repo + "/contents/" + encodePath(path) + refQuery(ref)
+		try Get(h, url, Some[string]{Value: jsonAccept}, label, true)
+	}
+	decodeContents(text) catch {
+	case jsview.Invalid:
+		return skills.FetchFailed(label, shapeCause)
+	}
+}
+
+// FetchRaw is one file's bytes at ref.
+func FetchRaw(h Hub, owner string, repo string, path string, ref string) string fails skills.Failed needs http.Network | exec.Runner | Scheduler {
+	let label = "github:" + owner + "/" + repo + "/" + path
+	match ModeOf(h) {
+	case ViaGh:
+		Gh([]string{"api", "-H", "Accept: " + rawAccept, contentsEndpoint(owner, repo, path, Some[string]{Value: ref})}) catch {
+		case skills.Failed as f:
+			return skills.FetchFailed(label, "@cvr/okra/skills/SkillsError: "+f.Message)
+		}
+	case ViaHTTP:
+		try Get(h, "https://raw.githubusercontent.com/"+owner+"/"+repo+"/"+ref+"/"+path, None, label, true)
+	}
+}
+
+// FetchTree is a git tree, recursive or one level.
+func FetchTree(h Hub, owner string, repo string, ref string, recursive bool) Tree fails skills.Failed needs http.Network | exec.Runner | Scheduler {
+	let label = "github:" + owner + "/" + repo + "/tree/" + ref
+	let text = match ModeOf(h) {
+	case ViaGh:
+		try Gh([]string{"api", "-H", "Accept: " + jsonAccept, treeEndpoint(owner, repo, ref, recursive)})
+	case ViaHTTP:
+		try Get(h, "https://api.github.com/"+treeEndpoint(owner, repo, ref, recursive), Some[string]{Value: jsonAccept}, label, true)
+	}
+	decodeTree(text) catch {
+	case jsview.Invalid:
+		return skills.FetchFailed(label, shapeCause)
+	}
+}
+
+// FetchBlob is a blob's bytes (a link's target text).
+func FetchBlob(h Hub, owner string, repo string, sha string, path string) string fails skills.Failed needs http.Network | exec.Runner | Scheduler {
+	let endpoint = "repos/" + owner + "/" + repo + "/git/blobs/" + URIComponent(sha)
+	match ModeOf(h) {
+	case ViaGh:
+		try Gh([]string{"api", "-H", "Accept: " + rawAccept, endpoint})
+	case ViaHTTP:
+		try Get(h, "https://api.github.com/"+endpoint, Some[string]{Value: rawAccept}, "github:"+owner+"/"+repo+"/"+path, true)
+	}
+}

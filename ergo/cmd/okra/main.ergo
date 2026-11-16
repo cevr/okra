@@ -1,0 +1,56 @@
+import exec
+import filepath
+import fs
+import http
+import io
+import okraport/cachefile
+import okraport/cli
+import okraport/how
+import okraport/keyfile
+import okraport/keys
+import okraport/imagehttp
+import okraport/registryhttp
+import okraport/repo
+import okraport/github
+import okraport/skillfile
+import okraport/skills
+import okraport/skillsh
+import okraport/schedule
+import okraport/taskfile
+import os
+import rand
+import term
+import time
+// The binary carries Go's zone data: a zone the host lacks still loads.
+import go time/tzdata
+
+// Registry documents and tarballs are buffered, as the reference buffers
+// them; the budget bounds memory. Redirects follow fetch's default limit.
+let registryLimits = http.Limits{MaxBodyBytes: 536870912, MaxHeaderBytes: 1048576, IdleTimeout: 30s, ReadHeaderTimeout: 30s, ReadBodyTimeout: 30s}
+
+func main() fails os.Exit needs Ambient | go.Foreign {
+	let process = os.NewHost()
+	let disk = fs.NewHost()
+	let home = process.Getenv("HOME")
+	let dir = cachefile.Dir(home)
+	// The reference fetches whatever URL a registry names, so the policy is
+	// any origin; no credential is ever attached to these requests.
+	let network = http.NewNet(http.AnyOrigin, registryLimits, http.Follow{MaxHops: 20}) catch {
+	case http.InvalidClient as e:
+		return os.Exit{Code: 1, Message: "[NETWORK] " + e.Reason}
+	case http.InvalidLimits:
+		return os.Exit{Code: 1, Message: "[NETWORK] invalid HTTP limits"}
+	}
+	let homeText = match home {
+	case None:
+		""
+	case Some[string] as h:
+		h.Value
+	}
+	let kit = cli.SkillsSetup{Dir: skillfile.Dir(process.Getenv("SKILLS_DIR"), home), Home: homeText, Hub: github.New([]github.Rewrite{}, process.Getenv("GITHUB_TOKEN")), Search: []skillsh.Rewrite{}}
+	let tasks = taskfile.New(disk, disk, filepath.Join([]string{homeText, ".okra", "schedule", "tasks"}))
+	with context { keys.Store: keyfile.New(disk, disk, home), repo.Catalog: cachefile.New(disk, disk, dir), skills.Locks: skillfile.New(disk, disk, kit.Dir), schedule.Tasks: tasks, term.Terminal: term.NewHost(), Scheduler: NewLiveScheduler(), Random: rand.NewHost(), os.Process: process, io.Stdin: io.NewStdin(), io.Stdout: io.NewHost(), io.Stderr: io.NewErrors(), fs.Files: disk, fs.Writes: disk, exec.Runner: exec.NewHost(), http.Network: network, time.Clock: time.NewHost() } {
+		let args = os.Process.Args()
+		try cli.Run(args, how.All(), cli.RepoSetup{Dir: dir, Transport: registryhttp.Direct()}, kit, imagehttp.Direct())
+	}
+}

@@ -1,0 +1,128 @@
+import exec
+import filepath
+import fs
+import okraport/counsel
+import okraport/schedule
+import okraport/taskfile
+
+// launchd installs and removes a task's job through launchctl and its
+// property list in the LaunchAgents folder, as the reference's
+// LaunchdService does. launchctl is looked up on the PATH.
+
+// Agents is where the property lists live, and the plist of a task.
+type Agents { Dir string }
+
+func Plist(a Agents, id string) string { filepath.Join([]string{a.Dir, schedule.Label(id) + ".plist"}) }
+
+// SpawnText is the reference's text of a program that did not start.
+func SpawnText(kind string, words []string) string { kind + ": ChildProcess.spawn (" + counsel.Display(words) + ")" }
+
+// Unspawned is a launchctl that could not start, with the platform text.
+type Unspawned { Text string }
+
+func launchctl(args []string) exec.Result fails Unspawned needs exec.Runner {
+	let words = concat([]string{"launchctl"}, args)
+	exec.Runner.Run(exec.New("launchctl", args)) catch {
+	case exec.NotFound:
+		return Unspawned{Text: SpawnText("NotFound", words)}
+	case exec.Denied:
+		return Unspawned{Text: SpawnText("PermissionDenied", words)}
+	case exec.Failed:
+		return Unspawned{Text: SpawnText("Unknown", words)}
+	}
+}
+
+func previous(path string) Option[string] needs fs.Files {
+	let text = fs.Files.ReadFile(path) catch {
+	case _:
+		return None
+	}
+	Some[string]{Value: text}
+}
+
+func concat(xs []string, ys []string) []string {
+	let mut out = xs
+	for y in ys { out = out.Append(y) }
+	out
+}
+
+// Loaded is whether launchctl lists the task's job.
+func Loaded(id string) bool fails schedule.Failed needs exec.Runner {
+	let r = launchctl([]string{"list", schedule.Label(id)}) catch {
+	case Unspawned:
+		return schedule.Fail("LAUNCHD_FAILED", "Cannot check launchctl")
+	}
+	r.Status == 0
+}
+
+// why is launchctl's trimmed standard error, or its exit status.
+func why(r exec.Result) string {
+	let text = schedule.Trim(schedule.DecodeUTF8(r.Stderr))
+	if text != "" { text } else { "exit code " + schedule.Text(float64(r.Status)) }
+}
+
+// Install writes the task's plist and loads it. A plist that was there is
+// unloaded first; when the new one does not load, the old one is put back
+// and loaded again before the failure.
+func Install(a Agents, t schedule.Task, job schedule.Job) fails schedule.Failed needs exec.Runner | fs.Files | fs.Writes {
+	let plist = Plist(a, t.ID)
+	let label = schedule.Label(t.ID)
+	fs.Writes.MkdirAll(a.Dir) catch {
+	case fs.Denied:
+		return schedule.Fail("WRITE_FAILED", "Cannot create LaunchAgents dir: "+taskfile.Platform("PermissionDenied", "makeDirectory", a.Dir))
+	case fs.Failed as e:
+		return schedule.Fail("WRITE_FAILED", "Cannot create LaunchAgents dir: "+taskfile.Platform(taskfile.Kind(e.Reason), "makeDirectory", a.Dir))
+	}
+	let old = previous(plist)
+	if try Loaded(t.ID) {
+		launchctl([]string{"unload", plist}) catch {
+		case Unspawned:
+		}
+	}
+	fs.Writes.WriteFile(plist, schedule.Plist(t, job)) catch {
+	case fs.NotFound:
+		return schedule.Fail("WRITE_FAILED", "Cannot write plist: "+taskfile.Platform("NotFound", "writeFile", plist))
+	case fs.Denied:
+		return schedule.Fail("WRITE_FAILED", "Cannot write plist: "+taskfile.Platform("PermissionDenied", "writeFile", plist))
+	case fs.Failed as e:
+		return schedule.Fail("WRITE_FAILED", "Cannot write plist: "+taskfile.Platform(taskfile.Kind(e.Reason), "writeFile", plist))
+	}
+	let loaded = launchctl([]string{"load", plist}) catch {
+	case Unspawned as u:
+		return schedule.Fail("LAUNCHD_FAILED", "Cannot load "+label+": "+u.Text)
+	}
+	if loaded.Status != 0 {
+		match old {
+		case None:
+		case Some[string] as text:
+			fs.Writes.WriteFile(plist, text.Value) catch {
+			case _:
+			}
+			launchctl([]string{"unload", plist}) catch {
+			case Unspawned:
+			}
+			launchctl([]string{"load", plist}) catch {
+			case Unspawned:
+			}
+		}
+		return schedule.Fail("LAUNCHD_FAILED", "Cannot load "+label+": "+why(loaded))
+	}
+}
+
+// Uninstall unloads the task's job when it is loaded and removes its
+// plist. A job that stays loaded keeps its plist and fails.
+func Uninstall(a Agents, id string) fails schedule.Failed needs exec.Runner | fs.Writes {
+	let plist = Plist(a, id)
+	if try Loaded(id) {
+		let r = launchctl([]string{"unload", plist}) catch {
+		case Unspawned:
+			return schedule.Fail("LAUNCHD_FAILED", "Cannot run launchctl unload")
+		}
+		if r.Status != 0 && (try Loaded(id)) {
+			return schedule.Fail("LAUNCHD_FAILED", "Cannot unload "+schedule.Label(id)+": "+why(r)+". Job is still running — plist not removed.")
+		}
+	}
+	fs.Writes.Remove(plist) catch {
+	case _:
+	}
+}

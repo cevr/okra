@@ -1,0 +1,84 @@
+import strings
+
+// Reason is why a task stops: the first deterministic stop that holds.
+type Reason { Stop Stop, Description string }
+
+func utcOffset(_ int64) int { 0 }
+
+// Due is the first stop condition of t that holds at now (milliseconds):
+// enough runs, or a time past its stop date.
+func Due(t Task, now int64) Option[Reason] {
+	let stops = match t.Stops {
+	case None:
+		return None
+	case Some[[]Stop] as s:
+		s.Value
+	}
+	for s in stops {
+		match s {
+		case MaxRuns as m:
+			if t.RunCount >= m.Count { return Some[Reason]{Value: Reason{Stop: s, Description: "reached max runs (" + Text(t.RunCount) + "/" + Text(m.Count) + ")"}} }
+		case AfterDate as a:
+			// An unreadable date is NaN, and no time is past NaN.
+			match Millis(a.Date, utcOffset) {
+			case None:
+			case Some[int64] as stop:
+				if now > stop.Value { return Some[Reason]{Value: Reason{Stop: s, Description: "past stop date (" + a.Date + ")"}} }
+			}
+		}
+	}
+	None
+}
+
+// DayText is formatDate: the UTC day of an ISO text, or the text itself
+// when it does not read as a date.
+func DayText(iso string) string {
+	match Millis(iso, utcOffset) {
+	case None:
+		iso
+	case Some[int64] as ms:
+		let c = CivilOf(ms.Value)
+		PadZero(Text(float64(c.Year)), 4) + "-" + PadZero(Text(float64(c.Month)), 2) + "-" + PadZero(Text(float64(c.Day)), 2)
+	}
+}
+
+// DescribeStops is the stop conditions as the report and the list print
+// them, "0/3 runs, until 2026-03-20".
+func DescribeStops(t Task) string {
+	let mut parts = []string{}
+	match t.Stops {
+	case None:
+	case Some[[]Stop] as stops:
+		for s in stops.Value {
+			match s {
+			case MaxRuns as m:
+				parts = parts.Append(Text(t.RunCount) + "/" + Text(m.Count) + " runs")
+			case AfterDate as a:
+				parts = parts.Append("until " + DayText(a.Date))
+			}
+		}
+	}
+	strings.Join(parts, ", ")
+}
+
+// HasStops is whether t has at least one deterministic stop.
+func HasStops(t Task) bool {
+	match t.Stops {
+	case None:
+		false
+	case Some[[]Stop] as s:
+		len(s.Value) > 0
+	}
+}
+
+// MaxRunsStops: a task stops by count exactly when it has run as often.
+law MaxRunsStops(runs uint8, count uint8) {
+	let t = Task{ID: "t", Prompt: "", Provider: Claude, Schedule: Oneshot{At: "", Raw: ""}, Cwd: "", CreatedAt: "", Status: Active, LastRun: None, RunCount: float64(runs), Context: None, Stops: Some[[]Stop]{Value: []Stop{MaxRuns{Count: float64(count)}}}, When: None}
+	(Due(t, 0) != None) == (runs >= count)
+}
+
+// PastDateStops: a task stops by date only after its stop time.
+law PastDateStops(stop int32, now int32) {
+	let t = Task{ID: "t", Prompt: "", Provider: Claude, Schedule: Oneshot{At: "", Raw: ""}, Cwd: "", CreatedAt: "", Status: Active, LastRun: None, RunCount: 0.0, Context: None, Stops: Some[[]Stop]{Value: []Stop{AfterDate{Date: Iso(int64(stop))}}}, When: None}
+	(Due(t, int64(now)) != None) == (now > stop)
+}

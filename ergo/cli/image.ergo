@@ -1,0 +1,151 @@
+import flag
+import fs
+import http
+import io
+import okraport/image
+import okraport/imagehttp
+import okraport/keys
+import os
+import strings
+import time
+import go path/filepath
+
+let imagePromptArg = flag.OptionalArg("prompt", "Text description of the image to generate")
+let imageOutFlag = flag.String("out", "", "Output file path").WithAlias("o").Repeated()
+let imageSizeFlag = flag.String("size", "auto", "Image size: auto or WIDTHxHEIGHT").Repeated()
+let imageFormatFlag = flag.Choice("format", "png", []string{"png", "webp", "jpeg"}, "Output image format").Repeated()
+let imageModelFlag = flag.String("model", "", "Codex model or OpenAI image model").Repeated()
+let imageQualityFlag = flag.Choice("quality", "auto", []string{"auto", "low", "medium", "high", "xhigh", "max"}, "Rendering quality").Repeated()
+let imageBackgroundFlag = flag.Choice("background", "auto", []string{"auto", "transparent", "opaque"}, "Background").Repeated()
+let imageCountFlag = flag.Int("n", 1, "Number of images").Repeated()
+let imageRefFlag = flag.String("ref", "", "Reference image path (repeatable)").Repeated()
+let imageEditFlag = flag.Bool("edit", false, "Edit the source images (OpenAI only)").Repeated()
+let imageMaskFlag = flag.String("mask", "", "PNG mask path").Repeated()
+let imageFidelityFlag = flag.Choice("fidelity", "high", []string{"high", "low"}, "Edit fidelity").Repeated()
+func defaultText(value Option[string], fallback string) string {
+	match value {
+	case None:
+		fallback
+	case Some[string] as s:
+		s.Value
+	}
+}
+func imageCommand() flag.Command[Request] {
+	command("image", []flag.Flag{imageOutFlag, imageSizeFlag, imageFormatFlag, imageModelFlag, imageQualityFlag, imageBackgroundFlag, imageCountFlag, imageRefFlag, imageEditFlag, imageMaskFlag, imageFidelityFlag}, []flag.ArgSpec{imagePromptArg}, func(v flag.Values) Request fails flag.Invalid {
+		let count = imageCountFlag.Get(v)
+		try once("n", len(count))
+		Images{Command: image.Command{
+			Prompt:  imagePromptArg.Get(v), Model: try optionalText("model", imageModelFlag.Get(v)), Out: try optionalText("out", imageOutFlag.Get(v)),
+			Size:    defaultText(try optionalText("size", imageSizeFlag.Get(v)), "auto"), Format: defaultText(try optionalText("format", imageFormatFlag.Get(v)), "png"),
+			Quality: try optionalText("quality", imageQualityFlag.Get(v)), Background: try optionalText("background", imageBackgroundFlag.Get(v)), Count: if len(count) == 0 { None } else { Some[int]{Value: count[0]} },
+			Refs:    imageRefFlag.Get(v), Edit: try enabled("edit", imageEditFlag.Get(v)), Mask: try optionalText("mask", imageMaskFlag.Get(v)), Fidelity: try optionalText("fidelity", imageFidelityFlag.Get(v)),
+		}}
+	})
+}
+func readImage(path string, flagName string) image.Part fails image.Failed needs fs.Files {
+	let media = match image.Media(path) {
+	case Some[string] as m:
+		m.Value
+	case None:
+		return image.Part{Data: try image.Invalid("Unsupported " + flagName + " image type: " + path + " (use png/jpg/jpeg/webp/gif)."), Media: ""}
+	}
+	let data = fs.Files.ReadFile(path) catch {
+	case fs.NotFound:
+		return image.Part{Data: try image.Invalid("Cannot read " + flagName + " " + path + ": NotFound: FileSystem.readFile (" + path + ")"), Media: ""}
+	case fs.Denied:
+		return image.Part{Data: try image.Invalid("Cannot read " + flagName + " " + path + ": PermissionDenied: FileSystem.readFile (" + path + ")"), Media: ""}
+	case fs.Failed as f:
+		return image.Part{Data: try image.Invalid("Cannot read " + flagName + " " + path + ": " + fileError(f.Reason) + ": FileSystem.readFile (" + path + ")"), Media: ""}
+	}
+	image.Part{Data: data, Media: media}
+}
+func writeImage(path string, data string) fails image.Failed needs fs.Writes {
+	fs.Writes.WriteFile(path, data) catch {
+	case fs.NotFound:
+		let _ = try image.Fail("WRITE_FAILED", "Cannot write "+path+": NotFound: FileSystem.writeFile ("+path+")")
+	case fs.Denied:
+		let _ = try image.Fail("WRITE_FAILED", "Cannot write "+path+": PermissionDenied: FileSystem.writeFile ("+path+")")
+	case fs.Failed as f:
+		let _ = try image.Fail("WRITE_FAILED", "Cannot write "+path+": "+fileError(f.Reason)+": FileSystem.writeFile ("+path+")")
+	}
+}
+func fileError(reason string) string {
+	if reason == "is a directory" || reason == "not a directory" || reason == "too many levels of symbolic links" { return "BadResource" }
+	if reason == "file exists" { return "AlreadyExists" }
+	if reason == "device or resource busy" { return "Busy" }
+	"Unknown"
+}
+func warnSize(size string, data string) needs io.Stderr {
+	match image.Size(size) {
+	case None:
+	case Some[image.Dimensions] as wanted:
+		match image.DimensionsOf(data) {
+		case None:
+		case Some[image.Dimensions] as actual:
+			if actual.Value != wanted.Value { io.Stderr.Eprintln("Note: codex returned \(actual.Value.Width)x\(actual.Value.Height) for --size " + size + "; the codex backend chooses the final size. Use an OpenAI image model (--model " + image.DefaultImageModel + ") for an exact size.") }
+		}
+	}
+}
+func RunImage(c image.Command, setup imagehttp.Setup) fails image.Failed needs fs.Files | fs.Writes | os.Process | io.Stdout | io.Stderr | http.Network | keys.Store | time.Clock | Scheduler | go.Foreign {
+	let prompt = match c.Prompt {
+	case Some[string] as p:
+		p.Value
+	case None:
+		try image.Invalid("Missing prompt. Usage: okra image \"<prompt>\" [-o out].")
+	}
+	let homeValue = os.Process.Getenv("HOME")
+	let home = defaultText(homeValue, "")
+	let models = match c.Model {
+	case None:
+		if homeValue == None { []string{image.FallbackModel} } else { imagehttp.Models(home, setup) }
+	case Some[string] as m:
+		[]string{m.Value}
+	}
+	let model = models[0]
+	let route = try image.Resolve(c, model)
+	let mut refs = []image.Part{}
+	for path in c.Refs { refs = refs.Append(try readImage(path, "--ref")) }
+	let mask = match c.Mask {
+	case None:
+		None
+	case Some[string] as m:
+		Some[image.Part]{Value: try readImage(m.Value, "--mask")}
+	}
+	let input = image.Input{Prompt: prompt, Model: model, Size: c.Size, Format: c.Format, Quality: c.Quality, Background: c.Background, Count: c.Count, Refs: refs, Mask: mask, Fidelity: c.Fidelity}
+	if route == image.Codex && (c.Quality != None || c.Background != None || c.Count != None) { io.Stderr.Eprintln("Note: --quality/--background/--n apply only to OpenAI image models; ignored for codex.") }
+	io.Stderr.Eprintln(image.Progress(route, input))
+	let images = match route {
+	case image.Generate:
+		try imagehttp.OpenAI(setup, input, false, os.Process.Getenv("OPENAI_API_KEY"))
+	case image.Edit:
+		try imagehttp.OpenAI(setup, input, true, os.Process.Getenv("OPENAI_API_KEY"))
+	case image.Codex:
+		if homeValue == None { let _ = try image.Fail("AUTH_MISSING", "HOME environment variable is not set") }
+		let bytes = try imagehttp.Candidates(setup, input, models, home)
+		warnSize(c.Size, bytes)
+		[]string{bytes}
+	}
+	let out = match c.Out {
+	case Some[string] as o:
+		o.Value
+	case None:
+		filepath.Abs(image.Slug(prompt) + "." + c.Format) catch {
+		case _:
+			image.Slug(prompt) + "." + c.Format
+		}
+	}
+	let dir = filepath.Dir(out)
+	fs.Writes.MkdirAll(dir) catch {
+	case fs.Denied:
+		let _ = try image.Fail("WRITE_FAILED", "Cannot create "+dir+": PermissionDenied: FileSystem.makeDirectory ("+dir+")")
+	case fs.Failed as f:
+		let _ = try image.Fail("WRITE_FAILED", "Cannot create "+dir+": "+fileError(f.Reason)+": FileSystem.makeDirectory ("+dir+")")
+	}
+	let mut paths = []string{}
+	for i, bytes in images {
+		let path = if len(images) == 1 { out } else { image.Suffix(out, i+1) }
+		try writeImage(path, bytes)
+		paths = paths.Append(path)
+	}
+	io.Stdout.Println(strings.Join(paths, "\n"))
+}

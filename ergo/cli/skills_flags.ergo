@@ -1,0 +1,48 @@
+import flag
+
+let sourcesArg = flag.Remaining("source", "GitHub owner/repo[@skill], a search query, or a local path")
+let namesArg = flag.Remaining("name", "Installed skill name or a folder of skills")
+let queryArg = flag.Arg("query", "Search text")
+let skillsDryRunFlag = flag.Bool("dry-run", false, "List outdated skills on stdout without writing anything").Repeated()
+let skillsJsonFlag = flag.Bool("json", false, "Print one JSON report on stdout: outdated, failed, modified, and unchanged skills (with --dry-run: what would change)").Repeated()
+let skillsForceFlag = flag.Bool("force", false, "Overwrite local edits in all managed skills").Repeated()
+
+// atLeastOne is the reference's variadic minimum of one argument.
+func atLeastOne(name string, v flag.Values) []string fails flag.Missing {
+	let rest = flag.Rest(v)
+	if len(rest) == 0 { return flag.Missing{Name: name} }
+	rest
+}
+
+func adder(name string) flag.Command[Request] {
+	command(name, []flag.Flag{}, []flag.ArgSpec{sourcesArg}, func(v flag.Values) Request fails flag.Missing { Skills{Command: AddSkills{Sources: try atLeastOne("source", v)}} })
+}
+
+func remover(name string) flag.Command[Request] {
+	command(name, []flag.Flag{}, []flag.ArgSpec{namesArg}, func(v flag.Values) Request fails flag.Missing { Skills{Command: RemoveSkills{Names: try atLeastOne("name", v)}} })
+}
+
+// skillsGroup is `okra skills`: add (alias i, install), search, remove
+// (alias rm, uninstall), update. A bare `skills` lists; run reads it
+// before the tree, since a std flag group has no command of its own.
+func skillsGroup() flag.Command[Request] {
+	flag.Group("skills", "Manage AI agent skills", []flag.Command[Request]{
+		adder("add"),
+		adder("i"),
+		adder("install"),
+		command("search", []flag.Flag{}, []flag.ArgSpec{queryArg}, func(v flag.Values) Request {
+			match queryArg.Get(v) {
+			case None:
+				Unreachable("required query was not parsed")
+			case Some[string] as q:
+				Skills{Command: SearchSkills{Query: q.Value}}
+			}
+		}),
+		remover("remove"),
+		remover("rm"),
+		remover("uninstall"),
+		command("update", []flag.Flag{skillsDryRunFlag, skillsJsonFlag, skillsForceFlag}, []flag.ArgSpec{}, func(v flag.Values) Request fails flag.Invalid {
+			Skills{Command: UpdateSkills{DryRun: try enabled("dry-run", skillsDryRunFlag.Get(v)), Json: try enabled("json", skillsJsonFlag.Get(v)), Force: try enabled("force", skillsForceFlag.Get(v))}}
+		}),
+	})
+}

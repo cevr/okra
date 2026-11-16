@@ -1,0 +1,36 @@
+import strings
+
+// Label is a task's launchd label.
+func Label(id string) string { "com.cvr.okra.schedule-" + id }
+
+// EscapeXML escapes the five XML special characters.
+func EscapeXML(s string) string {
+	strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(s, "&", "&amp;"), "<", "&lt;"), ">", "&gt;"), "\"", "&quot;"), "'", "&apos;")
+}
+
+func entryXML(e Entry, indent string) string {
+	let mut lines = []string{}
+	for i, k in e.Keys {
+		lines = lines.Append(indent + "<key>" + k + "</key>\n" + indent + "<integer>" + Text(e.Values[i]) + "</integer>")
+	}
+	strings.Join(lines, "\n")
+}
+
+func calendarXML(entries []Entry) string {
+	if len(entries) == 1 {
+		return "  <key>StartCalendarInterval</key>\n  <dict>\n" + entryXML(entries[0], "    ") + "\n  </dict>"
+	}
+	let mut items = []string{}
+	for e in entries { items = items.Append("    <dict>\n" + entryXML(e, "      ") + "\n    </dict>") }
+	"  <key>StartCalendarInterval</key>\n  <array>\n" + strings.Join(items, "\n") + "\n  </array>"
+}
+
+// Job is what a launchd job needs beyond its task: the okra program it
+// runs, the home and PATH it runs with, and its log file.
+type Job { Program string, Home string, Log string, Path string }
+
+// Plist is the launchd property list that runs `okra schedule run <id>`
+// on the task's calendar, with both streams appended to the log.
+func Plist(t Task, j Job) string {
+	"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n  <key>Label</key>\n  <string>" + EscapeXML(Label(t.ID)) + "</string>\n  <key>ProgramArguments</key>\n  <array>\n    <string>" + EscapeXML(j.Program) + "</string>\n    <string>schedule</string>\n    <string>run</string>\n    <string>" + EscapeXML(t.ID) + "</string>\n  </array>\n  <key>EnvironmentVariables</key>\n  <dict>\n    <key>HOME</key>\n    <string>" + EscapeXML(j.Home) + "</string>\n    <key>PATH</key>\n    <string>" + EscapeXML(j.Path) + "</string>\n  </dict>\n  <key>WorkingDirectory</key>\n  <string>" + EscapeXML(t.Cwd) + "</string>\n" + calendarXML(Intervals(t.Schedule)) + "\n  <key>StandardOutPath</key>\n  <string>" + EscapeXML(j.Log) + "</string>\n  <key>StandardErrorPath</key>\n  <string>" + EscapeXML(j.Log) + "</string>\n  <key>KeepAlive</key>\n  <false/>\n</dict>\n</plist>\n"
+}

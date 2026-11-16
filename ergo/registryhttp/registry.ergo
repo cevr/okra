@@ -1,0 +1,397 @@
+import exec
+import fs
+import http
+import json
+import okraport/cachefile
+import okraport/gitexec
+import okraport/jsview
+import okraport/repo
+import strings
+import utf8
+
+// Rewrite sends a URL that starts with From to To instead. Only an offline
+// parity entry passes any; production sends every URL as it is named.
+type Rewrite { From string, To string }
+
+// Transport is how the named URLs reach the network bound in context.
+// Messages always name the URL the CLI asked for.
+type Transport { rewrites []Rewrite }
+
+func Direct() Transport                      { Transport{rewrites: []Rewrite{}} }
+func Rewriting(rewrites []Rewrite) Transport { Transport{rewrites: rewrites} }
+
+func target(t Transport, url string) string {
+	for r in t.rewrites { if strings.HasPrefix(url, r.From) { return r.To + url[len(r.From):] } }
+	url
+}
+
+// Failed is a fetch that did not land, with the reference's code.
+type Failed { Code string, Message string }
+
+func registryError(registry string, operation string, cause string) Failed {
+	Failed{Code: "REGISTRY", Message: "Failed to " + operation + " from " + registry + ": " + cause}
+}
+
+func networkError(url string) Failed {
+	Failed{Code: "NETWORK", Message: "Network request failed: " + url + ": HttpClientError: Transport error (GET " + url + ")"}
+}
+
+func get(t Transport, url string, header []http.Field) http.Response fails Failed needs http.Network {
+	http.Fetch(http.URLRequest{URL: target(t, url), Method: "GET", Header: header, Credentials: []http.Credential{}, Body: ""}) catch {
+	case _:
+		return networkError(url)
+	}
+}
+
+// metadata is one registry document. Declared difference: the cause text of
+// a body that is not JSON or not the expected shape is the port's own.
+func metadata(t Transport, registry string, url string, header []http.Field) json.Value fails Failed needs http.Network {
+	let response = try get(t, url, header)
+	if response.Status != 200 { return registryError(registry, "fetch-metadata", "HTTP \(response.Status)") }
+	jsview.Parse(response.Body) catch {
+	case jsview.Invalid:
+		return registryError(registry, "parse-metadata", "invalid JSON")
+	}
+}
+
+func shapeError(registry string) Failed { registryError(registry, "parse-metadata", "unexpected shape") }
+
+// Host is a forge a package names as its source.
+type Host = GitHubHost{} | GitLab{} | Bitbucket{} | Codeberg{} | SourceHut{}
+type RepoInfo { Host Host, Owner string, Repo string }
+
+func space(c rune) bool {
+	c == 0x9 || c == 0xa || c == 0xb || c == 0xc || c == 0xd || c == 0x20 || c == 0xa0 || c == 0x1680 || (c >= 0x2000 && c <= 0x200a) || c == 0x2028 || c == 0x2029 || c == 0x202f || c == 0x205f || c == 0x3000 || c == 0xfeff
+}
+
+// after reads `([^/]+)\/([^/.\s#]+)` at the start of s.
+func pair(s string) Option[[]string] {
+	let slash = strings.Index(s, "/")
+	if slash <= 0 { return None }
+	let mut end = slash + 1
+	for i, c in s[slash+1:] {
+		if c == '/' || c == '.' || c == '#' || space(c) { break }
+		end = slash + 1 + i + utf8.DecodeRuneInString(s[slash+1+i:]).Size
+	}
+	if end == slash+1 { return None }
+	Some[[]string]{Value: []string{s[:slash], s[slash+1 : end]}}
+}
+
+// found is the first place host`[/:]`(~)?pair matches in url.
+func found(url string, host string, tilde bool) Option[[]string] {
+	let mut from = 0
+	for from <= len(url) {
+		let at = strings.Index(url[from:], host)
+		if at < 0 { return None }
+		let next = from + at + len(host)
+		if next < len(url) && (url[next] == '/' || url[next] == ':') {
+			let rest = url[next+1:]
+			if !tilde || strings.HasPrefix(rest, "~") {
+				match pair(if tilde { rest[1:] } else { rest }) {
+				case Some[[]string] as p:
+					return p
+				case None:
+				}
+			}
+		}
+		from = from + at + 1
+	}
+	None
+}
+
+func anchored(url string, prefix string) Option[[]string] {
+	if !strings.HasPrefix(url, prefix) { return None }
+	pair(url[len(prefix):])
+}
+
+// Info reads a repository URL as the reference's patterns do, in their order.
+func Info(url string) Option[RepoInfo] {
+	let attempts = []Option[[]string]{
+		found(url, "github.com", false), anchored(url, "github:"),
+		found(url, "gitlab.com", false), anchored(url, "gitlab:"),
+		found(url, "bitbucket.org", false), anchored(url, "bitbucket:"),
+		found(url, "codeberg.org", false),
+		found(url, "sr.ht", true), found(url, "git.sr.ht", true),
+	}
+	let hosts = []Host{GitHubHost, GitHubHost, GitLab, GitLab, Bitbucket, Bitbucket, Codeberg, SourceHut, SourceHut}
+	for i, a in attempts {
+		match a {
+		case Some[[]string] as p:
+			return Some[RepoInfo]{Value: RepoInfo{Host: hosts[i], Owner: p.Value[0], Repo: strings.TrimSuffix(p.Value[1], ".git")}}
+		case None:
+		}
+	}
+	None
+}
+
+func hostName(h Host) string {
+	match h {
+	case GitHubHost:
+		"github"
+	case GitLab:
+		"gitlab"
+	case Bitbucket:
+		"bitbucket"
+	case Codeberg:
+		"codeberg"
+	case SourceHut:
+		"sourcehut"
+	}
+}
+
+func CloneURL(i RepoInfo) string {
+	match i.Host {
+	case GitHubHost:
+		"https://github.com/" + i.Owner + "/" + i.Repo + ".git"
+	case GitLab:
+		"https://gitlab.com/" + i.Owner + "/" + i.Repo + ".git"
+	case Bitbucket:
+		"https://bitbucket.org/" + i.Owner + "/" + i.Repo + ".git"
+	case Codeberg:
+		"https://codeberg.org/" + i.Owner + "/" + i.Repo + ".git"
+	case SourceHut:
+		"https://git.sr.ht/~" + i.Owner + "/" + i.Repo
+	}
+}
+
+func gitRef(version string) string { if strings.HasPrefix(version, "v") { version } else { "v" + version } }
+
+// cloned tries the package's source repository; false lets the caller fall
+// back to the tarball.
+func cloned(info Option[RepoInfo], dest string, version string) bool needs exec.Runner {
+	match info {
+	case None:
+		false
+	case Some[RepoInfo] as i:
+		gitexec.Clone(CloneURL(i.Value), dest, 100, Some[string]{Value: gitRef(version)}) catch {
+		case gitexec.Failed:
+			return false
+		}
+		true
+	}
+}
+
+func extract(t Transport, url string, dest string, registry string) fails Failed needs http.Network | exec.Runner | fs.Files | go.Foreign {
+	let response = try get(t, url, []http.Field{})
+	if response.Status != 200 { return registryError(registry, "download-tarball", "HTTP \(response.Status)") }
+	let result = exec.Runner.Run(exec.New("tar", []string{"-xzf", "-", "-C", dest, "--strip-components=1"}).WithStdin(response.Body)) catch {
+	case _:
+		return registryError(registry, "extract-tarball", "tar could not start")
+	}
+	if result.Status != 0 {
+		cachefile.Remove(dest) catch {
+		case cachefile.RemoveFailed:
+		}
+		return registryError(registry, "extract-tarball", "tar exited with code \(result.Status)")
+	}
+}
+
+func repository(v json.Value) Option[RepoInfo] fails jsview.Invalid {
+	match try jsview.Member(v, "repository") {
+	case None:
+		None
+	case Some[json.Value] as r:
+		match r.Value {
+		case json.Str as s:
+			Info(s.Value)
+		case json.Object:
+			let _ = try jsview.OptionalText(r.Value, "type")
+			match try jsview.OptionalText(r.Value, "url") {
+			case None:
+				None
+			case Some[string] as u:
+				Info(u.Value)
+			}
+		case _:
+			jsview.Invalid
+		}
+	}
+}
+
+func tarballs(v json.Value) Map[string, string] fails jsview.Invalid {
+	let versions = try jsview.Required(v, "versions")
+	let mut out = Map[string, string]{}
+	for key in try jsview.Keys(versions) {
+		let entry = try jsview.Required(versions, key)
+		out[key] = try jsview.Text(try jsview.Required(try jsview.Required(entry, "dist"), "tarball"))
+	}
+	out
+}
+
+func stringRecord(v json.Value, key string) Map[string, string] fails jsview.Invalid {
+	let object = try jsview.Required(v, key)
+	let mut out = Map[string, string]{}
+	for k in try jsview.Keys(object) { out[k] = try jsview.Text(try jsview.Required(object, k)) }
+	out
+}
+
+func npm(t Transport, spec repo.Spec, dest string) fails Failed needs http.Network | exec.Runner | fs.Files | go.Foreign {
+	let version = match spec.Version {
+	case None:
+		"latest"
+	case Some[string] as v:
+		v.Value
+	}
+	let doc = try metadata(t, "npm", "https://registry.npmjs.org/"+spec.Name, []http.Field{})
+	let versions = tarballs(doc) catch {
+	case jsview.Invalid:
+		return shapeError("npm")
+	}
+	let tags = stringRecord(doc, "dist-tags") catch {
+	case jsview.Invalid:
+		return shapeError("npm")
+	}
+	let info = repository(doc) catch {
+	case jsview.Invalid:
+		return shapeError("npm")
+	}
+	let resolved = if version == "latest" {
+		tags.Get("latest")
+	} else if versions.Get(version) != None {
+		Some[string]{Value: version}
+	} else {
+		tags.Get(version)
+	}
+	let chosen = match resolved {
+	case None:
+		return registryError("npm", "resolve-version", "Version "+version+" not found")
+	case Some[string] as r:
+		r.Value
+	}
+	let tarball = match versions.Get(chosen) {
+	case None:
+		return registryError("npm", "resolve-version", "Version "+version+" not found")
+	case Some[string] as u:
+		u.Value
+	}
+	if cloned(info, dest, chosen) { return }
+	try extract(t, tarball, dest, "npm")
+}
+
+func pypi(t Transport, spec repo.Spec, dest string) fails Failed needs http.Network | exec.Runner | fs.Files | go.Foreign {
+	let url = match spec.Version {
+	case None:
+		"https://pypi.org/pypi/" + spec.Name + "/json"
+	case Some[string] as v:
+		"https://pypi.org/pypi/" + spec.Name + "/" + v.Value + "/json"
+	}
+	let doc = try metadata(t, "pypi", url, []http.Field{})
+	let shape = pypiShape(doc) catch {
+	case jsview.Invalid:
+		return shapeError("pypi")
+	}
+	if cloned(shape.Info, dest, shape.Version) { return }
+	match shape.Sdist {
+	case None:
+		registryError("pypi", "get-download-url", "No source distribution (sdist) found — only wheels available")
+	case Some[string] as u:
+		try extract(t, u.Value, dest, "pypi")
+	}
+}
+
+type PypiShape { Info Option[RepoInfo], Version string, Sdist Option[string] }
+
+func pypiShape(doc json.Value) PypiShape fails jsview.Invalid {
+	let mut sdist Option[string] = None
+	for u in try jsview.Items(try jsview.Required(doc, "urls")) {
+		let kind = try jsview.Text(try jsview.Required(u, "packagetype"))
+		let link = try jsview.Text(try jsview.Required(u, "url"))
+		if kind == "sdist" && sdist == None { sdist = Some[string]{Value: link} }
+	}
+	let info = try jsview.Required(doc, "info")
+	let version = try jsview.Text(try jsview.Required(info, "version"))
+	let home = try jsview.OptionalText(info, "home_page")
+	let project = match try jsview.Member(info, "project_urls") {
+	case None:
+		Map[string, string]{}
+	case Some[json.Value]:
+		try stringRecord(info, "project_urls")
+	}
+	let mut candidates = []Option[string]{}
+	for key in []string{"Source", "Source Code", "GitHub", "GitLab", "Repository", "Code"} { candidates = candidates.Append(project.Get(key)) }
+	candidates = candidates.Append(home)
+	let mut repoInfo Option[RepoInfo] = None
+	for c in candidates {
+		if repoInfo == None {
+			match c {
+			case Some[string] as u:
+				repoInfo = Info(u.Value)
+			case None:
+			}
+		}
+	}
+	PypiShape{Info: repoInfo, Version: version, Sdist: sdist}
+}
+
+type CrateShape { Repository Option[string], Homepage Option[string], Versions []CrateVersion }
+type CrateVersion { Num string, Path string }
+
+func crateShape(doc json.Value) CrateShape fails jsview.Invalid {
+	let crate = try jsview.Required(doc, "crate")
+	let mut versions = []CrateVersion{}
+	for v in try jsview.Items(try jsview.Required(doc, "versions")) {
+		versions = versions.Append(CrateVersion{Num: try jsview.Text(try jsview.Required(v, "num")), Path: try jsview.Text(try jsview.Required(v, "dl_path"))})
+	}
+	CrateShape{Repository: try jsview.OptionalText(crate, "repository"), Homepage: try jsview.OptionalText(crate, "homepage"), Versions: versions}
+}
+
+func crates(t Transport, spec repo.Spec, dest string) fails Failed needs http.Network | exec.Runner | fs.Files | go.Foreign {
+	let doc = try metadata(t, "crates", "https://crates.io/api/v1/crates/"+spec.Name, []http.Field{http.Field{Name: "User-Agent", Value: "repo-cli/1.0.0"}})
+	let shape = crateShape(doc) catch {
+	case jsview.Invalid:
+		return shapeError("crates")
+	}
+	let mut chosen Option[CrateVersion] = None
+	match spec.Version {
+	case None:
+		if len(shape.Versions) > 0 { chosen = Some[CrateVersion]{Value: shape.Versions[0]} }
+	case Some[string] as want:
+		for v in shape.Versions { if chosen == None && v.Num == want.Value { chosen = Some[CrateVersion]{Value: v} } }
+	}
+	let version = match chosen {
+	case None:
+		let asked = match spec.Version {
+		case None:
+			"latest"
+		case Some[string] as v:
+			v.Value
+		}
+		return registryError("crates", "resolve-version", "Version "+asked+" not found")
+	case Some[CrateVersion] as v:
+		v.Value
+	}
+	let mut info Option[RepoInfo] = None
+	match shape.Repository {
+	case Some[string] as u:
+		info = Info(u.Value)
+	case None:
+	}
+	if info == None {
+		match shape.Homepage {
+		case Some[string] as u:
+			info = Info(u.Value)
+		case None:
+		}
+	}
+	if cloned(info, dest, version.Num) { return }
+	try extract(t, "https://crates.io"+version.Path, dest, "crates")
+}
+
+// Fetch puts the source of spec at dest: a shallow clone of its
+// repository at the version's tag, else the registry's tarball.
+func Fetch(t Transport, spec repo.Spec, dest string) fails Failed needs http.Network | exec.Runner | fs.Files | fs.Writes | go.Foreign {
+	cachefile.Ensure(dest)
+	match spec.Registry {
+	case repo.GitHub:
+		gitexec.Clone("https://github.com/"+spec.Name+".git", dest, 100, spec.Version) catch {
+		case gitexec.Failed as e:
+			return registryError("github", "clone", e.Message)
+		}
+	case repo.Npm:
+		try npm(t, spec, dest)
+	case repo.Pypi:
+		try pypi(t, spec, dest)
+	case repo.Crates:
+		try crates(t, spec, dest)
+	}
+}

@@ -1,0 +1,73 @@
+import io
+import os
+import strings
+
+type InvalidInput { Message string }
+type NotFound { Message string }
+type InvalidEnvProvider {}
+type Command = SetKey{Provider string, Key Option[string], Stdin bool} | ListKeys{} | GetKey{Provider string} | RemoveKey{Provider string}
+func EnvVar(provider string) string { if provider == "openai" { "OPENAI_API_KEY" } else { "OKRA_KEY_" + strings.ToUpper(provider) } }
+func Run(command Command) fails InvalidInput | NotFound | StoreFailed | InvalidEnvProvider needs Store | os.Process | io.Stdin | io.Stdout | io.Stderr {
+	match command {
+	case SetKey as c:
+		let raw = if c.Stdin {
+			io.Stdin.ReadAll() catch {
+			case _:
+				return InvalidInput{Message: "Failed to read stdin"}
+			}
+		} else {
+			match c.Key {
+			case Some[string] as k:
+				k.Value
+			case None:
+				return InvalidInput{Message: "No key provided. Pass it as an argument or pipe it with --stdin."}
+			}
+		}
+		let secret = Trim(raw)
+		if secret == "" { return InvalidInput{Message: "Key is empty"} }
+		let current = try Store.Load()
+		let file = try Store.Save(Set(current, c.Provider, secret))
+		io.Stderr.Eprintln("Saved \"" + c.Provider + "\" key to " + file)
+	case ListKeys:
+		let names = Names(try Store.Load())
+		if len(names) == 0 {
+			io.Stderr.Eprintln("No keys stored. Add one with `okra keys set <provider> <key>`.")
+			return
+		}
+		io.Stdout.Println(strings.Join(names, "\n"))
+	case GetKey as c:
+		// The reference's provider/env table inherits Object.prototype. Preserve
+		// its stable failure bytes, not its unchecked dynamic Config call.
+		if prototypeName(c.Provider) { return InvalidEnvProvider }
+		let env = EnvVar(c.Provider)
+		match os.Process.Getenv(env) {
+		case Some[string] as value:
+			if value.Value != "" {
+				io.Stdout.Println(Mask(value.Value) + " (env " + env + ")")
+				return
+			}
+		case None:
+		}
+		match Lookup(try Store.Load(), c.Provider) {
+		case Some[string] as value:
+			if value.Value != "" {
+				io.Stdout.Println(Mask(value.Value) + " (stored)")
+				return
+			}
+		case None:
+		}
+		return NotFound{Message: "No key for \"" + c.Provider + "\". Set " + env + " or run `okra keys set " + c.Provider + "`."}
+	case RemoveKey as c:
+		let current = try Store.Load()
+		if Lookup(current, c.Provider) == None && !prototypeName(c.Provider) { return NotFound{Message: "No stored key for \"" + c.Provider + "\"."} }
+		let _ = try Store.Save(Remove(current, c.Provider))
+		io.Stderr.Eprintln("Removed \"" + c.Provider + "\" key.")
+	}
+}
+
+func prototypeName(name string) bool {
+	for reserved in []string{"constructor", "toString", "toLocaleString", "valueOf", "hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable", "__defineGetter__", "__defineSetter__", "__lookupGetter__", "__lookupSetter__", "__proto__"} {
+		if name == reserved { return true }
+	}
+	false
+}

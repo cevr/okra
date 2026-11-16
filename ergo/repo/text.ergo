@@ -1,0 +1,171 @@
+import strconv
+import strings
+import time
+import utf8
+
+// The CLI's text keeps JavaScript's rules where its output depends on them:
+// trim's white space, UTF-16 lengths for padding, toFixed(1) rounding and
+// the root collation order of localeCompare for ASCII names.
+
+func jsSpace(c rune) bool {
+	c == 0x9 || c == 0xa || c == 0xb || c == 0xc || c == 0xd || c == 0x20 || c == 0xa0 || c == 0x1680 || (c >= 0x2000 && c <= 0x200a) || c == 0x2028 || c == 0x2029 || c == 0x202f || c == 0x205f || c == 0x3000 || c == 0xfeff
+}
+
+// Trim is String.prototype.trim.
+func Trim(s string) string {
+	let mut start = -1
+	let mut end = 0
+	for i, c in s {
+		if !jsSpace(c) {
+			if start < 0 { start = i }
+			end = i + utf8.DecodeRuneInString(s[i:]).Size
+		}
+	}
+	if start < 0 { "" } else { s[start:end] }
+}
+
+// TrimStart is String.prototype.trimStart.
+func TrimStart(s string) string {
+	for i, c in s { if !jsSpace(c) { return s[i:] } }
+	""
+}
+
+// Lower is toLowerCase for the names a cache holds. Declared difference:
+// JavaScript's context rules (final sigma, U+0130) are not reproduced.
+func Lower(s string) string { strings.ToLower(s) }
+
+// Width is the string's length in UTF-16 code units, as padEnd counts.
+func Width(s string) int {
+	let mut n = 0
+	for c in s { n = n + if c > 65535 { 2 } else { 1 } }
+	n
+}
+
+func PadEnd(s string, width int) string {
+	let w = Width(s)
+	if w >= width { s } else { s + strings.Repeat(" ", width-w) }
+}
+
+func PadStart(s string, width int) string {
+	let w = Width(s)
+	if w >= width { s } else { strings.Repeat(" ", width-w) + s }
+}
+
+// tenths is bytes/unit to one decimal, rounding a tie up, as toFixed(1)
+// does for these exact quotients.
+func tenths(bytes int, unit int) string {
+	let t = (bytes*20 + unit) / (unit * 2)
+	strconv.Itoa(t/10) + "." + strconv.Itoa(t%10)
+}
+
+func FormatBytes(bytes int) string {
+	if bytes < 1024 { return strconv.Itoa(bytes) + " B" }
+	if bytes < 1048576 { return tenths(bytes, 1024) + " KB" }
+	if bytes < 1073741824 { return tenths(bytes, 1048576) + " MB" }
+	tenths(bytes, 1073741824) + " GB"
+}
+
+// Iso is Date.prototype.toISOString: UTC with milliseconds.
+func Iso(t time.Time) string { t.Format(time.Custom{Text: "2006-01-02T15:04:05.000Z"}) }
+
+// Millis is Date.parse for the ISO form the cache writes; None stands for NaN.
+func Millis(text string) Option[int64] {
+	let t = time.Parse(time.RFC3339Nano, text) catch {
+	case time.ParseError:
+		return None
+	}
+	Some[int64]{Value: t.UnixSeconds()*1000 + t.Nanosecond()/1000000}
+}
+
+func NowMillis(t time.Time) int64 { t.UnixSeconds()*1000 + t.Nanosecond()/1000000 }
+
+func floorDiv(a int64, b int64) int64 {
+	let q = a / b
+	if (a%b != 0) && ((a < 0) != (b < 0)) { q - 1 } else { q }
+}
+
+// Relative is the list's age column. An unreadable date is NaN, which
+// JavaScript prints as "NaN years ago".
+func Relative(at string, now int64) string {
+	let days = match Millis(at) {
+	case None:
+		return "NaN years ago"
+	case Some[int64] as ms:
+		floorDiv(now-ms.Value, 86400000)
+	}
+	if days == 0 { return "today" }
+	if days == 1 { return "yesterday" }
+	if days < 7 { return "\(days) days ago" }
+	if days < 30 { return "\(floorDiv(days, 7)) weeks ago" }
+	if days < 365 { return "\(floorDiv(days, 30)) months ago" }
+	"\(floorDiv(days, 365)) years ago"
+}
+
+// SortLike is Array.prototype.sort as the reference's engine runs a short
+// array: a binary insertion sort that puts x before y only when
+// compare(x, y) < 0. None is a NaN comparison, which is never < 0, so an
+// unreadable date lands where the engine puts it; equal elements keep
+// their order. Measured against Bun on lists with NaN dates. Declared
+// difference: NaN comparisons in a list long enough for the engine to
+// switch algorithms.
+func SortLike[T](xs []T, compare func(a T, b T) Option[int64]) []T {
+	let mut out = []T{}
+	for x in xs {
+		let mut lo = 0
+		let mut hi = len(out)
+		for lo < hi {
+			let mid = (lo + hi) / 2
+			let before = match compare(x, out[mid]) {
+			case None:
+				false
+			case Some[int64] as c:
+				c.Value < 0
+			}
+			if before { hi = mid } else { lo = mid + 1 }
+		}
+		let mut next = []T{}
+		for i, y in out {
+			if i == lo { next = next.Append(x) }
+			next = next.Append(y)
+		}
+		if lo == len(out) { next = next.Append(x) }
+		out = next
+	}
+	out
+}
+
+// order is the root collation's primary order of printable ASCII, letters
+// folded (measured from Bun's localeCompare).
+let order = " _-,;:!?.'\"()[]{}@*/\\&#%`^+<=>|~$0123456789abcdefghijklmnopqrstuvwxyz"
+
+func primary(c rune) int {
+	let folded = if c >= 'A' && c <= 'Z' { c + 32 } else { c }
+	if folded < 128 {
+		let i = strings.Index(order, utf8.RuneText(folded))
+		if i >= 0 { return i }
+	}
+	1000 + int(c)
+}
+
+// Collate is localeCompare's sign for names: primary weights first, then
+// lower case before upper case. Declared difference: outside printable
+// ASCII the order is the code point's.
+func Collate(a string, b string) int {
+	let mut x = []rune{}
+	for c in a { x = x.Append(c) }
+	let mut y = []rune{}
+	for c in b { y = y.Append(c) }
+	let n = if len(x) < len(y) { len(x) } else { len(y) }
+	for i in 0..n {
+		let p = primary(x[i])
+		let q = primary(y[i])
+		if p != q { return if p < q { -1 } else { 1 } }
+	}
+	if len(x) != len(y) { return if len(x) < len(y) { -1 } else { 1 } }
+	for i in 0..n {
+		let upperX = x[i] >= 'A' && x[i] <= 'Z'
+		let upperY = y[i] >= 'A' && y[i] <= 'Z'
+		if upperX != upperY { return if upperX { 1 } else { -1 } }
+	}
+	0
+}

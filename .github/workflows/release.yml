@@ -1,5 +1,10 @@
 name: Release
 
+# The package ships native binaries made by the Ergo compiler at the pin in
+# ergo-toolchain.json (repository and commit). Each runner builds its own OS's
+# two binaries and smokes the package on its own platform; the release job
+# joins the four into npm/ and lets changesets open the version PR or publish.
+
 on:
   push:
     branches:
@@ -8,8 +13,69 @@ on:
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platforms: linux/amd64,linux/arm64
+          - os: macos-latest
+            platforms: darwin/arm64,darwin/amd64
+    runs-on: ${{ matrix.os }}
+    env:
+      GOFLAGS: -buildvcs=false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the Ergo pin
+        id: pin
+        run: |
+          echo "commit=$(jq -r .ergo ergo-toolchain.json)" >> "$GITHUB_OUTPUT"
+          echo "repository=$(jq -r .repository ergo-toolchain.json | sed 's#^https://github.com/##')" >> "$GITHUB_OUTPUT"
+          echo "go=$(jq -r .go ergo-toolchain.json | sed 's/^go//')" >> "$GITHUB_OUTPUT"
+
+      - name: Check out Ergo at the pin
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.pin.outputs.repository }}
+          ref: ${{ steps.pin.outputs.commit }}
+          path: .ergo-src
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.pin.outputs.go }}
+          cache: false
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Build the Ergo compiler
+        working-directory: .ergo-src
+        run: go build -o "$RUNNER_TEMP/ergo" ./cmd/ergo
+
+      - run: bun install
+
+      - name: Build the native binaries
+        env:
+          ERGO: ${{ runner.temp }}/ergo
+        run: bun scripts/release.ts --platform=${{ matrix.platforms }}
+
+      # The smoke compares two fixed cases with the recorded TypeScript output.
+      - name: Smoke the package on this runner
+        run: bun scripts/smoke.ts --scratch="$RUNNER_TEMP/smoke"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-${{ matrix.os }}
+          path: npm/
+          if-no-files-found: error
+
   release:
     name: Release
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -26,6 +92,18 @@ jobs:
         run: sudo npm install -g npm@latest
 
       - run: bun install
+
+      - name: Join the native binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: npm-*
+          path: npm
+          merge-multiple: true
+
+      # Artifacts drop the execute bit; release.ts --check (prepack) requires it.
+      - run: chmod 755 npm/*/okra
+
+      - run: bun scripts/release.ts --check
 
       - name: Create Release Pull Request or Publish
         uses: changesets/action@v2

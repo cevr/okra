@@ -1,0 +1,49 @@
+#!/bin/sh
+# okra launcher: exec the native Ergo binary for this platform. Every command
+# runs in Ergo. POSIX sh, so a call costs no Node or Bun start. Never rewrites
+# argv. There is no other implementation: the TypeScript CLI and its
+# OKRA_IMPL switch were removed (owner, 2026-11-15).
+
+# Resolve this file through symlinks (bun and npm link bin/okra into PATH,
+# and ~/.bun/bin/okra is a link). `readlink` without -f exists on Linux
+# and every macOS.
+self=$0
+while [ -L "$self" ]; do
+  link=$(readlink -- "$self") || exit 1
+  case $link in
+    /*) self=$link ;;
+    *) self=$(dirname -- "$self")/$link ;;
+  esac
+done
+bindir=$(CDPATH= cd -- "$(dirname -- "$self")" && pwd -P) || exit 1
+
+fail() {
+  printf 'okra: %s\n' "$1" >&2
+  exit 1
+}
+
+# A source checkout: `bun run build` builds this host's binary here. The
+# package never ships it.
+if [ -e "$bindir/okra-ergo" ]; then
+  exec "$bindir/okra-ergo" "$@"
+fi
+
+# The package: npm/<os>-<arch>/okra, names as Node's process.platform/arch.
+system=$(uname -s)
+machine=$(uname -m)
+case $system in
+  Linux) os=linux ;;
+  Darwin) os=darwin ;;
+  *) os= ;;
+esac
+case $machine in
+  x86_64 | amd64) arch=x64 ;;
+  arm64 | aarch64) arch=arm64 ;;
+  *) arch= ;;
+esac
+if [ -z "$os" ] || [ -z "$arch" ]; then
+  fail "no native binary for $system $machine; the platforms are darwin-arm64, darwin-x64, linux-arm64 and linux-x64"
+fi
+exe=$(dirname -- "$bindir")/npm/$os-$arch/okra
+[ -e "$exe" ] || fail "$exe is missing; reinstall the package, or run bun scripts/release.ts in a source checkout"
+exec "$exe" "$@"

@@ -1,0 +1,153 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # A pull request that changes the package must carry a changeset, or merging
+  # it publishes nothing. The version PR consumes changesets, so it is skipped.
+  changeset:
+    name: Changeset
+    if: github.event_name == 'pull_request' && github.head_ref != 'changeset-release/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install
+
+      - name: Changeset status
+        run: bunx changeset status --since=origin/main
+
+  # The parity harness and the build and release scripts.
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Format
+        run: bun run fmt:check
+
+  # The published CLI is the Ergo build. This job builds the compiler at the pin
+  # in ergo-toolchain.json, checks and tests every Ergo package, builds the
+  # program and its offline parity entry, and runs each subcommand's parity
+  # suite: against offline fakes (registries, GitHub, model APIs, agents,
+  # launchctl), its bytes, exits and files must equal the TypeScript CLI's,
+  # recorded once in parity/frozen before that source was removed.
+  # No case reaches a real service or spends money.
+  parity:
+    name: Ergo build and parity
+    runs-on: ubuntu-latest
+    env:
+      GOFLAGS: -buildvcs=false
+    steps:
+      - name: Scratch and compiler paths
+        run: |
+          echo "OKRA_PARITY_SCRATCH=$RUNNER_TEMP/parity" >> "$GITHUB_ENV"
+          echo "ERGO=$RUNNER_TEMP/ergo" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v4
+
+      - name: Read the Ergo pin
+        id: pin
+        run: |
+          echo "commit=$(jq -r .ergo ergo-toolchain.json)" >> "$GITHUB_OUTPUT"
+          echo "repository=$(jq -r .repository ergo-toolchain.json | sed 's#^https://github.com/##')" >> "$GITHUB_OUTPUT"
+          echo "go=$(jq -r .go ergo-toolchain.json | sed 's/^go//')" >> "$GITHUB_OUTPUT"
+
+      - name: Check out Ergo at the pin
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.pin.outputs.repository }}
+          ref: ${{ steps.pin.outputs.commit }}
+          path: .ergo-src
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.pin.outputs.go }}
+          cache: false
+
+      # The harness and the zone-name table use Bun (ICU zone data).
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Build the Ergo compiler
+        working-directory: .ergo-src
+        run: go build -o "$ERGO" ./cmd/ergo
+
+      - run: bun install
+
+      - name: Build the program and its offline parity entry
+        run: bun scripts/build.ts
+
+      - name: Format, check and test the Ergo packages
+        run: |
+          for file in $(git ls-files 'ergo/*.ergo'); do "$ERGO" fmt --check "$file" > /dev/null; done
+          for pkg in $(cd ergo && ls -d */ | tr -d /); do
+            [ "$pkg" = cmd ] && continue
+            "$ERGO" test "ergo/$pkg" --seed 42
+          done
+          for entry in $(ls ergo/cmd); do "$ERGO" check "ergo/cmd/$entry" > /dev/null; done
+
+      - name: Launcher
+        run: bun parity/launcher.ts --mutants
+
+      - name: keys and how
+        run: |
+          bun parity/run.ts
+
+      - name: repo
+        run: |
+          bun parity/repo.ts --seed=42
+
+      - name: skills
+        run: |
+          bun parity/skills.ts --seed=42
+
+      - name: image
+        run: |
+          bun parity/image.ts --seed=42
+
+      - name: counsel
+        run: |
+          bun parity/counsel.ts --seed=42
+          bun parity/counsel-stream.ts
+
+      - name: schedule
+        run: |
+          bun parity/schedule.ts --seed=42
+          bun parity/until.ts --seed=42
+          bun parity/schedule-stream.ts
+
+      - name: Zone names are current
+        run: |
+          bun scripts/zone-names.ts
+          git diff --exit-code -- ergo/localzone/names.ergo parity/icu-zone-ids.txt
+
+      # The owner's Mac is not on UTC: rerun the until property with a host zone.
+      - name: schedule --until on a non-UTC host
+        run: |
+          sudo ln -sf /usr/share/zoneinfo/America/Toronto /etc/localtime
+          env -u TZ bun parity/until.ts --seed=42

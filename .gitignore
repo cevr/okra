@@ -1,10 +1,17 @@
 node_modules/
-bin/
+bin/*
+!bin/okra
+ergo/how/topics.ergo
+ergo/cli/version.ergo
 dist/
+# Native binaries scripts/release.ts builds for the package.
+npm/
 .xp/
 *.log
 *.tsbuildinfo
 .DS_Store
+# Round requests live in the orchestration run dir, never in this repo.
+parity/requests/
 .env
 .env.*
 !.env.example

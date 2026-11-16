@@ -1,0 +1,358 @@
+import strings
+import utf8
+
+// Field is a cron field: every value ("*"), or one number. The number is
+// parseInt's, so a field with no digits holds NaN until the task check.
+type Field = Any{} | At{N float64}
+
+// Weekday is the day-of-week field: a number, or text ("*" or a range of
+// two digits as "1-5").
+type Weekday = Day{N float64} | Days{Text string}
+
+// Schedule is when a task runs: a repeating calendar rule, or one time.
+// Raw is the text it was parsed from, trimmed.
+type Schedule = Cron{Minute Field, Hour Field, DayOfMonth Field, Month Field, DayOfWeek Weekday, Raw string} | Oneshot{At string, Raw string}
+
+let minuteMs = 60000.0
+let hourMs = 3600000.0
+let dayMs = 86400000.0
+
+// matcher reads text from a position; a position of -1 is no match.
+func lowerASCII(c byte) byte { if c >= 'A' && c <= 'Z' { c + 32 } else { c } }
+
+// word matches w (lower-case ASCII) at at, ignoring ASCII case.
+func word(s string, at int, w string) int {
+	if at < 0 || at+len(w) > len(s) { return -1 }
+	for i in 0..len(w) { if lowerASCII(s[at+i]) != w[i] { return -1 } }
+	at + len(w)
+}
+
+// spaces matches a run of JavaScript white space, of at least min.
+func spaces(s string, at int, min int) int {
+	if at < 0 { return -1 }
+	let mut n = 0
+	let mut i = at
+	for c in s[at:] {
+		if !jsSpace(c) { break }
+		i = i + utf8.RuneLen(c)
+		n = n + 1
+	}
+	if n < min { -1 } else { i }
+}
+
+func digitRun(s string, at int) int {
+	if at < 0 { return 0 }
+	let mut n = 0
+	for at+n < len(s) && s[at+n] >= '0' && s[at+n] <= '9' { n = n + 1 }
+	n
+}
+
+// Clock is a time of day as the patterns read it.
+type Clock { Hour float64, Minute float64 }
+
+// clock matches `(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$` at at.
+func clock(s string, at int) Option[Clock] {
+	if at < 0 { return None }
+	let h = digitRun(s, at)
+	if h < 1 || h > 2 { return None }
+	let mut hour = ParseInt(s[at : at+h])
+	let mut minute = 0.0
+	let mut i = at + h
+	if i < len(s) && s[i] == ':' {
+		let m = digitRun(s, i+1)
+		if m != 2 { return None }
+		minute = ParseInt(s[i+1 : i+3])
+		i = i + 3
+	}
+	i = spaces(s, i, 0)
+	let am = word(s, i, "am")
+	let pm = word(s, i, "pm")
+	if am == len(s) {
+		if hour == 12 { hour = 0 }
+	} else if pm == len(s) {
+		if hour != 12 { hour = hour + 12 }
+	} else if i != len(s) {
+		return None
+	}
+	Some[Clock]{Value: Clock{Hour: hour, Minute: minute}}
+}
+
+// lead matches the words of a pattern's head, each after white space.
+func lead(s string, words []string) int {
+	let mut at = 0
+	for i, w in words {
+		if i > 0 { at = spaces(s, at, 1) }
+		at = word(s, at, w)
+	}
+	if len(words) > 0 { spaces(s, at, 1) } else { at }
+}
+
+let dayNames = []string{"sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"}
+
+func cron(raw string, c Clock, day Weekday) Schedule {
+	Cron{Minute: At{N: c.Minute}, Hour: At{N: c.Hour}, DayOfMonth: Any, Month: Any, DayOfWeek: day, Raw: raw}
+}
+
+func parseIn(s string, now int64) Option[Schedule] {
+	let at = lead(s, []string{"in"})
+	if at < 0 { return None }
+	let n = digitRun(s, at)
+	if n == 0 { return None }
+	let amount = ParseInt(s[at : at+n])
+	let rest = spaces(s, at+n, 1)
+	if rest < 0 { return None }
+	let mut unit = 0.0
+	if word(s, rest, "minute") == len(s) || word(s, rest, "minutes") == len(s) { unit = minuteMs }
+	if word(s, rest, "hour") == len(s) || word(s, rest, "hours") == len(s) { unit = hourMs }
+	if word(s, rest, "day") == len(s) || word(s, rest, "days") == len(s) { unit = dayMs }
+	if unit == 0.0 { return None }
+	Some[Schedule]{Value: Oneshot{At: IsoOf(float64(now) + amount*unit), Raw: s}}
+}
+
+// IsoOf is DateTime.formatIso of a number of milliseconds. A time outside
+// JavaScript's range is not reached by the reference's parser either.
+func IsoOf(ms float64) string { Iso(int64(ms)) }
+
+func parseEvery(s string) Option[Schedule] {
+	let daily = lead(s, []string{"every", "day", "at"})
+	match clock(s, daily) {
+	case Some[Clock] as c:
+		return Some[Schedule]{Value: cron(s, c.Value, Days{Text: "*"})}
+	case None:
+	}
+	let weekdays = lead(s, []string{"every", "weekday", "at"})
+	match clock(s, weekdays) {
+	case Some[Clock] as c:
+		return Some[Schedule]{Value: cron(s, c.Value, Days{Text: "1-5"})}
+	case None:
+	}
+	for i, name in dayNames {
+		match clock(s, lead(s, []string{"every", name, "at"})) {
+		case Some[Clock] as c:
+			return Some[Schedule]{Value: cron(s, c.Value, Day{N: float64(i)})}
+		case None:
+		}
+	}
+	None
+}
+
+func parseTomorrow(s string, now int64) Option[Schedule] {
+	match clock(s, lead(s, []string{"tomorrow", "at"})) {
+	case None:
+		None
+	case Some[Clock] as c:
+		let d = CivilOf(now + 86400000)
+		let days = daysFromCivil(d.Year, d.Month, d.Day)
+		let ms = float64(days)*dayMs + c.Value.Hour*hourMs + c.Value.Minute*minuteMs
+		Some[Schedule]{Value: Oneshot{At: IsoOf(ms), Raw: s}}
+	}
+}
+
+// fields splits text at runs of white space (the cron pattern's \S+).
+func fields(s string) []string {
+	let mut out = []string{}
+	let mut current = ""
+	for c in s {
+		if jsSpace(c) {
+			if current != "" { out = out.Append(current) }
+			current = ""
+		} else {
+			current = current + utf8.RuneText(c)
+		}
+	}
+	if current != "" { out = out.Append(current) }
+	out
+}
+
+func field(text string) Field { if text == "*" { Any } else { At{N: ParseInt(text)} } }
+
+func weekday(text string) Option[Weekday] {
+	if text == "*" { return Some[Weekday]{Value: Days{Text: "*"}} }
+	if digitRun(text, 0) == len(text) && text != "" {
+		let n = ParseInt(text)
+		if n < 0 || n > 6 { return None }
+		return Some[Weekday]{Value: Day{N: n}}
+	}
+	if len(text) == 3 && digitRun(text, 0) == 1 && text[1] == '-' && digitRun(text, 2) == 1 {
+		let start = ParseInt(text[0:1])
+		let end = ParseInt(text[2:3])
+		if start <= 6 && end <= 6 && start < end { return Some[Weekday]{Value: Days{Text: text}} }
+	}
+	None
+}
+
+func parseCron(s string) Option[Schedule] {
+	let f = fields(s)
+	if len(f) != 5 || s != Trim(s) { return None }
+	match weekday(f[4]) {
+	case None:
+		None
+	case Some[Weekday] as d:
+		Some[Schedule]{Value: Cron{Minute: field(f[0]), Hour: field(f[1]), DayOfMonth: field(f[2]), Month: field(f[3]), DayOfWeek: d.Value, Raw: s}}
+	}
+}
+
+// Parse reads a schedule as the reference does, in its order of forms:
+// "in N minutes|hours|days", "every day at T", "every weekday at T",
+// "every <day name> at T", "tomorrow at T", then five cron fields. now is
+// the time in milliseconds a relative form counts from.
+func Parse(input string, now int64) Option[Schedule] {
+	let s = Trim(input)
+	match parseIn(s, now) {
+	case Some[Schedule] as r:
+		return r
+	case None:
+	}
+	match parseEvery(s) {
+	case Some[Schedule] as r:
+		return r
+	case None:
+	}
+	match parseTomorrow(s, now) {
+	case Some[Schedule] as r:
+		return r
+	case None:
+	}
+	parseCron(s)
+}
+
+func fieldText(f Field) string {
+	match f {
+	case Any:
+		"*"
+	case At as a:
+		Text(a.N)
+	}
+}
+
+func timeOfDay(hour Field, minute Field) string {
+	match hour {
+	case Any:
+		"every hour"
+	case At as h:
+		let m = match minute {
+		case Any:
+			"0"
+		case At as a:
+			Text(a.N)
+		}
+		PadZero(Text(h.N), 2) + ":" + PadZero(m, 2)
+	}
+}
+
+let shortDays = []string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}
+
+// Describe is the schedule as the list and the create report print it.
+func Describe(s Schedule) string {
+	match s {
+	case Oneshot as o:
+		let at = match Millis(o.At, utcZone) {
+		case None:
+			o.At
+		case Some[int64] as ms:
+			Iso(ms.Value)
+		}
+		"once at " + at
+	case Cron as c:
+		let t = timeOfDay(c.Hour, c.Minute)
+		match c.DayOfWeek {
+		case Days as d:
+			if d.Text == "1-5" { "weekdays at " + t } else if d.Text == "*" { "daily at " + t } else { "cron: " + c.Raw }
+		case Day as d:
+			let name = match Index(d.N, 7) {
+			case None:
+				"undefined"
+			case Some[int] as i:
+				shortDays[i.Value]
+			}
+			"every " + name + " at " + t
+		}
+	}
+}
+
+func utcZone(_ int64) int { 0 }
+
+// Entry is one StartCalendarInterval dictionary: keys in order.
+type Entry { Keys []string, Values []float64 }
+
+func put(e Entry, key string, f Field) Entry {
+	match f {
+	case Any:
+		e
+	case At as a:
+		Entry{Keys: e.Keys.Append(key), Values: e.Values.Append(a.N)}
+	}
+}
+
+func rest(e Entry, c Cron) Entry { put(put(put(put(e, "Minute", c.Minute), "Hour", c.Hour), "Day", c.DayOfMonth), "Month", c.Month) }
+
+// Intervals is the launchd calendar of a schedule (toCalendarIntervals).
+func Intervals(s Schedule) []Entry {
+	match s {
+	case Oneshot as o:
+		let c = CivilOf(match Millis(o.At, utcZone) {
+		case None:
+			0
+		case Some[int64] as ms:
+			ms.Value
+		})
+		[]Entry{Entry{Keys: []string{"Month", "Day", "Hour", "Minute"}, Values: []float64{float64(c.Month), float64(c.Day), float64(c.Hour), float64(c.Minute)}}}
+	case Cron as c:
+		match c.DayOfWeek {
+		case Days as d:
+			if strings.Contains(d.Text, "-") {
+				let parts = strings.Split(d.Text, "-")
+				let start = Number(parts[0])
+				let end = if len(parts) > 1 { Number(parts[1]) } else { 0.0 }
+				let mut out = []Entry{}
+				let mut day = start
+				for day <= end {
+					out = out.Append(rest(Entry{Keys: []string{"Weekday"}, Values: []float64{day}}, c))
+					day = day + 1
+				}
+				return out
+			}
+			[]Entry{rest(Entry{Keys: []string{}, Values: []float64{}}, c)}
+		case Day as d:
+			[]Entry{rest(Entry{Keys: []string{"Weekday"}, Values: []float64{d.N}}, c)}
+		}
+	}
+}
+
+// Valid is whether every number of a schedule is finite (Schema.Finite).
+func Valid(s Schedule) bool {
+	match s {
+	case Oneshot:
+		true
+	case Cron as c:
+		let mut ok = true
+		for f in []Field{c.Minute, c.Hour, c.DayOfMonth, c.Month} {
+			match f {
+			case Any:
+			case At as a:
+				if !Finite(a.N) { ok = false }
+			}
+		}
+		match c.DayOfWeek {
+		case Days:
+		case Day as d:
+			if !Finite(d.N) { ok = false }
+		}
+		ok
+	}
+}
+
+// ParseKeepsRaw: a parsed schedule keeps the trimmed text.
+law ParseKeepsRaw(text string, now int32) {
+	match Parse(text, int64(now)) {
+	case None:
+		true
+	case Some[Schedule] as s:
+		match s.Value {
+		case Cron as c:
+			c.Raw == Trim(text)
+		case Oneshot as o:
+			o.Raw == Trim(text)
+		}
+	}
+}

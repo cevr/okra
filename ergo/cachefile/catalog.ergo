@@ -1,0 +1,42 @@
+import filepath
+import fs
+import okraport/repo
+
+// Store keeps the repo index in metadata.json of the cache folder.
+type Store { files fs.Files, writes fs.Writes, dir string }
+
+func New(files fs.Files, writes fs.Writes, dir string) Store { Store{files: files, writes: writes, dir: dir} }
+
+// Dir is the cache folder under home, as the reference joins it: an unset
+// HOME is the literal "~".
+func Dir(home Option[string]) string {
+	let base = match home {
+	case None:
+		"~"
+	case Some[string] as h:
+		h.Value
+	}
+	filepath.Join([]string{base, ".cache", "repo"})
+}
+
+func Load(s Store) repo.Index {
+	let text = s.files.ReadFile(filepath.Join([]string{s.dir, "metadata.json"})) catch {
+	case _:
+		return repo.EmptyIndex()
+	}
+	repo.Decode(text)
+}
+
+func Save(s Store, i repo.Index) fails repo.SaveFailed {
+	s.writes.MkdirAll(s.dir) catch {
+	case _:
+	}
+	s.writes.WriteFile(filepath.Join([]string{s.dir, "metadata.json"}), repo.Encode(i)) catch {
+	case fs.NotFound as e:
+		return repo.SaveFailed{Reason: "no such file or directory: " + e.Path}
+	case fs.Denied as e:
+		return repo.SaveFailed{Reason: "permission denied: " + e.Path}
+	case fs.Failed as e:
+		return repo.SaveFailed{Reason: e.Reason}
+	}
+}

@@ -1,0 +1,10 @@
+import okraport/keys
+import sync
+
+type Vault { keys sync.Ref[keys.Keys] }
+func NewVault(k keys.Keys) Vault                    { Vault{keys: sync.NewRef(k)} }
+func Load(v Vault) keys.Keys fails keys.StoreFailed { v.keys.Get() }
+func Save(v Vault, k keys.Keys) string fails keys.StoreFailed {
+	v.keys.Set(k)
+	"memory"
+}

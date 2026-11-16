@@ -1,0 +1,369 @@
+import exec
+import http
+import okraport/skills
+import strings
+import sync
+import tasks
+
+// Finding skills in a repo and fetching one skill folder, as the reference
+// does: a recursive tree first, folder listings when the tree is
+// truncated, and links followed inside the repo only.
+
+let prefixes = []string{"skills", "skill"}
+let defaultRef = "main"
+
+// Found is a skill folder of a repo.
+type Found { DirName string, SkillMd string, SkillDir string }
+
+func segments(p string) []string { strings.Split(p, "/") }
+
+func contains(xs []string, x string) bool {
+	for y in xs { if y == x { return true } }
+	false
+}
+
+func entryRank(e Found) int {
+	let s = segments(e.SkillDir)
+	let first = s[0]
+	let second = if len(s) > 1 { s[1] } else { "" }
+	if first == "skills" || first == "skill" { return 0 }
+	if first == ".agents" && (second == "skills" || second == "skill") { return 1 }
+	2
+}
+
+func prefixRank(e Found) int {
+	let s = segments(e.SkillDir)
+	for i, p in prefixes { if contains(s, p) { return i } }
+	len(prefixes)
+}
+
+func preferred(candidate Found, current Found) bool {
+	let p = prefixRank(candidate) - prefixRank(current)
+	if p != 0 { return p < 0 }
+	let r = entryRank(candidate) - entryRank(current)
+	if r != 0 { return r < 0 }
+	let d = len(segments(candidate.SkillDir)) - len(segments(current.SkillDir))
+	if d != 0 { return d < 0 }
+	skills.Before(candidate.SkillDir, current.SkillDir)
+}
+
+func usesLink(e Found, links []string) bool {
+	let parts = segments(e.SkillMd)
+	for i in 0..len(parts) { if contains(links, strings.Join(parts[:i+1], "/")) { return true } }
+	false
+}
+
+// dedupe keeps one folder per name: a folder reached without a link, then
+// the preferred one. Names keep their first position.
+func dedupe(entries []Found, links []string) []Found {
+	let mut order = []string{}
+	let mut chosen = Map[string, Found]{}
+	for e in entries {
+		match chosen.Get(e.DirName) {
+		case None:
+			order = order.Append(e.DirName)
+			chosen[e.DirName] = e
+		case Some[Found] as c:
+			let cur = c.Value
+			if (usesLink(cur, links) && !usesLink(e, links)) || (usesLink(cur, links) == usesLink(e, links) && preferred(e, cur)) { chosen[e.DirName] = e }
+		}
+	}
+	let mut out = []Found{}
+	for n in order {
+		match chosen.Get(n) {
+		case Some[Found] as f:
+			out = out.Append(f.Value)
+		case None:
+		}
+	}
+	out
+}
+
+func lastSegment(p string) string {
+	let s = segments(p)
+	s[len(s)-1]
+}
+
+// FromTree is the reference's discoverFromTree.
+func FromTree(tree []TreeEntry) []Found {
+	let mut links = []string{}
+	for e in tree { if e.Mode == "120000" { links = links.Append(e.Path) } }
+	let mut candidates = []Found{}
+	for e in tree {
+		if e.Kind == "blob" && strings.HasSuffix(e.Path, "/SKILL.md") {
+			let dir = e.Path[:len(e.Path)-len("/SKILL.md")]
+			candidates = candidates.Append(Found{DirName: lastSegment(dir), SkillMd: e.Path, SkillDir: dir})
+		}
+	}
+	let entries = dedupe(candidates, links)
+	if len(entries) == 0 {
+		for e in tree { if e.Kind == "blob" && e.Path == "SKILL.md" { return []Found{Found{DirName: "", SkillMd: "SKILL.md", SkillDir: ""}} } }
+		return []Found{}
+	}
+	for p in prefixes {
+		let mut names = []string{}
+		for c in candidates { if contains(segments(c.SkillDir), p) { names = names.Append(c.DirName) } }
+		if len(names) > 0 {
+			let mut out = []Found{}
+			for e in entries { if contains(names, e.DirName) { out = out.Append(e) } }
+			return out
+		}
+	}
+	entries
+}
+
+func listOrEmpty(h Hub, owner string, repo string, path string, ref Option[string]) []Content needs http.Network | exec.Runner | Scheduler {
+	ListContents(h, owner, repo, path, ref) catch {
+	case skills.Failed:
+		[]Content{}
+	}
+}
+
+func hasSkillMd(children []Content) bool {
+	for c in children { if c.Name == "SKILL.md" { return true } }
+	false
+}
+
+func inPrefix(h Hub, owner string, repo string, prefixPath string, ref Option[string]) []Found needs http.Network | exec.Runner | Scheduler {
+	let mut out = []Found{}
+	for d in listOrEmpty(h, owner, repo, prefixPath, ref) {
+		if d.Kind != "dir" { continue }
+		if hasSkillMd(listOrEmpty(h, owner, repo, d.Path, ref)) { out = out.Append(Found{DirName: d.Name, SkillMd: d.Path + "/SKILL.md", SkillDir: d.Path}) }
+	}
+	out
+}
+
+type Listed { Dir Content, Children []Content }
+
+// fromListing is the reference's discoverFromListing.
+func fromListing(h Hub, owner string, repo string, ref Option[string]) []Found needs http.Network | exec.Runner | Scheduler {
+	for p in prefixes {
+		let found = inPrefix(h, owner, repo, p, ref)
+		if len(found) > 0 { return found }
+	}
+	let root = listOrEmpty(h, owner, repo, "", ref)
+	let mut direct = []Listed{}
+	for d in root { if d.Kind == "dir" { direct = direct.Append(Listed{Dir: d, Children: listOrEmpty(h, owner, repo, d.Path, ref)}) } }
+	if len(direct) > 0 {
+		let mut found = []Found{}
+		for l in direct { if hasSkillMd(l.Children) { found = found.Append(Found{DirName: l.Dir.Name, SkillMd: l.Dir.Path + "/SKILL.md", SkillDir: l.Dir.Path}) } }
+		if len(found) > 0 { return found }
+		let mut queue = []Listed{}
+		for l in direct { queue = queue.Append(l) }
+		for depth in 0..2 {
+			let mut next = []Listed{}
+			for item in queue {
+				for p in prefixes {
+					let mut child Option[Content] = None
+					for c in item.Children {
+						if child == None && c.Name == p && c.Kind == "dir" { child = Some[Content]{Value: c} }
+					}
+					match child {
+					case None:
+					case Some[Content] as c:
+						let hits = inPrefix(h, owner, repo, c.Value.Path, ref)
+						if len(hits) > 0 { return hits }
+					}
+				}
+				if depth < 1 {
+					for c in item.Children {
+						if c.Kind == "dir" && !contains(prefixes, c.Name) { next = next.Append(Listed{Dir: c, Children: listOrEmpty(h, owner, repo, c.Path, ref)}) }
+					}
+				}
+			}
+			queue = next
+		}
+	}
+	for e in root { if e.Name == "SKILL.md" { return []Found{Found{DirName: repo, SkillMd: "SKILL.md", SkillDir: ""}} } }
+	[]Found{}
+}
+
+// Discover is the reference's discoverSkills.
+func Discover(h Hub, owner string, repo string, ref Option[string]) []Found fails skills.Failed needs http.Network | exec.Runner | Scheduler {
+	let resolved = match ref {
+	case None:
+		defaultRef
+	case Some[string] as r:
+		if r.Value == "" { defaultRef } else { r.Value }
+	}
+	let tree = FetchTree(h, owner, repo, resolved, true) catch {
+	case skills.Failed:
+		return fromListing(h, owner, repo, ref)
+	}
+	if tree.Truncated { return fromListing(h, owner, repo, ref) }
+	FromTree(tree.Entries)
+}
+
+// index is what the tree walk has learned: each path's entry, and the
+// listed children of each folder.
+type index { entries Map[string, TreeEntry], children Map[string, []TreeEntry] }
+
+type walker { hub Hub, owner string, repo string, ref string, state sync.Ref[index] }
+
+func parentDir(p string) string {
+	let i = strings.LastIndex(p, "/")
+	if i < 0 { "" } else { p[:i] }
+}
+
+func joinRepo(dir string, p string) string { if dir == "" { p } else { dir + "/" + p } }
+
+func record(w walker, dir string, tree []TreeEntry, recursive bool) {
+	let mut state = w.state.Get()
+	let mut order = []string{dir}
+	let mut listed = Map[string, []TreeEntry]{}
+	listed[dir] = []TreeEntry{}
+	let mut absolute = []TreeEntry{}
+	for e in tree { absolute = absolute.Append(TreeEntry{..e, Path: joinRepo(dir, e.Path)}) }
+	for e in absolute {
+		state.entries[e.Path] = e
+		if recursive && e.Kind == "tree" && listed.Get(e.Path) == None {
+			listed[e.Path] = []TreeEntry{}
+			order = order.Append(e.Path)
+		}
+	}
+	for e in absolute {
+		let parent = parentDir(e.Path)
+		let siblings = match listed.Get(parent) {
+		case None:
+			order = order.Append(parent)
+			[]TreeEntry{}
+		case Some[[]TreeEntry] as s:
+			s.Value
+		}
+		listed[parent] = siblings.Append(e)
+	}
+	for p in order {
+		match listed.Get(p) {
+		case Some[[]TreeEntry] as s:
+			state.children[p] = s.Value
+		case None:
+		}
+	}
+	w.state.Set(state)
+}
+
+func load(w walker, dir string, sha string) fails skills.Failed needs http.Network | exec.Runner | Scheduler {
+	let deep = try FetchTree(w.hub, w.owner, w.repo, sha, true)
+	if !deep.Truncated {
+		record(w, dir, deep.Entries, true)
+		return
+	}
+	let shallow = try FetchTree(w.hub, w.owner, w.repo, sha, false)
+	if shallow.Truncated { return skills.FetchFailed("github:"+w.owner+"/"+w.repo+"/"+dir, "Repository subtree is truncated") }
+	record(w, dir, shallow.Entries, false)
+}
+
+func listDir(w walker, p string) []TreeEntry fails skills.Failed needs http.Network | exec.Runner | Scheduler {
+	match w.state.Get().children.Get(p) {
+	case Some[[]TreeEntry] as known:
+		return known.Value
+	case None:
+	}
+	match try lookup(w, p) {
+	case None:
+		return []TreeEntry{}
+	case Some[TreeEntry] as e:
+		if e.Value.Kind != "tree" { return []TreeEntry{} }
+		try load(w, p, e.Value.Sha)
+	}
+	match w.state.Get().children.Get(p) {
+	case Some[[]TreeEntry] as known:
+		known.Value
+	case None:
+		[]TreeEntry{}
+	}
+}
+
+func lookup(w walker, p string) Option[TreeEntry] fails skills.Failed needs http.Network | exec.Runner | Scheduler {
+	match w.state.Get().entries.Get(p) {
+	case Some[TreeEntry] as known:
+		return Some[TreeEntry]{Value: known.Value}
+	case None:
+	}
+	let parent = parentDir(p)
+	if w.state.Get().children.Get(parent) != None { return None }
+	let _ = try listDir(w, parent)
+	w.state.Get().entries.Get(p)
+}
+
+func absoluteTarget(t string) bool { strings.HasPrefix(t, "/") }
+
+func resolve(w walker, repoPath string, links []string, origin Option[string]) TreeEntry fails skills.Failed needs http.Network | exec.Runner | Scheduler {
+	let parts = strings.Split(repoPath, "/")
+	for i in 1..len(parts)+1 {
+		let prefix = strings.Join(parts[:i], "/")
+		let entry = match try lookup(w, prefix) {
+		case None:
+			continue
+		case Some[TreeEntry] as e:
+			e.Value
+		}
+		if entry.Mode != "120000" { continue }
+		let link = match origin {
+		case None:
+			prefix
+		case Some[string] as o:
+			o.Value
+		}
+		if contains(links, prefix) { return skills.InvalidLink(link, "cycle detected") }
+		let target = strings.ToValidUTF8(try FetchBlob(w.hub, w.owner, w.repo, entry.Sha, prefix), "\uFFFD")
+		let normalized = skills.Normalize(skills.Join([]string{skills.Dirname(prefix), target}))
+		if target == "" || absoluteTarget(target) || normalized == ".." || strings.HasPrefix(normalized, "../") {
+			return skills.InvalidLink(link, "target escapes the repository: "+target)
+		}
+		let mut rest = []string{normalized}
+		for p in parts[i:] { rest = rest.Append(p) }
+		let mut resolved = skills.Join(rest)
+		if resolved == "." { resolved = "" }
+		return try resolve(w, resolved, links.Append(prefix), Some[string]{Value: link})
+	}
+	match try lookup(w, repoPath) {
+	case None:
+		match origin {
+		case Some[string] as o:
+			skills.InvalidLink(o.Value, "target missing from repository tree: "+repoPath)
+		case None:
+			skills.FetchFailed("github:"+w.owner+"/"+w.repo+"/"+repoPath, "Path missing from repository tree")
+		}
+	case Some[TreeEntry] as e:
+		if origin != None && e.Value.Kind == "commit" {
+			let o = match origin {
+			case Some[string] as v:
+				v.Value
+			case None:
+				""
+			}
+			return skills.InvalidLink(o, "target is a submodule, outside this repository tree: "+repoPath)
+		}
+		e.Value
+	}
+}
+
+type planned { Path string, RepoPath string }
+
+func walk(w walker, repoPath string, installPath string, ancestors []string) []planned fails skills.Failed needs http.Network | exec.Runner | Scheduler {
+	let entry = try resolve(w, repoPath, []string{}, None)
+	if entry.Kind == "commit" { return []planned{} }
+	if entry.Kind == "blob" { return []planned{planned{Path: installPath, RepoPath: entry.Path}} }
+	if contains(ancestors, entry.Path) { return skills.InvalidLink(repoPath, "directory cycle detected") }
+	let mut out = []planned{}
+	for child in try listDir(w, entry.Path) {
+		for f in try walk(w, child.Path, skills.Join([]string{installPath, skills.Basename(child.Path)}), ancestors.Append(entry.Path)) { out = out.Append(f) }
+	}
+	out
+}
+
+// FetchSkillDir is every file of the skill folder dirPath at ref, links
+// inside the repo followed, files read five at a time.
+func FetchSkillDir(h Hub, owner string, repo string, dirPath string, ref string) []skills.File fails skills.Failed needs http.Network | exec.Runner | Scheduler {
+	let root = TreeEntry{Path: "", Kind: "tree", Sha: ref, Mode: "040000"}
+	let mut start = index{entries: Map[string, TreeEntry]{}, children: Map[string, []TreeEntry]{}}
+	start.entries[""] = root
+	let w = walker{hub: h, owner: owner, repo: repo, ref: ref, state: sync.NewRef[index](start)}
+	let mut dir = skills.Normalize(dirPath)
+	if dir == "." { dir = "" }
+	let plan = try walk(w, dir, "", []string{})
+	tasks.Transform(plan, 5, func(p planned) skills.File fails skills.Failed needs http.Network | exec.Runner | Scheduler {
+		skills.File{Path: p.Path, Content: try FetchRaw(h, owner, repo, p.RepoPath, ref)}
+	})
+}

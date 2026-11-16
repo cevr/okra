@@ -1,0 +1,169 @@
+import fs
+import http
+import json
+import okraport/image
+import okraport/jsview
+import slices
+import strings
+import time
+import timeout
+
+func listedModels(text string) []string fails jsview.Invalid {
+	let v = try jsview.Parse(text)
+	let mut out = []string{}
+	for item in try jsview.Items(try jsview.Required(v, "models")) {
+		let slug = try jsview.Text(try jsview.Required(item, "slug"))
+		if try jsview.OptionalText(item, "visibility") == (Some[string]{Value: "list"}) { out = out.Append(slug) }
+	}
+	out
+}
+type Ranked { ID string, Date string }
+func rank(v json.Value, available []string) []string fails jsview.Invalid {
+	// Validate every provider/model as the reference's catalog schema does,
+	// even providers which this caller does not select.
+	for provider in try jsview.Keys(v) {
+		let models = try jsview.Required(try jsview.Required(v, provider), "models")
+		for key in try jsview.Keys(models) {
+			let model = try jsview.Required(models, key)
+			for name in []string{"id", "family", "release_date", "status"} { let _ = try jsview.OptionalText(model, name) }
+		}
+	}
+	let provider = try jsview.Member(v, "openai")
+	let mut candidates = []Ranked{}
+	match provider {
+	case None:
+	case Some[json.Value] as p:
+		let models = try jsview.Required(p.Value, "models")
+		for key in try jsview.Keys(models) {
+			let m = try jsview.Required(models, key)
+			let id = match try jsview.OptionalText(m, "id") {
+			case None:
+				key
+			case Some[string] as s:
+				s.Value
+			}
+			if try jsview.OptionalText(m, "family") != (Some[string]{Value: "gpt-sol"}) { continue }
+			if !strings.HasPrefix(id, "gpt-") || !strings.HasSuffix(id, "-sol") { continue }
+			let parts = strings.Split(id[4:len(id)-4], ".")
+			if len(parts) > 2 { continue }
+			let mut valid = true
+			for part in parts {
+				if part == "" { valid = false }
+				for c in part { if c < '0' || c > '9' { valid = false } }
+			}
+			if !valid { continue }
+			let mut listed = false
+			for a in available { if a == id { listed = true } }
+			let status = try jsview.OptionalText(m, "status")
+			if !listed || status == (Some[string]{Value: "deprecated"}) { continue }
+			match try jsview.OptionalText(m, "release_date") {
+			case None:
+			case Some[string] as d:
+				candidates = candidates.Append(Ranked{ID: id, Date: d.Value})
+			}
+		}
+	}
+	let sorted = slices.SortFunc(candidates, func(a Ranked, b Ranked) int {
+		if a.Date != b.Date { strings.Compare(b.Date, a.Date) } else { strings.Compare(b.ID, a.ID) }
+	})
+	let mut out = []string{}
+	for c in sorted {
+		if c.ID == image.FallbackModel { break }
+		out = out.Append(c.ID)
+	}
+	out.Append(image.FallbackModel)
+}
+func getCatalog(url string) Option[json.Value] needs http.Network {
+	let r = http.Fetch(http.URLRequest{URL: url, Method: "GET", Header: []http.Field{http.Field{Name: "User-Agent", Value: "@cvr/okra"}}, Credentials: []http.Credential{}, Body: ""}) catch {
+	case _:
+		return None
+	}
+	if r.Status < 200 || r.Status >= 300 { return None }
+	let v = jsview.Parse(r.Body) catch {
+	case _:
+		return None
+	}
+	let _ = rank(v, []string{}) catch {
+	case _:
+		return None
+	}
+	Some[json.Value]{Value: v}
+}
+type Cached { Time int, Catalog json.Value }
+func cached(text string) Cached fails jsview.Invalid {
+	let v = try jsview.Parse(text)
+	if try jsview.Integer(try jsview.Required(v, "format")) != 1 { return jsview.Invalid }
+	let catalog = try jsview.Required(v, "catalog")
+	let _ = try rank(catalog, []string{})
+	Cached{Time: try jsview.Integer(try jsview.Required(v, "fetchedAt")), Catalog: catalog}
+}
+func saveCache(home string, now int, catalog json.Value) needs fs.Writes {
+	fs.Writes.MkdirAll(home + "/.okra") catch {
+	case _:
+		return
+	}
+	let text = encoded(object([]json.Member{json.Member{Key: "format", Value: json.IntNumber(1)}, json.Member{Key: "fetchedAt", Value: json.IntNumber(int64(now))}, json.Member{Key: "catalog", Value: catalog}})) + "\n"
+	fs.Writes.WriteFile(home+"/.okra/models.json", text) catch {
+	case _:
+	}
+}
+func Models(home string, setup Setup) []string needs fs.Files | fs.Writes | http.Network | time.Clock | Scheduler {
+	let fallback = []string{image.FallbackModel}
+	let available = match maybeRead(home + "/.codex/models_cache.json") {
+	case None:
+		return fallback
+	case Some[string] as s:
+		listedModels(s.Value) catch {
+		case _:
+			return fallback
+		}
+	}
+	let path = home + "/.okra/models.json"
+	let prior = match maybeRead(path) {
+	case None:
+		None
+	case Some[string] as s:
+		let c = cached(s.Value) catch {
+		case _:
+			return fetchModels(home, setup, available, None)
+		}
+		Some[Cached]{Value: c}
+	}
+	let now = int(time.UnixSeconds(time.Clock.Now())) * 1000
+	match prior {
+	case None:
+	case Some[Cached] as c:
+		if now-c.Value.Time < 86400000 {
+			return rank(c.Value.Catalog, available) catch {
+			case _:
+				fallback
+			}
+		}
+	}
+	fetchModels(home, setup, available, prior)
+}
+func fetchModels(home string, setup Setup, available []string, prior Option[Cached]) []string needs fs.Writes | http.Network | time.Clock | Scheduler {
+	let fetched = timeout.After(5s) { getCatalog(setup.Catalog) } catch {
+	case timeout.Expired:
+		None
+	}
+	match fetched {
+	case Some[json.Value] as v:
+		let now = time.Clock.Now()
+		saveCache(home, int(time.UnixSeconds(now))*1000+int(time.Nanosecond(now))/1000000, v.Value)
+		rank(v.Value, available) catch {
+		case _:
+			[]string{image.FallbackModel}
+		}
+	case None:
+		match prior {
+		case None:
+			[]string{image.FallbackModel}
+		case Some[Cached] as c:
+			rank(c.Value.Catalog, available) catch {
+			case _:
+				[]string{image.FallbackModel}
+			}
+		}
+	}
+}
