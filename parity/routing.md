@@ -79,7 +79,7 @@ packed tarball and runs it.
   terminal, the reference draws its prompt on stdout and ends as an interrupt
   (status 130); the port writes nothing and fails with status 1 and the line
   `[NOT_INTERACTIVE] choosing skills needs a terminal on standard input; name
-one skill (owner/repo@skill)`. `parity/skills.ts` checks that shape on every
+  one skill (owner/repo@skill)`. `parity/skills.ts` checks that shape on every
   case where the reference ends with 130. The prompt frames are std prompt's,
   not effect/cli's.
 - A network failure prints `HttpClientError: Transport error (GET <url>)` for
@@ -147,7 +147,7 @@ argv and folder, and each launchctl call compare byte for byte, except:
   (`america/new_york`); and ICU's 27 aliases that the carried data lacks
   read as the carried zone ICU maps them to, with the same instants:
   `ACT AET AGT ART AST BET BST CAT CNT CST CTT EAT ECT IET IST JST MIT NET
-NST PLT PNT PRT PST SST VST` (as written only: `pst` is not a zone) and
+  NST PLT PNT PRT PST SST VST` (as written only: `pst` is not a zone) and
   `US/Pacific-New`, `Canada/East-Saskatchewan` (in any case). ICU's id check
   applies to the whole TZ: letters, then at most two digits at the end, or
   exactly `EST5EDT`, `CST6CDT`, `MST7MDT` or `PST8PDT`.
