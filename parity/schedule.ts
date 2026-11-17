@@ -21,6 +21,9 @@ const arg = (name: string) =>
   process.argv.find((s) => s.startsWith(`--${name}=`))?.slice(name.length + 3);
 const seed = Number(arg("seed") ?? 42);
 const binary = arg("binary") ?? join(root, "bin/okra-ergo-parity");
+// The reference printed the version it was recorded at; the build prints package.json's.
+const version = (await Bun.file(join(root, "package.json")).json()).version as string;
+const currentVersion = (s: string) => s.replaceAll(/^okra v\d+\.\d+\.\d+$/gm, `okra v${version}`);
 // The port's parity entry needs a loopback origin; schedule makes no request.
 const peer = Bun.serve({
   hostname: "127.0.0.1",
@@ -898,6 +901,7 @@ try {
     await chmod(base, 0o755);
     const dir = join(base, "case");
     const want = records.get<Result>(c.name);
+    for (const s of want.steps) s.out = currentVersion(s.out);
     if (process.argv.includes("--dump"))
       console.log(JSON.stringify({ case: c.name, want }, null, 1));
     const got = await execute(binary, c, dir);
